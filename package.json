@@ -25,7 +25,8 @@
     "nouvelle-version": "node scripts/nouvelle-version.ts",
     "ios:init": "node scripts/ios.ts init",
     "ios:dev": "node scripts/ios.ts dev",
-    "ios:construire": "node scripts/ios.ts construire"
+    "ios:construire": "node scripts/ios.ts construire",
+    "livrer": "node scripts/livrer.ts"
   },
   "devDependencies": {
     "fake-indexeddb": "6.2.5",

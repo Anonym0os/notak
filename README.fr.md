@@ -22,6 +22,10 @@ est libre et s'installe d'un seul fichier `docker compose` (voir [Héberger](#h�
 
 ### Installer l'app de bureau
 
+Sur l'iPhone, l'iPad et le Mac à puce Apple, Notak arrive par TestFlight pendant la bêta, et se met à jour à chaque
+nouvelle version : voir [notak.app/telecharger](https://notak.app/telecharger) (et, pour qui le livre,
+[`docs/LIVRER.md`](docs/LIVRER.md)). Pour Windows, Linux ou un Mac Intel :
+
 Elle se télécharge sur la [page des versions](https://github.com/Anonym0os/notak/releases/latest), sous *Assets* :
 
 | Système | Le fichier | Au premier lancement |

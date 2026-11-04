@@ -64,6 +64,8 @@ impl MisesAJour {
 pub enum Etat {
     /// Cette app ne se met pas à jour seule : construite à la main.
     Indisponible { version: String },
+    /// Installée par TestFlight ou le Mac App Store : c'est lui qui la met à jour (`crate::en_boutique`).
+    Boutique { version: String },
     /// `verifie` : quand GitHub l'a dit, en millisecondes depuis 1970.
     AJour { version: String, verifie: u64 },
     Prete { version: String, nouvelle: String, notes: Option<String>, date: Option<String> },
@@ -141,6 +143,9 @@ pub async fn preparer_mise_a_jour(
 ) -> Result<Etat, EchecMaj> {
     exiger(&webview, &garde, LOCALE_OU_SERVEUR).map_err(|_| EchecMaj::Interdit)?;
     let version = app.package_info().version.to_string();
+    if crate::en_boutique() {
+        return Ok(Etat::Boutique { version });
+    }
     if !etat.active {
         return Ok(Etat::Indisponible { version });
     }

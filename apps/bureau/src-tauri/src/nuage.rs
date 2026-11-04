@@ -200,11 +200,24 @@ fn telecharger(_app: &AppHandle, chemin: PathBuf) {
 /// Le dossier iCloud de Notak sur cet appareil, créé s'il le faut ; `Eteint` si iCloud Drive est coupé.
 #[cfg(target_os = "macos")]
 fn trouver(_app: &AppHandle) -> Result<Option<PathBuf>, Ouverture> {
+    // Cloisonné (TestFlight, Mac App Store), `HOME` est le conteneur de l'app et le reflet d'iCloud est hors d'atteinte :
+    // le système le donne, et en ouvre l'accès, à qui porte le droit `ubiquity-container-identifiers`
+    // (`Notak.boutique.entitlements`). `None` : iCloud Drive est coupé, ou la session n'a pas de compte iCloud.
+    if crate::en_boutique() {
+        return conteneur_icloud().map(|c| Some(c.join("Documents"))).ok_or(Ouverture::Eteint);
+    }
     let documents = std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Library/Mobile Documents")).ok_or(Ouverture::Eteint)?;
     if !documents.join("com~apple~CloudDocs").is_dir() {
         return Err(Ouverture::Eteint);
     }
     Ok(Some(documents.join(CONTENEUR).join("Documents")))
+}
+/// Le dossier du conteneur iCloud de Notak, par `NSFileManager` (le premier de ses droits). Peut attendre le réseau la
+/// première fois : jamais sur le fil principal (les commandes `nuage_*` tournent à côté).
+#[cfg(target_os = "macos")]
+fn conteneur_icloud() -> Option<PathBuf> {
+    let url = objc2_foundation::NSFileManager::defaultManager().URLForUbiquityContainerIdentifier(None)?;
+    Some(PathBuf::from(url.path()?.to_string()))
 }
 #[cfg(target_os = "ios")]
 fn trouver(app: &AppHandle) -> Result<Option<PathBuf>, Ouverture> {

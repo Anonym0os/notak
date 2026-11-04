@@ -1,0 +1,78 @@
+# Livrer Notak sur TestFlight (iPhone, iPad, Mac) à chaque fusion sur main, une fois la CI passée : docs/LIVRER.md.
+#
+# Ça tourne sur le Mac de Samy, par un runner auto-hébergé (étiquette `notak`) : Xcode, le trousseau (certificats
+# « Apple Distribution » et « Mac Installer Distribution ») et la clé App Store Connect y sont déjà, et rien ne se paie
+# à la minute, même en dépôt privé. Le travail est celui de `bun run livrer` à la main, sous un numéro de build tiré de
+# l'heure.
+#
+# Pourquoi c'est sûr : seul `workflow_run` (après la CI d'un push sur main) et le bouton lancent ce workflow, et
+# `workflow_run` ne lit que le fichier de main. Aucune pull request, aucune branche d'un fork n'exécute de code sur ce Mac.
+name: Livrer sur TestFlight
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      plateformes:
+        description: Quoi livrer
+        type: choice
+        options: [tout, ios, mac]
+        default: tout
+
+permissions:
+  contents: read
+
+# Plusieurs sessions fusionnent sur main d'affilée : seul le dernier main se livre, le reste est annulé.
+concurrency:
+  group: livrer
+  cancel-in-progress: true
+
+jobs:
+  testflight:
+    name: TestFlight
+    # Une CI rouge ne livre rien ; un push venu d'ailleurs que main non plus (workflow_run filtre déjà, on double).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: [self-hosted, macOS, notak]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # Le commit que la CI a validé, pas celui de main au moment où ce workflow part.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+          # Le dossier `target` de Rust reste d'une livraison à l'autre : quelques minutes au lieu d'une demi-heure.
+          clean: false
+      - name: Les outils du Mac
+        run: |
+          echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
+      - run: bun install --frozen-lockfile
+      - name: Ce qu'il faut, ici et chez Apple
+        run: node scripts/livrer.ts verifier
+      - name: Construire et envoyer
+        id: livrer
+        run: |
+          numero=$(date -u +%Y%m%d%H%M)
+          echo "numero=$numero" >> "$GITHUB_OUTPUT"
+          node scripts/livrer.ts "${{ inputs.plateformes || 'tout' }}" --numero "$numero"
+      - name: Le résumé
+        if: always()
+        run: |
+          version=$(node -p "require('./apps/bureau/src-tauri/tauri.conf.json').version")
+          {
+            echo "### Notak $version, build ${{ steps.livrer.outputs.numero }}"
+            echo
+            echo "- Commit : \`${{ github.event.workflow_run.head_sha || github.sha }}\`"
+            echo "- Plateformes : ${{ inputs.plateformes || 'tout' }}"
+            echo "- Résultat : ${{ steps.livrer.outcome }}"
+            echo
+            echo "Le build paraît dans TestFlight quelques minutes après l'envoi, le temps qu'Apple le traite :"
+            echo "[App Store Connect → TestFlight](https://appstoreconnect.apple.com/apps)."
+          } >> "$GITHUB_STEP_SUMMARY"

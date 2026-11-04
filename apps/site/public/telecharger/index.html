@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Télécharger · Notak</title>
+    <meta name="description" content="Notak sur le web, l'iPhone, l'iPad et le Mac : où l'ouvrir, et comment il se met à jour." />
+    <meta name="theme-color" content="#f4f5f7" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <style>
+      @font-face { font-family: "Inter"; src: url("/fonts/inter.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+      :root { --fond: #f4f5f7; --encre: #16181b; --doux: #5d6670; --trait: #e1e4e8; --carte: #fff; --bleu: #3a76df; }
+      @media (prefers-color-scheme: dark) { :root { --fond: #1b1e23; --encre: #e3e5e9; --doux: #a7adb6; --trait: #2f343b; --carte: #23272e; --bleu: #5b8ff9; } }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; }
+      body { background: var(--fond); color: var(--encre); font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.55; }
+      header, footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px max(16px, env(safe-area-inset-left)) 18px max(16px, env(safe-area-inset-right)); }
+      @media (min-width: 720px) { header, footer { padding-inline: 32px; } }
+      .marque { font-weight: 800; font-size: 17px; letter-spacing: -0.04em; color: inherit; text-decoration: none; }
+      nav a { margin-left: 14px; color: var(--doux); text-decoration: none; font-size: 14px; }
+      nav a:hover, main a:hover { color: var(--encre); }
+      main { max-width: 68ch; margin: 0 auto; padding: 8px 16px 48px; }
+      article + article { margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--trait); }
+      h1 { margin: 16px 0 6px; font-size: clamp(28px, 5vw, 40px); font-weight: 800; letter-spacing: -0.04em; line-height: 1.05; }
+      h2 { margin: 28px 0 8px; font-size: 19px; letter-spacing: -0.02em; }
+      p, li { font-size: 16px; }
+      .date { color: var(--doux); font-size: 14px; }
+      main a { color: var(--bleu); text-decoration: none; }
+      table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 15px; }
+      th, td { padding: 8px 10px; border-bottom: 1px solid var(--trait); text-align: left; vertical-align: top; }
+      th { color: var(--doux); font-weight: 600; }
+      code { font: 14px ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: var(--carte); padding: 1px 5px; border-radius: 5px; }
+      .plateformes td:first-child { font-weight: 600; white-space: nowrap; }
+      footer { color: var(--doux); font-size: 13px; }
+      footer a { color: inherit; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a class="marque" href="/">Notak</a>
+      <nav><a href="/a-propos">À propos</a><a href="/telecharger">Télécharger</a><a href="/aide">Aide</a><a href="/confidentialite">Confidentialité</a><a href="https://github.com/Anonym0os/notak">Code</a></nav>
+    </header>
+    <main>
+      <article lang="fr">
+        <p class="date"><a href="#en">In English</a></p>
+        <h1>Télécharger</h1>
+        <p>Une seule app, partout. Chacune se met à jour d'elle-même : vous n'avez rien à refaire.</p>
+        <table class="plateformes">
+          <tr><th>Où</th><th>Comment l'avoir</th><th>Mises à jour</th></tr>
+          <tr><td>Navigateur</td><td><a href="/">Ouvrir Notak</a>, sans rien installer. Dans Chrome ou Edge, « Installer l'application » en fait une fenêtre à part.</td><td>À la page suivante ; une page ouverte propose de recharger.</td></tr>
+          <tr><td>iPhone et iPad</td><td>Par TestFlight, l'app d'Apple pour les versions d'essai, sur invitation pendant la bêta.</td><td>TestFlight les pose seul, si « Mises à jour automatiques » est coché.</td></tr>
+          <tr><td>Mac</td><td>Par TestFlight aussi, la même invitation (Mac à puce Apple).</td><td>Comme sur l'iPhone.</td></tr>
+        </table>
+
+        <h2>Rejoindre la bêta</h2>
+        <ol>
+          <li>Installez <strong>TestFlight</strong> depuis l'App Store, sur chaque appareil.</li>
+          <li>Ouvrez l'invitation reçue (un courriel d'Apple, ou un lien), puis « Accepter » et « Installer ».</li>
+          <li>Dans TestFlight, sur la page de Notak, laissez « Mises à jour automatiques » coché.</li>
+        </ol>
+        <p>Vos toiles restent sur l'appareil, ou dans le dossier Notak de votre iCloud Drive : elles se retrouvent sur l'iPhone, l'iPad et le Mac du même compte. <a href="/aide">Les questions qu'on se pose en arrivant.</a></p>
+      </article>
+
+      <article lang="en" id="en">
+        <h1>Download</h1>
+        <p>One app, everywhere. Each keeps itself up to date: there is nothing to redo.</p>
+        <table class="plateformes">
+          <tr><th>Where</th><th>How to get it</th><th>Updates</th></tr>
+          <tr><td>Browser</td><td><a href="/">Open Notak</a>, nothing to install. In Chrome or Edge, “Install app” gives it a window of its own.</td><td>On the next page load; an open page offers to reload.</td></tr>
+          <tr><td>iPhone and iPad</td><td>Through TestFlight, Apple's app for test versions, by invitation during the beta.</td><td>TestFlight installs them, when “Automatic Updates” is on.</td></tr>
+          <tr><td>Mac</td><td>Through TestFlight too, with the same invitation (Apple silicon Macs).</td><td>As on iPhone.</td></tr>
+        </table>
+
+        <h2>Joining the beta</h2>
+        <ol>
+          <li>Install <strong>TestFlight</strong> from the App Store, on each device.</li>
+          <li>Open the invitation (an email from Apple, or a link), then “Accept” and “Install”.</li>
+          <li>In TestFlight, on Notak's page, keep “Automatic Updates” on.</li>
+        </ol>
+        <p>Your boards stay on the device, or in the Notak folder of your iCloud Drive: they show up on the iPhone, iPad and Mac of the same account. <a href="/aide">First questions.</a></p>
+      </article>
+    </main>
+    <footer>
+      <span>AGPL-3.0 · logiciel libre</span>
+      <a href="https://github.com/Anonym0os/notak">github.com/Anonym0os/notak</a>
+    </footer>
+  </body>
+</html>

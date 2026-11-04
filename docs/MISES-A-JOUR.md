@@ -2,6 +2,10 @@
 
 > Décidé le 25/10/2026 : l'app de bureau embarque l'édition locale (rien ne passe par un serveur à nous) et se met à
 > jour d'elle-même, de versions signées. La version web suit la même règle : la nouvelle version arrive seule.
+>
+> Depuis le 04/11/2026, l'iPhone, l'iPad et le Mac reçoivent Notak par TestFlight, à chaque fusion sur main :
+> [`LIVRER.md`](LIVRER.md). Ce qui suit vaut pour l'app de bureau hors App Store (Windows, Linux, un `.dmg`), qui n'a
+> pas encore été publiée, et pour l'image du serveur.
 
 ## Ce que voit la personne
 

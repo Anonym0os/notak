@@ -22,6 +22,10 @@ and installs with one `docker compose` file (see [Self-host](#self-host)).
 
 ### Install the desktop app
 
+On iPhone, iPad and Apple silicon Macs, Notak comes through TestFlight during the beta, and updates itself with every
+new version: see [notak.app/telecharger](https://notak.app/telecharger) (and, for whoever ships it,
+[`docs/LIVRER.md`](docs/LIVRER.md)). For Windows, Linux or an Intel Mac:
+
 Download it from the [releases page](https://github.com/Anonym0os/notak/releases/latest), under *Assets*:
 
 | System | The file | On first launch |

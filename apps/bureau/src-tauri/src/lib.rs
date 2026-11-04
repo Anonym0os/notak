@@ -145,7 +145,14 @@ async fn ecrire_fichier(webview: Webview, garde: State<'_, Origines>, requete: R
     let mut provisoire = chemin.clone().into_os_string();
     provisoire.push(format!(".{}-{}.notak-tmp", std::process::id(), SUIVANT.fetch_add(1, Ordering::Relaxed)));
     let provisoire = PathBuf::from(provisoire);
-    std::fs::write(&provisoire, &octets).and_then(|_| std::fs::rename(&provisoire, &chemin)).map_err(|e| {
+    // Cloisonné, Notak n'a droit qu'au fichier choisi dans « Enregistrer sous », pas à son dossier : pas de voisin
+    // possible, il l'écrit en place.
+    let ecrit = if en_boutique() {
+        std::fs::write(&chemin, &octets)
+    } else {
+        std::fs::write(&provisoire, &octets).and_then(|_| std::fs::rename(&provisoire, &chemin))
+    };
+    ecrit.map_err(|e| {
         let _ = std::fs::remove_file(&provisoire);
         e.to_string()
     })?;
@@ -259,6 +266,13 @@ fn ouvrir_fenetre(app: &AppHandle, origines: Origines) -> tauri::Result<()> {
     Ok(())
 }
 
+/// Notak tourne cloisonné (App Sandbox) : installé par TestFlight ou le Mac App Store, qui le met à jour lui-même
+/// (`docs/LIVRER.md`). Le système pose `APP_SANDBOX_CONTAINER_ID` dans l'environnement de toute app cloisonnée, et
+/// d'elles seules ; sur iOS, c'est l'App Store de toute façon.
+pub(crate) fn en_boutique() -> bool {
+    cfg!(target_os = "macos") && std::env::var_os("APP_SANDBOX_CONTAINER_ID").is_some()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Le moteur cryptographique des clients HTTP (`acces.rs`, les mises à jour), avant qu'aucun ne se construise.
@@ -286,7 +300,8 @@ pub fn run() {
     // sur un iPhone ou un iPad, les mises à jour viennent de l'App Store.
     #[cfg(desktop)]
     {
-        let mises_a_jour = contexte.config().plugins.0.contains_key("updater");
+        // Installé par TestFlight ou le Mac App Store, Notak ne se remplace jamais lui-même : c'est la règle d'Apple.
+        let mises_a_jour = contexte.config().plugins.0.contains_key("updater") && !en_boutique();
         if mises_a_jour {
             constructeur = constructeur.plugin(tauri_plugin_updater::Builder::new().build());
         }

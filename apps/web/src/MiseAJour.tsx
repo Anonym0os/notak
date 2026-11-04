@@ -22,6 +22,7 @@ import { type BlocNotes, lireNotes } from './serveur/miseAJourServeur'
 /** Ce que la coque répond (`mise_a_jour::Etat`) ; `verifie` : quand GitHub a dit « rien de neuf ». */
 export type ReponseCoque =
   | { etat: 'indisponible'; version: string }
+  | { etat: 'boutique'; version: string }
   | { etat: 'a-jour'; version: string; verifie?: number }
   | { etat: 'prete'; version: string; nouvelle: string; notes: string | null; date: string | null }
 
@@ -55,7 +56,8 @@ const commandeInconnue = (e: unknown) => typeof e === 'string' && /\bpreparer_mi
 export interface EtatMiseAJour {
   /** La version qui tourne, une fois connue. */
   version: string | null
-  phase: 'inconnue' | 'cherche' | 'indisponible' | 'a-jour' | 'prete' | 'pose' | 'erreur'
+  /** `boutique` : installée par TestFlight ou le Mac App Store, qui la met à jour (la coque est cloisonnée). */
+  phase: 'inconnue' | 'cherche' | 'indisponible' | 'boutique' | 'a-jour' | 'prete' | 'pose' | 'erreur'
   nouvelle?: string
   notes?: string | null
   /** Quand GitHub a répondu pour la dernière fois. */
@@ -142,7 +144,7 @@ export function apresReponse(r: ReponseCoque, maintenant: number): Partial<EtatM
  * s'il vient de répondre, et une erreur se dit, au lieu de se taire jusqu'au prochain essai.
  */
 export async function chercherMiseAJour(parLaPersonne = false): Promise<void> {
-  if (!estBureau() || etat.phase === 'cherche' || etat.phase === 'pose' || etat.phase === 'indisponible') return
+  if (!estBureau() || etat.phase === 'cherche' || etat.phase === 'pose' || etat.phase === 'indisponible' || etat.phase === 'boutique') return
   const avant = etat.phase
   changer({ phase: 'cherche', erreur: undefined })
   try {
@@ -338,7 +340,9 @@ export function SectionMiseAJour() {
             ? t(e.echecInstallation ? 'maj.echecInstallation' : 'maj.echec')
             : e.phase === 'indisponible'
               ? t('maj.indisponible')
-              : ''
+              : e.phase === 'boutique'
+                ? t('maj.boutique')
+                : ''
   return (
     <>
       <h3>{t('maj.titre')}</h3>
@@ -356,7 +360,7 @@ export function SectionMiseAJour() {
       {(e.phase === 'prete' || e.phase === 'pose') &&
         e.nouvelle &&
         (blocs.length ? <NotesDeVersion blocs={blocs} version={e.nouvelle} /> : <LienVersion version={e.nouvelle} texte={t('maj.nouveautes')} />)}
-      {e.phase !== 'indisponible' && (
+      {e.phase !== 'indisponible' && e.phase !== 'boutique' && (
         <>
           <div className="rangement-actions">
             {e.phase === 'prete' || e.phase === 'pose' ? (

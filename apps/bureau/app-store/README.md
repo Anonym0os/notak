@@ -41,4 +41,4 @@ son lecteur, le site d'une image posée par son adresse. Aucune de ces requêtes
 fastlane deliver --metadata_path metadata --screenshots_path screenshots --skip_binary_upload --force
 ```
 
-L'IPA, lui, part de la CI (`publier-bureau.yml`, tâche `ios`) par `xcrun altool --upload-app`.
+L'IPA et le `.pkg` du Mac, eux, partent à chaque fusion sur main (`.github/workflows/livrer.yml`, `bun run livrer`) : voir `docs/LIVRER.md`.

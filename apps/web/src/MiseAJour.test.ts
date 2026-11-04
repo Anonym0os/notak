@@ -95,6 +95,14 @@ describe('les mises à jour de l’app de bureau', () => {
     expect(recherches(invoke)).toBe(1)
   })
 
+  it('une coque installée par TestFlight le dit, et la page ne cherche plus', async () => {
+    const { m, invoke } = await avecCoque(async () => ({ etat: 'boutique', version: '0.1.0' }))
+    await m.chercherMiseAJour()
+    await m.chercherMiseAJour(true)
+    expect(m.lireMiseAJour()).toMatchObject({ phase: 'boutique', version: '0.1.0' })
+    expect(recherches(invoke)).toBe(1)
+  })
+
   it('une installation refusée par l’emplacement de l’app le dit par son code', async () => {
     vi.useFakeTimers()
     vi.spyOn(console, 'warn').mockImplementation(() => {})
