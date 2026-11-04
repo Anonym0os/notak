@@ -61,7 +61,11 @@ Le compte est celui de l'équipe Silak (`2MLG399MFA`).
    Runners → New self-hosted runner*, macOS ARM64). Puis
    `./config.sh --url https://github.com/Anonym0os/notak --labels notak --name mac-samy --token <jeton>`, et
    `./svc.sh install && ./svc.sh start`. Il tourne dans la session de Samy, avec son trousseau. La première
-   signature demande d'accéder à la clé : *Toujours autoriser*.
+   signature demande d'accéder à la clé : *Toujours autoriser*. Deux réglages, sans lesquels la signature échoue (`errSecInternalComponent`) :
+   - retirer `SessionCreate` du `.plist` du service, dans `~/Library/LaunchAgents/actions.runner.*.plist`. Sans cela,
+     le service ouvre une session de sécurité à lui, où le trousseau reste verrouillé ;
+   - `security set-key-partition-list -S apple-tool:,apple:,codesign:,productbuild: -s ~/Library/Keychains/login.keychain-db`
+     (une fois, avec le mot de passe de la session), pour que les outils d'Apple prennent les clés sans demander.
 
 ## Le Mac cloisonné : ce qui change
 
@@ -89,6 +93,7 @@ retrouvent. Avant de passer de l'une à l'autre, on enregistre une copie `.notak
 - **« bundle version must be higher »** : un numéro déjà envoyé. La livraison suivante, une minute après, prend le suivant.
 - **Un build mauvais est parti** : dans TestFlight, *Expirer le build*. Les appareils gardent le précédent, et la
   correction suivante part à la prochaine fusion.
+- **`can't find crate for phf_macros`, « mis-aligned LINKEDIT »** : le `strip` d'Xcode 27 abîme les proc-macros. `Cargo.toml` ne dépouille donc que le binaire de Notak. Il ne faut pas remettre `strip = true` sur tout le profil.
 - **Le Mac de Samy est éteint** : la livraison attend le runner, jusqu'à 24 heures, puis échoue. On la relance par le bouton.
 
 ## Plus tard : la sortie publique
