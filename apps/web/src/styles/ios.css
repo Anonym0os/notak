@@ -3,7 +3,8 @@
  * précisément, sur iOS (`html[data-plateforme='ios']`). Rien ici ne touche au navigateur ni à l'app de bureau.
  *
  * - Les zones sûres : `viewport-fit=cover` (index.html) donne toute la vitre à la page, encoche et barre d'accueil
- *   comprises ; les variables `--zone-*` disent ce qu'il faut leur laisser, et la racine les laisse. Le fond derrière
+ *   comprises ; les variables `--notak-zone-*` (toile.css, les seules) disent ce qu'il faut leur laisser, et la racine
+ *   les laisse. Le fond derrière
  *   (celui de la vue native, réglé par le plugin) est celui du thème : rien de blanc ne dépasse.
  * - Le clavier : `--clavier` (px, posé par `ios/clavier.ts`) ; ce qui est collé en bas remonte d'autant.
  * - Les gestes du système qu'on ne veut pas sur une toile : le zoom de page au double appui, la surbrillance grise au
@@ -11,10 +12,6 @@
  */
 
 :root {
-  --zone-haut: env(safe-area-inset-top, 0px);
-  --zone-droite: env(safe-area-inset-right, 0px);
-  --zone-bas: env(safe-area-inset-bottom, 0px);
-  --zone-gauche: env(safe-area-inset-left, 0px);
   --clavier: 0px;
   --clavier-duree: 0.25s;
 }
@@ -39,7 +36,7 @@ html[data-mobile] :where(img, a, video, canvas, svg, .notak-toile) {
 /* La page laisse au système ses bords ; le fond du thème les remplit. */
 html[data-plateforme='ios'] #racine {
   box-sizing: border-box;
-  padding: var(--zone-haut) var(--zone-droite) var(--zone-bas) var(--zone-gauche);
+  padding: var(--notak-zone-haut, 0px) var(--notak-zone-droite, 0px) var(--notak-zone-bas, 0px) var(--notak-zone-gauche, 0px);
   background: var(--fond, var(--notak-fond, #ebedee));
 }
 
@@ -53,7 +50,7 @@ html[data-plateforme='ios'] #racine:has(.notak-toile) {
 /* Un panneau qui prend l'écran sur un téléphone (app.css, max-width 640px) s'arrête au clavier. */
 html[data-plateforme='ios'][data-clavier] .app-panneau {
   /* Depuis le haut du panneau (sous la barre, app.css), pas depuis le haut de l'écran : sinon son bas restait derrière. */
-  max-height: calc(100dvh - var(--app-panneau-haut, 64px) - var(--zone-haut) - var(--clavier) - 8px);
+  max-height: calc(100dvh - var(--app-panneau-haut, 64px) - var(--notak-zone-haut, 0px) - var(--clavier) - 8px);
   transition: max-height var(--clavier-duree) ease-out;
 }
 
