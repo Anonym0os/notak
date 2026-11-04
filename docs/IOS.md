@@ -156,11 +156,11 @@ Vérifié dans Chromium aux formats iPhone 13, iPad Pro 11" et bureau, en clair 
 | 7 | Bandeau du bas : plus en colonne d'un mot par ligne ; en haut au téléphone ; l'avis « Annuler » passe au-dessus | Safari sur l'iPhone, édition locale | codé |
 | 8 | Zoom « Vue » dans le coin gauche au téléphone (le « + » le cachait) | une sous-toile sur l'iPhone | codé |
 | 9 | En sombre : titres de colonne, champ et noms d'un fil, bulle d'un fil accroché | basculer le mode sombre d'iOS | codé |
+| 10 | iPhone couché : l'interface du téléphone (barre du bas, « + », feuilles), plus celle de l'iPad ; l'en-tête suit la rotation (`REQUETE_TELEPHONE`, `auTelephone`, `doigt.ts`) | tourner l'iPhone sur une toile, menus ouverts ; l'encoche sur le côté ne cache ni le « + » ni la barre | codé |
+| 11 | Dans un champ d'une feuille, le doigt sélectionne, montre la loupe et déplace le curseur ; la feuille prend le focus, Tab y tourne, le focus revient | le fil de commentaire au téléphone : appui long sur un mot, curseur tiré ; la recherche d'émojis | codé |
 
-Reste, plus lourd, pour une passe suivante : l'iPhone en paysage (les règles « téléphone » se fient à la largeur,
-`enFeuille()` aussi, et ne se relisent pas à la rotation) ; `touch-action: none` sur tout le contenu d'une feuille
-(sélection de texte et loupe dans ses champs) et l'absence de piège à focus dans `Feuille` ; une échelle commune
-de z-index ; `--zone-*` et `--notak-zone-*` en double.
+Fait aussi, sans effet à l'écran : une échelle de z-index nommée (`--notak-z-*`, `communs/jetons.css`) et une seule
+famille de zones sûres (`--notak-zone-*`, plus de `--zone-*`).
 
 ## Rendez-vous avec le chantier de l'app de bureau
 
