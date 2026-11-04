@@ -32,8 +32,8 @@ export const IDENTIFIANT = 'app.notak.bureau'
 export const EQUIPE = '2MLG399MFA'
 export const CONTENEUR_ICLOUD = 'iCloud.app.notak.bureau'
 export const NOM_PROFIL_MAC = 'Notak Mac App Store'
-/** Là où `tauri.boutique.json` le prend ; le dossier est ignoré par git. */
-export const PROFIL_MAC = join(coque, 'apple/Notak_Mac_App_Store.provisionprofile')
+/** À côté de la clé, hors du dépôt : la construction de la CI (un autre dossier sur ce Mac) le trouve aussi. */
+export const PROFIL_MAC = join(homedir(), '.appstoreconnect/Notak_Mac_App_Store.provisionprofile')
 const API = 'https://api.appstoreconnect.apple.com'
 
 export interface Identifiants {
@@ -199,7 +199,7 @@ async function profil(): Promise<number> {
       },
     }),
   })
-  mkdirSync(join(coque, 'apple'), { recursive: true })
+  mkdirSync(join(homedir(), '.appstoreconnect'), { recursive: true })
   writeFileSync(PROFIL_MAC, Buffer.from(String(cree.data.attributes.profileContent), 'base64'))
   console.log(`Profil « ${NOM_PROFIL_MAC} » écrit dans ${PROFIL_MAC} (jusqu’au ${String(cree.data.attributes.expirationDate).slice(0, 10)}).`)
   return 0
@@ -237,7 +237,7 @@ function mac(ids: Identifiants, numero: string, envoi: boolean): number {
   // Sans les variables APPLE_* : Tauri notariserait (c'est l'App Store qui s'en charge), et la mise à jour de GitHub
   // n'a pas sa place ici (tauri.publication.json n'est pas fondu, et la coque cloisonnée ne la lance pas).
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('APPLE_')))
-  const config = JSON.stringify({ bundle: { macOS: { bundleVersion: numero } } })
+  const config = JSON.stringify({ bundle: { macOS: { bundleVersion: numero, files: { 'embedded.provisionprofile': PROFIL_MAC } } } })
   const cible = 'aarch64-apple-darwin'
   const statut = lancer('bunx', [CLI, 'build', '--bundles', 'app', '--target', cible, '--config', 'tauri.boutique.json', '--config', config], { cwd: coque, env })
   if (statut !== 0) return statut

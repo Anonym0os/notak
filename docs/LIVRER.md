@@ -53,7 +53,7 @@ Le compte est celui de l'équipe Silak (`2MLG399MFA`).
    `{ "cle": "<ID de la clé>", "emetteur": "<Issuer ID>" }`. Rien de tout cela n'entre dans le dépôt.
 3. **Le certificat du `.pkg`** : Xcode → *Réglages* → *Comptes* → l'équipe Silak → *Gérer les certificats* → **+** →
    *Mac Installer Distribution*.
-4. **Le profil du Mac** : `bun run livrer profil`.
+4. **Le profil du Mac** : `bun run livrer profil` (il se range dans `~/.appstoreconnect/`, hors du dépôt).
 5. **Les testeurs** : TestFlight → *Tests internes* → **+** → un groupe « Silak », avec chaque membre de l'équipe ; on
    coche « Distribution automatique ». Sur chaque appareil : l'app TestFlight, l'invitation acceptée, et « Mises à
    jour automatiques » coché.

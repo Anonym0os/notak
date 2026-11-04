@@ -6,5 +6,5 @@ apps/serveur/data
 dist-bureau
 # Les réglages d'un serveur construit depuis le dépôt (docs/AUTO-HEBERGER.md) : la clé de chiffrement peut y être.
 .env
-# Le profil « Mac App Store » de Notak (bun run livrer profil) : propre à ce Mac, refait au besoin.
+# Ce que fabriquent les essais de livraison à la main (icônes provisoires…).
 apps/bureau/src-tauri/apple/

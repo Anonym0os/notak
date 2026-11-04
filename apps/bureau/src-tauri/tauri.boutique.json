@@ -4,9 +4,6 @@
     "macOS": {
       "signingIdentity": "Apple Distribution: Silak (2MLG399MFA)",
       "entitlements": "Notak.boutique.entitlements",
-      "files": {
-        "embedded.provisionprofile": "apple/Notak_Mac_App_Store.provisionprofile"
-      },
       "minimumSystemVersion": "14.0"
     }
   }
