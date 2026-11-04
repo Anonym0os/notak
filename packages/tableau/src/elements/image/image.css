@@ -117,7 +117,7 @@
 /* L'image en grand (la fenêtre V2 de Milanote) : un voile à 70 %, l'image à sa taille au plus, une barre sombre. */
 .notak-visionneuse {
   position: fixed;
-  z-index: 1000;
+  z-index: var(--notak-z-surcouche, 1000);
   inset: 0;
   display: flex;
   background: rgb(0 0 0 / 0.7);

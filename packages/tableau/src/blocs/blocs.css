@@ -816,7 +816,7 @@
 /* « Voir en grand » : l'image seule, centrée, sur un voile sombre. */
 .notak-image-plein-ecran {
   position: fixed;
-  z-index: 2000;
+  z-index: var(--notak-z-dessus, 2000);
   inset: 0;
   display: grid;
   place-items: center;

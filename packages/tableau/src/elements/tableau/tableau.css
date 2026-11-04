@@ -260,7 +260,7 @@
 .notak-modeles-fond {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--notak-z-surcouche, 1000);
   display: grid;
   place-items: center;
   padding: calc(16px + var(--notak-zone-haut)) calc(16px + var(--notak-zone-droite)) calc(16px + var(--notak-zone-bas))

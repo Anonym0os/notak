@@ -112,7 +112,7 @@
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 1100;
+  z-index: var(--notak-z-fenetre, 1100);
   box-sizing: border-box;
   padding: 5px 8px;
   border-radius: 6px;

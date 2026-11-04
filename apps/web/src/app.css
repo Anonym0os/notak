@@ -2023,7 +2023,7 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
 .droits-element-fond {
   position: fixed;
   /* Au-dessus d'une carte ou d'un document ouverts en grand (1000) et des panneaux flottants (1050). */
-  z-index: 1100;
+  z-index: var(--notak-z-fenetre, 1100);
   inset: 0;
   display: grid;
   place-items: center;
@@ -2082,7 +2082,7 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
 
   .app-panneau:not(.plus-entete-menu .app-panneau) {
     position: fixed;
-    z-index: 1000;
+    z-index: var(--notak-z-surcouche, 1000);
     top: calc(var(--app-panneau-haut, 64px) + var(--notak-zone-haut, 0px));
     right: 16px;
     left: 16px;

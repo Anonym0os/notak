@@ -50,7 +50,7 @@
 .notak-arbre-fond {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--notak-z-surcouche, 1000);
   box-sizing: border-box;
   /* Les zones sûres en bordure du fond de la carte : ses barres, posées sur le fond, restent hors de l'encoche. */
   border: 0 solid var(--notak-arbre-fond);

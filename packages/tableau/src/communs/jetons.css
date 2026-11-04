@@ -61,6 +61,21 @@
 }
 
 /*
+ * Les couches au-dessus de la toile, de bas en haut (les z-index de moins de 100 restent ceux de la toile, entre ses
+ * barres et ses cartes) : les fenêtres en grand (carte, document, croquis, image, menus rangés sur <body>), les panneaux
+ * flottants qui s'en ouvrent aussi (PanneauFlottant), les fenêtres de l'espace (réglages, raccourcis, menus des blocs,
+ * droits d'un élément), la feuille du bas du téléphone, et ce qui passe au-dessus de tout (une image de bloc en grand).
+ * Un <dialog> modal, lui, est dans la couche du dessus du navigateur, au-dessus de toutes.
+ */
+:root {
+  --notak-z-surcouche: 1000;
+  --notak-z-panneau: 1050;
+  --notak-z-fenetre: 1100;
+  --notak-z-feuille: 1200;
+  --notak-z-dessus: 2000;
+}
+
+/*
  * Le fond, la carte et le texte de la page, pour ce qui s'échappe de l'espace (un menu ou une barre en portail sur
  * <body>, la fenêtre d'un fichier) : sans eux, il retombait sur le blanc en thème sombre. L'espace et la toile les
  * redéfinissent (toile.css, theme.css, habillages) ; ici, seulement le thème de la page (<html data-theme>).

@@ -398,7 +398,7 @@
 
 .notak-glisse-repere[data-fixe] {
   position: fixed;
-  z-index: 1000;
+  z-index: var(--notak-z-surcouche, 1000);
 }
 
 .notak-glisse-repere[hidden] {
@@ -413,7 +413,7 @@
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 1000;
+  z-index: var(--notak-z-surcouche, 1000);
   box-sizing: border-box;
   padding: 19px 24px;
   transform-origin: 0 0;

@@ -169,7 +169,7 @@
 .notak-document-fond {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--notak-z-surcouche, 1000);
   display: flex;
   box-sizing: border-box;
   /* Les zones sûres en bordure de la couleur de la page : la barre du haut et la page restent hors de l'encoche et de
@@ -376,7 +376,7 @@
 
 /* La liste de `[[` et de `@` s'ouvre au-dessus de la modale du document. */
 .notak-propositions {
-  z-index: 1100;
+  z-index: var(--notak-z-fenetre, 1100);
 }
 
 /* La légende d'une carte détaillée : sous le titre, 12 px sur 20. */

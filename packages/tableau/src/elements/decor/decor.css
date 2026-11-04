@@ -500,7 +500,7 @@
 /* Le menu d'une étiquette : une fenêtre à droite de son « ••• », puis ses sous-menus à droite de leur entrée. */
 .notak-etiquettes-menu,
 .notak-etiquettes-sousmenu {
-  z-index: 1000;
+  z-index: var(--notak-z-surcouche, 1000);
   font-size: 14px;
   text-align: left;
 }

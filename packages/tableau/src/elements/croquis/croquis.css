@@ -104,7 +104,7 @@
   padding: var(--notak-zone-haut, 0px) var(--notak-zone-droite, 0px) var(--notak-zone-bas, 0px) var(--notak-zone-gauche, 0px);
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--notak-z-surcouche, 1000);
   display: grid;
   place-items: center;
   background: rgb(0 0 0 / 0.48);

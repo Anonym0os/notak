@@ -462,7 +462,7 @@
 /* Le sélecteur d'émojis du fil : une fenêtre claire posée au-dessus de son bouton. */
 .notak-fenetre-emojis {
   position: fixed;
-  z-index: 1000;
+  z-index: var(--notak-z-surcouche, 1000);
   box-sizing: border-box;
   border-radius: 8px;
   background: #fff;

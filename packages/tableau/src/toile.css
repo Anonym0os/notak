@@ -579,7 +579,7 @@
 .notak-espace.notak-par-dessus[data-theme] {
   position: fixed;
   inset: 0;
-  z-index: 1100;
+  z-index: var(--notak-z-fenetre, 1100);
   display: block;
   background: none;
   pointer-events: none;
@@ -2355,7 +2355,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 
 .notak-infobulle {
   position: fixed;
-  z-index: 1000;
+  z-index: var(--notak-z-surcouche, 1000);
   display: flex;
   align-items: center;
   gap: 8px;
