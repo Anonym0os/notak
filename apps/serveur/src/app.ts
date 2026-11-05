@@ -15,7 +15,7 @@ import { regrouper } from './activite.ts'
 import { type ElementArrive, elementImage, elementsDeTexte, nouvelId, poserDansNonTries } from './arrivee.ts'
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
 import { type Base, DUREE_ACCES_PUBLIC_MS, DUREE_INVITATION_MS, type Fichier, type Invitation, type LienVisiteur, type NiveauVisiteur, type Rattachement, type Utilisateur } from './base.ts'
-import { type Auth, CHEMIN_AUTH, type Fournisseur, utilisateurDeSession } from './auth.ts'
+import { type Auth, CHEMIN_AUTH, type Fournisseur, normaliserOrigine, utilisateurDeSession } from './auth.ts'
 import { type Demandes, creerDemandes, normaliserCode } from './demandesBureau.ts'
 import { type Autorisation, objetElement } from './autorisation.ts'
 import { accorderInvitation, activerInvitations, invitationValable, normaliserEmail } from './comptes.ts'
@@ -80,6 +80,11 @@ export interface Contexte {
    * passer la synchro en direct (WebSocket).
    */
   origine?: string
+  /**
+   * D'autres origines dont les pages appellent l'API (`NOTAK_AUTRES_ORIGINES` : le serveur de Vite en développement) :
+   * avec `origine`, les seules d'où une écriture est reçue (`ecritureEtrangere`).
+   */
+  autresOrigines?: readonly string[]
   /** Le build de `apps/web`, servi à côté de l'API ; absent en développement, où Vite s'en charge. */
   dossierWeb?: string
   /** Son nom, ses inscriptions, ses habillages ; absente, celle d'origine (`INSTANCE_PAR_DEFAUT`). */
@@ -232,6 +237,32 @@ async function lireBorne(flux: ReadableStream<Uint8Array> | null, max: number): 
   return taille === 0 ? null : Buffer.concat(morceaux)
 }
 
+/** Les méthodes qui écrivent : celles qu'une page d'ailleurs ne doit pas pouvoir faire partir avec le cookie de quelqu'un. */
+const METHODES_QUI_ECRIVENT = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+
+/**
+ * Une écriture vers l'API venue d'une page qui n'est pas de Notak : à refuser. Le cookie de session (`SameSite=Lax`)
+ * part aussi avec les requêtes du même site : sur `notak.exemple.fr`, une page de `client.exemple.fr` peut poster un
+ * formulaire ou un `text/plain` sans rien demander d'abord, cookie compris. Le type du corps ne suffirait pas à l'écarter
+ * (un fichier déposé arrive sous son propre type) ; d'où vient la requête, si.
+ *
+ * - `Origin` présent : il doit être l'une des `pages` (l'origine du serveur et `NOTAK_AUTRES_ORIGINES`). Un navigateur
+ *   l'envoie avec toute requête qui écrit, formulaire compris ; `null` (un cadre isolé, un `data:`) n'en est pas une.
+ * - Sans `Origin` : `Sec-Fetch-Site`, s'il est là, doit dire la même origine.
+ * - Ni l'un ni l'autre : ce n'est pas un navigateur (un script, `curl`) ; il n'a pas de cookie à emprunter.
+ *
+ * Hors de la garde : `/api/auth/*`, que Better Auth contrôle déjà (`disableOriginCheck: false`, `auth.ts`), et
+ * `/api/arrivee`, ouverte à toute origine, qui ne lit que son jeton `Bearer`, jamais un cookie.
+ */
+export function ecritureEtrangere(methode: string, chemin: string, entetes: Headers, pages: ReadonlySet<string>): boolean {
+  if (!METHODES_QUI_ECRIVENT.has(methode.toUpperCase())) return false
+  if (!chemin.startsWith('/api/') || chemin === '/api/arrivee' || chemin.startsWith(`${CHEMIN_AUTH}/`)) return false
+  const origine = entetes.get('origin')
+  if (origine !== null) return !pages.has(origine)
+  const site = entetes.get('sec-fetch-site')
+  return site !== null && site !== 'same-origin'
+}
+
 export function creerApp(ctx: Contexte): Hono {
   const { base } = ctx
   const cle = ctx.cle ?? null
@@ -241,6 +272,14 @@ export function creerApp(ctx: Contexte): Hono {
 
   const utilisateurCourant = (c: Context): Promise<Utilisateur | null> => utilisateurDeSession(ctx.auth, base, c.req.raw.headers)
   const estAdmin = (u: Utilisateur) => admins.has(normaliserEmail(u.email))
+
+  // Avant toute route : une écriture n'est reçue que des pages de Notak (`ecritureEtrangere`). Comparées à `Origin`,
+  // que le navigateur écrit toujours de la même façon (`normaliserOrigine`).
+  const pages = new Set([ctx.origine, ...(ctx.autresOrigines ?? [])].filter((o): o is string => !!o).map((o) => normaliserOrigine(o) ?? o))
+  app.use('/api/*', async (c, suite) => {
+    if (ecritureEtrangere(c.req.method, c.req.path, c.req.raw.headers, pages)) return c.json({ erreur: 'origine refusée', code: 'origine_refusee' }, 403)
+    await suite()
+  })
 
   // Dit une fois : un relais qui n'ajoute pas l'adresse attendue (un CDN devant Caddy, sans que Caddy le croie) met
   // tous les clients sous celle de la connexion, et dix connexions par minute ferment la porte à tout le monde.

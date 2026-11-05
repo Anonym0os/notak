@@ -134,7 +134,7 @@ Toutes se mettent dans le `.env`, sauf les trois dernières, que l'image règle 
 |---|---|---|
 | `NOTAK_ORIGINE` | `http://localhost:3005` dans `compose.yaml`, aucune hors de lui (développement) | l'adresse publique du serveur, telle qu'on la tape (`https://notak.exemple.fr`, sans chemin ni `/` final) : liens envoyés, retours de connexion, et l'adresse que l'app de bureau attend |
 | `NOTAK_ADRESSE_PUBLIQUE` | `NOTAK_ORIGINE` | l'adresse où un autre appareil joint le serveur, quand elle diffère de `NOTAK_ORIGINE` (en développement : celle du Mac sur le réseau local ou Tailscale). La page « Envoyer vers Notak » la donne aux Raccourcis de l'iPhone ; sans elle, et sur une page ouverte en `localhost`, elle dit qu'un iPhone ne peut rien envoyer |
-| `NOTAK_AUTRES_ORIGINES` | aucune | d'autres origines, séparées par des virgules, dont les pages peuvent se connecter et se synchroniser (sans `NOTAK_ORIGINE`, `http://localhost:5173` l'est déjà) |
+| `NOTAK_AUTRES_ORIGINES` | aucune | d'autres origines, séparées par des virgules, dont les pages peuvent se connecter, se synchroniser et écrire (sans `NOTAK_ORIGINE`, `http://localhost:5173` l'est déjà). Une écriture vers l'API (`POST`, `PUT`, `PATCH`, `DELETE`) qui porte une autre origine est refusée (403, `origine_refusee`), même d'un sous-domaine voisin qui reçoit le cookie ; seules la connexion (Better Auth) et l'arrivée par jeton n'y sont pas soumises |
 | `NOTAK_OPENFGA_URL` | `http://localhost:8080` | l'OpenFGA qui évalue les droits (`compose.yaml` le fixe à `http://openfga:8080`) |
 | `NOTAK_NOM` | `Notak` | le nom affiché sur l'écran de connexion |
 | `NOTAK_INSCRIPTIONS` | `ouvertes` | `fermees` : personne ne crée de compte seul (voir plus bas) |

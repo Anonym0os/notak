@@ -136,6 +136,7 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     relais: options.relais ?? 0,
     cookieSecurise: options.cookieSecurise ?? false,
     origine,
+    autresOrigines,
     dossierWeb: options.dossierWeb,
     ...(options.instance ? { instance: options.instance } : {}),
     cle,
