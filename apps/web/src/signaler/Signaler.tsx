@@ -1,10 +1,11 @@
 import { Icone, Infobulle, type NomIcone, auDoigt, capturerEcran, enFeuille } from '@notak/tableau'
 import { type PointerEvent as PointeurReact, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
-import { estMobile } from '../appareil'
+import { estMobile, vibrer } from '../appareil'
 import { octetsDe } from '../bureau'
 import { t } from '../langue'
 import { contexteEnMarkdown, estLeRaccourci, releverContexte } from './contexte'
+import { EVENEMENT_SIGNALER, type Geste, gesteRetenu } from './geste'
 import { erreursRecentes, poserJournal } from './journal'
 import {
   type Cadre,
@@ -37,6 +38,10 @@ import './signaler.css'
  * Au doigt, rien ne parle de touches : pas de ⌘V ni d'Entrée, un bouton pour ajouter une image et un autre pour défaire
  * le dernier trait ; Entrée va à la ligne. Sur un téléphone, la fenêtre est une feuille plein écran comme celles
  * d'iOS : Annuler et Envoyer en haut, l'image au milieu, les outils dessous, le champ au-dessus du clavier.
+ *
+ * Dans l'app d'iPhone et d'iPad, elle s'ouvre aussi d'un geste : secouer l'appareil, ou faire une capture d'écran
+ * (`geste.ts`), sur un serveur qui reçoit les signalements. Au doigt, elle est persistante : un toucher à côté ne la
+ * ferme pas (la vignette de la capture d'iOS s'y pose, et on la balaie), seuls Annuler et Envoyer la ferment.
  */
 
 /** Une image du signalement : sa taille en px d'écran (le canevas est plus grand de sa densité) et ses marques. */
@@ -262,8 +267,10 @@ export function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }
     c?.setSelectionRange(c.value.length, c.value.length)
   }, [enCours])
 
-  // Un clic à côté ferme la fenêtre tant qu'on n'y a rien fait ; après, seuls Échap et la croix la ferment.
-  const entame = texte.trim() !== '' || images.length > 1 || images.some(retouchee)
+  // À la souris, un clic à côté ferme la fenêtre tant qu'on n'y a rien fait ; après, seuls Échap et la croix la
+  // ferment. Au doigt, jamais : la vignette qu'iOS pose après une capture d'écran se balaie à côté, et un toucher
+  // manqué ne doit pas perdre le signalement.
+  const retenue = tactile || texte.trim() !== '' || images.length > 1 || images.some(retouchee)
   const majImage = (maj: (i: Image) => Image) => {
     dernier.current = 'image'
     setImages((is) => is.map((i, n) => (n === choisie ? maj(i) : i)))
@@ -415,7 +422,7 @@ export function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }
       data-theme={sombre ? 'sombre' : undefined}
       data-telephone={telephone || undefined}
       ref={racine}
-      onPointerDown={(e) => e.target === e.currentTarget && !entame && fermer()}
+      onPointerDown={(e) => e.target === e.currentTarget && !retenue && fermer()}
     >
       <div className="notak-signaler-fenetre" role="dialog" aria-modal="true" aria-label={t('signaler.titre')}>
         {telephone ? (
@@ -559,6 +566,26 @@ function AvisSignaler({ avis }: { avis: Avis }) {
   )
 }
 
+let reception: Promise<boolean> | null = null
+
+/**
+ * Le serveur reçoit-il les signalements (`/api/instance`) ? Un geste n'ouvre la fenêtre que là où l'envoi aboutira :
+ * ailleurs, chaque capture d'écran ouvrirait pour rien. Demandé une fois ; redemandé si le réseau a manqué.
+ */
+export function recoitLesSignalements(): Promise<boolean> {
+  reception ??= fetch('/api/instance', { credentials: 'same-origin' })
+    .then((r) => (r.ok ? (r.json() as Promise<{ signalements?: unknown }>) : null))
+    .then((instance) => instance?.signalements === true)
+    .catch(() => {
+      reception = null
+      return false
+    })
+  return reception
+}
+
+/** Pour les essais : oublie la réponse du serveur. */
+export const oublierReception = () => void (reception = null)
+
 /** Ce qu'ouvre le bouton de l'en-tête ; posé par `brancherSignaler`. */
 let ouvrirLaFenetre: (() => void) | null = null
 
@@ -623,8 +650,10 @@ export function brancherSignaler(): void {
     }
   }
 
-  const ouvrir = async () => {
+  const ouvrir = async (geste?: Geste) => {
     ouverte = true
+    // Une secousse se sent : le retour au doigt dit qu'elle a été prise. La capture d'écran a déjà son flash.
+    if (geste === 'secousse') vibrer()
     const avant = document.activeElement instanceof HTMLElement ? document.activeElement : null
     // Relevé avant tout geste de notre part : la sélection, le focus, l'élément en édition sont ceux qu'on voyait.
     const version = versionCourante()
@@ -676,6 +705,14 @@ export function brancherSignaler(): void {
   ouvrirLaFenetre = () => {
     if (!ouverte) void ouvrir()
   }
+  // Une secousse ou une capture d'écran, relayée par la coque d'iOS ; la fenêtre déjà ouverte n'en fait rien.
+  window.addEventListener(EVENEMENT_SIGNALER, (e) => {
+    const geste = (e as CustomEvent<Geste>).detail
+    if (ouverte || !gesteRetenu(geste, document.activeElement)) return
+    void recoitLesSignalements().then((oui) => {
+      if (oui && !ouverte) void ouvrir(geste)
+    })
+  })
   window.addEventListener(
     'keydown',
     (e) => {

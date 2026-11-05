@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { FenetreSignaler, commandeDePhoto, octetsDePhotoMobile } from './Signaler'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { EVENEMENT_SIGNALER } from './geste'
+import { FenetreSignaler, brancherSignaler, commandeDePhoto, octetsDePhotoMobile, oublierReception, recoitLesSignalements } from './Signaler'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -73,6 +74,12 @@ describe('signaler un bug au doigt, sur un téléphone', () => {
     entree(champ)
     expect(envoyer).not.toHaveBeenCalled()
   })
+
+  it('est persistante : un toucher à côté ne la ferme pas, même vide', () => {
+    const { fermer } = ouvrir()
+    act(() => void hote.querySelector('.notak-signaler')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })))
+    expect(fermer).not.toHaveBeenCalled()
+  })
 })
 
 describe('signaler un bug à la souris', () => {
@@ -89,6 +96,76 @@ describe('signaler un bug à la souris', () => {
     expect(document.activeElement).toBe(champ)
     entree(champ)
     expect(envoyer).toHaveBeenCalledTimes(1)
+  })
+
+  it('se ferme d’un clic à côté tant qu’on n’y a rien fait', () => {
+    const { fermer } = ouvrir()
+    act(() => void hote.querySelector('.notak-signaler')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })))
+    expect(fermer).toHaveBeenCalled()
+  })
+})
+
+describe('ouvrir d’une secousse ou d’une capture d’écran', () => {
+  const instance = (corps: unknown, ok = true) => vi.fn(async () => ({ ok, json: async () => corps }) as Response)
+  const ouverte = () => document.querySelector('.notak-signaler') !== null
+  // La fenêtre paraît après la réponse du serveur et deux images peintes : on l'attend un peu, sans plus.
+  const geste = async (par: string) => {
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(EVENEMENT_SIGNALER, { detail: par }))
+      for (let i = 0; i < 20 && !ouverte(); i++) await new Promise((r) => setTimeout(r, 10))
+    })
+  }
+
+  beforeAll(() => brancherSignaler())
+  beforeEach(() => {
+    appareil(true, 390)
+    oublierReception()
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    // Annuler ferme la fenêtre ouverte par le geste, pour l'essai suivant.
+    act(() => document.querySelector<HTMLButtonElement>('.notak-signaler-annuler')?.click())
+    vi.restoreAllMocks()
+  })
+
+  it('demande au serveur s’il reçoit les signalements, une fois, et redemande si le réseau a manqué', async () => {
+    vi.stubGlobal('fetch', instance({ signalements: true }))
+    expect(await recoitLesSignalements()).toBe(true)
+    expect(await recoitLesSignalements()).toBe(true)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    oublierReception()
+    vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new Error('hors ligne'))))
+    expect(await recoitLesSignalements()).toBe(false)
+    vi.stubGlobal('fetch', instance({ signalements: true }))
+    expect(await recoitLesSignalements()).toBe(true)
+    oublierReception()
+    vi.stubGlobal('fetch', instance({ nom: 'Notak' }))
+    expect(await recoitLesSignalements()).toBe(false)
+  })
+
+  it('ouvre la fenêtre sur un serveur qui reçoit les signalements', async () => {
+    vi.stubGlobal('fetch', instance({ signalements: true }))
+    await geste('capture')
+    expect(ouverte()).toBe(true)
+  })
+
+  it('n’ouvre rien sur un serveur qui ne les reçoit pas : une capture d’écran reste une capture d’écran', async () => {
+    vi.stubGlobal('fetch', instance({ signalements: false }))
+    await geste('capture')
+    await geste('secousse')
+    expect(ouverte()).toBe(false)
+  })
+
+  it('laisse la secousse au champ où l’on écrit', async () => {
+    vi.stubGlobal('fetch', instance({ signalements: true }))
+    const champ = document.createElement('input')
+    document.body.append(champ)
+    champ.focus()
+    await geste('secousse')
+    expect(ouverte()).toBe(false)
+    champ.remove()
+    await geste('secousse')
+    expect(ouverte()).toBe(true)
   })
 })
 

@@ -52,3 +52,5 @@ fil des changements ; `bun run nouvelle-version x.y.z` en fait la section de la 
   en haut, les outils sous l'image (avec de quoi défaire le dernier trait), un bouton pour ajouter une capture ou une
   photo, et plus aucun raccourci clavier affiché. Dans l'app, la capture est la vraie image de l'écran.
 - **Sur un téléphone, le « + » de la toile passe en bas à gauche** : il ne cache plus le bouton du zoom.
+- **Dans l'app d'iPhone et d'iPad, secouer l'appareil ou faire une capture d'écran ouvre le signalement d'un bug**,
+  sur un serveur qui les reçoit. La fenêtre reste ouverte jusqu'à Annuler ou Envoyer.
