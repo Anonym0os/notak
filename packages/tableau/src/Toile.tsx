@@ -1235,6 +1235,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           minuteur: setTimeout(() => {
             if (carte) delete carte.dataset.presse
             appuiLong = null
+            // La toile démontée entre-temps : React détache `racine` avant de nettoyer cet effet, le minuteur peut
+            // tomber entre les deux et le menu n'aurait plus où se poser.
+            if (!div.isConnected) return
             appuiLongRef.current({ clientX, clientY, target, pointerId })
           }, APPUI_LONG),
         }

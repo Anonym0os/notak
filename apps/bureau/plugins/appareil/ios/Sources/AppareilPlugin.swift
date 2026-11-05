@@ -11,7 +11,9 @@
 //   (`ASWebAuthenticationSession`), au lieu de Safari lui-même : on n'a pas à revenir dans l'app à la main ;
 // - l'événement `clavier` : la hauteur du clavier à l'écran et la durée de son animation, avant qu'il n'arrive ;
 // - l'événement `crayon` : le double toucher de l'Apple Pencil, avec l'action choisie dans Réglages › Apple Pencil
-//   (`gomme`, `precedent`, `couleurs`, `epaisseur`) ; la couche de dessin de la page y change d'outil.
+//   (`gomme`, `precedent`, `couleurs`, `epaisseur`) ; la couche de dessin de la page y change d'outil ;
+// - l'événement `signaler` : l'appareil secoué (`secousse`) ou une capture d'écran faite (`capture`) ; la page ouvre
+//   la fenêtre de signalement d'un bug (`apps/web/src/signaler/geste.ts`).
 // Et deux méthodes que seule la coque appelle (`src/lib.rs`, jamais la page : elles ne sont pas dans `build.rs`) :
 // - `dossierIcloud` : le dossier `Documents` du conteneur iCloud de Notak, où la page synchronise ses toiles ;
 // - `telechargerIcloud` : fait descendre un fichier de ce dossier resté dans le nuage.
@@ -101,6 +103,17 @@ class AppareilPlugin: Plugin {
     observateurs.append(
       centre.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main) { [weak self] n in
         self?.clavier(n, cache: true)
+      })
+    // Signaler un bug d'un geste : la capture d'écran est dite par iOS une fois faite ; la secousse remonte la chaîne
+    // des répondeurs jusqu'à la fenêtre, qui la dit (`Secousse`). La page décide d'ouvrir ou non.
+    Secousse.ecouter()
+    observateurs.append(
+      centre.addObserver(forName: UIApplication.userDidTakeScreenshotNotification, object: nil, queue: .main) { [weak self] _ in
+        self?.trigger("signaler", data: ["par": "capture"])
+      })
+    observateurs.append(
+      centre.addObserver(forName: Secousse.notification, object: nil, queue: .main) { [weak self] _ in
+        self?.trigger("signaler", data: ["par": "secousse"])
       })
   }
 
@@ -363,6 +376,34 @@ extension UIColor {
     self.init(
       red: CGFloat((v >> 16) & 0xff) / 255, green: CGFloat((v >> 8) & 0xff) / 255, blue: CGFloat(v & 0xff) / 255, alpha: 1)
   }
+}
+
+/// Le geste « secouer » d'iOS. Il va au premier répondeur (le contenu de la webview) et remonte la chaîne jusqu'à la
+/// fenêtre : on enveloppe `motionEnded` de `UIWindow` pour le dire par une notification, puis on rend la main à ce
+/// qu'iOS faisait déjà (« Annuler la saisie » dans un champ). Comme le menu de développement de React Native ; posé une
+/// fois, quel que soit le nombre de webviews.
+enum Secousse {
+  static let notification = Notification.Name("NotakSecousse")
+
+  static func ecouter() { _ = pose }
+
+  private static let pose: Void = {
+    let classe: AnyClass = UIWindow.self
+    let selecteur = #selector(UIResponder.motionEnded(_:with:))
+    // Celle de `UIWindow`, ou celle de `UIResponder` qu'elle hérite : on l'appelle après, comme le ferait `super`.
+    guard let methode = class_getInstanceMethod(classe, selecteur) else { return }
+    typealias Appel = @convention(c) (AnyObject, Selector, UIEvent.EventSubtype, UIEvent?) -> Void
+    let avant = unsafeBitCast(method_getImplementation(methode), to: Appel.self)
+    let apres: @convention(block) (AnyObject, UIEvent.EventSubtype, UIEvent?) -> Void = { fenetre, mouvement, evenement in
+      if mouvement == .motionShake { NotificationCenter.default.post(name: Secousse.notification, object: nil) }
+      avant(fenetre, selecteur, mouvement, evenement)
+    }
+    let imp = imp_implementationWithBlock(apres)
+    // `UIWindow` n'a pas la sienne : on la lui ajoute. Elle l'a : on la remplace, l'ancienne étant appelée après.
+    if !class_addMethod(classe, selecteur, imp, method_getTypeEncoding(methode)) {
+      method_setImplementation(methode, imp)
+    }
+  }()
 }
 
 @_cdecl("init_plugin_appareil")
