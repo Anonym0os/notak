@@ -51,6 +51,10 @@ objc2-app-kit = { version = "0.3", default-features = false, features = ["std", 
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSData", "NSDictionary", "NSError", "NSFileManager", "NSLocale", "NSString", "NSURL"] }
 objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-app-kit", "WKWebView", "WKSnapshotConfiguration"] }
 
+# La langue du système, pour ce que dit la coque d'un lien `notak://` qui ne s'ouvre pas (`src/lien.rs`).
+[target.'cfg(target_os = "ios")'.dependencies]
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSLocale", "NSString"] }
+
 [profile.release]
 # Une coque qui ne fait qu'ouvrir une fenêtre : on la veut petite.
 codegen-units = 1

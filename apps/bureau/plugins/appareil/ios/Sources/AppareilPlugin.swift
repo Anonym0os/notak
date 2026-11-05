@@ -17,6 +17,7 @@
 // Et deux méthodes que seule la coque appelle (`src/lib.rs`, jamais la page : elles ne sont pas dans `build.rs`) :
 // - `dossierIcloud` : le dossier `Documents` du conteneur iCloud de Notak, où la page synchronise ses toiles ;
 // - `telechargerIcloud` : fait descendre un fichier de ce dossier resté dans le nuage.
+// Et, dès son chargement, le relais du lien `notak://` qui lance l'app vers la coque (`LienDuLancement`).
 // Le nom de chaque méthode est le camelCase de la commande déclarée dans `build.rs`.
 import AuthenticationServices
 import SwiftRs
@@ -406,8 +407,38 @@ enum Secousse {
   }()
 }
 
+/// Le lien `notak://` qui lance l'app (celui d'une fiche de Silak, Notak fermé). Avec le SDK d'iOS 27, l'app tourne en
+/// scènes même sans manifeste : iOS remet ce lien à la connexion de la scène (`options.urlContexts`), que tao 0.37 ne
+/// lit pas. Il ne relaie que les liens qui arrivent l'app déjà lancée (`scene:openURLContexts:`, d'où
+/// `RunEvent::Opened` et `src/lien.rs`). On enveloppe donc la connexion de la scène de tao, puis on lui passe ces liens
+/// comme s'ils arrivaient à l'instant : ils suivent le même chemin, et la coque les relit de même. Posé avant que la scène
+/// se connecte : sans manifeste de scènes, la coque et ses plugins se préparent dans `didFinishLaunching`. À retirer le
+/// jour où tao lira `urlContexts` lui-même, sans quoi le lien du lancement arriverait deux fois.
+enum LienDuLancement {
+  static func relayer() { _ = pose }
+
+  private static let pose: Void = {
+    guard let classe = NSClassFromString("TaoSceneDelegate") else { return }
+    let selecteur = NSSelectorFromString("scene:willConnectToSession:options:")
+    let ouvrir = NSSelectorFromString("scene:openURLContexts:")
+    guard let methode = class_getInstanceMethod(classe, selecteur) else { return }
+    typealias Appel = @convention(c) (AnyObject, Selector, UIScene, UISceneSession, UIScene.ConnectionOptions) -> Void
+    let avant = unsafeBitCast(method_getImplementation(methode), to: Appel.self)
+    let apres: @convention(block) (AnyObject, UIScene, UISceneSession, UIScene.ConnectionOptions) -> Void = { delegue, scene, session, options in
+      avant(delegue, selecteur, scene, session, options)
+      let liens = options.urlContexts
+      guard !liens.isEmpty, let delegue = delegue as? NSObject, delegue.responds(to: ouvrir) else { return }
+      // Au tour suivant de la boucle : la scène est connectée, et tao reçoit le lien comme un autre.
+      DispatchQueue.main.async { _ = delegue.perform(ouvrir, with: scene, with: liens) }
+    }
+    method_setImplementation(methode, imp_implementationWithBlock(apres))
+  }()
+}
+
 @_cdecl("init_plugin_appareil")
 func initPlugin() -> Plugin {
+  // La coque se prépare : la scène ne s'est pas encore connectée, le relais est là quand elle le fera.
+  LienDuLancement.relayer()
   return AppareilPlugin()
 }
 

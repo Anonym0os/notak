@@ -546,7 +546,7 @@ async fn joindre(
 /// Ouvre la page `vers` du serveur `origine`, demandée par un lien `notak://` (`lien.rs`) : la fenêtre y va, depuis
 /// ses toiles d'ici comme depuis une autre page de ce serveur. Le lien n'est pas un choix de serveur : rien n'est
 /// retenu, et seul un serveur auquel Notak est déjà relié s'ouvre ainsi (`lien::recevoir` le vérifie avant).
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+#[cfg_attr(not(any(target_os = "macos", target_os = "ios")), allow(dead_code))]
 pub async fn ouvrir_lien(app: &AppHandle, origine: &str, vers: Url) -> Result<(), Erreur> {
     let etat = app.state::<Acces>();
     let garde = app.state::<Origines>();

@@ -8,14 +8,17 @@
 /// - `notak://notak.exemple.fr/relier?source=…&cle=…&titre=…&retour=…` : le dossier de la fiche d'un autre outil, à
 ///   créer d'un clic s'il n'existe pas encore.
 ///
-/// Le système le remet à la coque (`RunEvent::Opened`, macOS : `Info.plist` déclare le schéma), qui le relit sans lui
-/// faire confiance : n'importe quelle page web peut en ouvrir un.
+/// Le système le remet à la coque (`RunEvent::Opened` : `Info.plist` déclare le schéma sur le Mac, `Info.ios.plist` sur
+/// un iPhone ou un iPad), qui le relit sans lui faire confiance : n'importe quelle page web peut en ouvrir un.
 /// - **Seulement ces chemins-là**, aux identifiants de Notak (`[A-Za-z0-9_-]`), et pour `/relier` à ceux d'une fiche
 ///   (`relier`) : l'adresse où va la fenêtre est
 ///   reconstruite ici, rien du lien n'y passe tel quel. Un lien qui n'a pas cette forme ne mène nulle part.
 /// - **Seulement un serveur auquel Notak est relié** : le serveur retenu, ou celui où est la fenêtre. Pour un autre,
 ///   Notak le dit, et n'ouvre rien d'autre : un lien ne choisit pas de serveur à la place de la personne.
 /// - **Pas plus de trois en dix secondes** : une page qui s'emballe ne fait pas valser la fenêtre.
+///
+/// `notak://` seul et `notak://autorise` ne mènent à aucune page : ils ramènent Notak au premier plan, sans rien dire
+/// (`ramene_seulement`). C'est où renvoie la page d'accord de la connexion par code (`apps/web/src/serveur/appareil.ts`).
 use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Manager, Url};
@@ -23,7 +26,7 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
 use crate::acces::{self, normaliser, Acces};
 use crate::appel::{Cadence, Erreur};
-use crate::menu::en_francais;
+use crate::langue::en_francais;
 use crate::navigation::Origines;
 
 pub const SCHEMA: &str = "notak";
@@ -88,6 +91,22 @@ fn relier(parametres: &[(String, String)]) -> Option<String> {
     Some(q.finish())
 }
 
+/// Un lien qui ne fait que ramener Notak au premier plan : `notak://`, « Revenir dans Notak » de la page d'accord lue
+/// dans Safari ; `notak://autorise`, où elle renvoie l'accord donné (la feuille de connexion d'iOS le reçoit d'ordinaire
+/// elle-même, `AppareilPlugin.swift`). Rien d'autre : ni chemin, ni paramètre, ni port.
+pub fn ramene_seulement(url: &Url) -> bool {
+    url.scheme() == SCHEMA
+        // `notak://` n'a pas d'hôte, mais une autorité, vide : `notak:t/abcdefgh` n'en a pas.
+        && url.has_authority()
+        && url.host_str().is_none_or(|h| h.eq_ignore_ascii_case("autorise"))
+        && matches!(url.path(), "" | "/")
+        && url.port().is_none()
+        && url.query().is_none()
+        && url.fragment().is_none()
+        && url.username().is_empty()
+        && url.password().is_none()
+}
+
 /// Relit un lien `notak://` ; rien s'il n'a pas l'une des formes permises.
 pub fn lire(url: &Url) -> Option<Lien> {
     if url.scheme() != SCHEMA || !url.username().is_empty() || url.password().is_some() || url.fragment().is_some() {
@@ -142,26 +161,26 @@ static CADENCE: Cadence = Cadence::new(LIENS_MAX, LIENS_DUREE);
 /// `fichiers.rs`). Le dernier lien l'emporte : deux pages ne s'ouvrent pas l'une sur l'autre.
 pub fn recevoir(app: &AppHandle, urls: &[Url]) {
     let Some(url) = urls.iter().rev().find(|u| u.scheme() == SCHEMA) else { return };
+    if ramene_seulement(url) {
+        montrer(app);
+        return;
+    }
     if !CADENCE.permise(Instant::now()) {
         eprintln!("Notak : trop de liens coup sur coup, celui-ci ne s'ouvre pas");
         return;
     }
     let (Some(etat), Some(garde)) = (app.try_state::<Acces>(), app.try_state::<Origines>()) else { return };
-    if let Some(f) = app.get_webview_window("principale") {
-        let _ = f.unminimize();
-        let _ = f.show();
-        let _ = f.set_focus();
-    }
+    montrer(app);
     let francais = en_francais();
     let Some(lien) = lire(url) else {
-        dire(app, textes(francais, Refus::Illisible, ""));
+        dire(app, textes(francais, ICI, Refus::Illisible, ""));
         return;
     };
     let hote = Url::parse(&lien.origine).ok().and_then(|u| u.host_str().map(str::to_string)).unwrap_or_default();
     let relie = etat.reglage.lire().serveur.as_deref() == Some(lien.origine.as_str())
         || garde.serveur.lire().as_deref() == Some(lien.origine.as_str());
     if !relie {
-        dire(app, textes(francais, Refus::PasRelie, &hote));
+        dire(app, textes(francais, ICI, Refus::PasRelie, &hote));
         return;
     }
     let app = app.clone();
@@ -170,11 +189,33 @@ pub fn recevoir(app: &AppHandle, urls: &[Url]) {
             Ok(()) | Err(Erreur::Annule) => {}
             Err(e) => {
                 eprintln!("Notak : le lien vers {hote} ne s'est pas ouvert ({e:?})");
-                dire(&app, textes(francais, Refus::Injoignable, &hote));
+                dire(&app, textes(francais, ICI, Refus::Injoignable, &hote));
             }
         }
     });
 }
+
+/// La fenêtre de Notak, devant les autres. Sur un iPhone ou un iPad, le système y a déjà mis l'app.
+fn montrer(app: &AppHandle) {
+    #[cfg(desktop)]
+    if let Some(f) = app.get_webview_window("principale") {
+        let _ = f.unminimize();
+        let _ = f.show();
+        let _ = f.set_focus();
+    }
+    #[cfg(mobile)]
+    let _ = app;
+}
+
+/// Où se dit un refus : sur le Mac, on clique, et l'on change de serveur par le menu de l'app ; sur un iPhone ou un
+/// iPad, on touche, et l'on change de serveur dans Compte (le rond de la bibliothèque, ou les réglages).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Appareil {
+    Mac,
+    Ios,
+}
+
+const ICI: Appareil = if cfg!(target_os = "ios") { Appareil::Ios } else { Appareil::Mac };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Refus {
@@ -187,23 +228,34 @@ enum Refus {
 }
 
 /// Le titre et le texte de la fenêtre qui dit pourquoi un lien ne s'ouvre pas.
-fn textes(francais: bool, refus: Refus, hote: &str) -> (String, String) {
-    match (refus, francais) {
-        (Refus::Illisible, true) => (
+fn textes(francais: bool, appareil: Appareil, refus: Refus, hote: &str) -> (String, String) {
+    use Appareil::{Ios, Mac};
+    match (refus, francais, appareil) {
+        (Refus::Illisible, true, _) => (
             "Ce lien ne s'ouvre pas dans Notak".into(),
             "Il ne mène ni à un dossier, ni à une page, ni à une toile d'un serveur Notak.".into(),
         ),
-        (Refus::Illisible, false) => ("This link can't open in Notak".into(), "It doesn't lead to a folder, a page or a board on a Notak server.".into()),
-        (Refus::PasRelie, true) => (
+        (Refus::Illisible, false, _) => ("This link can't open in Notak".into(), "It doesn't lead to a folder, a page or a board on a Notak server.".into()),
+        (Refus::PasRelie, true, Mac) => (
             format!("Notak n'est pas relié à {hote}"),
             format!("Ce lien ouvre une page de {hote}. Pour l'ouvrir ici, connectez Notak à ce serveur (Notak › Changer de serveur…), puis cliquez de nouveau sur le lien."),
         ),
-        (Refus::PasRelie, false) => (
+        (Refus::PasRelie, false, Mac) => (
             format!("Notak isn't connected to {hote}"),
             format!("This link opens a page on {hote}. To open it here, connect Notak to that server (Notak › Change server…), then click the link again."),
         ),
-        (Refus::Injoignable, true) => (format!("{hote} ne répond pas"), "Le lien ne s'est pas ouvert. Vérifiez votre connexion, puis cliquez de nouveau sur le lien.".into()),
-        (Refus::Injoignable, false) => (format!("{hote} isn't responding"), "The link didn't open. Check your connection, then click the link again.".into()),
+        (Refus::PasRelie, true, Ios) => (
+            format!("Notak n'est pas relié à {hote}"),
+            format!("Ce lien ouvre une page de {hote}. Pour l'ouvrir ici, connectez Notak à ce serveur depuis Compte, puis touchez de nouveau le lien."),
+        ),
+        (Refus::PasRelie, false, Ios) => (
+            format!("Notak isn't connected to {hote}"),
+            format!("This link opens a page on {hote}. To open it here, connect Notak to that server from Account, then tap the link again."),
+        ),
+        (Refus::Injoignable, true, Mac) => (format!("{hote} ne répond pas"), "Le lien ne s'est pas ouvert. Vérifiez votre connexion, puis cliquez de nouveau sur le lien.".into()),
+        (Refus::Injoignable, false, Mac) => (format!("{hote} isn't responding"), "The link didn't open. Check your connection, then click the link again.".into()),
+        (Refus::Injoignable, true, Ios) => (format!("{hote} ne répond pas"), "Le lien ne s'est pas ouvert. Vérifiez votre connexion, puis touchez de nouveau le lien.".into()),
+        (Refus::Injoignable, false, Ios) => (format!("{hote} isn't responding"), "The link didn't open. Check your connection, then tap the link again.".into()),
     }
 }
 
@@ -295,13 +347,48 @@ mod essais {
     }
 
     #[test]
-    fn chaque_refus_se_dit_dans_les_deux_langues() {
-        for refus in [Refus::Illisible, Refus::PasRelie, Refus::Injoignable] {
-            let (fr, en) = (textes(true, refus, "notak.silak.fr"), textes(false, refus, "notak.silak.fr"));
-            assert_ne!(fr, en);
-            if refus != Refus::Illisible {
-                assert!(fr.0.contains("notak.silak.fr") && en.0.contains("notak.silak.fr"));
+    fn notak_seul_et_la_fin_de_la_connexion_ne_font_que_ramener_notak() {
+        for adresse in ["notak://", "notak:///", "notak://autorise", "notak://autorise/", "notak://Autorise"] {
+            assert!(ramene_seulement(&Url::parse(adresse).unwrap()), "{adresse}");
+        }
+        for adresse in [
+            "notak://notak.silak.fr",
+            "notak://notak.silak.fr/",
+            "notak://autorise/t/abcdefgh",
+            "notak://autorise?dossier=abcdefgh",
+            "notak://autorise#plus",
+            "notak://autorise:8443",
+            "notak://moi@autorise",
+            "notak://?dossier=abcdefgh",
+            "notak:///t/abcdefgh",
+            "notak:",
+            "notak:autorise",
+            "https://autorise/",
+        ] {
+            assert!(!ramene_seulement(&Url::parse(adresse).unwrap()), "{adresse}");
+        }
+    }
+
+    #[test]
+    fn chaque_refus_se_dit_dans_les_deux_langues_et_sur_chaque_appareil() {
+        for appareil in [Appareil::Mac, Appareil::Ios] {
+            for refus in [Refus::Illisible, Refus::PasRelie, Refus::Injoignable] {
+                let (fr, en) = (textes(true, appareil, refus, "notak.silak.fr"), textes(false, appareil, refus, "notak.silak.fr"));
+                assert_ne!(fr, en);
+                if refus != Refus::Illisible {
+                    assert!(fr.0.contains("notak.silak.fr") && en.0.contains("notak.silak.fr"));
+                }
             }
         }
+        // Chacun dit où l'on change de serveur, et le geste qui relance le lien.
+        let pas_relie = |francais, appareil| textes(francais, appareil, Refus::PasRelie, "notak.silak.fr").1;
+        assert!(pas_relie(true, Appareil::Mac).contains("Notak › Changer de serveur…") && pas_relie(true, Appareil::Mac).contains("cliquez"));
+        assert!(pas_relie(false, Appareil::Mac).contains("Notak › Change server…") && pas_relie(false, Appareil::Mac).contains("click"));
+        assert!(pas_relie(true, Appareil::Ios).contains("depuis Compte") && pas_relie(true, Appareil::Ios).contains("touchez"));
+        assert!(pas_relie(false, Appareil::Ios).contains("from Account") && pas_relie(false, Appareil::Ios).contains("tap"));
+        for francais in [true, false] {
+            assert!(!textes(francais, Appareil::Ios, Refus::Injoignable, "x").1.contains("cli"));
+        }
+        assert_eq!(ICI, if cfg!(target_os = "ios") { Appareil::Ios } else { Appareil::Mac });
     }
 }

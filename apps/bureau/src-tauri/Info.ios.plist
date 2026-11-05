@@ -73,7 +73,8 @@
     </dict>
   </array>
   <!-- Le schéma notak : la page « Autoriser » du serveur, ouverte dans Safari pour se connecter, y renvoie
-       (« Revenir dans Notak »). Ouvrir notak:// ne fait que ramener l'app au premier plan. -->
+       (« Revenir dans Notak ») ; notak:// et notak://autorise ne font que ramener l'app au premier plan. Un lien
+       notak://<serveur>/… (une fiche de Silak) ouvre sa page dans l'app, d'un serveur déjà relié (src/lien.rs). -->
   <key>CFBundleURLTypes</key>
   <array>
     <dict>

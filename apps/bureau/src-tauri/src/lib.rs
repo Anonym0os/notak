@@ -13,7 +13,8 @@
 /// - garder la fenêtre chez elle (`navigation.rs`) : un lien vers un autre site s'ouvre dans le navigateur.
 /// - lire les fichiers choisis par Fichier › Importer… (⌘O, `menu.rs`), un à un, et seulement ceux-là ;
 /// - recopier les toiles dans le dossier Notak d'iCloud Drive (`nuage.rs`), où les retrouvent les autres appareils ;
-/// - ouvrir dans la fenêtre la page d'un lien `notak://` cliqué ailleurs, d'un serveur déjà relié (`lien.rs`, macOS) ;
+/// - ouvrir dans la fenêtre la page d'un lien `notak://` cliqué ailleurs, d'un serveur déjà relié (`lien.rs`, macOS et
+///   iOS) ;
 /// Et, pour la page d'un serveur, photographier la fenêtre pour un signalement (`capturer_fenetre`).
 ///
 /// Sur un iPhone ou un iPad, la même coque compile (`tauri ios build`) : l'application embarquée, ou un serveur Notak
@@ -29,7 +30,8 @@ mod acces;
 mod appel;
 #[cfg(desktop)]
 mod fichiers;
-#[cfg(target_os = "macos")]
+mod langue;
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 mod lien;
 #[cfg(desktop)]
 mod menu;
@@ -53,8 +55,10 @@ use std::time::{Duration, Instant};
 use tauri::ipc::Request;
 use tauri::webview::NewWindowResponse;
 use tauri::webview::PageLoadEvent;
+#[cfg(any(desktop, target_os = "ios"))]
+use tauri::RunEvent;
 #[cfg(desktop)]
-use tauri::{RunEvent, State, Webview};
+use tauri::{State, Webview};
 use tauri::{AppHandle, Manager, WebviewWindowBuilder};
 #[cfg(desktop)]
 use tauri_plugin_dialog::DialogExt;
@@ -400,7 +404,15 @@ pub fn run() {
                 }
                 _ => {}
             }
-            #[cfg(mobile)]
+            // Sur un iPhone ou un iPad, le système remet de même un lien `notak://` touché ailleurs : celui d'une fiche
+            // de Silak, ou la fin de la connexion par code. L'app lancée, par la scène (`scene:openURLContexts:`) ; au
+            // lancement, par le relais du plugin `appareil` (`LienDuLancement`), tao ne lisant pas ce que reçoit la
+            // connexion de la scène.
+            #[cfg(target_os = "ios")]
+            if let RunEvent::Opened { urls } = evenement {
+                lien::recevoir(_app, &urls);
+            }
+            #[cfg(target_os = "android")]
             let _ = evenement;
         });
 }

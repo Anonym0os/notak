@@ -15,6 +15,7 @@ use tauri::{AppHandle, Manager, Wry};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::acces::{revenir, Ecran};
+use crate::langue::en_francais;
 use crate::Emplacements;
 
 const CHANGER: &str = "notak-changer-de-serveur";
@@ -110,23 +111,6 @@ fn libelles(francais: bool) -> [&'static str; 2] {
     }
 }
 
-/// Une langue (`fr-FR`, `en`…) est-elle le français ? Sans langue connue, le français, celle de Notak par défaut.
-pub fn francais(langue: Option<&str>) -> bool {
-    langue.is_none_or(|l| l.trim().get(..2).is_some_and(|d| d.eq_ignore_ascii_case("fr")))
-}
-
-/// La première langue choisie dans les réglages du Mac.
-#[cfg(target_os = "macos")]
-pub fn en_francais() -> bool {
-    francais(objc2_foundation::NSLocale::preferredLanguages().firstObject().map(|l| l.to_string()).as_deref())
-}
-
-/// Ailleurs, la coque ne lit pas la langue du système : le français.
-#[cfg(not(target_os = "macos"))]
-pub fn en_francais() -> bool {
-    francais(None)
-}
-
 pub fn menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let francais = en_francais();
     let t = textes(francais);
@@ -208,9 +192,7 @@ mod essais {
 
     #[test]
     fn la_langue_du_mac_choisit_les_libelles() {
-        for (langue, fr) in [(Some("fr-FR"), true), (Some("fr"), true), (Some("FR-ca"), true), (Some("en-US"), false), (Some("de"), false), (Some(""), false), (None, true)] {
-            assert_eq!(francais(langue), fr, "{langue:?}");
-        }
+        use crate::langue::francais;
         assert_eq!(libelles(francais(Some("fr-BE"))), ["Changer de serveur…", "Toiles de cet ordinateur"]);
         assert_eq!(libelles(francais(Some("en-GB"))), ["Change server…", "Boards on this computer"]);
     }

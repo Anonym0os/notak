@@ -214,11 +214,11 @@ fn hote_de(origine: &str) -> String {
 }
 
 /// La question se pose dans la langue de la page, telle qu'elle la dit (`x-notak-langue` : elle n'en change que les
-/// mots) ; sans elle, dans celle du système (`menu::en_francais`).
+/// mots) ; sans elle, dans celle du système (`langue::en_francais`).
 fn en_francais(entetes: &HeaderMap) -> bool {
     match entetes.get("x-notak-langue").and_then(|v| v.to_str().ok()).filter(|l| !l.trim().is_empty()) {
-        Some(l) => crate::menu::francais(Some(l)),
-        None => crate::menu::en_francais(),
+        Some(l) => crate::langue::francais(Some(l)),
+        None => crate::langue::en_francais(),
     }
 }
 
