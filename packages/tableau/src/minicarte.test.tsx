@@ -3,7 +3,8 @@ import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Minicarte } from './Minicarte'
-import { type Boite, DELAI_MINICARTE, MINICARTE_MAX, cadreMinicarte, definirAffichageMinicarte, mondeMinicarte, versMinicarte, versToile } from './minicarteModele'
+import { lireReglages } from './reglages'
+import { type Boite, DELAI_MINICARTE, MINICARTE_MAX, affichageMinicarteParDefaut, cadreMinicarte, definirAffichageMinicarte, mondeMinicarte, versMinicarte, versToile } from './minicarteModele'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -115,9 +116,42 @@ describe('la mini-carte', () => {
     // Pris à 10 px du centre du cadre, puis tiré de 20 px : la vue avance de 20 px de mini-carte, pas plus.
     pointeur('pointerdown', champ.x + champ.l / 2 + 10, champ.y + champ.h / 2)
     expect(aller).not.toHaveBeenCalled()
+    // Le doigt envoie plusieurs mouvements dans la même image : la toile ne bouge qu'une fois, au dernier.
+    pointeur('pointermove', champ.x + champ.l / 2 + 20, champ.y + champ.h / 2)
     pointeur('pointermove', champ.x + champ.l / 2 + 30, champ.y + champ.h / 2)
+    expect(aller).not.toHaveBeenCalled()
+    act(() => void vi.advanceTimersToNextFrame())
     const k = cadreMinicarte(monde).k
+    expect(aller).toHaveBeenCalledTimes(1)
     expect(aller).toHaveBeenLastCalledWith({ x: expect.closeTo(40 + 20 / k, 5), y: expect.closeTo(30, 5) })
     pointeur('pointerup', 0, 0)
+  })
+
+  it('les formes se tracent dans le repère de la toile : quand la vue avance, seul le groupe se déplace', () => {
+    act(() => definirAffichageMinicarte('toujours'))
+    monter({ x: 0, y: 0, l: 80, h: 60 })
+    const avant = [...hote.querySelectorAll('.notak-minicarte-forme')].map((r) => r.getAttribute('x'))
+    monter({ x: 300, y: 0, l: 80, h: 60 })
+    expect([...hote.querySelectorAll('.notak-minicarte-forme')].map((r) => r.getAttribute('x'))).toEqual(avant)
+    expect(avant).toEqual(['0', '160'])
+  })
+})
+
+describe('le défaut de la mini-carte', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  const pointeurGrossier = (grossier: boolean) => vi.stubGlobal('matchMedia', (q: string) => ({ matches: grossier && q === '(pointer: coarse)' }))
+
+  it('au doigt (iPhone, iPad), elle ne paraît pas tant qu’on ne l’a pas demandée ; à la souris, en mouvement', () => {
+    pointeurGrossier(true)
+    expect(affichageMinicarteParDefaut()).toBe('jamais')
+    pointeurGrossier(false)
+    expect(affichageMinicarteParDefaut()).toBe('mouvement')
+  })
+
+  it('un choix enregistré, même « En mouvement », se garde', () => {
+    pointeurGrossier(true)
+    localStorage.setItem('notak:reglages', JSON.stringify({ minicarte: 'mouvement' }))
+    expect(lireReglages().minicarte).toBe('mouvement')
+    localStorage.removeItem('notak:reglages')
   })
 })

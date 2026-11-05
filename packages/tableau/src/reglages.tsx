@@ -84,7 +84,8 @@ export function lireReglages(): Reglages {
       barre: brut.barreChoisie && brut.barre === 'flottante' ? 'flottante' : 'gauche',
       ...(brut.barreChoisie ? { barreChoisie: true } : {}),
       langue: brut.langue === 'fr' || brut.langue === 'en' ? brut.langue : 'auto',
-      ...(brut.minicarte && brut.minicarte !== 'mouvement' && AFFICHAGES_MINICARTE.includes(brut.minicarte) ? { minicarte: brut.minicarte } : {}),
+      // Le défaut dépend de l'appareil (affichageMinicarteParDefaut) : un choix, même « En mouvement », se garde.
+      ...(brut.minicarte && AFFICHAGES_MINICARTE.includes(brut.minicarte) ? { minicarte: brut.minicarte } : {}),
       ...(typeof brut.habillage === 'string' && /^[a-z0-9][a-z0-9-]{0,39}$/.test(brut.habillage) ? { habillage: brut.habillage } : {}),
       ...(brut.crayon === 'doigt' ? { crayon: 'doigt' as const } : {}),
     }

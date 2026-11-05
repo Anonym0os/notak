@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { auDoigt } from './doigt'
 
 /**
  * La mini-carte des toiles (le tableau, la carte) : tout le contenu en petit, en bas à droite, avec la zone qu'on voit.
@@ -29,12 +30,22 @@ const MINICARTE_COTE_MIN = 56
 /** Le vide laissé autour du contenu, en part de sa plus grande dimension. */
 const MARGE = 0.06
 
-let affichage: AffichageMinicarte = 'mouvement'
+/**
+ * Le défaut, quand la personne n'a rien choisi : « En mouvement » à la souris, « Jamais » au doigt. Sur iPhone et iPad,
+ * elle paraissait à chaque glissement de la toile, se redessinait à chaque image sous un flou d'arrière-plan que WebKit
+ * recalcule à grands frais, et faisait ramer le déplacement ; au doigt, on se déplace en glissant et en pinçant, et la
+ * mini-carte, trop petite pour qu'on y vise, servait peu. Elle reste à un réglage de là, dans « Vue ».
+ */
+export function affichageMinicarteParDefaut(): AffichageMinicarte {
+  return auDoigt() ? 'jamais' : 'mouvement'
+}
+
+let affichage: AffichageMinicarte = affichageMinicarteParDefaut()
 const abonnes = new Set<() => void>()
 
 /** L'hôte reporte ici le réglage de la personne : les deux toiles le lisent sans le recevoir en props. */
 export function definirAffichageMinicarte(a: AffichageMinicarte | undefined) {
-  const v = a ?? 'mouvement'
+  const v = a ?? affichageMinicarteParDefaut()
   if (v === affichage) return
   affichage = v
   for (const f of abonnes) f()

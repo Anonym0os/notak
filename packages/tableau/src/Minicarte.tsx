@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { t } from './langue'
 import { type Boite, DELAI_MINICARTE, cadreMinicarte, englober, mondeMinicarte, useAffichageMinicarte, versMinicarte, versToile } from './minicarteModele'
 import './minicarte.css'
@@ -34,10 +34,15 @@ export function Minicarte({ formes, version, vue, fenetre, aller, lieu }: Propri
   // Le minuteur vit à part : une fenêtre redimensionnée entre deux mouvements ne doit pas l'annuler.
   const avant = useRef<{ vue: Boite; fenetre: { l: number; h: number } } | null>(null)
   const minuteur = useRef<ReturnType<typeof setTimeout>>(undefined)
+  // Tirer le cadre déplace toute la toile : un seul déplacement par image, le dernier, même si le doigt en envoie plus.
+  const image = useRef(0)
+  const enAttente = useRef<{ x: number; y: number } | null>(null)
   const { x, y, l, h } = vue
   useEffect(() => {
     const a = avant.current
     avant.current = { vue: { x, y, l, h }, fenetre }
+    // Retirée ou épinglée, le mouvement ne change rien à ce qu'elle montre : pas de minuteur relancé à chaque image.
+    if (affichage !== 'mouvement') return
     if (!a || (a.vue.x === x && a.vue.y === y && a.vue.l === l && a.vue.h === h)) return
     if (a.fenetre.l !== fenetre.l || a.fenetre.h !== fenetre.h) return
     setBouge(true)
@@ -45,7 +50,18 @@ export function Minicarte({ formes, version, vue, fenetre, aller, lieu }: Propri
     minuteur.current = setTimeout(() => setBouge(false), DELAI_MINICARTE)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [x, y, l, h])
-  useEffect(() => () => clearTimeout(minuteur.current), [])
+  useEffect(() => () => (clearTimeout(minuteur.current), cancelAnimationFrame(image.current)), [])
+
+  const allerALImage = (ou: { x: number; y: number }) => {
+    const premier = !enAttente.current
+    enAttente.current = ou
+    if (!premier) return
+    image.current = requestAnimationFrame(() => {
+      const p = enAttente.current
+      enAttente.current = null
+      if (p) aller(p)
+    })
+  }
 
   const visible = affichage === 'toujours' || bouge || survol || !!tire
   // Mesurer le contenu coûte (le tableau lit ses éléments à l'écran) : seulement quand on va la voir, une fois les
@@ -59,6 +75,12 @@ export function Minicarte({ formes, version, vue, fenetre, aller, lieu }: Propri
   }, [affichage, visible, version, bouge])
   const contenu = mesure?.contenu ?? null
   const monde = tire?.monde ?? mondeMinicarte(contenu, vue)
+  // Les formes se tracent une fois, dans le repère de la toile, et ne bougent plus : quand la vue avance, seule la
+  // transformation du groupe change, au lieu de recalculer et de redessiner chaque rectangle à chaque image.
+  const formesTracees = useMemo(
+    () => mesure?.boites.map((b, i) => <rect key={i} className="notak-minicarte-forme" x={b.x} y={b.y} width={b.l} height={b.h} />),
+    [mesure],
+  )
 
   if (affichage === 'jamais' || !contenu) return null
   const cadre = cadreMinicarte(monde)
@@ -101,13 +123,16 @@ export function Minicarte({ formes, version, vue, fenetre, aller, lieu }: Propri
         e.stopPropagation()
         if (!tire) return
         const p = ici(e)
-        aller(versToile(tire.monde, { x: p.x - tire.prise.x, y: p.y - tire.prise.y }))
+        allerALImage(versToile(tire.monde, { x: p.x - tire.prise.x, y: p.y - tire.prise.y }))
       }}
       onPointerUp={(e) => {
         e.stopPropagation()
         setTire(null)
       }}
-      onPointerCancel={() => setTire(null)}
+      onPointerCancel={() => {
+        enAttente.current = null
+        setTire(null)
+      }}
       onDoubleClick={(e) => e.stopPropagation()}
       onContextMenu={(e) => {
         e.preventDefault()
@@ -115,10 +140,7 @@ export function Minicarte({ formes, version, vue, fenetre, aller, lieu }: Propri
       }}
     >
       <svg width={cadre.l} height={cadre.h} aria-hidden>
-        {mesure!.boites.map((b, i) => {
-          const m = versMinicarte(monde, b)
-          return <rect key={i} className="notak-minicarte-forme" x={m.x} y={m.y} width={Math.max(1, m.l)} height={Math.max(1, m.h)} rx={Math.min(2, m.l / 4, m.h / 4)} />
-        })}
+        <g transform={`translate(${cadre.dx - monde.x * cadre.k} ${cadre.dy - monde.y * cadre.k}) scale(${cadre.k})`}>{formesTracees}</g>
         <rect className="notak-minicarte-vue" x={champ.x + (champ.l - trace.l) / 2} y={champ.y + (champ.h - trace.h) / 2} width={trace.l} height={trace.h} rx={3} />
       </svg>
     </div>

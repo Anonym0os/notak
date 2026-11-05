@@ -5,6 +5,7 @@ import { auDoigt } from './doigt'
 import { crayonVu } from './elements/dessin/mode'
 import { langueDuNavigateur, t } from './langue'
 import { RACCOURCIS, touches } from './Menus'
+import { affichageMinicarteParDefaut } from './minicarteModele'
 import { ChoixCouleur, ChoixHabillage, ChoixMode, ChoixPhoto, DEFAUT, type OptionChoix, type Reglages, type ServiceCompte } from './reglages'
 
 /**
@@ -289,7 +290,7 @@ export const RUBRIQUES: Rubrique[] = [
                 { valeur: 'toujours', libelle: t('reglages.minicarte.toujours') },
                 { valeur: 'jamais', libelle: t('reglages.minicarte.jamais') },
               ],
-              lire: (c) => c.reglages.minicarte ?? 'mouvement',
+              lire: (c) => c.reglages.minicarte ?? affichageMinicarteParDefaut(),
               ecrire: (c, v) => c.changer({ minicarte: v as Reglages['minicarte'] }),
             },
           },

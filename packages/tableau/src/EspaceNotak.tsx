@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom'
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { type Camera, TAILLES_GRILLE, definirTailleGrille } from './coeur/camera'
-import { definirAffichageMinicarte } from './minicarteModele'
+import { affichageMinicarteParDefaut, definirAffichageMinicarte } from './minicarteModele'
 import {
   type EspaceNavigable,
   type EtatEnvoi,
@@ -693,7 +693,7 @@ export function EspaceNotak({
         {segments.length > 1 && (
           <div className="notak-vue-bas">
             <Ilot>
-              <BoutonVue minicarte={{ valeur: reglages.minicarte ?? 'mouvement', changer: (minicarte) => changerReglages({ minicarte }) }} />
+              <BoutonVue minicarte={{ valeur: reglages.minicarte ?? affichageMinicarteParDefaut(), changer: (minicarte) => changerReglages({ minicarte }) }} />
             </Ilot>
           </div>
         )}
