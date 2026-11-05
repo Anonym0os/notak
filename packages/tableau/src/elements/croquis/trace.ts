@@ -171,6 +171,8 @@ export const AFFINAGE = 0.6
 export const affinageDe = (indiceEpaisseur: number): number => (indiceEpaisseur === EPAISSEURS_TRAIT.length - 1 ? 0 : AFFINAGE)
 /** Un trait affiné est deux fois plus large qu'un trait constant de même réglage, à vitesse moyenne. */
 const LARGEUR_ENCRE = 2
+/** L'épaisseur à laquelle le contour se calcule : celle du trait moyen à l'écran, où le rendu en direct est juste. */
+const EPAISSEUR_CONTOUR = 4
 
 /** Les points du contour, en chemin SVG fermé : des quadratiques qui passent par le milieu de chaque côté. */
 function cheminContour(contour: readonly number[][]): string {
@@ -312,10 +314,14 @@ export function dessinTrait(
   if (surligneur || !affinage || propre.points.length < 4) return constant()
   const pts = propre.points
   const pr = propre.pressions
+  // Le contour se calcule toujours à la même échelle, l'épaisseur ramenée à EPAISSEUR_CONTOUR : perfect-freehand a
+  // des seuils en unités absolues (il saute les points à moins de 3 unités du bout), invisibles en pixels d'écran
+  // mais qui, en UG (un dessin posé), avalaient la barre d'un E et n'en laissaient qu'une tache.
+  const f = epaisseur > 0 ? EPAISSEUR_CONTOUR / epaisseur : 1
   const paires: number[][] = []
-  for (let i = 0; i < pts.length; i += 2) paires.push(pr ? [pts[i]!, pts[i + 1]!, pr[i / 2]!] : [pts[i]!, pts[i + 1]!])
-  const contour = getStroke(paires, { size: epaisseur * LARGEUR_ENCRE, thinning: affinage, smoothing: 0.5, streamline: 0.4, simulatePressure: !pr, last: fini })
-  const d = cheminContour(contour.filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1])))
+  for (let i = 0; i < pts.length; i += 2) paires.push(pr ? [pts[i]! * f, pts[i + 1]! * f, pr[i / 2]!] : [pts[i]! * f, pts[i + 1]! * f])
+  const contour = getStroke(paires, { size: epaisseur * f * LARGEUR_ENCRE, thinning: affinage, smoothing: 0.5, streamline: 0.4, simulatePressure: !pr, last: fini })
+  const d = cheminContour(contour.filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1])).map(([x, y]) => [x! / f, y! / f]))
   return d ? { d, plein: true, epaisseur } : constant()
 }
 

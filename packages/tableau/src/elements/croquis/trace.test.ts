@@ -236,6 +236,22 @@ describe('le tracé épuré, à toute vitesse', () => {
   })
 })
 
+describe("le trait enregistré se dessine comme à l'écran", () => {
+  // La barre d'un E au Pencil, à 71 % : 40 px d'écran à 240 points par seconde, 4 px d'épaisseur, pression variable.
+  const k = 7.1
+  const ecran = Array.from({ length: 24 }, (_, i) => [100 + i * 1.7, 200 + Math.sin(i / 3) * 0.6]).flat()
+  const pressions = Array.from({ length: 24 }, (_, i) => 0.3 + (i / 24) * 0.4)
+  const nombres = (d: string) => (d.match(/-?\d+(\.\d+)?/g) ?? []).map(Number)
+  it('en UG (un dessin posé), une lettre courte garde sa forme au lieu de virer à la tache', () => {
+    const enDirect = dessinTrait(ecran, 4, AFFINAGE, true, pressions)
+    const pose = dessinTrait(ecran.map((v) => v / k), 4 / k, AFFINAGE, true, pressions)
+    const a = nombres(enDirect.d)
+    const b = nombres(pose.d).map((v) => v * k)
+    expect(b.length).toBe(a.length)
+    for (let i = 0; i < a.length; i++) expect(Math.abs(a[i]! - b[i]!)).toBeLessThan(0.1)
+  })
+})
+
 describe('le surligneur', () => {
   const points = [0, 0, 10, 2, 22, 8, 30, 20]
   it('trace une ligne constante et translucide, sans affinage ni pression', () => {
