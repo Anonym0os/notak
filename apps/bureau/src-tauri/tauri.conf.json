@@ -34,7 +34,7 @@
     "active": true,
     "targets": "all",
     "category": "Productivity",
-    "shortDescription": "Des tableaux d'idées sur une toile libre.",
+    "shortDescription": "Des toiles libres pour poser vos idées.",
     "fileAssociations": [
       {
         "ext": ["notak"],

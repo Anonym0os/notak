@@ -14,7 +14,7 @@ CE QU’ON Y FAIT
 • Des notes riches : titres, listes, cases à cocher, code, surlignage, Markdown en tapant.
 • Des images depuis Photos ou l’appareil photo, des fichiers, des PDF, des sons.
 • Des liens avec leur lecteur : vidéos, musique, cartes, documents.
-• Des colonnes qui rangent, des tableaux dans les tableaux, des flèches qui relient.
+• Des colonnes qui rangent, des toiles dans les toiles, des flèches qui relient.
 • Des cartes mentales et une présentation (Pitch) tirée de la toile.
 • Une recherche dans toutes les toiles, l’annulation sans limite, le mode sombre.
 • L’export en PDF, Markdown, images, ou en une copie .notak complète.

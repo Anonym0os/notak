@@ -38,6 +38,13 @@ Les sections suivantes décrivent tout, socle et suite, pour que le modèle de d
   (« Nouvelle toile », « toile imbriquée »), et la surface où l'on pose les éléments s'appelle le **fond**
   (« Glissez l'outil sur le fond »). « Tableau » reste au bloc Table du document. Le code et ce document gardent
   leurs noms (`tableau`, `Toile.tsx`) : le renommage ne touche que les textes affichés en français.
+  Complété le 04/11/2026 : les trois genres s'appellent **Toile · Page · Carte mentale** (en anglais américain,
+  **Canvas · Page · Mind map**) ; la page est ce que le code appelle `document`, la carte mentale ce qu'il appelle
+  `arbre`. « Carte » ne désigne jamais seule une carte mentale, ni « Map » en anglais : « carte » reste à la carte
+  géographique (« lien.carte »), à la carte d'un élément posé et à la minicarte. Le tri s'appelle « Trier » ;
+  « Ranger » reste pour déplacer. Un libellé qui couvre les trois genres s'accorde au neutre (« Partagés avec moi »,
+  « Jamais ouverts »). « Tableau » reste au bloc Table d'une page, « document » au sens courant (un fichier Word, ce
+  document-ci). Les noms du code ne changent pas (`tableau`, `document`, `arbre`).
 - **Une grille comme unité.** Positions et tailles se comptent en unités de grille (UG), entières. Une UG vaut 8, 9 ou
   10 px selon la taille d'interface choisie.
 - **Local d'abord.** → Notak : l'état vit dans un document CRDT sur la machine. Le serveur relaie et conserve, il
