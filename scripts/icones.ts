@@ -1,7 +1,8 @@
 // Fabrique toutes les icônes de Notak à partir d'une seule source : l'éclat d'or, dessiné ci-dessous.
 //   node scripts/icones.ts
 // Il écrit :
-//   apps/web/public/icones/                 l'application installée (PWA) et l'écran d'attente de la page
+//   apps/web/public/icones/<DESSIN>/        l'application installée (PWA), l'onglet et l'écran d'attente de la page
+//   apps/web/public/favicon.ico             l'onglet, pour qui demande /favicon.ico sans lire la page
 //   apps/site/public/favicon.svg            le site
 //   apps/bureau/src-tauri/icons/            la coque de bureau : PNG, icon.icns (macOS), icon.ico (Windows)
 //   apps/bureau/src-tauri/icons/ios/        l'icône iOS et iPadOS, recopiée dans gen/apple/Assets.xcassets
@@ -204,8 +205,14 @@ const pngOpaque = (source: string, cote: number) => sharp(Buffer.from(source)).r
 const ecrire = async (url: URL, contenu: string | Buffer) => { await mkdir(new URL('.', url), { recursive: true }); await writeFile(url, contenu) }
 const json = (valeur: unknown) => JSON.stringify(valeur, null, 2) + '\n'
 
-// ---- La page installée (PWA) et l'écran d'attente ----
-const web = new URL('../apps/web/public/icones/', import.meta.url)
+// ---- La page installée (PWA), l'onglet et l'écran d'attente ----
+// Le nom du dessin est dans l'adresse : un navigateur garde l'icône d'un onglet des semaines, sans redemander le
+// fichier, et ne voit un nouveau dessin qu'à une adresse qu'il n'a jamais lue. Un nouveau dessin, un nouveau nom,
+// repris dans apps/web/index.html, public/manifest.webmanifest et src/PageApp.tsx.
+const DESSIN = 'eclat'
+const racineWeb = new URL('../apps/web/public/', import.meta.url)
+await rm(new URL('icones/', racineWeb), { recursive: true, force: true })
+const web = new URL(`icones/${DESSIN}/`, racineWeb)
 await ecrire(new URL('icone.svg', web), arrondie)
 await ecrire(new URL('marque.svg', web), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${cadreMarque(0.02)}"><path d="${MARQUE}"/></svg>`)
 await ecrire(new URL('192.png', web), await png(arrondie, 192))
@@ -213,6 +220,9 @@ await ecrire(new URL('512.png', web), await png(arrondie, 512))
 // « maskable » : Android découpe un cercle de 80 % au centre, la marque y tient entière
 await ecrire(new URL('maskable-512.png', web), await pngOpaque(pleineClaire((0.4 * 1024) / DEMI), 512))
 await ecrire(new URL('apple-touch-180.png', web), await pngOpaque(pleineClaire(), 180))
+// /favicon.ico : ce que demandent, sans lire la page, les signets, l'historique et les aperçus de liens ; sans lui,
+// le serveur y répondait par la page elle-même.
+await ecrire(new URL('favicon.ico', racineWeb), conteneurIco(await Promise.all([16, 32, 48].map(async (c) => [c, await png(arrondie, c)] as const))))
 
 // ---- Le favicon du site : la marque seule, noire, blanche quand le navigateur est sombre ----
 await ecrire(

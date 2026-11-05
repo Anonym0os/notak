@@ -8,8 +8,9 @@
     <meta name="apple-mobile-web-app-title" content="Notak" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" href="/icones/icone.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/icones/apple-touch-180.png" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/icones/eclat/icone.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icones/eclat/apple-touch-180.png" />
     <title>Notak</title>
     <!-- L'écran d'attente, ici et non dans app.css : il se peint avant que le moindre script ou la moindre feuille de
          l'app n'arrive. React le remplace par le même écran (EcranAttente) tant que les toiles se chargent. -->
@@ -30,7 +31,7 @@
         content: '';
         width: 64px;
         height: 64px;
-        background: url('/icones/marque.svg') center / contain no-repeat;
+        background: url('/icones/eclat/marque.svg') center / contain no-repeat;
       }
       /* La même marque que l'écran de lancement d'iOS, noire sur clair, blanche sur sombre. */
       .ecran-attente[data-theme='sombre']::before {
