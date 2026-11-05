@@ -15,6 +15,7 @@ import { creerLimiteur } from './debit.ts'
 import { creerExpiration } from './echeances.ts'
 import { indexerLesAbsents } from './indexation.ts'
 import type { Instance } from './instance.ts'
+import type { SourceRattachement } from './rattachements.ts'
 import { type Verificateur, creerVerificateur } from './misesAJour.ts'
 import { brancherSynchro, creerHocuspocus, nomDuDocument } from './synchro.ts'
 import { VERSION_NOTAK } from '../../../packages/tableau/src/version.ts'
@@ -53,6 +54,8 @@ export interface OptionsServeur {
   dossierSignalements?: string | null
   /** Les adresses des admins du serveur (`NOTAK_ADMINS`). */
   admins?: readonly string[]
+  /** Les autres outils dont les fiches ont chacune leur dossier ici (`NOTAK_RATTACHEMENTS`). */
+  rattachements?: readonly SourceRattachement[]
   /** Chercher les nouvelles versions de Notak (`NOTAK_VERIFIER_MAJ`, jamais en développement), ou le vérificateur à prendre. */
   misesAJour?: boolean | Verificateur
 }
@@ -140,6 +143,7 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     courrier,
     expirer,
     admins: options.admins ?? [],
+    rattachements: options.rattachements ?? [],
     misesAJour,
   })
 

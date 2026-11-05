@@ -60,6 +60,7 @@ import { estPageServeur, estServeurDansApp, signalerVie } from '../bureau'
 import { lancerMisesAJour } from '../MiseAJour'
 import { enregistrerServiceWorker, signalerNouvelleVersion } from '../pwa'
 import { PageAutoriser } from '../serveur/Autoriser'
+import { PageRelier } from '../serveur/Relier'
 import { poserLeGuideServeur } from '../serveur/guide'
 import { PAGE_AUTORISER } from '../serveur/appareil'
 import { BandeauxServeur } from '../serveur/Bandeaux'
@@ -290,6 +291,8 @@ function Application() {
     if (chemin === '/partage') return <PageLegere {...proprietes}>{() => <PagePartage espace={espacePour(etat.moi)} fichiers={fichiers} />}</PageLegere>
     if (chemin === '/envoyer') return <PageLegere {...proprietes}>{() => <PageEnvoyer adresseDeclaree={instance.adresse} />}</PageLegere>
     if (chemin === '/espace') return <PageLegere {...proprietes}>{() => <PageEspaces />}</PageLegere>
+    // Le dossier d'une fiche d'un autre outil (un CRM…), qu'ouvre le bouton de la fiche.
+    if (chemin === '/relier') return <PageLegere {...proprietes}>{() => <PageRelier />}</PageLegere>
     // Où l'on confirme la connexion de l'app de bureau (le lien que le navigateur ouvre).
     if (chemin === PAGE_AUTORISER) return <PageLegere {...proprietes}>{() => <PageAutoriser moi={etat.moi} />}</PageLegere>
     return chemin === '/' || chemin === '/bibliotheque' ? <Accueil {...proprietes} /> : <Espace {...proprietes} />

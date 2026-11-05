@@ -459,6 +459,26 @@ DELETE FROM recherche_etat;
 `)
     },
   },
+  {
+    version: 11,
+    nom: 'les dossiers rattachés aux fiches d’un autre outil',
+    appliquer(db) {
+      db.exec(`
+-- Le dossier de chaque fiche d'un autre outil (NOTAK_RATTACHEMENTS), dans un espace : une fiche n'en a qu'un par espace.
+-- La clé vide est celle du dossier qui range tous ceux de la source.
+CREATE TABLE rattachements (
+  espace TEXT NOT NULL REFERENCES organization(id) ON DELETE CASCADE,
+  source TEXT NOT NULL,
+  cle TEXT NOT NULL,
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  adresse TEXT,
+  cree INTEGER NOT NULL,
+  PRIMARY KEY (espace, source, cle)
+);
+CREATE INDEX rattachements_tableau ON rattachements(tableau);
+`)
+    },
+  },
 ]
 
 /**

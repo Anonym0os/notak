@@ -6,6 +6,7 @@ import { fournisseursDe, normaliserOrigine, secretDe } from './auth.ts'
 import { type Cle, ErreurChiffrement, lireCle } from './chiffrement.ts'
 import { adminsDe } from './comptes.ts'
 import { instanceDe } from './instance.ts'
+import { sourcesDe } from './rattachements.ts'
 import { type ServeurDemarre, demarrer } from './serveur.ts'
 
 // Une variable vide vaut une variable absente : une ligne `NOTAK_X=` laissée dans le .env de Compose ne casse rien.
@@ -73,6 +74,8 @@ try {
     // Les signalements de bugs (⇧⌘S) : d'office en développement, dans les données ; ailleurs, là où le dit l'instance.
     dossierSignalements: process.env.NOTAK_SIGNALEMENTS || (origine ? null : join(dossier, 'signalements')),
     admins: adminsDe(process.env.NOTAK_ADMINS),
+    // Les autres outils dont chaque fiche a son dossier ici (docs/AUTO-HEBERGER.md, « Rattacher les fiches d'un autre outil »).
+    rattachements: sourcesDe(process.env.NOTAK_RATTACHEMENTS),
     // Un serveur de développement (sans adresse publique) ne cherche pas de mise à jour : il est en avance sur elles.
     misesAJour: Boolean(origine) && process.env.NOTAK_VERIFIER_MAJ?.trim() !== '0',
   })

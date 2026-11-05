@@ -146,6 +146,7 @@ Toutes se mettent dans le `.env`, sauf les trois dernières, que l'image règle 
 | `NOTAK_GOOGLE_ID`, `NOTAK_GOOGLE_SECRET` | aucun | « Continuer avec Google » ; de même `MICROSOFT` et `GITHUB`. Retour : `<NOTAK_ORIGINE>/api/auth/callback/<fournisseur>` |
 | `NOTAK_SMTP_URL`, `NOTAK_EXPEDITEUR` | aucun | les courriels (mot de passe oublié, invitations) ; sans eux, les liens vont au journal |
 | `NOTAK_IDP_INTERNES` | aucune | les origines des fournisseurs d'identité du réseau interne qu'un espace peut déclarer en SSO, séparées par des virgules (`http://keycloak.lan`) ; écrites autrement, corrigées comme `NOTAK_ORIGINE` |
+| `NOTAK_RATTACHEMENTS` | aucun | les autres outils (un CRM, un gestionnaire de projets…) dont chaque fiche peut avoir son dossier ici, en JSON (voir « Rattacher les fiches d'un autre outil ») |
 | `NOTAK_ADMINS` | aucun | les adresses des admins du serveur, séparées par des virgules : ils voient, dans l'app, qu'une nouvelle version existe. Aucun droit de plus sur les tableaux ni les espaces |
 | `NOTAK_VERIFIER_MAJ` | `1` | `0` : le serveur ne regarde plus s'il existe une nouvelle version (voir « Mettre à jour ») |
 | `NOTAK_SIGNALEMENTS` | aucun | le dossier où ranger les signalements de bugs (⇧⌘S dans l'app, par un compte connecté), dans l'image un dossier de `/donnees` (`/donnees/signalements`) ; sans lui, le serveur n'en reçoit pas. `bun run signalements` les lit |
@@ -168,6 +169,52 @@ inscriptions, thèmes, version. `GET /api/sante` dit, sans compte, que le serveu
 
 Les admins sont reconnus à leur adresse : créez leur compte tôt (ou par `compte.ts`, plus bas), avant qu'un autre ne
 s'inscrive avec la même.
+
+## Rattacher les fiches d'un autre outil
+
+Un autre outil, un CRM par exemple, peut donner à chacune de ses fiches son dossier dans Notak : un bouton de la fiche
+ouvre l'adresse `/relier` du serveur, qui ouvre le dossier de la fiche, ou propose de le créer s'il n'existe pas encore.
+Rien ne se crée avant ce clic : les fiches qu'on n'ouvre jamais n'ont pas de dossier, et la bibliothèque ne s'encombre
+pas de toutes les autres. Les dossiers d'un outil sont rangés dans un seul, « Clients » par exemple, posé dans l'accueil
+de l'espace ; dedans, chacun range autant de toiles, de pages et de cartes mentales qu'il veut.
+
+Chaque outil se déclare dans `NOTAK_RATTACHEMENTS`, une liste JSON :
+
+```
+NOTAK_RATTACHEMENTS=[{"source":"crm","nom":"Mon CRM","dossier":"Clients","origine":"https://crm.exemple.fr","espace":"<id de l'espace>"}]
+```
+
+| Champ | Ce qu'il dit |
+|---|---|
+| `source` | ce que l'outil écrit dans l'adresse, en minuscules, chiffres et tirets |
+| `nom` | le nom de l'outil, tel qu'on le lit dans Notak (« Ouvrir la fiche dans Mon CRM ») |
+| `dossier` | le titre du dossier qui range ceux de l'outil |
+| `origine` | l'adresse de l'outil : le lien de retour vers une fiche doit y être, sans quoi il est refusé |
+| `espace` | facultatif : l'espace où ranger les dossiers, pour qu'une équipe les partage. Sans lui, chacun a les siens, dans son espace personnel |
+
+Le bouton de la fiche ouvre :
+
+```
+https://notak.exemple.fr/relier?source=crm&cle=societe:42&titre=Dupont%20SARL&retour=https://crm.exemple.fr/societes/42
+```
+
+`cle` est l'identifiant de la fiche dans l'outil (lettres, chiffres, `:`, `.`, `_` et `-`, 128 au plus) : une fiche n'a
+qu'un dossier par espace. `titre` nomme le dossier à sa création ; on le renomme ensuite dans Notak comme une autre
+toile. `retour` est l'adresse de la fiche, que le dossier rappelle par un lien. Quelqu'un qui n'est pas connecté passe
+d'abord par l'écran de connexion, puis revient à la même adresse. Un dossier jeté à la corbeille compte comme absent :
+le bouton en propose un neuf.
+
+L'outil peut aussi montrer, sur la fiche, ce que range son dossier. Ses pages lisent, avec la session de la personne :
+
+| Adresse | Ce qu'elle rend |
+|---|---|
+| `GET /api/rattachements/<source>/<cle>` | `etat` : `present` (avec `tableau` et `titre`), `cache` (le dossier existe, la personne ne le voit pas) ou `absent` |
+| `GET /api/rattachements/<source>/<cle>/contenu` | le même `etat`, et pour un dossier présent, `elements` : chaque toile, page, carte mentale, photo, lien ou fichier qu'il range et que la personne lit, avec `genre`, `titre`, `modifie` (ms, ou `null`) et `chemin` (à ajouter à l'adresse du serveur), du plus récemment changé au plus ancien |
+
+Ces deux adresses ne s'ouvrent (CORS, avec les cookies) qu'à l'`origine` déclarée de l'outil, et seulement en lecture.
+L'appel se fait avec `credentials: 'include'`. Le cookie de session ne part que si l'outil et Notak sont sur le même
+site (`crm.exemple.fr` et `notak.exemple.fr`) ; ailleurs, l'outil n'a que le bouton. Sans session, la réponse est un
+401 : l'outil propose alors de se connecter à Notak.
 
 ## Fermer les inscriptions
 

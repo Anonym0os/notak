@@ -4659,7 +4659,7 @@ button.biblio-arbre-chevron:hover {
 /* Le texte pâle d'`app.css` (62 % du texte) ne tient que 3,7:1 sur le blanc, et l'accent 4,4:1 sur le sombre : trop peu pour du texte de
    12 à 13 px, dont un lien. Dans ces écrans, 72 % (4,8:1), et un accent qui tire vers la couleur du texte (plus foncé en clair, plus
    clair en sombre). */
-:is(.connexion-bureau, .connexion-navigateur, .connexion-code, .connexion-fournisseurs, .autoriser-carte, .ouverts-dialogue, .bandeau-admin, .bandeau-attente) {
+:is(.connexion-bureau, .connexion-navigateur, .connexion-code, .connexion-fournisseurs, .autoriser-carte, .relier-carte, .ouverts-dialogue, .bandeau-admin, .bandeau-attente) {
   --app-pale: color-mix(in srgb, var(--texte) 72%, transparent);
   --accent-lien: color-mix(in srgb, var(--accent) 80%, var(--texte));
 }
@@ -4881,16 +4881,22 @@ button.biblio-arbre-chevron:hover {
   font-size: 13px;
 }
 
-.autoriser-actions {
+.autoriser-actions,
+.relier-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.autoriser-actions .bouton {
+:is(.autoriser-actions, .relier-actions) .bouton {
   height: 40px;
   padding: 0 22px;
   border-radius: 20px;
+}
+
+/* — La page qui mène au dossier d'une fiche d'un autre outil (`/relier`). — */
+.relier-carte:focus {
+  outline: none;
 }
 
 
@@ -5683,6 +5689,22 @@ button.biblio-arbre-chevron:hover {
   justify-content: space-between;
   gap: 12px;
   margin: -8px 0 16px;
+}
+
+/* « Fiche dans… » : le dossier d'une fiche d'un autre outil y mène, sous la ligne du dossier. */
+.biblio-locale-fiche {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  margin: -12px 0 12px;
+  color: var(--notak-accent, #2f6feb);
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.biblio-locale-fiche svg {
+  flex: none;
 }
 
 .biblio-locale-retour {

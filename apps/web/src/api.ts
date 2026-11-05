@@ -767,6 +767,8 @@ export interface EntreeBibliotheque {
   favori: boolean
   /** Une toile que d'autres lui partagent. */
   partage: boolean
+  /** Le dossier d'une fiche d'un autre outil (un CRM…) : l'outil, et où la fiche s'ouvre. */
+  fiche?: { nom: string; adresse?: string }
 }
 
 /** Tout ce que le compte peut lire : ses toiles (sauf l'accueil), et ce qu'elles portent de pages, cartes mentales, photos, liens et fichiers. */
@@ -774,6 +776,35 @@ export async function lireBibliotheque(): Promise<EntreeBibliotheque[]> {
   const r = await appeler(`/api/bibliotheque?genres=${GENRES_EN_PLUS.join(',')}`)
   if (!r.ok) throw await refus(r, {})
   return (await r.json()) as EntreeBibliotheque[]
+}
+
+/**
+ * Le dossier d'une fiche d'un autre outil (`/relier`) : là, et le compte le lit ; là, mais il ne le voit pas ; ou
+ * absent. `source` est le nom de l'outil, `dossier` celui du dossier qui range ses fiches.
+ */
+export type DossierDeFiche = ({ etat: 'present'; tableau: string; titre: string } | { etat: 'absent' | 'cache' }) & { source: string; dossier: string }
+
+/** Les refus du serveur sur une fiche, dans les mots de la page. */
+const REFUS_FICHE = {
+  source_inconnue: 'relier.erreur.source',
+  fiche_invalide: 'relier.erreur.fiche',
+  adresse_refusee: 'relier.erreur.adresse',
+  interdit: 'relier.erreur.interdit',
+  espace_introuvable: 'relier.erreur.espace',
+}
+const cheminDeFiche = (source: string, cle: string) => `/api/rattachements/${encodeURIComponent(source)}/${encodeURIComponent(cle)}`
+
+export async function lireDossierDeFiche(source: string, cle: string): Promise<DossierDeFiche> {
+  const r = await appeler(cheminDeFiche(source, cle))
+  if (!r.ok) throw await refus(r, REFUS_FICHE)
+  return (await r.json()) as DossierDeFiche
+}
+
+/** Trouve le dossier de la fiche, ou le crée ; `adresse` : où la fiche s'ouvre dans l'outil. */
+export async function creerDossierDeFiche(source: string, cle: string, titre: string, adresse?: string): Promise<DossierDeFiche> {
+  const r = await appeler(cheminDeFiche(source, cle), { titre, ...(adresse ? { adresse } : {}) })
+  if (!r.ok) throw await refus(r, REFUS_FICHE)
+  return (await r.json()) as DossierDeFiche
 }
 
 /** La recherche dans tous les tableaux du compte. */

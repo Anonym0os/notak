@@ -251,6 +251,18 @@ describe('sur un serveur', () => {
     expect(location.search).toBe('?dossier=racine')
   })
 
+  it('le dossier d’une fiche d’un autre outil y mène aussi à sa fiche', async () => {
+    const avecFiche = TOUTES.map((e) =>
+      e.tableau === 'voyage' && e.element === null ? { ...e, dans: 'racine', resume: { ...e.resume, dossier: true as const }, fiche: { nom: 'Mon CRM', adresse: 'https://crm.exemple.fr/s/42' } } : e,
+    )
+    history.replaceState(null, '', '/?dossier=voyage')
+    await ouvrir({ charger: async () => avecFiche })
+    const fiche = hote.querySelector<HTMLAnchorElement>('.biblio-locale-fiche')!
+    expect([fiche.textContent, fiche.getAttribute('href')]).toEqual(['Fiche dans Mon CRM', 'https://crm.exemple.fr/s/42'])
+    // La ligne du dossier reste celle d'avant : le retour, et « Ouvrir la toile ».
+    expect([...hote.querySelectorAll<HTMLAnchorElement>('.biblio-locale-dossier a')].map((a) => a.textContent)).toEqual(['Ouvrir la toile'])
+  })
+
   it('sur un ordinateur, la page du bureau : ni roue ronde, ni carte de bienvenue, ni vedette', async () => {
     ecran('ordinateur')
     await ouvrir()

@@ -12,9 +12,9 @@ import type { Context } from 'hono'
 import sharp from 'sharp'
 import * as Y from 'yjs'
 import { regrouper } from './activite.ts'
-import { type ElementArrive, elementImage, elementsDeTexte, poserDansNonTries } from './arrivee.ts'
+import { type ElementArrive, elementImage, elementsDeTexte, nouvelId, poserDansNonTries } from './arrivee.ts'
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
-import { type Base, DUREE_ACCES_PUBLIC_MS, DUREE_INVITATION_MS, type Fichier, type Invitation, type LienVisiteur, type NiveauVisiteur, type Utilisateur } from './base.ts'
+import { type Base, DUREE_ACCES_PUBLIC_MS, DUREE_INVITATION_MS, type Fichier, type Invitation, type LienVisiteur, type NiveauVisiteur, type Rattachement, type Utilisateur } from './base.ts'
 import { type Auth, CHEMIN_AUTH, type Fournisseur, utilisateurDeSession } from './auth.ts'
 import { type Demandes, creerDemandes, normaliserCode } from './demandesBureau.ts'
 import { type Autorisation, objetElement } from './autorisation.ts'
@@ -24,6 +24,7 @@ import { creerExpiration } from './echeances.ts'
 import { type Cle, duDisque, pourLeDisque } from './chiffrement.ts'
 import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from './contenu.ts'
 import { rangerLesToiles } from './catalogue.ts'
+import { CLE_FICHE, type SourceRattachement, adresseDeLaFiche, ecrireDossierNeuf, poserCarteDeToile, titreDuDossier } from './rattachements.ts'
 import type { Limiteur } from './debit.ts'
 import { AUCUN_CHANGEMENT, bilanDuRangement, rienNeChange } from './rangement.ts'
 import { RELATION_DU_ROLE, type Role, auMoins, role, roleDeRelation } from './droits.ts'
@@ -102,6 +103,8 @@ export interface Contexte {
   limiteurJeton?: Limiteur
   /** D'où et quand chaque code de connexion a été demandé ; à défaut, une mémoire à elle. */
   demandesBureau?: Demandes
+  /** Les autres outils dont les fiches ont chacune leur dossier ici (`NOTAK_RATTACHEMENTS`) ; à défaut, aucun. */
+  rattachements?: readonly SourceRattachement[]
 }
 
 export interface MoyensConnexion {
@@ -328,6 +331,9 @@ export function creerApp(ctx: Contexte): Hono {
       console.warn(`Notak : envoi des droits à OpenFGA différé (${(e as Error).message})`)
     }
   }
+
+  /** Un outil déclaré par `NOTAK_RATTACHEMENTS`, par ce qu'il écrit dans l'adresse. */
+  const sourceNommee = (nom: string) => ctx.rattachements?.find((r) => r.source === nom)
 
   const instance = ctx.instance ?? INSTANCE_PAR_DEFAUT
   // Ce que l'écran de connexion lit avant tout compte : il se règle dessus (nom, inscription, thème). Et si l'instance
@@ -1230,6 +1236,23 @@ export function creerApp(ctx: Contexte): Hono {
   })
 
   /**
+   * Ce que le compte lit, hors des mots de passe pas encore donnés, ce que portent ces toiles, et la règle du
+   * rangement, la même que dans l'app (catalogue.ts) : chaque toile lue, son parent en base, ses cartes.
+   */
+  const rangementPour = async (u: Utilisateur) => {
+    const ouverts = (await lisibles(u.id)).filter((id) => verrouPar(base, u.id, id) === null)
+    const lignes = base.contenus(ouverts).map((l) => ({ ...l, lu: JSON.parse(l.resume) as { cartes?: string[]; jetees?: string[] } }))
+    const resumesDesToiles = new Map(lignes.flatMap((l) => (l.genre === 'toile' ? [[l.tableau, l.lu] as const] : [])))
+    const { dossierDe, cachees } = rangerLesToiles(
+      ouverts.map((id) => {
+        const lu = resumesDesToiles.get(id)
+        return { id, parent: base.tableau(id)?.parent ?? null, ...(lu?.cartes ? { cartes: lu.cartes } : {}), ...(lu?.jetees ? { jetees: lu.jetees } : {}) }
+      }),
+    )
+    return { ouverts, lignes, dossierDe, cachees }
+  }
+
+  /**
    * La bibliothèque : chaque toile que le compte peut lire (sauf son accueil), et ce qu'elles portent (cartes mentales,
    * pages, et, si on les demande par `?genres=`, photos, liens et fichiers), avec la toile qui les porte (son titre,
    * `ou`, et son identifiant, `dans`), la dernière fois qu'il les a ouverts, et ses favoris et partages. Ce qui est sous
@@ -1242,7 +1265,7 @@ export function creerApp(ctx: Contexte): Hono {
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const demandes = c.req.query('genres')?.split(',')
     const genres = new Set<string>(demandes?.length ? [...demandes, 'toile'] : GENRES_D_AVANT)
-    const ouverts = (await lisibles(u.id)).filter((id) => verrouPar(base, u.id, id) === null)
+    const { ouverts, lignes, dossierDe, cachees } = await rangementPour(u)
     const ouvrables = new Set(ouverts)
     const vus = new Map(base.vus(u.id).map((v) => [`${v.tableau}/${v.element}`, v.vu]))
     const favoris = new Set(base.favoris(u.id))
@@ -1253,13 +1276,11 @@ export function creerApp(ctx: Contexte): Hono {
       if (!titres.has(id)) titres.set(id, base.tableau(id)?.titre ?? '')
       return titres.get(id)!
     }
-    const lignes = base.contenus(ouverts).map((l) => ({ ...l, lu: JSON.parse(l.resume) as { cartes?: string[]; jetees?: string[] } }))
-    // La règle du rangement, la même que dans l'app (catalogue.ts) : chaque toile lue, son parent en base, ses cartes.
-    const resumesDesToiles = new Map(lignes.flatMap((l) => (l.genre === 'toile' ? [[l.tableau, l.lu] as const] : [])))
-    const { dossierDe, cachees } = rangerLesToiles(
-      ouverts.map((id) => {
-        const lu = resumesDesToiles.get(id)
-        return { id, parent: base.tableau(id)?.parent ?? null, ...(lu?.cartes ? { cartes: lu.cartes } : {}), ...(lu?.jetees ? { jetees: lu.jetees } : {}) }
+    // Le dossier d'une fiche d'un autre outil mène à sa fiche, tant que l'outil est déclaré.
+    const fiches = new Map(
+      base.rattachementsDe(ouverts).flatMap((r) => {
+        const source = sourceNommee(r.source)
+        return r.cle && source ? [[r.tableau, { nom: source.nom, ...(r.adresse ? { adresse: r.adresse } : {}) }] as const] : []
       }),
     )
     const entrees = lignes.flatMap((l) => {
@@ -1281,6 +1302,7 @@ export function creerApp(ctx: Contexte): Hono {
           vu: vus.get(`${l.tableau}/${l.element}`) ?? null,
           favori: toile ? favoris.has(l.tableau) : favorisElements.has(`${l.tableau}/${l.element}`),
           partage: toile && partages.has(l.tableau),
+          ...(toile && fiches.has(l.tableau) ? { fiche: fiches.get(l.tableau) } : {}),
         },
       ]
     })
@@ -1956,6 +1978,161 @@ export function creerApp(ctx: Contexte): Hono {
 
     await poserDansLAccueil(u, elements)
     return repondre({ ajoutes: elements.length }, 201)
+  })
+
+  // ---- Les dossiers des fiches d'un autre outil (rattachements.ts) ----
+
+  type EtatFiche = { etat: 'present'; tableau: string; titre: string } | { etat: 'cache' } | { etat: 'absent' }
+  /**
+   * Où en est le dossier d'une fiche pour ce compte : là, et il le lit ; là, mais il ne le voit pas (on n'en crée pas
+   * un second) ; ou absent, ce qui comprend un dossier jeté à la corbeille : on en refait un neuf.
+   */
+  const etatDuDossier = async (u: Utilisateur, r: Rattachement | null): Promise<EtatFiche> => {
+    const ligne = r ? base.tableau(r.tableau) : null
+    if (!r || !ligne) return { etat: 'absent' }
+    if ((await roleSur(u.id, r.tableau)) === null) return { etat: 'cache' }
+    if ((await rangementPour(u)).cachees.has(r.tableau)) return { etat: 'absent' }
+    return { etat: 'present', tableau: r.tableau, titre: ligne.titre }
+  }
+  /** La source et la fiche demandées, et l'espace où la source range ses dossiers pour ce compte. */
+  const ficheDemandee = async (c: Context) => {
+    const u = await utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    const source = sourceNommee(c.req.param('source') ?? '')
+    if (!source) return c.json({ erreur: 'source inconnue', code: 'source_inconnue' }, 404)
+    const cle = c.req.param('cle') ?? ''
+    if (!CLE_FICHE.test(cle)) return c.json({ erreur: 'fiche invalide', code: 'fiche_invalide' }, 400)
+    const espace = source.espace ?? base.espacePersonnel(u.id)
+    const racine = espace ? base.espace(espace)?.racine : undefined
+    if (!espace || !racine) return c.json({ erreur: 'espace introuvable', code: 'espace_introuvable' }, 404)
+    return { u, source, cle, espace, racine }
+  }
+  // Une création à la fois : deux clics au même moment sur la même fiche ne font pas deux dossiers.
+  let fileDesDossiers: Promise<unknown> = Promise.resolve()
+  const aSonTour = <T>(f: () => Promise<T>): Promise<T> => {
+    const tour = fileDesDossiers.then(f, f)
+    fileDesDossiers = tour.catch(() => {})
+    return tour
+  }
+  /** Une toile neuve, montrée en dossier, posée dans `parent` par sa carte ; elle en hérite les accès. */
+  const creerDossierDans = async (u: Utilisateur, parent: string, titre: string): Promise<string> => {
+    const id = nouvelId(ctx.maintenant())
+    // Créé pendant un accès temporaire au parent, il tombe avec lui (comme `POST /api/tableaux`).
+    const fin = echeanceHeritee(u.id, parent)
+    base.transaction(() => {
+      base.creerTableau({ id, titre, proprietaire: u.id, parent })
+      base.definirAcces({ tableau: id, utilisateur: u.id, role: 'proprietaire' })
+      if (fin !== null) base.definirEcheance(id, `user:${u.id}`, fin)
+    })
+    await droitsAJour()
+    await modifierDocument(id, u, (doc) => ecrireDossierNeuf(doc, titre))
+    await modifierDocument(parent, u, (doc) => poserCarteDeToile(doc, id, ctx.maintenant()))
+    return id
+  }
+
+  /**
+   * Les pages de l'outil, sur son origine déclarée, lisent le dossier d'une fiche avec la session de la personne (le
+   * cookie suit d'un sous-domaine à l'autre d'un même site) : seulement lire, et seulement elles. Aucun joker.
+   */
+  const ouvertALOutil = (c: Context): Record<string, string> => {
+    const source = sourceNommee(c.req.param('source') ?? '')
+    const origine = c.req.header('origin')
+    return source && origine === source.origine ? { 'access-control-allow-origin': origine, 'access-control-allow-credentials': 'true', vary: 'Origin' } : { vary: 'Origin' }
+  }
+  const lectureDeLOutil = (traiter: (c: Context) => Promise<Response>) => async (c: Context) => {
+    const r = await traiter(c)
+    for (const [k, v] of Object.entries(ouvertALOutil(c))) r.headers.set(k, v)
+    return r
+  }
+  const avantLecture = (c: Context) => c.body(null, 204, { ...ouvertALOutil(c), 'access-control-allow-methods': 'GET', 'access-control-max-age': '600' })
+  app.options('/api/rattachements/:source/:cle', avantLecture)
+  app.options('/api/rattachements/:source/:cle/contenu', avantLecture)
+
+  /** Le dossier d'une fiche : `etat` dit s'il est là, caché ou absent ; `dossier`, où il se rangerait. */
+  app.get(
+    '/api/rattachements/:source/:cle',
+    lectureDeLOutil(async (c) => {
+      const f = await ficheDemandee(c)
+      if (f instanceof Response) return f
+      const etat = await etatDuDossier(f.u, base.rattachement(f.espace, f.source.source, f.cle))
+      return c.json({ ...etat, source: f.source.nom, dossier: f.source.dossier })
+    }),
+  )
+
+  /**
+   * Ce que range le dossier d'une fiche, pour que l'outil le montre sur la fiche : chaque toile, page, carte mentale,
+   * photo, lien ou fichier que la personne lit, du plus récemment changé au plus ancien, avec son chemin dans Notak.
+   */
+  app.get(
+    '/api/rattachements/:source/:cle/contenu',
+    lectureDeLOutil(async (c) => {
+      const f = await ficheDemandee(c)
+      if (f instanceof Response) return f
+      const etat = await etatDuDossier(f.u, base.rattachement(f.espace, f.source.source, f.cle))
+      const nommes = { source: f.source.nom, dossier: f.source.dossier }
+      if (etat.etat !== 'present') return c.json({ ...etat, ...nommes })
+      const { lignes, dossierDe, cachees } = await rangementPour(f.u)
+      const ranges = lignes.filter((l) => !cachees.has(l.tableau) && (l.genre === 'toile' ? dossierDe(l.tableau) === etat.tableau : l.tableau === etat.tableau))
+      const changes = base.derniersChangements([...new Set(ranges.map((l) => l.tableau))])
+      const derniers = new Map<string, number>()
+      for (const ch of changes) {
+        for (const cle of [`${ch.tableau}/`, `${ch.tableau}/${ch.element}`]) derniers.set(cle, Math.max(derniers.get(cle) ?? 0, ch.instant))
+      }
+      const elements = ranges
+        .map((l) => {
+          const toile = l.genre === 'toile'
+          const dossier = toile && (JSON.parse(l.resume) as { dossier?: boolean }).dossier === true
+          return {
+            tableau: l.tableau,
+            element: toile ? null : l.element,
+            genre: l.genre,
+            titre: toile ? (base.tableau(l.tableau)?.titre ?? l.titre) : l.titre,
+            ...(dossier ? { dossier: true } : {}),
+            modifie: derniers.get(`${l.tableau}/${toile ? '' : l.element}`) ?? null,
+            chemin: toile ? (dossier ? `/?dossier=${encodeURIComponent(l.tableau)}` : `/t/${encodeURIComponent(l.tableau)}`) : `/t/${encodeURIComponent(l.tableau)}/e/${encodeURIComponent(l.element)}`,
+          }
+        })
+        .sort((a, b) => (b.modifie ?? 0) - (a.modifie ?? 0) || a.titre.localeCompare(b.titre, 'fr'))
+      return c.json({ ...etat, ...nommes, chemin: `/?dossier=${encodeURIComponent(etat.tableau)}`, elements })
+    }),
+  )
+
+  /**
+   * Trouve le dossier d'une fiche, ou le crée : dans le dossier de la source (fait au besoin, dans l'accueil de
+   * l'espace), au titre donné. `adresse` : où la fiche s'ouvre dans l'outil, sur son origine déclarée seulement.
+   */
+  app.post('/api/rattachements/:source/:cle', async (c) => {
+    const f = await ficheDemandee(c)
+    if (f instanceof Response) return f
+    const { u, source, cle, espace, racine } = f
+    // Du JSON seulement : une page d'un autre sous-domaine ne l'envoie pas sans le demander d'abord (CORS), et ce n'est
+    // ouvert qu'à la lecture. Un formulaire ou un `text/plain` partiraient sans demander, avec le cookie.
+    if (!/^application\/json\b/i.test(c.req.header('content-type') ?? '')) return c.json({ erreur: 'JSON attendu', code: 'corps_invalide' }, 415)
+    const b = await corps(c)
+    const titre = titreDuDossier(b?.titre, cle)
+    const adresse = adresseDeLaFiche(b?.adresse, source)
+    if (adresse === null) return c.json({ erreur: 'adresse hors de l’outil', code: 'adresse_refusee' }, 400)
+    return aSonTour(async () => {
+      const deja = await etatDuDossier(u, base.rattachement(espace, source.source, cle))
+      if (deja.etat !== 'absent') return c.json({ ...deja, source: source.nom, dossier: source.dossier }, 200)
+      if (!auMoins(await roleSur(u.id, racine), 'edition')) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
+      const maintenant = ctx.maintenant()
+      // Le dossier de la source d'abord, s'il manque ou qu'on ne le lit plus.
+      const range = await etatDuDossier(u, base.rattachement(espace, source.source, ''))
+      // Un dossier de la source qu'il ne voit pas : il n'en fait pas un second à côté.
+      if (range.etat === 'cache') return c.json({ erreur: 'dossier de la source hors d’accès', code: 'interdit' }, 403)
+      let parent: string
+      if (range.etat === 'present') {
+        if (!auMoins(await roleSur(u.id, range.tableau), 'edition')) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
+        parent = range.tableau
+      } else {
+        parent = await creerDossierDans(u, racine, source.dossier)
+        base.poserRattachement({ espace, source: source.source, cle: '', tableau: parent, adresse: null, cree: maintenant })
+      }
+      const tableau = await creerDossierDans(u, parent, titre)
+      base.poserRattachement({ espace, source: source.source, cle, tableau, adresse: adresse ?? null, cree: maintenant })
+      return c.json({ etat: 'present', tableau, titre, source: source.nom, dossier: source.dossier }, 201)
+    })
   })
 
   app.all('/api/*', (c) => c.json({ erreur: 'introuvable', code: 'introuvable' }, 404))

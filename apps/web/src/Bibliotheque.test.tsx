@@ -2,7 +2,7 @@
 import { type Element as ElementToile, creerEspace, definirLangue, montrerDemande } from '@notak/tableau'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { EntreeBibliotheque } from './api'
 import { PageBibliotheque, adresseDe, entreesDe, filtrer, sectionsDeLAccueil, sectionsParDate, sectionsParDossier, titreDe } from './Bibliotheque'
 
@@ -439,6 +439,24 @@ describe('les gestes', () => {
       expect(hote.querySelector('.biblio-tuile-neuve .biblio-tuile-ou')!.textContent).toBe('dans « Voyage »')
       await act(async () => hote.querySelector<HTMLButtonElement>('.biblio-tuile-neuve')!.click())
       expect(crees).toEqual([['toile', 'voyage']])
+    })
+
+    it('le dossier d’une fiche d’un autre outil mène à sa fiche, hors de Notak', async () => {
+      const avecFiche = AVEC_DOSSIER.map((e) => (e.tableau === 'voyage' && e.element === null ? { ...e, fiche: { nom: 'Mon CRM', adresse: 'https://crm.exemple.fr/societes/42' } } : e))
+      const ouvertes: string[] = []
+      const espion = vi.spyOn(window, 'open').mockImplementation((u) => (ouvertes.push(String(u)), null))
+      onTestFinished(() => espion.mockRestore())
+      history.replaceState(null, '', '/?dossier=voyage')
+      await act(async () => racine.render(<PageBibliotheque charger={async () => avecFiche} espace={monde()} />))
+      const lien = [...hote.querySelectorAll<HTMLAnchorElement>('.biblio-ouvrir-toile-lien')].find((a) => a.textContent === 'Fiche dans Mon CRM')!
+      expect(lien.getAttribute('href')).toBe('https://crm.exemple.fr/societes/42')
+      expect(lien.title).toBe('Ouvrir la fiche de ce dossier dans Mon CRM')
+      act(() => lien.click())
+      expect(ouvertes).toEqual(['https://crm.exemple.fr/societes/42'])
+      expect(location.search).toBe('?dossier=voyage')
+      // Un dossier sans fiche n'a que « Ouvrir la toile ».
+      act(() => hote.querySelector<HTMLButtonElement>('.biblio-fil button')!.click())
+      expect([...hote.querySelectorAll('.biblio-ouvrir-toile-lien')].map((a) => a.textContent)).toEqual(['Ouvrir la toile'])
     })
 
     it('le fil d’Ariane et l’accueil de la colonne y mènent ; une portée en sort', async () => {

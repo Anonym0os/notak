@@ -16,6 +16,18 @@ export interface Utilisateur {
   photo?: string | null
 }
 
+/** Le dossier d'une fiche d'un autre outil (table `rattachements`). */
+export interface Rattachement {
+  espace: string
+  source: string
+  /** La fiche, dans l'outil ; vide : le dossier qui range ceux de la source. */
+  cle: string
+  tableau: string
+  /** Où la fiche s'ouvre, dans l'outil. */
+  adresse: string | null
+  cree: number
+}
+
 export interface LigneTableau {
   id: string
   titre: string
@@ -282,6 +294,12 @@ export interface Base {
   favoris(utilisateur: string): string[]
   definirFavori(utilisateur: string, tableau: string, maintenant: number): void
   retirerFavori(utilisateur: string, tableau: string): boolean
+  /** Le dossier d'une fiche d'un autre outil dans un espace (`rattachements.ts`) ; la clé vide : celui de la source. */
+  rattachement(espace: string, source: string, cle: string): Rattachement | null
+  /** Pose (ou remplace) le dossier d'une fiche. */
+  poserRattachement(r: Rattachement): void
+  /** Les fiches dont ces toiles sont le dossier, la clé vide comprise. */
+  rattachementsDe(tableaux: readonly string[]): Rattachement[]
   /** Les favoris d'un compte parmi les éléments des toiles (carte mentale, page, photo, lien, fichier), en `tableau/element`. */
   favorisElements(utilisateur: string): string[]
   definirFavoriElement(utilisateur: string, tableau: string, element: string, maintenant: number): void
@@ -302,6 +320,8 @@ export interface Base {
   noterActivite(a: NouvelleActivite, fenetre: number): void
   /** Les gestes d'un tableau, le plus récent d'abord ; `apres` : seulement ceux d'un numéro supérieur. */
   activite(tableau: string, limite: number, apres?: number): LigneActivite[]
+  /** Le dernier changement fait par quelqu'un sur chaque élément de ces toiles (ms). */
+  derniersChangements(tableaux: readonly string[]): { tableau: string; element: string; instant: number }[]
 
   /**
    * Ajoute une notification. Avec `fusionner` (ms), une notification non lue du même genre, sur le même tableau,
@@ -759,6 +779,24 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
     definirFavori: (u, t, maintenant) =>
       void executer('INSERT INTO favoris (utilisateur,tableau,cree) VALUES (?,?,?) ON CONFLICT(utilisateur,tableau) DO NOTHING', u, t, maintenant),
     retirerFavori: (u, t) => Number(executer('DELETE FROM favoris WHERE utilisateur = ? AND tableau = ?', u, t).changes) > 0,
+    rattachement: (espace, source, cle) =>
+      (un('SELECT * FROM rattachements WHERE espace = ? AND source = ? AND cle = ?', espace, source, cle) as Rattachement | null),
+    poserRattachement: (r) =>
+      void executer(
+        'INSERT INTO rattachements (espace,source,cle,tableau,adresse,cree) VALUES (?,?,?,?,?,?) ON CONFLICT(espace,source,cle) DO UPDATE SET tableau = excluded.tableau, adresse = excluded.adresse, cree = excluded.cree',
+        r.espace,
+        r.source,
+        r.cle,
+        r.tableau,
+        r.adresse,
+        r.cree,
+      ),
+    rattachementsDe(tableaux) {
+      if (tableaux.length === 0) return []
+      const voulus = new Set(tableaux)
+      // Une table de quelques centaines de lignes : lue en entier, plutôt qu'une requête par toile de la bibliothèque.
+      return (tous('SELECT * FROM rattachements') as unknown as Rattachement[]).filter((r) => voulus.has(r.tableau))
+    },
     favorisElements: (u) =>
       (tous('SELECT tableau, element FROM favoris_elements WHERE utilisateur = ? ORDER BY cree DESC, tableau, element', u) as unknown as {
         tableau: string
@@ -888,6 +926,21 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
         a.tableau,
         ACTIVITE_GARDEE,
       )
+    },
+    derniersChangements(tableaux) {
+      if (tableaux.length === 0) return []
+      // Par paquets : SQLite borne le nombre de paramètres d'une requête.
+      const lus: { tableau: string; element: string; instant: number }[] = []
+      for (let i = 0; i < tableaux.length; i += 500) {
+        const paquet = tableaux.slice(i, i + 500)
+        lus.push(
+          ...(tous(
+            `SELECT tableau, element, MAX(instant) AS instant FROM activite WHERE tableau IN (${paquet.map(() => '?').join(',')}) GROUP BY tableau, element`,
+            ...paquet,
+          ) as unknown as { tableau: string; element: string; instant: number }[]),
+        )
+      }
+      return lus
     },
     activite: (tableau, limite, apres = 0) =>
       (

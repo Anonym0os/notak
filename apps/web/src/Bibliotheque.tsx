@@ -115,6 +115,7 @@ import {
 import { vibrer } from './appareil'
 import { ecouterImportBureau } from './importBureau'
 import type { BilanImport } from './importation'
+import { ouvrirDehors } from './bureau'
 import { allerA, surLien } from './chemin'
 import { t, tn } from './langue'
 
@@ -1288,6 +1289,25 @@ function BibliothequeBureau({
         : { texte: t(`biblio.vide.${portee}`), aide: t(`biblio.vide.${portee}.aide`) }
   const accueil = espace ? `/t/${encodeURIComponent(espace.racine)}` : '/'
   const arbre = useMemo(() => (toutes && espace ? arbreDesDossiers(toutes, espace.racine) : []), [toutes, espace])
+  /** Le dossier qu'on parcourt est celui d'une fiche d'un autre outil (un CRM…) : un lien y mène, à côté de « Ouvrir la toile ». */
+  const fiche = dossier ? parCle.get(`${dossier}/`)?.fiche : undefined
+  const lienFiche = (className: string, icone: boolean) =>
+    fiche?.adresse ? (
+      <a
+        className={className}
+        href={fiche.adresse}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={t('biblio.fiche.aide', { nom: fiche.nom })}
+        onClick={(e) => {
+          e.preventDefault()
+          ouvrirDehors(fiche.adresse!)
+        }}
+      >
+        {icone && <Icone nom="ouvrir" taille={16} />}
+        <span>{t('biblio.fiche', { nom: fiche.nom })}</span>
+      </a>
+    ) : null
   /** Le chemin du dossier qu'on parcourt, depuis l'accueil, sans lui. */
   const fil = dossier && toutes ? filDAriane(dossier, toutes, espace?.racine ?? null).slice(0, -1) : []
   const glissees = new Set(glisse?.cles)
@@ -1668,6 +1688,8 @@ function BibliothequeBureau({
                   </a>
                 </div>
               )}
+              {/* Sur sa ligne : à côté du retour et de « Ouvrir la toile », elle ne tiendrait pas dans la largeur d'un téléphone. */}
+              {dossier && lienFiche('biblio-locale-fiche', true)}
               {corpsDeLaPage}
             </>
           )}
@@ -1830,6 +1852,7 @@ function BibliothequeBureau({
           <h1>{cherche ? t('biblio.resultats') : titreDeLaVue(vue)}</h1>
         )}
         <div className="biblio-tete-droite">
+          {dossier && !cherche && !(modeChoix || choisies.length > 1) && fiche?.adresse && <Ilot className="biblio-ouvrir-toile">{lienFiche('biblio-ouvrir-toile-lien', true)}</Ilot>}
           {dossier && !cherche && !(modeChoix || choisies.length > 1) && (
             <Ilot className="biblio-ouvrir-toile">
               <a className="biblio-ouvrir-toile-lien" href={`/t/${encodeURIComponent(dossier)}`} onClick={(e) => surLien(e, `/t/${encodeURIComponent(dossier)}`)}>

@@ -26,13 +26,13 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 11. Commun aux éléments | 12 | 0 | 0 | 100 % |
 | 12. Organiser | 16 | 0 | 0 | 100 % |
 | 13. Naviguer | 13 | 1 | 0 | 96 % |
-| 14. À plusieurs | 25 | 0 | 0 | 100 % |
+| 14. À plusieurs | 26 | 0 | 0 | 100 % |
 | 15. Habillage | 17 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 8 | 1 | 0 | 94 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
 | 18. Carte mentale | 62 | 10 | 0 | 93 % |
 | 19. Document à blocs | 29 | 1 | 0 | 98 % |
-| **Total** | **388** | **22** | **2** | **97 %** |
+| **Total** | **389** | **22** | **2** | **97 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -384,6 +384,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Activité récente du tableau | ✅ |  |
 | Commentaires, mentions, réactions | ✅ | Voir § 10 et § 11. |
 | Mise en valeur de ce qu'un autre vient de modifier | ✅ |  |
+| Le dossier d'une fiche d'un autre outil (un CRM…) | ✅ | Propre à Notak, édition serveur : le bouton d'une fiche ouvre `/relier`, qui mène à son dossier ou propose de le créer, rangé dans celui de l'outil ; le dossier rappelle la fiche par un lien, et l'outil en lit le contenu depuis son origine déclarée (`NOTAK_RATTACHEMENTS`, docs/AUTO-HEBERGER.md). |
 
 ## 15. Habillage
 

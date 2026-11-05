@@ -20,8 +20,8 @@ const LARGEUR_LIEN = 34
 const BASE32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
 const ALPHABET_PLAN = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
 
-/** Un identifiant d'élément : le temps (triable) puis du hasard, comme `nouvelId` de la toile. */
-function nouvelId(maintenant: number): string {
+/** Un identifiant d'élément ou de toile : le temps (triable) puis du hasard, comme `nouvelId` de la toile. */
+export function nouvelId(maintenant: number): string {
   let temps = ''
   for (let t = maintenant, i = 0; i < 10; i++, t = Math.floor(t / 32)) temps = BASE32[t % 32] + temps
   return temps + Array.from(randomBytes(16), (o) => BASE32[o % 32]).join('')
@@ -60,7 +60,7 @@ export function elementImage(
 }
 
 /** Une clé de plan strictement après `a` : le dessus de l'empilement (`cleEntre(a, undefined)` de la toile). */
-function planApres(a: string): string {
+export function planApres(a: string): string {
   const da = a ? ALPHABET_PLAN.indexOf(a[0]!) : 0
   if (ALPHABET_PLAN.length - da > 1) return ALPHABET_PLAN[(da + ALPHABET_PLAN.length) >> 1]!
   return ALPHABET_PLAN[da]! + planApres(a.slice(1))

@@ -26,6 +26,7 @@ services:
       NOTAK_SMTP_URL: ${NOTAK_SMTP_URL:-}
       NOTAK_EXPEDITEUR: ${NOTAK_EXPEDITEUR:-}
       NOTAK_IDP_INTERNES: ${NOTAK_IDP_INTERNES:-}
+      NOTAK_RATTACHEMENTS: ${NOTAK_RATTACHEMENTS:-}
       # Le nombre de relais de confiance devant le serveur, Traefik de Coolify compris (voir « Le relais HTTPS »).
       NOTAK_RELAIS: ${NOTAK_RELAIS:-1}
       NOTAK_VERIFIER_MAJ: ${NOTAK_VERIFIER_MAJ:-0}
