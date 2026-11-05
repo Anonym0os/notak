@@ -592,6 +592,8 @@ const ICONES = {
   reaction: IconMoodSmile,
   pivoter: IconRotateClockwise,
   recadrer: IconCrop,
+  // L'outil « Entourer » du signalement d'un bug.
+  entourer: IconCircle,
   detourer: IconScissors,
   ouvrir: IconExternalLink,
   modifier: IconEdit,

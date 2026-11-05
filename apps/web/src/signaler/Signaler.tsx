@@ -1,6 +1,7 @@
-import { Icone, Infobulle, capturerEcran } from '@notak/tableau'
-import { type PointerEvent as PointeurReact, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Icone, Infobulle, type NomIcone, auDoigt, capturerEcran, enFeuille } from '@notak/tableau'
+import { type PointerEvent as PointeurReact, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
+import { estMobile } from '../appareil'
 import { octetsDe } from '../bureau'
 import { t } from '../langue'
 import { contexteEnMarkdown, estLeRaccourci, releverContexte } from './contexte'
@@ -28,9 +29,14 @@ import './signaler.css'
  * derrière : on reprend là où on était, le focus compris. Le serveur range le signalement dans sa file
  * (`apps/serveur/src/signalements.ts`).
  *
- * L'écran : dans Notak de bureau, la coque photographie la page peinte (`capturer_fenetre`, au pixel près) avant que
- * la fenêtre ne paraisse ; ailleurs, la fenêtre paraît d'abord, puis la page est recopiée (`capturerEcran`), ce qui
- * prend une à plusieurs secondes et déforme ce que le moteur rend mal.
+ * L'écran : dans les coques (Notak de bureau sur macOS, l'app d'iPhone et d'iPad), la coque photographie la page
+ * peinte (`capturer_fenetre`, au pixel près) avant que la fenêtre ne paraisse ; ailleurs, la fenêtre paraît d'abord,
+ * puis la page est recopiée (`capturerEcran`), ce qui prend une à plusieurs secondes et déforme ce que le moteur rend
+ * mal (les ombres des îlots devenaient des rectangles gris).
+ *
+ * Au doigt, rien ne parle de touches : pas de ⌘V ni d'Entrée, un bouton pour ajouter une image et un autre pour défaire
+ * le dernier trait ; Entrée va à la ligne. Sur un téléphone, la fenêtre est une feuille plein écran comme celles
+ * d'iOS : Annuler et Envoyer en haut, l'image au milieu, les outils dessous, le champ au-dessus du clavier.
  */
 
 /** Une image du signalement : sa taille en px d'écran (le canevas est plus grand de sa densité) et ses marques. */
@@ -75,13 +81,29 @@ async function canevasDe(source: Blob): Promise<HTMLCanvasElement> {
   return canevas
 }
 
-/** La photo de la fenêtre par la coque de bureau ; `null` hors de la coque, ou si elle ne sait pas (ancienne coque). */
+/** Qui photographie la page : la coque de bureau elle-même (macOS), ou son plugin `appareil` sur iOS (`takeSnapshot`). */
+export const commandeDePhoto = (mobile: boolean): string => (mobile ? 'plugin:appareil|capturer_fenetre' : 'capturer_fenetre')
+
+/** Les octets du PNG que rend le plugin d'iOS (`AppareilPlugin.swift`, `capturerFenetre`) : `{ png }`, en base64. */
+export function octetsDePhotoMobile(reponse: unknown): Uint8Array {
+  const png = (reponse as { png?: unknown } | null)?.png
+  if (typeof png !== 'string' || png === '') throw new Error('photo vide')
+  const binaire = atob(png)
+  const octets = new Uint8Array(binaire.length)
+  for (let i = 0; i < binaire.length; i++) octets[i] = binaire.charCodeAt(i)
+  return octets
+}
+
+/** La photo de la fenêtre par la coque ; `null` hors de la coque, ou si elle ne sait pas (ancienne coque). */
 async function photographierLaFenetre(): Promise<Image | null> {
   const coque = tauri()
   if (!coque) return null
   try {
-    // En `ArrayBuffer` par le canal de la coque, en tableau de nombres si la page est passée par `postMessage`.
-    const octets = octetsDe(await coque.invoke<unknown>('capturer_fenetre'))
+    const mobile = estMobile()
+    const reponse = await coque.invoke<unknown>(commandeDePhoto(mobile))
+    // Sur le bureau, en `ArrayBuffer` par le canal de la coque, en tableau de nombres si la page est passée par
+    // `postMessage` ; sur iOS, en base64 dans la réponse du plugin.
+    const octets = mobile ? octetsDePhotoMobile(reponse) : octetsDe(reponse)
     const canevas = await canevasDe(new Blob([octets as Uint8Array<ArrayBuffer>], { type: 'image/png' }))
     return imageDe(canevas, canevas.width / window.innerWidth)
   } catch (e) {
@@ -181,14 +203,21 @@ function MarqueSvg({ marque }: { marque: Marque }) {
   )
 }
 
-const OUTILS: { outil: Outil; libelle: string }[] = [
-  { outil: 'stylo', libelle: 'signaler.stylo' },
-  { outil: 'fleche', libelle: 'signaler.fleche' },
-  { outil: 'cercle', libelle: 'signaler.entourer' },
-  { outil: 'recadrer', libelle: 'signaler.recadrer' },
+const OUTILS: { outil: Outil; libelle: string; icone: NomIcone }[] = [
+  { outil: 'stylo', libelle: 'signaler.stylo', icone: 'menuCrayon' },
+  { outil: 'fleche', libelle: 'signaler.fleche', icone: 'ligne' },
+  { outil: 'cercle', libelle: 'signaler.entourer', icone: 'entourer' },
+  { outil: 'recadrer', libelle: 'signaler.recadrer', icone: 'recadrer' },
 ]
 
-interface ProprietesFenetre {
+/** Au doigt sur un téléphone (la règle des feuilles de la toile) ; suit la rotation de l'écran. */
+const ecouterTaille = (f: () => void) => {
+  window.addEventListener('resize', f)
+  return () => window.removeEventListener('resize', f)
+}
+const useTelephone = () => useSyncExternalStore(ecouterTaille, enFeuille)
+
+export interface ProprietesFenetre {
   prise: Prise
   texteInitial: string
   sombre: boolean
@@ -196,17 +225,21 @@ interface ProprietesFenetre {
   fermer: () => void
 }
 
-function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }: ProprietesFenetre) {
+export function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }: ProprietesFenetre) {
   const [texte, setTexte] = useState(texteInitial)
   const [outil, setOutil] = useState<Outil>('stylo')
   const [images, setImages] = useState<Image[]>([])
   const [choisie, setChoisie] = useState(0)
+  /** Au doigt, pas de clavier à supposer : ni raccourci affiché, ni Entrée qui envoie, ni clavier sorti d'office. */
+  const [tactile] = useState(auDoigt)
+  const telephone = useTelephone()
   const geste = useRef<{ depart: Point } | null>(null)
   /** Ce que ⌘Z défait : le champ garde le focus, mais si l'on vient de dessiner, c'est le dessin. */
   const dernier = useRef<'texte' | 'image'>('texte')
   const surface = useRef<SVGSVGElement>(null)
   const champ = useRef<HTMLTextAreaElement>(null)
   const racine = useRef<HTMLDivElement>(null)
+  const choixFichier = useRef<HTMLInputElement>(null)
   const enCours = prise.etat === 'en-cours'
   const image = images[choisie] ?? null
   const nombre = useRef(0)
@@ -221,8 +254,9 @@ function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }: Propr
     setChoisie(0)
   }, [prise])
   // Le champ prend la main une fois l'écran pris : avant, un changement de focus aurait changé ce qu'on photographie.
+  // Au doigt, non : le clavier sortirait par-dessus l'image qu'on va annoter ; on touche le champ pour écrire.
   useLayoutEffect(() => {
-    if (enCours) return
+    if (enCours || tactile) return
     const c = champ.current
     c?.focus()
     c?.setSelectionRange(c.value.length, c.value.length)
@@ -242,7 +276,7 @@ function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }: Propr
   const validerRecadrage = () => {
     majImage(recadrer)
     setOutil('stylo')
-    champ.current?.focus()
+    if (!tactile) champ.current?.focus()
   }
   const valider = () => {
     if (enCours) return
@@ -268,7 +302,8 @@ function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }: Propr
       }
       if (enCours) return
       const dedans = racine.current?.contains(e.target as Node) ?? false
-      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+      // Au doigt, la touche Retour du clavier de l'écran va à la ligne : on envoie par le bouton.
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && (enRecadrage || !tactile)) {
         e.preventDefault()
         if (enRecadrage) validerRecadrage()
         else valider()
@@ -281,23 +316,31 @@ function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }: Propr
     return () => window.removeEventListener('keydown', touche, true)
   })
 
-  // ⌘V : une image du presse-papiers devient une image de plus (une capture d'écran faite à côté, un fichier copié).
-  useEffect(() => {
-    const coller = (e: ClipboardEvent) => {
-      const fichiers = [...(e.clipboardData?.items ?? [])].filter((i) => i.type.startsWith('image/')).map((i) => i.getAsFile())
-      if (fichiers.length === 0) return
-      e.preventDefault()
-      e.stopImmediatePropagation()
-      for (const f of fichiers) {
-        if (!f) continue
-        void canevasDe(f).then((canevas) => {
+  /** Des images de plus, collées ou choisies (une capture d'écran faite à côté, une photo) : jusqu'à `IMAGES_MAX`. */
+  const ajouterImages = (fichiers: readonly (Blob | null)[]) => {
+    for (const f of fichiers) {
+      if (!f) continue
+      void canevasDe(f)
+        .then((canevas) => {
           const n = nombre.current
           if (n >= IMAGES_MAX) return
           nombre.current = n + 1
           setImages((is) => [...is, imageDe(canevas, 1)])
           setChoisie(n)
         })
-      }
+        .catch((e) => console.warn('Notak : image illisible pour le signalement', e))
+    }
+  }
+
+  // ⌘V : une image du presse-papiers devient une image de plus. `ajouterImages` ne lit que des références et des
+  // setters : celle du premier rendu suffit.
+  useEffect(() => {
+    const coller = (e: ClipboardEvent) => {
+      const fichiers = [...(e.clipboardData?.items ?? [])].filter((i) => i.type.startsWith('image/')).map((i) => i.getAsFile())
+      if (fichiers.length === 0) return
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      ajouterImages(fichiers)
     }
     window.addEventListener('paste', coller, true)
     return () => window.removeEventListener('paste', coller, true)
@@ -311,6 +354,8 @@ function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }: Propr
   const appui = (e: PointeurReact) => {
     if (!image || e.button !== 0) return
     e.preventDefault()
+    // Au doigt, dessiner range le clavier de l'écran : il cachait le bas de l'image.
+    if (tactile) champ.current?.blur()
     surface.current!.setPointerCapture(e.pointerId)
     const p = pointDe(e)
     geste.current = { depart: p }
@@ -332,31 +377,66 @@ function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }: Propr
     geste.current = null
     if (outil === 'recadrer') majImage((i) => (cadreUtile(i.cadre) ? i : { ...i, cadre: null }))
     else majImage((i) => (i.marques.length > 0 && !marqueUtile(i.marques[i.marques.length - 1]!) ? { ...i, marques: i.marques.slice(0, -1) } : i))
-    champ.current?.focus()
+    if (!tactile) champ.current?.focus()
   }
 
+  const boutonEnvoyer = (
+    <button type="button" className="notak-signaler-envoyer" onClick={valider} disabled={enCours}>
+      {t('signaler.envoyer')}
+    </button>
+  )
+  // Au téléphone, chaque outil a son icône au-dessus de son nom, comme une barre d'iOS ; et la flèche qui défait le
+  // dernier trait remplace « Effacer » : sans ⌘Z, c'est le geste qui manque, et on efface tout en le répétant.
+  const outils = (
+    <div className="notak-signaler-outils" role="toolbar">
+      {OUTILS.map((o) => (
+        <button key={o.outil} type="button" aria-pressed={outil === o.outil} onClick={() => choisirOutil(o.outil)} disabled={!image}>
+          {telephone && <Icone nom={o.icone} taille={22} />}
+          <span>{t(o.libelle)}</span>
+        </button>
+      ))}
+      <span className="notak-signaler-separe" />
+      {tactile && (
+        <button type="button" className="notak-signaler-defaire" aria-label={t('signaler.defaire')} onClick={() => majImage(defaire)} disabled={!image || !retouchee(image)}>
+          <Icone nom="annuler" taille={telephone ? 22 : 16} />
+        </button>
+      )}
+      {!telephone && (
+        <button type="button" onClick={() => majImage(effacer)} disabled={!image || !retouchee(image)}>
+          {t('signaler.effacer')}
+        </button>
+      )}
+    </div>
+  )
+
   return (
-    <div className="notak-signaler" data-theme={sombre ? 'sombre' : undefined} ref={racine} onPointerDown={(e) => e.target === e.currentTarget && !entame && fermer()}>
+    <div
+      className="notak-signaler"
+      data-theme={sombre ? 'sombre' : undefined}
+      data-telephone={telephone || undefined}
+      ref={racine}
+      onPointerDown={(e) => e.target === e.currentTarget && !entame && fermer()}
+    >
       <div className="notak-signaler-fenetre" role="dialog" aria-modal="true" aria-label={t('signaler.titre')}>
-        <div className="notak-signaler-entete">
-          <span className="notak-signaler-titre">{t('signaler.titre')}</span>
-          <div className="notak-signaler-outils" role="toolbar">
-            {OUTILS.map((o) => (
-              <button key={o.outil} type="button" aria-pressed={outil === o.outil} onClick={() => choisirOutil(o.outil)} disabled={!image}>
-                {t(o.libelle)}
-              </button>
-            ))}
-            <span className="notak-signaler-separe" />
-            <button type="button" onClick={() => majImage(effacer)} disabled={!image || !retouchee(image)}>
-              {t('signaler.effacer')}
+        {telephone ? (
+          <div className="notak-signaler-entete">
+            <button type="button" className="notak-signaler-annuler" onClick={fermer}>
+              {t('signaler.annuler')}
+            </button>
+            <span className="notak-signaler-titre">{t('signaler.titre')}</span>
+            {boutonEnvoyer}
+          </div>
+        ) : (
+          <div className="notak-signaler-entete">
+            <span className="notak-signaler-titre">{t('signaler.titre')}</span>
+            {outils}
+            <button type="button" className="notak-signaler-fermer" aria-label={t('signaler.fermer')} onClick={fermer}>
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
             </button>
           </div>
-          <button type="button" className="notak-signaler-fermer" aria-label={t('signaler.fermer')} onClick={fermer}>
-            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-              <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
+        )}
         <div className="notak-signaler-capture">
           {enCours && <div className="notak-signaler-attente">{t('signaler.prise')}</div>}
           {!enCours && !image && <div className="notak-signaler-attente">{t('signaler.sansImage')}</div>}
@@ -399,6 +479,7 @@ function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }: Propr
                   </button>
                   <button type="button" className="notak-signaler-recadrage-ok" onClick={validerRecadrage}>
                     {t('signaler.recadrerOk')}
+                    {!tactile && ' ↵'}
                   </button>
                 </div>
               )}
@@ -406,6 +487,7 @@ function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }: Propr
           )}
           {image && outil === 'recadrer' && !enRecadrage && <div className="notak-signaler-recadrage notak-signaler-recadrage-aide">{t('signaler.recadrerAide')}</div>}
         </div>
+        {telephone && outils}
         <div className="notak-signaler-vignettes">
           {images.map((i, n) => (
             <div key={i.id} className="notak-signaler-vignette" data-choisie={n === choisie || undefined}>
@@ -419,12 +501,32 @@ function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }: Propr
               </button>
             </div>
           ))}
-          {images.length < IMAGES_MAX && <span className="notak-signaler-coller">{t('signaler.coller')}</span>}
+          {images.length < IMAGES_MAX && (
+            <>
+              {/* Sur iOS, le choix ouvre la photothèque (une capture d'écran faite avant), l'appareil photo ou Fichiers. */}
+              <button type="button" className="notak-signaler-ajouter" onClick={() => choixFichier.current?.click()}>
+                <Icone nom="ajouter" taille={telephone ? 18 : 14} />
+                <span>{t('signaler.ajouterImage')}</span>
+              </button>
+              {!tactile && <span className="notak-signaler-coller">{t('signaler.coller', { touche: SUR_MAC ? '⌘V' : 'Ctrl+V' })}</span>}
+            </>
+          )}
+          <input
+            ref={choixFichier}
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={(e) => {
+              ajouterImages([...(e.target.files ?? [])])
+              e.target.value = ''
+            }}
+          />
         </div>
         <textarea
           ref={champ}
           className="notak-signaler-champ"
-          rows={2}
+          rows={telephone ? 3 : 2}
           placeholder={t('signaler.indication')}
           value={texte}
           onChange={(e) => {
@@ -432,12 +534,12 @@ function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }: Propr
             setTexte(e.target.value)
           }}
         />
-        <div className="notak-signaler-pied">
-          <span>{t('signaler.aide')}</span>
-          <button type="button" className="notak-signaler-envoyer" onClick={valider} disabled={enCours}>
-            {t('signaler.envoyer')}
-          </button>
-        </div>
+        {!telephone && (
+          <div className="notak-signaler-pied">
+            {!tactile && <span>{t('signaler.aide')}</span>}
+            {boutonEnvoyer}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -554,7 +656,9 @@ export function brancherSignaler(): void {
       void version.then((v) => poster({ texte, contexte: contexteEnMarkdown({ ...releve, version: v }), captures }))
     }
 
-    // La photo de la coque se prend avant que la fenêtre ne paraisse : elle la montrerait.
+    // La photo de la coque se prend avant que la fenêtre ne paraisse : elle la montrerait. Mais après que la page a
+    // repeint ce qui l'a ouverte : sur iPhone, la feuille « ••• » vient d'être retirée, elle serait encore sur la photo.
+    await apresPeinture()
     const photo = await photographierLaFenetre()
     fenetre = { prise: photo ? { etat: 'faite', image: photo } : { etat: 'en-cours' }, texteInitial: tampon, sombre, envoyer, fermer }
     rendre()

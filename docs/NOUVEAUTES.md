@@ -48,3 +48,7 @@ fil des changements ; `bun run nouvelle-version x.y.z` en fait la section de la 
 - **Les admins d'un serveur voient qu'une nouvelle version existe**, dans l'app, avec ses notes et la commande à
   lancer. Le serveur ne fait que le dire : rien ne s'installe sans eux.
 - **Une seule version pour tout Notak** : l'app de bureau, le serveur et les réglages portent le même numéro.
+- **Signaler un bug depuis un iPhone se fait au doigt** : la fenêtre devient une feuille à l'écran, Annuler et Envoyer
+  en haut, les outils sous l'image (avec de quoi défaire le dernier trait), un bouton pour ajouter une capture ou une
+  photo, et plus aucun raccourci clavier affiché. Dans l'app, la capture est la vraie image de l'écran.
+- **Sur un téléphone, le « + » de la toile passe en bas à gauche** : il ne cache plus le bouton du zoom.

@@ -10,6 +10,8 @@
   inset: 0;
   z-index: 2147483000;
   display: grid;
+  /* Une colonne à la largeur de l'écran, pas à celle du contenu : la fenêtre ne déborde plus d'un écran étroit. */
+  grid-template-columns: minmax(0, 1fr);
   place-items: center;
   padding: 24px;
   background: rgb(20 24 31 / 0.28);
@@ -39,7 +41,9 @@
 }
 
 .notak-signaler-fenetre {
+  box-sizing: border-box;
   width: min(860px, 100%);
+  min-width: 0;
   max-height: 100%;
   display: flex;
   flex-direction: column;
@@ -55,6 +59,7 @@
 
 .notak-signaler-entete {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
 }
@@ -74,6 +79,8 @@
   cursor: pointer;
 }
 .notak-signaler-outils button {
+  display: inline-flex;
+  align-items: center;
   padding: 4px 10px;
   border-radius: 6px;
   font-size: 13px;
@@ -114,6 +121,8 @@
   background: var(--s-champ);
   border-radius: 8px;
   overflow: hidden;
+  /* L'image se règle sur la place de ce cadre (`cqw`, `cqh`), que sa hauteur soit fixée ou prise au reste (téléphone). */
+  container-type: size;
 }
 .notak-signaler-attente {
   color: var(--s-doux);
@@ -128,9 +137,11 @@
 }
 .notak-signaler-image img {
   display: block;
-  max-width: 100%;
-  max-height: 52vh;
+  max-width: 100cqw;
+  max-height: 100cqh;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 .notak-signaler-image svg {
   position: absolute;
@@ -248,6 +259,21 @@
 .notak-signaler-vignette-retirer:hover {
   color: var(--s-texte) !important;
 }
+.notak-signaler-ajouter {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  font-size: 12px !important;
+  color: var(--s-doux) !important;
+  box-shadow: inset 0 0 0 1px var(--s-trait);
+}
+.notak-signaler-ajouter:hover {
+  color: var(--s-texte) !important;
+  background: var(--s-champ) !important;
+}
 .notak-signaler-coller {
   font-size: 12px;
   color: var(--s-doux);
@@ -323,4 +349,190 @@
   border-radius: 999px;
   padding: 2px 10px;
   cursor: pointer;
+}
+
+/*
+ * Au doigt (téléphone, tablette) : la croix d'une vignette se voit sans survol, les boutons du recadrage se touchent
+ * sans viser, et le champ est en 16 px : en dessous, iOS agrandit la page en y entrant.
+ */
+@media (pointer: coarse) {
+  .notak-signaler-champ {
+    font-size: 16px;
+  }
+  .notak-signaler-vignettes {
+    padding-top: 6px;
+  }
+  .notak-signaler-vignette-retirer {
+    top: -6px;
+    right: -6px;
+    width: 22px;
+    height: 22px;
+    border-radius: 11px;
+    opacity: 1;
+  }
+  .notak-signaler-recadrage button {
+    padding: 8px 14px;
+    font-size: 15px;
+  }
+  .notak-signaler-recadrage-aide {
+    font-size: 15px;
+  }
+}
+
+/*
+ * Sur un téléphone, une feuille plein écran comme celles d'iOS : elle monte du bas jusque sous la barre d'état, le voile
+ * en haut, ses coins du haut arrondis. Annuler et Envoyer en haut, où le clavier ne va pas ; l'image prend la place qui
+ * reste, puis les outils (une barre à segments), les images et le champ. Quand le clavier sort, la feuille s'arrête à
+ * lui (`--clavier`, posé par `ios/clavier.ts`) : l'image rétrécit, le champ reste visible.
+ */
+.notak-signaler[data-telephone] {
+  display: flex;
+  flex-direction: column;
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 0 var(--clavier, 0px);
+  transition: padding-bottom var(--clavier-duree, 0.25s) ease-out;
+  font-size: 15px;
+}
+.notak-signaler[data-telephone] .notak-signaler-fenetre {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  max-height: none;
+  gap: 10px;
+  padding: 0 calc(16px + env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) calc(16px + env(safe-area-inset-left, 0px));
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -1px 0 rgb(0 0 0 / 0.04);
+  animation: notak-signaler-monte 0.34s cubic-bezier(0.32, 0.72, 0, 1);
+}
+/* Le clavier sorti, on écrit : les outils et les images se rangent, l'image garde ce qui reste (un iPhone SE n'a pas la
+   place de tout). Toucher l'image range le clavier et les rend. Si la place manque encore, la feuille défile. */
+html[data-clavier] .notak-signaler[data-telephone] .notak-signaler-fenetre {
+  overflow-y: auto;
+  padding-bottom: 10px;
+}
+html[data-clavier] .notak-signaler[data-telephone] :is(.notak-signaler-outils, .notak-signaler-vignettes) {
+  display: none;
+}
+html[data-clavier] .notak-signaler[data-telephone] .notak-signaler-capture {
+  min-height: 72px;
+}
+@keyframes notak-signaler-monte {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+.notak-signaler[data-telephone] .notak-signaler-entete {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 8px;
+  min-height: 52px;
+}
+.notak-signaler[data-telephone] .notak-signaler-titre {
+  font-size: 17px;
+  text-align: center;
+  white-space: nowrap;
+}
+.notak-signaler-annuler {
+  justify-self: start;
+  min-height: 44px;
+  padding: 0 4px !important;
+  font-size: 17px !important;
+  color: var(--s-accent) !important;
+}
+.notak-signaler[data-telephone] .notak-signaler-envoyer {
+  justify-self: end;
+  min-height: 36px;
+  margin: 0;
+  padding: 0 16px;
+  border-radius: 18px;
+  font-size: 16px !important;
+}
+
+.notak-signaler[data-telephone] .notak-signaler-capture {
+  flex: 1;
+  height: auto;
+  min-height: 140px;
+  border-radius: 12px;
+}
+
+/* Les outils : une barre à segments, l'outil pris en relief ; la flèche qui défait le dernier trait au bout. */
+.notak-signaler[data-telephone] .notak-signaler-outils {
+  flex: none;
+  gap: 2px;
+  margin: 0;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--s-champ);
+}
+.notak-signaler[data-telephone] .notak-signaler-outils button {
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-height: 52px;
+  padding: 4px 0;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.notak-signaler[data-telephone] .notak-signaler-outils button:hover:not(:disabled) {
+  background: none;
+  color: var(--s-doux);
+}
+.notak-signaler[data-telephone] .notak-signaler-outils button[aria-pressed='true'] {
+  background: var(--s-fond);
+  color: var(--s-accent);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+}
+.notak-signaler[data-telephone] .notak-signaler-outils .notak-signaler-defaire {
+  flex: 0 0 52px;
+  color: var(--s-texte);
+}
+.notak-signaler[data-telephone] .notak-signaler-separe {
+  margin: 10px 2px;
+}
+
+/* Les images : en ligne, qui défile si elles débordent ; « Ajouter une image » au bout, à la taille d'une vignette. */
+.notak-signaler[data-telephone] .notak-signaler-vignettes {
+  flex: none;
+  overflow-x: auto;
+  min-height: 0;
+  margin: 0 -16px;
+  padding: 6px 16px 2px;
+  scrollbar-width: none;
+}
+.notak-signaler[data-telephone] .notak-signaler-vignette-image img {
+  width: 56px;
+  height: 56px;
+}
+.notak-signaler[data-telephone] .notak-signaler-ajouter {
+  height: 56px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 14px !important;
+  box-shadow: inset 0 0 0 1px var(--s-trait);
+}
+.notak-signaler[data-telephone] .notak-signaler-champ {
+  flex: none;
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+
+/* L'avis d'envoi, au-dessus du « + » et de la barre d'accueil, comme les avis de la toile au téléphone. */
+@media (pointer: coarse) and (max-width: 640px) {
+  .notak-signaler-avis {
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    max-width: calc(100vw - 32px);
+    box-sizing: border-box;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notak-signaler-fenetre,
+  .notak-signaler[data-telephone] .notak-signaler-fenetre {
+    animation: none;
+  }
+  .notak-signaler[data-telephone] {
+    transition: none;
+  }
 }

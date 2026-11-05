@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -57,6 +58,22 @@ describe('la toile sur un téléphone', () => {
     expect(hote.querySelector('.notak-barre-outils')).toBeNull()
     act(() => hote.querySelector<HTMLButtonElement>('.notak-outils-ajouter')!.click())
     expect(document.querySelectorAll('.notak-outils-feuille .notak-outil').length).toBeGreaterThan(4)
+  })
+
+  it('pose le « + » en bas à gauche : le coin droit est au zoom et à la mini-carte, qu’il recouvrait', () => {
+    // Le chemin passe par une variable : écrit en dur dans `new URL`, Vite le changerait en adresse d'asset.
+    const lire = (fichier: string) => readFileSync(new URL(fichier, import.meta.url), 'utf8')
+    const regle = (fichier: string, selecteur: string) => {
+      const css = lire(fichier)
+      const debut = css.indexOf(`${selecteur} {`)
+      return css.slice(debut, css.indexOf('}', debut))
+    }
+    const plus = regle('./toile.css', '.notak-outils-ajouter')
+    expect(plus).toMatch(/\bleft: calc\(16px \+ var\(--notak-zone-gauche/)
+    expect(plus).not.toMatch(/\bright:/)
+    // Le zoom reste dans le coin droit ; la mini-carte, au téléphone, ne part plus à gauche, où est le « + ».
+    expect(regle('./toile.css', '.notak-vue-bas')).toMatch(/\bright: 16px/)
+    expect(lire('./minicarte.css')).not.toMatch(/left: calc\(16px \+ var\(--notak-zone-gauche/)
   })
 
   it('un outil touché dans la feuille pose son élément au milieu de la vue, et la feuille se ferme', () => {
