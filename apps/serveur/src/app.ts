@@ -2213,8 +2213,16 @@ export function creerApp(ctx: Contexte): Hono {
       // Un dossier de la source qu'il ne voit pas : il n'en fait pas un second à côté.
       if (range.etat === 'cache') return c.json({ erreur: 'dossier de la source hors d’accès', code: 'interdit' }, 403)
       let parent: string
-      if (range.etat === 'present') {
+      if (range.etat === 'present' || range.etat === 'corbeille') {
         if (!auMoins(await roleSur(u.id, range.tableau), 'edition')) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
+        // Jeté, le dossier de la source revient à sa place, avec ce qu'il rangeait : un second « Clients » à côté du
+        // premier, l'un vide et l'autre à la corbeille, n'est jamais ce qu'on attend.
+        if (range.etat === 'corbeille') {
+          const porteur = porteurDe(range.tableau)
+          if (!porteur || !auMoins(await roleSur(u.id, porteur), 'edition')) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
+          base.marquerCorbeille({ espace, source: source.source, cle: '' }, null, null)
+          await remettreLeDossier(range.tableau, u)
+        }
         parent = range.tableau
       } else {
         parent = await creerDossierDans(u, racine, source.dossier)

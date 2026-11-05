@@ -184,6 +184,39 @@ describe('la page', () => {
     expect(hote.querySelectorAll('.biblio-tuile-ou')[2]!.textContent).toBe('dans Voyage')
   })
 
+  it('ce qu’on range ailleurs (le dossier d’une fiche de Silak, la toile d’un collègue) paraît au retour sur la page, sans la recharger', async () => {
+    let liste = TOUTES
+    let lectures = 0
+    let panne = false
+    await ouvrir(async () => {
+      lectures++
+      if (panne) throw new Error('hors ligne')
+      return liste
+    })
+    act(() => rubrique('Bibliothèque').click())
+    const avant = tuiles()
+    liste = [...TOUTES, entree({ tableau: 'dupont', titre: 'Dupont SARL', ou: 'Accueil', dans: 'racine' })]
+    // La page vient de se lire : un instant plus tard, la fenêtre redevient active.
+    const plusTard = Date.now() + 60_000
+    const horloge = vi.spyOn(Date, 'now').mockReturnValue(plusTard)
+    await act(async () => void window.dispatchEvent(new Event('focus')))
+    expect(tuiles().map(([titre]) => titre)).toContain('Dupont SARL')
+    expect(hote.querySelector('[role=alert]')).toBeNull()
+    // Rien n'a changé : la page garde ce qu'elle montre, tuile pour tuile.
+    horloge.mockReturnValue(plusTard + 60_000)
+    const vues = tuiles()
+    await act(async () => void window.dispatchEvent(new Event('focus')))
+    expect(tuiles()).toEqual(vues)
+    expect(vues).not.toEqual(avant)
+    // Une panne passagère laisse la liste qu'on voit.
+    horloge.mockReturnValue(plusTard + 120_000)
+    panne = true
+    await act(async () => void window.dispatchEvent(new Event('focus')))
+    expect(tuiles()).toEqual(vues)
+    expect(lectures).toBe(4)
+    horloge.mockRestore()
+  })
+
   it('où et quoi se choisissent et se combinent ; le tri par dossier regroupe et se retient', async () => {
     await ouvrir(async () => TOUTES)
     act(() => puce('Cartes mentales').click())

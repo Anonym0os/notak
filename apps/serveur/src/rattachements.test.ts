@@ -223,6 +223,31 @@ describe('les dossiers des fiches d’un autre outil', () => {
     expect(cartesVers(clients, premier)).toHaveLength(1)
     expect(meta(clients).elements.find((e) => e.contenu.cible === premier)).not.toHaveProperty('corbeille')
   })
+
+  it('le dossier de l’outil jeté revient à sa place pour la fiche suivante : il ne s’en fait pas un second', async () => {
+    const premier = ((await lire(ana, 'societe:1')).corps as { tableau: string }).tableau
+    const clients = m.base.tableau(premier)!.parent!
+    const accueil = ana.utilisateur.racine
+    // « Clients » jeté depuis l'accueil, comme le fait la bibliothèque : ce qu'il range part avec lui.
+    const doc = new Y.Doc()
+    Y.applyUpdate(doc, m.base.document(nomDuDocument(accueil))!)
+    const elements = doc.getMap<Record<string, unknown>>('elements')
+    for (const [id, e] of elements) if ((e.contenu as { cible?: string }).cible === clients) elements.set(id, { ...e, corbeille: 1 })
+    m.base.enregistrerDocument(nomDuDocument(accueil), Y.encodeStateAsUpdate(doc))
+    indexerDocument(m.base, accueil, doc)
+    expect((await lire(ana, 'societe:1')).corps).toMatchObject({ etat: 'corbeille' })
+
+    const r = await relier(ana, 'societe:7', { titre: 'Bernard' })
+    expect(r.statut).toBe(201)
+    const nouveau = (r.corps as { tableau: string }).tableau
+    expect(m.base.tableau(nouveau)!.parent).toBe(clients)
+    // Un seul « Clients », sorti de la corbeille, avec la fiche d'avant et la nouvelle.
+    expect(cartesVers(accueil, clients)).toHaveLength(1)
+    expect(meta(accueil).elements.find((e) => e.contenu.cible === clients)).not.toHaveProperty('corbeille')
+    const bibliotheque = (await (await m.appeler('/api/bibliotheque', { compte: ana })).json()) as Entree[]
+    expect(bibliotheque.filter((e) => e.titre === 'Clients' && e.element === null)).toHaveLength(1)
+    expect((await lire(ana, 'societe:1')).corps).toMatchObject({ etat: 'present', tableau: premier })
+  })
 })
 
 describe('les dossiers d’un outil rangés dans un espace donné', () => {

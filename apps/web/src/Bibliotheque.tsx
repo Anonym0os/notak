@@ -78,6 +78,7 @@ import {
 import { FournisseurVignettes, type SourceVignettes, Vignette } from './bibliotheque/Vignettes'
 import { fichiers as fichiersServeur } from './fichiers'
 import { suivreAppuiLong } from './bibliotheque/appuiLong'
+import { memeLecture, useRelecture } from './bibliotheque/relecture'
 import {
   type Affichage,
   type Filtre,
@@ -494,6 +495,19 @@ function BibliothequeBureau({
   }, [charger])
   useEffect(lire, [lire])
   useEffect(() => ecouter?.(lire), [ecouter, lire])
+  /** Sans bruit : la même liste ne bouge pas, et une panne passagère laisse celle qu'on voit. */
+  const relireEnSilence = useCallback(() => {
+    charger().then(
+      (l) => {
+        if (!montee.current) return
+        setErreur(null)
+        setServeur((avant) => (avant !== null && memeLecture(avant, l) ? avant : l))
+      },
+      () => {},
+    )
+  }, [charger])
+  // Un serveur ne prévient de rien (les toiles de l'appareil, si : `ecouter`) : la page se relit d'elle-même.
+  useRelecture(relireEnSilence, !ecouter)
   useEffect(() => {
     const m = minuteurs.current
     return () => m.forEach(clearTimeout)
