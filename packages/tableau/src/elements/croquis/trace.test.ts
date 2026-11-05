@@ -250,6 +250,20 @@ describe("le trait enregistré se dessine comme à l'écran", () => {
     expect(b.length).toBe(a.length)
     for (let i = 0; i < a.length; i++) expect(Math.abs(a[i]! - b[i]!)).toBeLessThan(0.1)
   })
+  it('la barre du haut d’un E écrit au Pencil (relevée sur iPad, en UG) ne devient pas une tache', () => {
+    // Le trait tel qu'enregistré, paquets renvoyés compris : 2,2 UG de long, sous les 3 unités que perfect-freehand saute.
+    const barre: Trait = {
+      points: [3.09, 3.79, 2.87, 3.79, 2.73, 3.79, 2.66, 3.79, 2.59, 3.72, 2.59, 3.65, 2.66, 3.58, 2.59, 3.65, 2.66, 3.58, 2.8, 3.58, 3.02, 3.58, 2.8, 3.58, 3.02, 3.58, 3.23, 3.51, 3.44, 3.51, 3.23, 3.51, 3.44, 3.51, 3.73, 3.43, 3.94, 3.43, 3.73, 3.43, 3.94, 3.43, 4.15, 3.43, 4.36, 3.36, 4.15, 3.43, 4.36, 3.36, 4.58, 3.36, 4.79, 3.29, 4.58, 3.36, 4.79, 3.29],
+      pressions: [0.08, 0.08, 0.08, 0.08, 0.08, 0.17, 0.18, 0.17, 0.18, 0.18, 0.17, 0.18, 0.17, 0.18, 0.18, 0.18, 0.18, 0.14, 0.11, 0.14, 0.11, 0.1, 0.09, 0.1, 0.09, 0.05, 0.05, 0.05, 0.05],
+      couleur: '#ad6fff',
+      epaisseur: 0.57,
+      affinage: AFFINAGE,
+    }
+    const a = nombres(dessinDuTrait(barre, true, k).d)
+    const b = nombres(dessinDuTrait(barre).d).map((v) => v * k)
+    expect(b.length).toBe(a.length)
+    for (let i = 0; i < a.length; i++) expect(Math.abs(a[i]! - b[i]!)).toBeLessThan(0.1)
+  })
 })
 
 describe('le surligneur', () => {
