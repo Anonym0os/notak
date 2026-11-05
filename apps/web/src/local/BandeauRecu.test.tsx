@@ -73,7 +73,7 @@ describe('le bandeau d’une toile venue d’une copie reçue', () => {
     const index = creerIndexEspace(new Y.Doc())
     index.noterRecus(['recue'])
     act(() => racine.render(<BandeauRecu index={index} tableau="recue" />))
-    expect(bouton('Show everything for this board')).toBeDefined()
+    expect(bouton('Show everything for this canvas')).toBeDefined()
     expect(bouton('Dismiss')).toBeDefined()
   })
 })

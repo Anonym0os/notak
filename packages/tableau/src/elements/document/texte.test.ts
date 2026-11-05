@@ -35,14 +35,14 @@ describe('le document', () => {
   test('le résumé prend le titre, sinon le début du texte', () => {
     expect(resume({ type: 'document', titre: ' Plan ', texte: docDepuisTexte('x') })).toBe('Plan')
     expect(resume({ type: 'document', titre: '', texte: docDepuisTexte('Notes de réunion') })).toBe('Notes de réunion')
-    expect(resume(nouveauDocument(0, 0).contenu)).toBe('Document vide')
+    expect(resume(nouveauDocument(0, 0).contenu)).toBe('Page vide')
   })
 })
 
 describe('la création par l’outil', () => {
-  test('le document posé porte « Nouveau document » et son titre s’édite une seule fois sur la carte', () => {
+  test('le document posé porte « Nouvelle page » et son titre s’édite une seule fois sur la carte', () => {
     const e = documentCree(0, 0)
-    expect(e.contenu.titre).toBe('Nouveau document')
+    expect(e.contenu.titre).toBe('Nouvelle page')
     expect(e.largeur).toBe(10)
     expect(doitEtreTitre(e.id)).toBe(true)
     expect(doitEtreTitre(e.id)).toBe(false)

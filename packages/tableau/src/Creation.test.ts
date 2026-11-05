@@ -10,9 +10,9 @@ describe('la barre de création, dans l’ordre de Milanote', () => {
     expect(libelles((o) => !o.outil.tiroir && o.outil.groupe !== 'action')).toEqual(['Note', 'Lien', 'À faire', 'Ligne', 'Toile', 'Colonne', 'Commentaire', 'Table'])
   })
 
-  it('le tiroir : Croquis, Nuancier, Document, Audio, Carte, Vidéo, Titre, puis ce qui est propre à Notak', () => {
+  it('le tiroir : Croquis, Nuancier, Page, Audio, Carte, Vidéo, Titre, puis ce qui est propre à Notak', () => {
     const tiroir = libelles((o) => !!o.outil.tiroir)
-    expect(tiroir.slice(0, 7)).toEqual(['Croquis', 'Nuancier', 'Document', 'Audio', 'Carte', 'Vidéo', 'Titre'])
+    expect(tiroir.slice(0, 7)).toEqual(['Croquis', 'Nuancier', 'Page', 'Audio', 'Carte', 'Vidéo', 'Titre'])
     expect(tiroir.slice(7).length).toBeGreaterThan(0)
   })
 

@@ -73,9 +73,9 @@ describe('l’onglet Carte : ce qu’il montre', () => {
       'Largeur de la ligne de branche',
       'Branche colorée',
       'Couleur',
-      'Style de carte',
-      'Équilibrer la carte',
-      'Carte compacte',
+      'Style de carte mentale',
+      'Équilibrer la carte mentale',
+      'Carte mentale compacte',
       'Affichage des sujets',
       'Largeur uniforme',
       'Afficher toutes les notes',
@@ -106,14 +106,14 @@ describe('l’onglet Carte : ce qu’il montre', () => {
 
   it('quatre titres de section, des séparateurs entre les blocs', () => {
     monter(carte())
-    expect([...hote.querySelectorAll('.notak-arbre-reglages-titre')].map((x) => x.textContent)).toEqual(['Style de carte', 'Affichage des sujets', 'Relation', 'Avancé'])
+    expect([...hote.querySelectorAll('.notak-arbre-reglages-titre')].map((x) => x.textContent)).toEqual(['Style de carte mentale', 'Affichage des sujets', 'Relation', 'Avancé'])
     expect(hote.querySelectorAll('hr.notak-filet').length).toBeGreaterThanOrEqual(8)
   })
 
   it('une carte neuve : carte équilibrée et branches de couleur allumées, le reste éteint', () => {
     monter(carte())
     const allumes = [...hote.querySelectorAll<HTMLButtonElement>('button[role=switch]')].filter((i) => i.getAttribute('aria-checked') === 'true').map((i) => i.getAttribute('aria-label'))
-    expect(allumes).toEqual(['Branche colorée', 'Équilibrer la carte'])
+    expect(allumes).toEqual(['Branche colorée', 'Équilibrer la carte mentale'])
   })
 
   it('les réglages d’une carte se lisent dans ses options', () => {
@@ -125,7 +125,7 @@ describe('l’onglet Carte : ce qu’il montre', () => {
 
   it('chaque ligne à bascule porte l’infobulle de Xmind sur toute la ligne', () => {
     monter(carte())
-    const ligne = interrupteur('Carte compacte').closest('.notak-reglage')!
+    const ligne = interrupteur('Carte mentale compacte').closest('.notak-reglage')!
     expect(ligne.getAttribute('title')).toBe('Réduire la taille et l\'espacement des éléments.')
   })
 
@@ -136,15 +136,15 @@ describe('l’onglet Carte : ce qu’il montre', () => {
 
   it('une structure qui n’est pas une carte grise « Équilibrer » et « Branches libres »', () => {
     monter(carte('logique-droite'))
-    expect(interrupteur('Équilibrer la carte').disabled).toBe(true)
+    expect(interrupteur('Équilibrer la carte mentale').disabled).toBe(true)
     expect(interrupteur('Branches libres').disabled).toBe(true)
-    expect(interrupteur('Carte compacte').disabled).toBe(false)
+    expect(interrupteur('Carte mentale compacte').disabled).toBe(false)
   })
 })
 
 describe('l’onglet Carte : ce que chaque réglage envoie', () => {
   const bascules: [string, string, boolean][] = [
-    ['Carte compacte', 'compacte', true],
+    ['Carte mentale compacte', 'compacte', true],
     ['Largeur uniforme', 'uniforme', true],
     ['Afficher toutes les notes', 'toutesNotes', true],
     ['Flottants colorés auto', 'flottantsColores', true],
@@ -160,12 +160,12 @@ describe('l’onglet Carte : ce que chaque réglage envoie', () => {
       expect(gestes).toEqual([{ type: 'reglage', cle, actif }])
     })
 
-  it('« Équilibrer la carte » éteint, puis allumé', () => {
+  it('« Équilibrer la carte mentale » éteint, puis allumé', () => {
     monter(carte())
-    cliquer(interrupteur('Équilibrer la carte'))
+    cliquer(interrupteur('Équilibrer la carte mentale'))
     expect(dernier()).toEqual({ type: 'equilibrer', actif: false })
     monter(carte('carte-libre'))
-    cliquer(interrupteur('Équilibrer la carte'))
+    cliquer(interrupteur('Équilibrer la carte mentale'))
     expect(dernier()).toEqual({ type: 'equilibrer', actif: true })
   })
 

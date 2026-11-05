@@ -52,7 +52,7 @@ describe('GET /api/tableaux/:id/export', () => {
     m.tableau(ana, 'tableau-budget', 'Budget')
     m.tableau(ana, 'tableau-mere-1', 'Mère', (doc) => poser(doc, { type: 'tableau', cible: 'tableau-budget' }))
     const r = await m.appeler('/api/tableaux/tableau-mere-1/export?format=txt', { compte: ana })
-    expect(await r.text()).toBe('Mère\n\nTableau : Budget\n')
+    expect(await r.text()).toBe('Mère\n\nToile : Budget\n')
   })
 })
 

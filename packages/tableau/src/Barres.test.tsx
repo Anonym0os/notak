@@ -158,7 +158,7 @@ describe('le menu « ••• » de la sélection', () => {
   it('est un menu d’actions : verrouiller, premier plan, arrière-plan, convertir', () => {
     ouvrirPlus()
     const libelles = [...hote.querySelectorAll('.notak-menu-actions .notak-e')].map((b) => b.querySelector('.notak-e-libelle')!.textContent)
-    expect(libelles).toEqual(['Convertir en document', 'Créer une copie synchronisée', 'Verrouiller la position', 'Premier plan', 'Arrière-plan'])
+    expect(libelles).toEqual(['Convertir en page', 'Créer une copie synchronisée', 'Verrouiller la position', 'Premier plan', 'Arrière-plan'])
   })
 
   it('Verrouiller coche la position, et un second clic la libère', () => {
@@ -179,9 +179,9 @@ describe('le menu « ••• » de la sélection', () => {
     expect(contexte.magasin.lire().elements.at(-1)!.id).toBe(note.id)
   })
 
-  it('Convertir en document change le type et garde le texte', () => {
+  it('Convertir en page change le type et garde le texte', () => {
     const { note, contexte } = ouvrirPlus()
-    act(() => hote.querySelector<HTMLButtonElement>('.notak-menu-actions [data-action="m:Convertir en document"]')!.click())
+    act(() => hote.querySelector<HTMLButtonElement>('.notak-menu-actions [data-action="m:Convertir en page"]')!.click())
     const apres = contexte.magasin.lire().elements.find((e) => e.id === note.id)!.contenu
     expect(apres.type).toBe('document')
     expect(apres.type === 'document' && apres.texte).toEqual(note.contenu.type === 'note' && note.contenu.texte)

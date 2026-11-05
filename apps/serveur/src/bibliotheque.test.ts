@@ -154,13 +154,13 @@ describe('GET /api/bibliotheque', () => {
   })
 
   it('un élément en favori : la photo, la page ; pas ce qui n’est pas sur la toile', async () => {
-    const favori = (id: string, el: string, methode: 'PUT' | 'DELETE', c: Compte | undefined = ana) =>
-      m.appeler(`/api/tableaux/${id}/elements/${el}/favori`, { methode, compte: c })
+    const favori = (id: string, el: string, methode: 'PUT' | 'DELETE', c: Compte | null = ana) =>
+      m.appeler(`/api/tableaux/${id}/elements/${el}/favori`, { methode, compte: c ?? undefined })
     expect((await favori('voyage', 'port', 'PUT')).status).toBe(204)
     expect((await favori('voyage', 'budget', 'PUT')).status).toBe(204)
     expect((await favori('voyage', 'inconnu', 'PUT')).status).toBe(404)
     expect((await favori('secret', 'x', 'PUT', bob)).status).toBe(404)
-    expect((await favori('voyage', 'port', 'PUT', undefined)).status).toBe(401)
+    expect((await favori('voyage', 'port', 'PUT', null)).status).toBe(401)
     const lu = async () => new Map(((await (await m.appeler('/api/bibliotheque?genres=image,document,arbre', { compte: ana })).json()) as Entree[]).map((e) => [cle(e), e]))
     let r = await lu()
     expect(r.get('voyage/port')!.favori).toBe(true)
