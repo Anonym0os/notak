@@ -1,15 +1,14 @@
-import { type GenreNeuf, Icone, type NomIcone, type ResumeContenu, normaliser } from '@notak/tableau'
+import { type GenreNeuf, Icone, type NomIcone, type ResultatRecherche, type ResumeContenu, normaliser } from '@notak/tableau'
 import { Fragment, type ReactNode, useCallback, useRef, useState, useSyncExternalStore } from 'react'
-import { t } from '../langue'
+import type { EntreeBibliotheque } from '../api'
+import { t, tn } from '../langue'
 import { Vignette } from './Vignettes'
 
 /**
  * Les pièces de la bibliothèque au doigt, celle d'un téléphone : le grand titre qui se replie quand on cherche, la
- * tuile et sa vignette, la ligne d'un résultat, la rubrique et son « Tout voir », le choix de ce qu'on crée, la roue
- * des réglages et la carte de bienvenue du premier passage. La
- * bibliothèque de l'appareil (`local/BibliothequeLocale.tsx`) et celle d'un serveur au téléphone
- * (`bibliotheque/Telephone.tsx`) les partagent ; chacune garde ses données. Leur style est celui des classes
- * `biblio-locale-*` (app.css).
+ * ligne d'un résultat, les passages trouvés dans le contenu, le choix de ce qu'on crée, la vedette de l'accueil, la roue
+ * des réglages et la carte de bienvenue du premier passage. La bibliothèque (`Bibliotheque.tsx`) les pose autour de ses
+ * sections et de ses tuiles quand elle est au téléphone. Leur style est celui des classes `biblio-locale-*` (app.css).
  */
 
 /** Le téléphone : un écran qu'on touche du doigt, assez étroit pour que menus et panneaux montent en feuille (`enFeuille`). */
@@ -32,8 +31,20 @@ export function useAuTelephone(): boolean {
   )
 }
 
+/** Ce qu'une ligne ou une pastille montre : un genre de la bibliothèque, un dossier, ou `note`. */
+export type GenreLigne = EntreeBibliotheque['genre'] | 'dossier' | 'note'
+
 /** L'icône de chaque genre ; `note` : un passage trouvé dans un élément qui ne s'ouvre pas en grand (note, liste…). */
-export const ICONE_GENRE: Record<GenreNeuf | 'note', NomIcone> = { toile: 'tableau', arbre: 'carteMentale', document: 'document', note: 'note' }
+export const ICONE_GENRE: Record<GenreLigne, NomIcone> = {
+  toile: 'tableau',
+  arbre: 'carteMentale',
+  document: 'document',
+  image: 'photo',
+  lien: 'lien',
+  fichier: 'fichier',
+  dossier: 'dossier',
+  note: 'note',
+}
 
 /** Quand on l'a ouvert : aujourd'hui, cette semaine, ou sa date. */
 export function quand(ms: number | null | undefined): string {
@@ -142,51 +153,8 @@ export function BoutonPlus({ onClick }: { onClick(): void }) {
   )
 }
 
-/** Une rubrique : son titre, combien elle en a, et « Tout voir » quand elle en cache. */
-export function RubriqueDoigt({
-  id,
-  titre,
-  nombre,
-  plus,
-  children,
-}: {
-  id: string
-  titre: string
-  nombre?: number
-  /** Ouverte, elle montre tout ; sans `plus`, rien n'est caché. */
-  plus?: { ouverte: boolean; basculer(): void }
-  children: ReactNode
-}) {
-  return (
-    <section className="biblio-locale-rubrique" aria-labelledby={id}>
-      <div className="biblio-locale-rubrique-tete">
-        <h2 id={id}>
-          {titre} {nombre !== undefined && <span className="biblio-locale-compte">{nombre}</span>}
-        </h2>
-        {plus && (
-          <button type="button" className="biblio-locale-voir" aria-expanded={plus.ouverte} onClick={plus.basculer}>
-            {plus.ouverte ? t('biblio.voirMoins') : t('biblio.toutVoir')}
-          </button>
-        )}
-      </div>
-      {children}
-    </section>
-  )
-}
-
-/** Une tuile : la vignette, le titre, et dessous où elle est ou quand on l'a ouverte. */
-export function TuileDoigt({ genre, resume, titre, detail, onClick }: { genre: GenreNeuf; resume: ResumeContenu | undefined; titre: string; detail: string; onClick(): void }) {
-  return (
-    <button type="button" className="biblio-locale-tuile" data-genre={genre} onClick={onClick}>
-      {resume ? <Vignette resume={resume} /> : <span className="biblio-vignette" aria-hidden />}
-      <span className="biblio-locale-titre">{titre}</span>
-      <span className="biblio-locale-detail">{detail}</span>
-    </button>
-  )
-}
-
 /** Une ligne de résultat : l'icône du genre en pastille, le titre, et dessous où il est (ou le passage trouvé). */
-export function LigneDoigt({ genre, titre, detail, requete, onClick }: { genre: GenreNeuf | 'note'; titre: string; detail: ReactNode; requete: string; onClick(): void }) {
+export function LigneDoigt({ genre, titre, detail, requete, onClick }: { genre: GenreLigne; titre: string; detail: ReactNode; requete: string; onClick(): void }) {
   return (
     <li>
       <button type="button" className="biblio-locale-ligne" onClick={onClick}>
@@ -204,8 +172,11 @@ export function LigneDoigt({ genre, titre, detail, requete, onClick }: { genre: 
   )
 }
 
-/** Les trois choses qu'on crée : une toile s'ouvre, une carte ou un document se pose sur l'accueil et s'ouvre en grand. */
-export function ChoixCreation({ creer, occupe = false }: { creer(genre: GenreNeuf): void; occupe?: boolean }) {
+/**
+ * Les trois choses qu'on crée : une toile s'ouvre, une carte ou un document se pose sur l'accueil et s'ouvre en grand ;
+ * avec `dossier`, un dossier vide, rangé là, son nom prêt à changer.
+ */
+export function ChoixCreation({ creer, dossier, occupe = false }: { creer(genre: GenreNeuf): void; dossier?: () => void; occupe?: boolean }) {
   return (
     <div className="biblio-locale-neuf" role="group" aria-label={t('biblio.nouveau')}>
       {(['toile', 'document', 'arbre'] as const).map((g) => (
@@ -219,7 +190,104 @@ export function ChoixCreation({ creer, occupe = false }: { creer(genre: GenreNeu
           </span>
         </button>
       ))}
+      {dossier && (
+        <button type="button" data-genre="dossier" disabled={occupe} onClick={dossier}>
+          <span className="biblio-locale-pastille" data-genre="dossier">
+            <Icone nom="dossier" taille={20} />
+          </span>
+          <span className="biblio-locale-neuf-texte">
+            <span>{t('biblio.dossier.titre')}</span>
+            <span className="biblio-locale-detail">{t('biblio.dossier.aide')}</span>
+          </span>
+        </button>
+      )}
     </div>
+  )
+}
+
+/**
+ * La toile d'accueil en vedette, en tête de la bibliothèque au téléphone : son plan sur toute la largeur, son nom et ce
+ * qu'elle porte ; un toucher l'ouvre.
+ */
+export function VedetteAccueil({
+  titre,
+  resume,
+  nombres,
+  onClick,
+}: {
+  titre: string
+  /** Son résumé, une fois l'accueil lu ; sans, un plan vide. */
+  resume: Extract<ResumeContenu, { genre: 'toile' }> | undefined
+  /** Combien elle porte de toiles, pages et cartes mentales (la bibliothèque les compte). */
+  nombres: { toiles: number; documents: number; cartes: number }
+  onClick(): void
+}) {
+  const vide = resume !== undefined && resume.boites.length === 0
+  const detail = (['toiles', 'documents', 'cartes'] as const)
+    .filter((g) => nombres[g] > 0)
+    .map((g) => tn(`biblio.compte.${g}`, nombres[g]))
+    .join(' · ')
+  return (
+    <button type="button" className="biblio-locale-vedette" onClick={onClick}>
+      <span className="biblio-locale-vedette-plan">
+        {vide ? <span className="biblio-locale-vedette-vide">{t('biblio.accueilVide')}</span> : resume ? <Vignette resume={resume} /> : <span className="biblio-vignette" aria-hidden />}
+      </span>
+      <span className="biblio-locale-vedette-texte">
+        <span className="biblio-locale-vedette-titre">
+          <Icone nom="maison" taille={17} />
+          {titre}
+        </span>
+        {detail && <span className="biblio-locale-detail">{detail}</span>}
+      </span>
+    </button>
+  )
+}
+
+/** Combien de passages trouvés dans le contenu avant « Afficher les … résultats ». */
+export const PASSAGES = 3
+
+/**
+ * Les passages trouvés dans le contenu (le texte d'une note, d'une page, d'une carte mentale) : où ils sont écrits, et
+ * le passage, les mots cherchés en gras ; trois d'abord. `genreDe` dit ce qu'est l'élément, s'il a sa tuile.
+ */
+export function Passages({
+  passages,
+  requete,
+  tous,
+  voirTout,
+  genreDe,
+  ouvrir,
+}: {
+  passages: readonly ResultatRecherche[]
+  requete: string
+  tous: boolean
+  voirTout(): void
+  genreDe(r: ResultatRecherche): GenreLigne | undefined
+  ouvrir(r: ResultatRecherche): void
+}) {
+  if (passages.length === 0) return null
+  const montres = tous ? passages : passages.slice(0, PASSAGES)
+  return (
+    <section className="biblio-locale-resultats biblio-passages" aria-labelledby="biblio-passages-titre">
+      <h2 id="biblio-passages-titre">{t('biblio.resultats.contenu')}</h2>
+      <ul>
+        {montres.map((r) => (
+          <LigneDoigt
+            key={`${r.tableau}/${r.element ?? ''}`}
+            genre={genreDe(r) ?? 'note'}
+            titre={r.titre}
+            detail={<Surligne texte={r.extrait} requete={requete} />}
+            requete=""
+            onClick={() => ouvrir(r)}
+          />
+        ))}
+      </ul>
+      {montres.length < passages.length && (
+        <button type="button" className="biblio-locale-voir biblio-locale-voir-extraits" onClick={voirTout}>
+          {tn('biblio.resultats.tous', passages.length)}
+        </button>
+      )}
+    </section>
   )
 }
 

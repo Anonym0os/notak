@@ -2760,11 +2760,18 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
   padding: 0;
 }
 
-.biblio {
+.biblio,
+.biblio-unie {
   --biblio-pale: color-mix(in srgb, var(--notak-texte, #323b4a) 64%, transparent);
   --biblio-survol: rgb(50 59 74 / 0.05);
   --biblio-choisi: rgb(50 59 74 / 0.09);
   --biblio-ombre: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.08), 0 6px 16px -6px rgb(27 37 54 / 0.16);
+  /* Celles des pièces au doigt (les lignes des passages trouvés), que la page du bureau montre aussi. */
+  --biblio-discret: color-mix(in srgb, var(--notak-texte, #323b4a) 55%, transparent);
+  --biblio-remplissage: color-mix(in srgb, var(--notak-texte, #323b4a) 7%, transparent);
+}
+
+.biblio {
 
   display: grid;
   flex: 1;
@@ -2778,7 +2785,8 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
   font-family: var(--notak-police, 'Inter Variable', system-ui, sans-serif);
 }
 
-[data-theme='sombre'] .biblio {
+[data-theme='sombre'] .biblio,
+[data-theme='sombre'] .biblio-unie {
   --biblio-survol: rgb(255 255 255 / 0.05);
   --biblio-choisi: rgb(255 255 255 / 0.1);
   --biblio-ombre: 0 0 0 1px rgb(255 255 255 / 0.06), 0 6px 16px -6px rgb(0 0 0 / 0.5);
@@ -5113,10 +5121,10 @@ button.biblio-arbre-chevron:hover {
 }
 
 /*
- * La bibliothèque de l'édition locale, au doigt (local/BibliothequeLocale.tsx) : la page où l'on arrive, posée sur la
- * toile ouverte. Un grand titre et le « + », la recherche, la toile d'accueil en vedette, la rangée des récents (comme
- * les « Recently viewed » de Fresha), puis les toiles, les cartes et les documents en grilles de deux, comme les
- * tableaux de Savee. La recherche replie le grand titre, comme celle des Notes d'iOS.
+ * La bibliothèque au téléphone, son cadre et ses pièces au doigt (bibliotheque/AuDoigt.tsx) : un grand titre et le
+ * « + », la recherche, la toile d'accueil en vedette, la rangée des filtres, comme les tableaux de Savee et les
+ * « Recently viewed » de Fresha. La recherche replie le grand titre, comme celle des Notes d'iOS. Les sections et les
+ * tuiles sont celles de toutes les largeurs (`.biblio-unie`, plus bas).
  */
 .biblio-locale {
   --biblio-gouttiere: 16px;
@@ -5342,40 +5350,17 @@ button.biblio-arbre-chevron:hover {
   color: var(--notak-accent, #2f6feb);
 }
 
-.biblio-locale-vedette:active .biblio-locale-vedette-plan,
-.biblio-locale-tuile:active .biblio-vignette {
+.biblio-locale-vedette:active .biblio-locale-vedette-plan {
   transform: scale(0.97);
   transition: transform 0.1s ease;
 }
 
-.biblio-locale-rubrique {
-  margin-bottom: 28px;
-}
-
-.biblio-locale-rubrique-tete {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.biblio-locale-rubrique h2,
 .biblio-locale-resultats h2 {
   margin: 0 0 10px;
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 26px;
-}
-
-.biblio-locale-rubrique-tete h2 {
-  margin: 0;
-}
-
-.biblio-locale-compte {
-  margin-left: 4px;
-  color: var(--biblio-discret);
-  font-weight: 500;
 }
 
 .biblio-locale-voir {
@@ -5385,77 +5370,6 @@ button.biblio-arbre-chevron:hover {
   background: none;
   color: var(--notak-accent, #2f6feb) !important;
   font-size: 15px !important;
-}
-
-/* Les récents glissent de côté, d'une tuile à l'autre ; la troisième dépasse du bord pour le dire. */
-.biblio-locale-rangee {
-  display: grid;
-  grid-auto-columns: 148px;
-  grid-auto-flow: column;
-  gap: 12px;
-  margin: 0 calc(-1 * var(--biblio-gouttiere));
-  padding: 0 var(--biblio-gouttiere) 4px;
-  overflow-x: auto;
-  scroll-padding: 0 var(--biblio-gouttiere);
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-  list-style: none;
-}
-
-.biblio-locale-rangee::-webkit-scrollbar {
-  display: none;
-}
-
-.biblio-locale-rangee > li {
-  scroll-snap-align: start;
-}
-
-.biblio-locale-grille {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 18px 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/*
- * Sur une tablette, la rangée des récents montre cinq tuiles entières (six en paysage) au lieu d'en couper une au
- * bord de l'écran : la suite vient en glissant, tuile après tuile. Les rubriques en montrent quatre par ligne, autant
- * qu'elles en gardent avant « Tout voir ».
- */
-@media (min-width: 641px) {
-  .biblio-locale-rangee {
-    grid-auto-columns: calc((100% - 4 * 12px) / 5);
-    margin: 0;
-    padding: 0 0 4px;
-    scroll-padding: 0;
-  }
-
-  .biblio-locale-grille {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1024px) {
-  .biblio-locale-rangee {
-    grid-auto-columns: calc((100% - 5 * 12px) / 6);
-  }
-}
-
-.biblio-locale-tuile {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  background: none;
-  text-align: left;
-}
-
-.biblio-locale-tuile .biblio-vignette {
-  margin-bottom: 8px;
-  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.05);
 }
 
 .biblio-locale-titre {
@@ -5477,7 +5391,10 @@ button.biblio-arbre-chevron:hover {
   white-space: nowrap;
 }
 
-/* La pastille du genre : une toile en bleu, une carte en orange, un document en vert ; un passage d'une note en gris. */
+/*
+ * La pastille du genre : une toile en bleu, une carte mentale en orange, une page en vert, une photo en violet, un lien
+ * en bleu-vert, un dossier à l'accent ; un fichier et le passage d'une note en gris.
+ */
 .biblio-locale-pastille {
   display: grid;
   place-items: center;
@@ -5499,9 +5416,25 @@ button.biblio-arbre-chevron:hover {
   color: #2f8a46;
 }
 
-.biblio-locale-pastille[data-genre='note'] {
+.biblio-locale-pastille[data-genre='note'],
+.biblio-locale-pastille[data-genre='fichier'] {
   background: var(--biblio-remplissage);
   color: var(--biblio-discret);
+}
+
+.biblio-locale-pastille[data-genre='image'] {
+  background: color-mix(in srgb, #9a5bd6 15%, transparent);
+  color: #8447c4;
+}
+
+.biblio-locale-pastille[data-genre='lien'] {
+  background: color-mix(in srgb, #1d9aa6 15%, transparent);
+  color: #138591;
+}
+
+.biblio-locale-pastille[data-genre='dossier'] {
+  background: color-mix(in srgb, var(--notak-accent, #2f6feb) 12%, transparent);
+  color: var(--notak-accent, #2f6feb);
 }
 
 /* Le choix de ce qu'on crée : dans la feuille du « + », ou sur la page tant qu'elle est vide. */
@@ -5541,15 +5474,6 @@ button.biblio-arbre-chevron:hover {
   font-size: 16px;
   font-weight: 600;
   line-height: 21px;
-}
-
-.biblio-locale-premiers {
-  margin-bottom: 28px;
-}
-
-.biblio-locale-premiers p {
-  margin: 0 0 10px;
-  color: var(--biblio-discret);
 }
 
 /* Les résultats : des lignes de 56 px, la pastille du genre, le titre et où il est. */
@@ -5684,11 +5608,147 @@ button.biblio-arbre-chevron:hover {
 }
 
 /*
- * La bibliothèque d'un serveur au téléphone (bibliotheque/Telephone.tsx) : la même page que celle de l'appareil, mais
- * seule à l'écran. Elle ne passe pas devant les bandeaux du serveur, ni devant les feuilles qu'elle ouvre.
+ * Seule à l'écran (une toile ne se monte qu'à son adresse), elle ne passe pas devant les bandeaux, ni devant les
+ * feuilles qu'elle ouvre.
  */
 .biblio-locale.biblio-telephone {
   z-index: 0;
+}
+
+/*
+ * La bibliothèque unique, au téléphone (Bibliotheque.tsx) : le cadre et l'en-tête de la bibliothèque au doigt, autour
+ * des sections et des tuiles de toutes les largeurs. Grilles de deux, « Reprendre » qui glisse, titres de rubrique en
+ * grand ; le choix de plusieurs tuiles monte en barre au bas de l'écran.
+ */
+.biblio-unie .biblio-corps {
+  min-height: 0;
+  padding: 0;
+  overflow: visible;
+}
+
+.biblio-unie .biblio-section + .biblio-section {
+  margin-top: 28px;
+}
+
+.biblio-unie .biblio-section h2 {
+  margin: 0 0 12px;
+  color: var(--notak-texte);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 26px;
+}
+
+/* Plus lourd que `.biblio-locale button`, qui rend la couleur du texte à tout bouton. */
+.biblio-unie .biblio-voir {
+  color: var(--notak-accent, #2f6feb);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.biblio-unie .biblio-grille {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 12px;
+}
+
+.biblio-unie .biblio-section[data-rail] .biblio-grille[data-affichage='grille'] {
+  grid-auto-columns: calc((100% - 12px) * 0.44);
+  gap: 12px;
+  margin: -6px calc(-1 * var(--biblio-gouttiere)) 0;
+  padding: 6px var(--biblio-gouttiere) 8px;
+  scroll-padding: 0 var(--biblio-gouttiere);
+  scrollbar-width: none;
+}
+
+.biblio-unie .biblio-section[data-rail] .biblio-grille::-webkit-scrollbar {
+  display: none;
+}
+
+.biblio-unie .biblio-tuile-titre {
+  font-size: 15px;
+}
+
+.biblio-unie .biblio-tuile-ou {
+  font-size: 13px;
+}
+
+.biblio-locale-filtre[data-vide]:not([aria-pressed='true']) {
+  color: var(--biblio-discret) !important;
+}
+
+/* Dans un dossier : d'où l'on vient, à gauche, comme le retour d'iOS ; « Ouvrir la toile » à droite. */
+.biblio-locale-dossier {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -8px 0 16px;
+}
+
+.biblio-locale-retour {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--notak-accent, #2f6feb) !important;
+  font-size: 16px !important;
+}
+
+.biblio-locale-retour span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.biblio-locale-dossier .biblio-locale-voir {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: none;
+}
+
+/* Le choix de plusieurs tuiles : la barre de ses gestes, au bas de l'écran, au-dessus de la barre d'accueil d'iOS. */
+.biblio-locale-choix {
+  position: fixed;
+  right: calc(12px + var(--notak-zone-droite, 0px));
+  bottom: calc(12px + var(--notak-zone-bas, 0px));
+  left: calc(12px + var(--notak-zone-gauche, 0px));
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+}
+
+.biblio-locale-choix .notak-ilot {
+  max-width: 100%;
+  height: 52px;
+  border-radius: 26px;
+}
+
+.biblio-unie[data-choix] {
+  padding-bottom: calc(var(--notak-zone-bas, 0px) + 88px);
+}
+
+/* Les passages trouvés dans le contenu, sous les tuiles de la recherche, sur la page du bureau. */
+.biblio .biblio-passages {
+  max-width: 720px;
+  margin-top: 32px;
+}
+
+.biblio .biblio-passages button {
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.biblio .biblio-passages h2 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 /* La rangée des espaces et des filtres : elle glisse de côté sous la recherche, comme les filtres de Photos. */
@@ -5735,13 +5795,6 @@ button.biblio-arbre-chevron:hover {
 
 .biblio-locale-filtre[aria-pressed='true'] small {
   color: color-mix(in srgb, var(--notak-fond) 70%, transparent);
-}
-
-/* La toile d'accueil, l'espace où tout se range : à part des filtres, à la couleur de l'accent. Elle s'ouvre. */
-.biblio-locale-filtre[data-espace] {
-  background: color-mix(in srgb, var(--notak-accent, #2f6feb) 12%, transparent);
-  color: var(--notak-accent, #2f6feb) !important;
-  font-weight: 600;
 }
 
 .biblio-locale-filtres-sep {

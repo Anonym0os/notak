@@ -9,15 +9,15 @@ import { createRoot } from 'react-dom/client'
 import type { EntreeBibliotheque } from '../api'
 import { PageBibliotheque } from '../Bibliotheque'
 import { simulerCoqueSiDemandee } from '../ios/coqueSimulee'
-import { BibliothequeLocale, noterVu } from '../local/BibliothequeLocale'
 import { BibliothequeApp } from '../local/BibliothequeApp'
 import { Rangement } from '../local/Rangement'
 import { type EspaceLocal, espaceLocal } from '../local/espace'
+import { noterVu } from '../local/vus'
 
 /**
  * Le banc de la bibliothèque, pour le développement seulement : la page d'un serveur sans serveur
- * (`/banc-bibliotheque.html`), celle de l'app au téléphone avec des toiles d'essai (`?edition=locale`), ou celle de
- * l'app sur un iPad ou un ordinateur (`?edition=calque`). Il sert à voir chaque
+ * (`/banc-bibliotheque.html`), ou celle de l'app avec des toiles d'essai dans ce navigateur (`?edition=locale`, ou
+ * `?edition=calque`, son ancien nom). La largeur de la fenêtre dit sa forme : au téléphone, au doigt. Il sert à voir chaque
  * largeur d'écran (un iPad en portrait, une fenêtre partagée) et à en faire des captures. `?langue=en` passe à
  * l'anglais, `?coque=ios` fait croire à l'app d'un iPhone ou d'un iPad.
  */
@@ -159,7 +159,11 @@ function BancServeur() {
   const [espace] = useState(() => creerEspace(monde()))
   return (
     <HoteNotak className="biblio-hote">
-      {(fenetres) => <PageBibliotheque charger={async () => entreesServeur()} vignettes={VIGNETTES_BANC} espace={espace} fenetres={fenetres} compte={<Compte />} avatar={<BoutonIlot icone="compte" libelle="Compte" onClick={() => {}} />} />}
+      {(fenetres) => <PageBibliotheque
+          charger={async () => entreesServeur()}
+          chercherContenu={async (r) => [{ tableau: 't0', titre: 'Voyage au Japon', element: 'note-essai', extrait: `Penser à réserver ${r} avant le départ` }]}
+          vignettes={VIGNETTES_BANC}
+          espace={espace} fenetres={fenetres} compte={<Compte />} avatar={<BoutonIlot icone="compte" libelle="Compte" onClick={() => {}} />} />}
     </HoteNotak>
   )
 }
@@ -187,15 +191,12 @@ async function remplirLocal(): Promise<EspaceLocal> {
   return el
 }
 
-function BancLocal({ calque }: { calque: boolean }) {
+function BancLocal() {
   const [el, setEl] = useState<EspaceLocal | null>(null)
   useEffect(() => void preparerLocal().then(setEl), [])
   if (!el) return null
-  // L'app sur un iPad ou un ordinateur : la bibliothèque qui range, sur les toiles de l'appareil.
-  if (calque)
-    return <BibliothequeApp el={el} importer={async () => ({ elements: [], toiles: [], refuses: [] })} rangement={<Rangement el={el} enregistrer={() => {}} rouvrir={() => {}} message={null} />} />
-  return <BibliothequeLocale el={el} ouvrir={() => {}} reglages={() => {}} />
+  return <BibliothequeApp el={el} importer={async () => ({ elements: [], toiles: [], refuses: [] })} rangement={<Rangement el={el} enregistrer={() => {}} rouvrir={() => {}} message={null} />} />
 }
 
 const edition = parametres.get('edition')
-createRoot(document.getElementById('racine')!).render(<StrictMode>{edition === 'locale' || edition === 'calque' ? <BancLocal calque={edition === 'calque'} /> : <BancServeur />}</StrictMode>)
+createRoot(document.getElementById('racine')!).render(<StrictMode>{edition === 'locale' || edition === 'calque' ? <BancLocal /> : <BancServeur />}</StrictMode>)

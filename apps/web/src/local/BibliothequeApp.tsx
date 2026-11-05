@@ -1,15 +1,16 @@
 import { FeuilleBas, type FenetresNotak, HoteNotak, type Id } from '@notak/tableau'
 import { type ReactNode, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { PageBibliotheque, allerAEntree } from '../Bibliotheque'
-import { useAuTelephone } from '../bibliotheque/AuDoigt'
+import { type Bienvenue, PageBibliotheque } from '../Bibliotheque'
 import { peutJoindreUnServeur } from '../bureau'
 import { CompteEtServeur, RondCompte } from '../bureau/CompteEtServeur'
 import type { BilanImport } from '../importation'
 import { t } from '../langue'
 import { sourceLocale } from './bibliotheque'
-import { BibliothequeLocale } from './BibliothequeLocale'
-import { type EspaceLocal, poserLeGuide } from './espace'
+import { type EspaceLocal, poserLeGuide, rechercherLocalement } from './espace'
 import { ecouterSynchro, lireEtatSynchro } from './synchro'
+
+/** La carte de bienvenue de l'app au téléphone, fermée une fois pour toutes. */
+export const CLE_BIENVENUE = 'notak:local:bienvenue'
 
 /** Au-delà, on n'attend plus iCloud pour montrer le premier écran (un dossier très lent, une synchro arrêtée). */
 const ATTENTE_NUAGE_MAX = 20_000
@@ -30,10 +31,11 @@ function useAttenteNuage(): boolean {
 }
 
 /**
- * L'écran où l'app s'ouvre, partout : la bibliothèque des toiles de l'appareil. Au téléphone, celle qu'on parcourt au
- * doigt (`BibliothequeLocale`) ; sur un iPad ou un ordinateur, celle qui range (`PageBibliotheque`, la même qu'un
- * serveur), avec en haut à droite la pastille « Où sont mes toiles ? » et, dans l'app, le rond du compte. Elle prend le
- * thème, les réglages et l'aide de Notak sans toile montée (`HoteNotak`), comme celle d'un serveur.
+ * L'écran où l'app s'ouvre, partout : la bibliothèque des toiles de l'appareil, la même qu'un serveur
+ * (`PageBibliotheque`). Sur un iPad ou un ordinateur, en haut à droite, la pastille « Où sont mes toiles ? » et, dans
+ * l'app, le rond du compte ; au téléphone, le rond seul, à côté de la roue et du « + », et la carte de bienvenue du
+ * premier passage. Elle cherche aussi dans le contenu des toiles de l'appareil. Elle prend le thème, les réglages et
+ * l'aide de Notak sans toile montée (`HoteNotak`), comme celle d'un serveur.
  */
 export function BibliothequeApp(proprietes: {
   el: EspaceLocal
@@ -45,22 +47,21 @@ export function BibliothequeApp(proprietes: {
 }
 
 function Contenu({ el, importer, rangement, fenetres }: Parameters<typeof BibliothequeApp>[0] & { fenetres: FenetresNotak }) {
-  const telephone = useAuTelephone()
   const source = useMemo(() => sourceLocale(el, { importer }), [el, importer])
   const [compte, setCompte] = useState(false)
   const attente = useAttenteNuage()
   const decouvrir = () => poserLeGuide(el)
-  if (telephone)
-    return (
-      <BibliothequeLocale
-        el={el}
-        ouvrir={(tableau, element = null) => allerAEntree({ tableau, element })}
-        reglages={fenetres.reglages}
-        importer={(f) => void importer(f, el.index.racine())}
-        decouvrir={decouvrir}
-        attente={attente}
-      />
-    )
+  const chercherContenu = useMemo(() => (requete: string) => rechercherLocalement(el, requete), [el])
+  const avecCompte = peutJoindreUnServeur()
+  const bienvenue: Bienvenue = {
+    cle: CLE_BIENVENUE,
+    titre: t('biblio.bienvenue.titre'),
+    lignes: [
+      { icone: 'maison', texte: t('biblio.bienvenue.accueil') },
+      { icone: 'ajouter', texte: t('biblio.bienvenue.creer') },
+      avecCompte ? { icone: 'compte', texte: t('biblio.bienvenue.compte') } : { icone: 'reglages', texte: t('biblio.bienvenue.reglages') },
+    ],
+  }
   return (
     <>
       <PageBibliotheque
@@ -70,6 +71,17 @@ function Contenu({ el, importer, rangement, fenetres }: Parameters<typeof Biblio
         fenetres={fenetres}
         decouvrir={decouvrir}
         attente={attente}
+        bienvenue={bienvenue}
+        chercherContenu={chercherContenu}
+        {...(avecCompte
+          ? {
+              avatar: (
+                <button type="button" className="biblio-locale-compte-bouton" aria-label={t('compteServeur.titre')} aria-haspopup="dialog" onClick={() => setCompte(true)}>
+                  <RondCompte taille={34} />
+                </button>
+              ),
+            }
+          : {})}
         compte={
           <>
             {rangement}

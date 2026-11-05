@@ -12,7 +12,10 @@ import {
   auDoigt as ecranAuDoigt,
   creerDans,
   demanderAMontrer,
+  FeuilleBas,
   quandPretes,
+  type ResultatRecherche,
+  resumesDuTableau,
 } from '@notak/tableau'
 import {
   type DragEvent,
@@ -35,6 +38,7 @@ import {
   noterElementVu,
   noterVu as noterVuToile,
   rangerToile as rangerToileApi,
+  rechercherPartout,
 } from './api'
 import {
   type EspaceRangement,
@@ -94,9 +98,21 @@ import {
 import { BarreChoix } from './bibliotheque/BarreChoix'
 import { PremierPas } from './bibliotheque/PremierPas'
 import { preparerClavier } from './bibliotheque/clavier'
-import { useAuTelephone } from './bibliotheque/AuDoigt'
+import {
+  BoutonPlus,
+  BoutonReglages,
+  CarteBienvenue,
+  ChoixCreation,
+  EnteteDoigt,
+  type GenreLigne,
+  LigneDoigt,
+  Passages,
+  VedetteAccueil,
+  quand,
+  useAuTelephone,
+  useBienvenue,
+} from './bibliotheque/AuDoigt'
 import { vibrer } from './appareil'
-import { BibliothequeTelephone } from './bibliotheque/Telephone'
 import { ecouterImportBureau } from './importBureau'
 import type { BilanImport } from './importation'
 import { allerA, surLien } from './chemin'
@@ -106,7 +122,7 @@ import { t, tn } from './langue'
  * La bibliothèque, page d'accueil de l'édition serveur : tout ce que le compte peut ouvrir, en vignettes, comme chez
  * Xmind. Une colonne de rubriques à gauche, la barre de l'application en haut, et des tuiles rangées par date
  * d'ouverture ou par dossier (la toile qui les porte). Les toiles restent la façon de ranger ; ici, on parcourt. Au
- * téléphone, la même page prend la forme de la bibliothèque de l'appareil (`bibliotheque/Telephone.tsx`).
+ * téléphone, la même page prend sa forme au doigt (ses pièces sont dans `bibliotheque/AuDoigt.tsx`).
  */
 
 export type Tri = 'date' | 'dossier'
@@ -172,18 +188,23 @@ export interface Section {
   voir?: Partial<Vue>
 }
 
-/** Combien de tuiles une rubrique de l'accueil montre avant « Tout voir ». */
+/** Combien de tuiles une rubrique de l'accueil montre avant « Tout voir » ; au téléphone, deux rangées de deux. */
 const PAR_RUBRIQUE = 8
+const PAR_RUBRIQUE_TELEPHONE = 4
+/** Le temps d'attente avant la recherche dans le contenu : les titres, eux, répondent à chaque lettre. */
+const ATTENTE_CONTENU = 200
+/** Combien de récents en lignes, quand la recherche au doigt s'ouvre sans rien encore. */
+const RECENTS_AU_DOIGT = 8
 
 /**
  * L'accueil de la bibliothèque, comme celui de Freeform ou de Google Drive : reprendre ce qu'on a ouvert, les favoris,
  * les dossiers, puis une rubrique par genre, chacune avec « Tout voir ». Chaque entrée n'y paraît qu'une fois, dans la
  * première rubrique qui la prend : la sélection et le clavier ne connaissent qu'une tuile par entrée.
  */
-export function sectionsDeLAccueil(entrees: readonly EntreeBibliotheque[]): Section[] {
+export function sectionsDeLAccueil(entrees: readonly EntreeBibliotheque[], parRubrique = PAR_RUBRIQUE): Section[] {
   const montrees = new Set<string>()
   const sections: Section[] = []
-  const ajouter = (cle: string, titre: string, candidates: EntreeBibliotheque[], voir?: Partial<Vue>, max = PAR_RUBRIQUE) => {
+  const ajouter = (cle: string, titre: string, candidates: EntreeBibliotheque[], voir?: Partial<Vue>, max = parRubrique) => {
     const toutes = [...candidates].sort(parOuverture)
     const libres = toutes.filter((e) => !montrees.has(cleDe(e)))
     const prises = libres.slice(0, max)
@@ -318,24 +339,34 @@ const creerDansLEspace = (espace: EspaceBibliotheque | undefined) => async (genr
   return creerDans(espace!, ou, genre)
 }
 
-type ProprietesBibliotheque = Parameters<typeof BibliothequeBureau>[0] & {
-  /** La pastille du compte, seule : au téléphone, la barre ne garde qu'elle et le « + ». */
-  avatar?: ReactNode
+/** La carte de bienvenue d'un serveur au téléphone, fermée une fois pour toutes (le stockage est déjà celui de ce serveur). */
+export const CLE_BIENVENUE_SERVEUR = 'notak:serveur:bienvenue'
+
+/** La carte du premier passage, au téléphone : sous quelle clé elle se ferme, son titre, ses lignes. */
+export interface Bienvenue {
+  cle: string
+  titre: string
+  lignes: readonly { icone: NomIcone; texte: string }[]
 }
 
-/** La bibliothèque : au téléphone, sa forme au doigt ; ailleurs, celle du bureau. */
-export function PageBibliotheque({ avatar, ...proprietes }: ProprietesBibliotheque) {
-  if (!useAuTelephone()) return <BibliothequeBureau {...proprietes} />
-  const { charger = lireBibliotheque, espace, creer = creerDansLEspace(espace) } = proprietes
-  return (
-    <BibliothequeTelephone
-      charger={charger}
-      {...(espace ? { espace } : {})}
-      creer={(genre) => creer(genre)}
-      avatar={avatar}
-      {...(proprietes.fenetres ? { reglages: proprietes.fenetres.reglages } : {})}
-    />
-  )
+/** Celle d'un serveur : l'accueil, le « + », et le rond du compte quand il est là. */
+const bienvenueServeur = (compte: boolean): Bienvenue => ({
+  cle: CLE_BIENVENUE_SERVEUR,
+  titre: t('biblio.bienvenue.serveur.titre'),
+  lignes: [
+    { icone: 'maison', texte: t('biblio.bienvenue.accueil') },
+    { icone: 'ajouter', texte: t('biblio.bienvenue.creer') },
+    ...(compte ? [{ icone: 'compte' as const, texte: t('biblio.bienvenue.serveur.compte') }] : []),
+  ],
+})
+
+/**
+ * La bibliothèque, partout la même : sur un serveur comme dans l'app, à la souris comme au doigt. Au téléphone, elle
+ * prend sa forme au doigt (grand titre, recherche qui le replie, accueil en vedette, une rangée de filtres) ; ses
+ * gestes, ses dossiers et ses genres restent ceux de toutes les largeurs.
+ */
+export function PageBibliotheque(proprietes: Parameters<typeof BibliothequeBureau>[0]) {
+  return <BibliothequeBureau {...proprietes} />
 }
 
 function BibliothequeBureau({
@@ -354,8 +385,17 @@ function BibliothequeBureau({
   partages = true,
   decouvrir,
   attente = false,
+  avatar,
+  bienvenue,
+  chercherContenu = rechercherPartout,
 }: {
   charger?: () => Promise<EntreeBibliotheque[]>
+  /** Au téléphone, la pastille du compte seule, à côté de la roue et du « + » : la barre du bureau n'y va pas. */
+  avatar?: ReactNode
+  /** Au téléphone, la carte du premier passage ; sans, celle d'un serveur. */
+  bienvenue?: Bienvenue
+  /** Cherche dans le contenu des toiles (le texte des notes, des pages, des cartes mentales) : des passages. */
+  chercherContenu?: (requete: string) => Promise<ResultatRecherche[]>
   /** Prévient quand la liste a changé ailleurs (les toiles de l'appareil) : la page se relit. Un serveur ne prévient pas. */
   ecouter?: (f: () => void) => () => void
   /** « Partagés avec moi » : sur un serveur. L'app n'a pas d'autres comptes. */
@@ -394,6 +434,13 @@ function BibliothequeBureau({
   const [tri, setTri] = useState<Tri>(lireTri)
   const [affichage, setAffichage] = useState<Affichage>(lireAffichage)
   const [requete, setRequete] = useState('')
+  /** Au téléphone, la page prend sa forme au doigt ; et la recherche, ouverte d'un toucher, replie le grand titre. */
+  const telephone = useAuTelephone()
+  const [rechercheOuverte, setRechercheOuverte] = useState(false)
+  /** Au téléphone, la feuille de ce qu'on crée, qu'ouvre le « + ». */
+  const [feuilleNeuf, setFeuilleNeuf] = useState(false)
+  const carteBienvenue = bienvenue ?? bienvenueServeur(!!avatar)
+  const [bienvenueAMontrer, fermerBienvenue] = useBienvenue(carteBienvenue.cle)
   /** Le menu « Nouveau » ouvert, et d'où : la colonne, ou la barre quand la colonne est un tiroir. */
   const [menuNeuf, setMenuNeuf] = useState<false | 'colonne' | 'tete'>(false)
   /** Dans une fenêtre moyenne (un iPad en portrait), la colonne est un tiroir, qu'on ouvre par ☰. */
@@ -489,14 +536,20 @@ function BibliothequeBureau({
     return () => window.removeEventListener('keydown', touche)
   }, [])
 
-  // On commence par les récents ; tant qu'on n'a rien ouvert, par toute la bibliothèque.
-  const portee: Portee = choisie ?? (toutes && !toutes.some((e) => e.vu !== null) ? 'tout' : 'recents')
+  // On commence par les récents ; tant qu'on n'a rien ouvert, par toute la bibliothèque. Au téléphone, par son
+  // accueil, qui a les récents en tête.
+  const portee: Portee = choisie ?? (telephone || (toutes && !toutes.some((e) => e.vu !== null)) ? 'tout' : 'recents')
+  // Au téléphone, ni tri ni affichage à choisir : par date, en grille, quoi qu'on ait choisi sur un écran plus grand.
+  const triVu: Tri = telephone ? 'date' : tri
+  const affichageVu: Affichage = telephone ? 'grille' : affichage
   const vue: Vue = { portee, filtre, ...(dossier ? { dossier } : {}) }
   const cherche = requete.trim() !== ''
-  // La recherche lit toute la bibliothèque, d'où qu'on soit ; les puces la filtrent encore.
+  // La recherche lit toute la bibliothèque, d'où qu'on soit ; les puces la filtrent encore (au téléphone, elles se
+  // cachent pendant qu'on cherche : elles ne filtrent rien).
+  const filtreDeRecherche: Filtre = telephone ? 'tout' : filtre
   const visibles = useMemo(
-    () => (toutes ? (cherche ? duFiltre(filtre, filtrer(toutes, requete)).sort(parOuverture) : entreesDe({ portee, filtre, ...(dossier ? { dossier } : {}) }, toutes)) : []),
-    [toutes, cherche, requete, portee, filtre, dossier],
+    () => (toutes ? (cherche ? duFiltre(filtreDeRecherche, filtrer(toutes, requete)).sort(parOuverture) : entreesDe({ portee, filtre, ...(dossier ? { dossier } : {}) }, toutes)) : []),
+    [toutes, cherche, requete, portee, filtre, filtreDeRecherche, dossier],
   )
   /** Ce que chaque puce garderait, là où l'on est. */
   const parGenre = useMemo(
@@ -504,9 +557,34 @@ function BibliothequeBureau({
     [toutes, cherche, requete, portee, dossier],
   )
   // Toute la bibliothèque, sans puce ni recherche, triée par date : son accueil, en rubriques.
-  const accueilDeLaBibliotheque = portee === 'tout' && filtre === 'tout' && !dossier && !cherche && tri === 'date'
-  const sections = tri === 'dossier' ? sectionsParDossier(visibles) : accueilDeLaBibliotheque ? sectionsDeLAccueil(visibles) : sectionsParDate(visibles)
-  const neuf = cherche ? undefined : neufDe(vue)
+  const accueilDeLaBibliotheque = portee === 'tout' && filtre === 'tout' && !dossier && !cherche && triVu === 'date'
+  const sections =
+    triVu === 'dossier' ? sectionsParDossier(visibles) : accueilDeLaBibliotheque ? sectionsDeLAccueil(visibles, telephone ? PAR_RUBRIQUE_TELEPHONE : PAR_RUBRIQUE) : sectionsParDate(visibles)
+  // Au téléphone, on crée par le « + » du haut : pas de tuile qui crée.
+  const neuf = cherche || telephone ? undefined : neufDe(vue)
+
+  // La recherche dans le contenu, décalée : les titres répondent à chaque lettre, le contenu un instant après.
+  const chercheur = useRef(chercherContenu)
+  chercheur.current = chercherContenu
+  const [passages, setPassages] = useState<{ requete: string; resultats: ResultatRecherche[] }>({ requete: '', resultats: [] })
+  const [tousPassages, setTousPassages] = useState(false)
+  useEffect(() => {
+    const r = requete.trim()
+    setTousPassages(false)
+    if (!r) return setPassages({ requete: '', resultats: [] })
+    let fini = false
+    const minuteur = setTimeout(() => {
+      // Seulement ce qu'un élément contient : le titre d'une toile, c'est la recherche des titres qui le trouve.
+      chercheur.current(r).then(
+        (l) => !fini && setPassages({ requete: r, resultats: l.filter((x) => x.element) }),
+        () => {},
+      )
+    }, ATTENTE_CONTENU)
+    return () => {
+      fini = true
+      clearTimeout(minuteur)
+    }
+  }, [requete])
   // Les tuiles dans l'ordre où on les lit, de section en section : celui de ⇧ et des flèches.
   const ordre = useMemo(() => sections.flatMap((s) => s.entrees.map(cleDe)), [sections])
   const parCle = useMemo(() => new Map((toutes ?? []).map((e) => [cleDe(e), e])), [toutes])
@@ -557,13 +635,19 @@ function BibliothequeBureau({
     ecrireTri(x)
   }
   const [creation, setCreation] = useState(false)
-  const creerPuisOuvrir = async (genre: GenreNeuf, dans?: string) => {
+  const creerPuisOuvrir = async (genre: GenreNeuf, dans?: string, titre?: string) => {
     setMenuNeuf(false)
+    setFeuilleNeuf(false)
     if (creation) return
     setCreation(true)
     try {
       // Sans toile dite, ce qu'on crée va dans le dossier qu'on parcourt.
-      allerAEntree(await creer(genre, dans ?? dossier ?? undefined))
+      const neuve = await creer(genre, dans ?? dossier ?? undefined)
+      // « Créer la toile « … » », quand la recherche n'a rien trouvé : elle porte ce qu'on cherchait.
+      if (titre && neuve.element === null && espace) espace.renommer(neuve.tableau, titre)
+      // Ce qu'on vient de créer compte parmi les récents.
+      void noterVu(neuve)
+      allerAEntree(neuve)
     } finally {
       setCreation(false)
     }
@@ -722,6 +806,8 @@ function BibliothequeBureau({
       l.push({ libelle: t('biblio.menu.ouvrirLien'), icone: 'ouvrir', faire: () => void window.open(url, '_blank', 'noopener,noreferrer') })
     }
     if (porteuse) l.push({ libelle: t('biblio.menu.afficher'), icone: 'tableau', faire: () => afficherDansSaToile(une!, porteuse) })
+    // Au doigt, l'appui long mène aussi au choix de plusieurs, comme dans Fichiers : la tuile tenue y est déjà.
+    if (ecranAuDoigt() && !modeChoix) l.push({ libelle: t('biblio.choisir'), icone: 'menuSelectionner', faire: () => setModeChoix(true) })
     l.push(null)
     if (une && ecrit)
       l.push({
@@ -1174,17 +1260,419 @@ function BibliothequeBureau({
       {combien(r) > 0 && <small>{combien(r)}</small>}
     </button>
   )
-  /** Ce que dit une vue vide : le genre de la puce s'il y en a une, sinon la portée. */
+  /** Ce que dit une vue vide : le genre de la puce s'il y en a une, sinon le dossier qu'on parcourt, sinon la portée. */
   const vide = (): { texte: string; aide: string } =>
     filtre !== 'tout'
-      ? { texte: t(`biblio.vide.${PLURIEL[filtre]}`), aide: portee === 'tout' ? t(`biblio.vide.${PLURIEL[filtre]}.aide`) : t('biblio.vide.filtre.aide') }
-      : { texte: t(`biblio.vide.${portee}`), aide: t(`biblio.vide.${portee}.aide`) }
+      ? { texte: t(`biblio.vide.${PLURIEL[filtre]}`), aide: portee === 'tout' && !dossier ? t(`biblio.vide.${PLURIEL[filtre]}.aide`) : t('biblio.vide.filtre.aide') }
+      : dossier
+        ? { texte: t('biblio.vide.dossier'), aide: t('biblio.vide.dossier.aide') }
+        : { texte: t(`biblio.vide.${portee}`), aide: t(`biblio.vide.${portee}.aide`) }
   const accueil = espace ? `/t/${encodeURIComponent(espace.racine)}` : '/'
   const arbre = useMemo(() => (toutes && espace ? arbreDesDossiers(toutes, espace.racine) : []), [toutes, espace])
   /** Le chemin du dossier qu'on parcourt, depuis l'accueil, sans lui. */
   const fil = dossier && toutes ? filDAriane(dossier, toutes, espace?.racine ?? null).slice(0, -1) : []
   const glissees = new Set(glisse?.cles)
   const premiereFocalisable = courante && ordre.includes(courante) ? courante : (choisies[0] ?? ordre[0])
+
+  const enChoix = modeChoix || choisies.length > 1
+  const barreChoix = (
+    <BarreChoix
+      choisies={entreesDes(choisies)}
+      ecrit={outils !== null}
+      deplacer={() => setFenetre({ type: 'deplacer', cles: choisies })}
+      favori={(oui) => void favoriCes(entreesDes(choisies), oui)}
+      dupliquer={() => dupliquerCes(entreesDes(choisies))}
+      jeter={() => jeterCes(entreesDes(choisies))}
+      fermer={() => {
+        setSel(RIEN)
+        setModeChoix(false)
+      }}
+      auDoigt={modeChoix}
+    />
+  )
+
+  // ---- Au téléphone ----
+
+  /** L'accueil de la bibliothèque : ni portée, ni puce, ni dossier. */
+  const accueilDeLaVue = portee === 'tout' && filtre === 'tout' && !dossier
+  /** Ce que porte la page, pour la vedette de l'accueil : toutes les toiles, pages et cartes mentales. */
+  const nombresDeLAccueil = useMemo(() => {
+    const l = toutes ?? []
+    return { toiles: l.filter((e) => e.genre === 'toile').length, documents: l.filter((e) => e.genre === 'document').length, cartes: l.filter((e) => e.genre === 'arbre').length }
+  }, [toutes])
+  /** Le plan de la toile d'accueil, lu sur elle (la bibliothèque ne la compte pas parmi ses entrées). */
+  const [versionAccueil, setVersionAccueil] = useState(0)
+  useEffect(() => {
+    if (!espace || !telephone) return
+    let vivant = true
+    void quandPretes(espace, [espace.racine]).then(
+      () => vivant && setVersionAccueil((v) => v + 1),
+      () => {},
+    )
+    const arreter = espace.ecouter(() => setVersionAccueil((v) => v + 1))
+    return () => {
+      vivant = false
+      arreter()
+    }
+  }, [espace, telephone])
+  const resumeAccueil = useMemo(() => {
+    const tb = telephone && espace ? espace.tableau(espace.racine) : undefined
+    // Pas encore lu (ou lu en partie) : pas de plan.
+    const r = tb && Array.isArray(tb.elements) ? resumesDuTableau(tb as never)[0] : undefined
+    return r?.genre === 'toile' ? r : undefined
+    // `versionAccueil` n'est pas lu : il dit que l'accueil a changé, et qu'il faut le relire.
+  }, [telephone, espace, versionAccueil])
+  /** Sous une tuile au doigt : la toile qui la porte, sauf l'accueil, qui porte tout ; sinon quand on l'a ouverte. */
+  const detailAuDoigt = (e: EntreeBibliotheque) => (e.ou && e.dans !== espace?.racine ? t('biblio.dans', { toile: e.ou }) : quand(e.vu))
+  const genreLigne = (e: EntreeBibliotheque): GenreLigne => (estDossier(e) ? 'dossier' : e.genre)
+  /**
+   * Rien encore : de quoi commencer, au lieu d'une toile déjà remplie. Au téléphone, un accueil où l'on a déjà posé
+   * quelque chose reste en vedette, même sans autre toile.
+   */
+  const premierPas = !!toutes && toutes.length === 0 && !cherche && !(resumeAccueil && resumeAccueil.boites.length > 0)
+
+  /**
+   * La rangée des filtres au doigt, qui glisse : « Tout » (l'accueil), puis où (récents, favoris, partages) et quoi
+   * (un genre), qui se combinent ; un filtre touché une seconde fois se retire.
+   */
+  const filtresAuDoigt = () => {
+    const portees: Portee[] = partages ? ['recents', 'favoris', 'partages'] : ['recents', 'favoris']
+    return (
+      <nav className="biblio-locale-filtres" aria-label={t('biblio.telephone.filtres')}>
+        <button type="button" className="biblio-locale-filtre" data-rubrique="tout" aria-pressed={accueilDeLaVue} onClick={() => choisirVue({ portee: 'tout', filtre: 'tout', dossier: null })}>
+          {t('biblio.telephone.tout')}
+        </button>
+        {portees.map((r) => {
+          const actif = !dossier && portee === r
+          return (
+            <button key={r} type="button" className="biblio-locale-filtre" data-rubrique={r} aria-pressed={actif} onClick={() => choisirVue({ portee: actif ? 'tout' : r })}>
+              {t(`biblio.rubrique.${r}`)}
+              {combien(r) > 0 && <small>{combien(r)}</small>}
+            </button>
+          )
+        })}
+        <span className="biblio-locale-filtres-sep" aria-hidden />
+        {TYPES.map((g) => (
+          <button
+            key={g}
+            type="button"
+            className="biblio-locale-filtre"
+            data-puce={g}
+            aria-pressed={filtre === g}
+            data-vide={parGenre[g] === 0 || undefined}
+            onClick={() => choisirVue({ filtre: filtre === g ? 'tout' : g })}
+          >
+            {t(`biblio.rubrique.${PLURIEL[g]}`)}
+            {parGenre[g] > 0 && <small>{parGenre[g]}</small>}
+          </button>
+        ))}
+      </nav>
+    )
+  }
+
+  /** Les passages trouvés dans le contenu, sans ce que la recherche des titres a déjà trouvé. */
+  const clesVisibles = useMemo(() => new Set(visibles.map(cleDe)), [visibles])
+  const passagesVus = passages.requete && passages.requete === requete.trim() ? passages.resultats.filter((p) => !clesVisibles.has(`${p.tableau}/${p.element ?? ''}`)) : []
+  const genreDuPassage = (p: ResultatRecherche): GenreLigne | undefined => {
+    const e = parCle.get(`${p.tableau}/${p.element ?? ''}`)
+    return e ? genreLigne(e) : undefined
+  }
+  /** Ce qui a sa tuile s'ouvre comme elle ; une note, une liste… se montrent sur leur toile. */
+  const ouvrirPassage = (p: ResultatRecherche) => {
+    const e = parCle.get(`${p.tableau}/${p.element ?? ''}`)
+    if (e) return ouvrir(e)
+    if (p.element) demanderAMontrer(p.element)
+    allerA(`/t/${encodeURIComponent(p.tableau)}`)
+  }
+
+  /**
+   * La recherche au doigt, à la façon des Notes d'iOS : sans requête, les récents en lignes ; en tapant, les titres
+   * répondent à chaque lettre, les mots trouvés en gras, puis ce que contient le contenu ; rien trouvé propose de créer
+   * la toile de ce nom.
+   */
+  const rechercheAuDoigt = () => {
+    const r = requete.trim()
+    if (!r) {
+      const recents = toutes ? entreesDe({ portee: 'recents', filtre: 'tout' }, toutes).slice(0, RECENTS_AU_DOIGT) : []
+      return (
+        <section className="biblio-locale-resultats" aria-label={t('biblio.rubrique.recents')}>
+          {recents.length > 0 && <h2>{t('biblio.rubrique.recents')}</h2>}
+          <ul>
+            {recents.map((e) => (
+              <LigneDoigt key={cleDe(e)} genre={genreLigne(e)} titre={titreDe(e)} detail={detailAuDoigt(e)} requete="" onClick={() => ouvrir(e)} />
+            ))}
+          </ul>
+        </section>
+      )
+    }
+    return (
+      <>
+        <section className="biblio-locale-resultats" aria-live="polite">
+          {visibles.length > 0 && (
+            <>
+              <h2>{t('biblio.resultats.titres')}</h2>
+              <ul>
+                {visibles.map((e) => (
+                  <LigneDoigt key={cleDe(e)} genre={genreLigne(e)} titre={titreDe(e)} detail={detailAuDoigt(e)} requete={r} onClick={() => ouvrir(e)} />
+                ))}
+              </ul>
+            </>
+          )}
+          {toutes && visibles.length === 0 && passagesVus.length === 0 && (
+            <div className="biblio-locale-vide">
+              <Icone nom="recherche" taille={28} />
+              <p>{t('biblio.aucunResultatPour', { requete: r })}</p>
+              {espace && (
+                <button type="button" className="biblio-locale-voir" disabled={creation} onClick={() => void creerPuisOuvrir('toile', undefined, r)}>
+                  {t('biblio.creerToileNommee', { titre: r })}
+                </button>
+              )}
+            </div>
+          )}
+        </section>
+        <Passages passages={passagesVus} requete={r} tous={tousPassages} voirTout={() => setTousPassages(true)} genreDe={genreDuPassage} ouvrir={ouvrirPassage} />
+      </>
+    )
+  }
+
+  const corpsDeLaPage = (
+      <main
+        className="biblio-corps"
+        ref={corps}
+        aria-busy={!toutes && !erreur}
+        data-glisse={glisse ? '' : undefined}
+        onPointerDown={surAppui}
+        onDoubleClick={surDoubleClic}
+        onClick={surClic}
+        onContextMenu={surMenu}
+      >
+        {erreur ? (
+          <div className="biblio-vide" role="alert">
+            <p>{erreur}</p>
+            <button type="button" className="bouton" onClick={lire}>
+              {t('bandeau.reessayer')}
+            </button>
+          </div>
+        ) : !toutes ? (
+          <ul className="biblio-grille" aria-hidden>
+            {Array.from({ length: 10 }, (_, i) => (
+              <li key={i} className="biblio-attente">
+                <span />
+                <span />
+              </li>
+            ))}
+          </ul>
+        ) : premierPas ? (
+          <PremierPas
+            creer={(g) => void creerPuisOuvrir(g)}
+            occupe={creation}
+            attente={attente}
+            {...(importer && espace ? { importer: (f: File[]) => importerIci(f, espace.racine) } : {})}
+            {...(decouvrir ? { decouvrir: () => void decouvrir().then((id) => allerA(`/t/${encodeURIComponent(id)}`)) } : {})}
+          />
+        ) : visibles.length === 0 && !neuf && !(cherche && passagesVus.length > 0) ? (
+          <div className="biblio-vide">
+            <Icone nom={cherche ? 'recherche' : filtre !== 'tout' ? ICONE_GENRE[filtre] : ICONE_PORTEE[portee]} taille={28} trait={1.5} />
+            <p>{cherche ? t('biblio.aucunResultat', { requete: requete.trim() }) : vide().texte}</p>
+            {!cherche && <small>{vide().aide}</small>}
+            {cherche && espace && (
+              <button type="button" className="bouton" disabled={creation} onClick={() => void creerPuisOuvrir('toile', undefined, requete.trim())}>
+                {t('biblio.creerToileNommee', { titre: requete.trim() })}
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {(sections.length > 0 || cherche ? sections : [{ cle: 'vide', titre: '', entrees: [] } as Section]).map((s, i) => (
+              <section key={s.cle} className="biblio-section" aria-label={s.titre || undefined} data-rail={(accueilDeLaBibliotheque && s.cle === 'reprendre') || undefined}>
+                {s.titre && (
+                  <h2
+                    data-dossier={s.dans || undefined}
+                    data-depot={s.dans || undefined}
+                    data-survol-depot={(s.dans && survolDepot === s.dans) || undefined}
+                  >
+                    {s.dans !== undefined && <Icone nom={s.dans ? 'tableau' : 'equipe'} taille={15} />}
+                    {s.dans && renommage && 'dossier' in renommage && renommage.dossier === s.dans ? (
+                      <ChampRenommer
+                        valeur={s.titre}
+                        valider={(titre) => void renommerCe({ tableau: s.dans!, element: null, titre: s.titre }, titre)}
+                        annuler={() => setRenommage(null)}
+                      />
+                    ) : s.dans ? (
+                      <a
+                        href={adresseDeLaVue({ portee, filtre: 'tout', dossier: s.dans })}
+                        onClick={(e) => {
+                          if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+                          e.preventDefault()
+                          parcourir(s.dans!)
+                        }}
+                      >
+                        {s.titre}
+                      </a>
+                    ) : (
+                      s.titre
+                    )}
+                    {s.voir && (
+                      <button type="button" className="biblio-voir" onClick={() => choisirVue(s.voir!)}>
+                        {t('biblio.toutVoir')}
+                        <Icone nom="chevronDroite" taille={13} trait={2} />
+                      </button>
+                    )}
+                  </h2>
+                )}
+                <ul className="biblio-grille" data-affichage={affichageVu} role="listbox" aria-multiselectable aria-label={s.titre || titreDeLaVue(vue)}>
+                  {i === 0 && neuf && (
+                    <li role="presentation">
+                      <button type="button" className="biblio-tuile biblio-tuile-neuve" disabled={creation} onClick={() => void creerPuisOuvrir(neuf)}>
+                        <span className="biblio-vignette" aria-hidden>
+                          <Icone nom="ajouter" taille={36} trait={1.2} />
+                        </span>
+                        <span className="biblio-tuile-titre">{t(`biblio.neuf.${neuf}`)}</span>
+                        <span className="biblio-tuile-ou">{dossier && dossier !== espace?.racine ? t('biblio.neuf.aideDans', { toile: titreToile(dossier) }) : t('biblio.neuf.aide')}</span>
+                      </button>
+                    </li>
+                  )}
+                  {s.entrees.map((e) => {
+                    const cle = cleDe(e)
+                    return (
+                      <Tuile
+                        key={cle}
+                        entree={e}
+                        menu={menuDuBouton}
+                        coche={modeChoix}
+                        parDossier={triVu === 'dossier'}
+                        choisie={sel.choisies.has(cle)}
+                        focalisable={cle === premiereFocalisable}
+                        glissee={glissees.has(cle)}
+                        survolee={e.element === null && survolDepot === e.tableau}
+                        arrivee={arrivees.has(cleDe(e))}
+                        {...(telephone ? { detail: detailAuDoigt(e) } : {})}
+                        renommer={renommage !== null && 'cle' in renommage && renommage.cle === cle}
+                        valider={(titre) => {
+                          void renommerCe(e, titre)
+                          rendreFocus(cle)
+                        }}
+                        annuler={() => {
+                          setRenommage(null)
+                          rendreFocus(cle)
+                        }}
+                      />
+                    )
+                  })}
+                </ul>
+              </section>
+            ))}
+            {visibles.length === 0 && !cherche && (
+              <div className="biblio-vide biblio-vide-bas">
+                <p>{vide().texte}</p>
+                <small>{vide().aide}</small>
+              </div>
+            )}
+          </>
+        )}
+        {cherche && !telephone && toutes && (
+          <Passages passages={passagesVus} requete={requete.trim()} tous={tousPassages} voirTout={() => setTousPassages(true)} genreDe={genreDuPassage} ouvrir={ouvrirPassage} />
+        )}
+        {cadre && <div className="biblio-cadre" style={{ left: cadre.gauche, top: cadre.haut, width: cadre.droite - cadre.gauche, height: cadre.bas - cadre.haut }} />}
+      </main>
+  )
+  const parDessus = (
+    <>
+      {glisse && <Fantome entrees={entreesDes(glisse.cles)} x={glisse.x} y={glisse.y} />}
+      {(apport || importEnCours > 0) && (
+        <div className="biblio-apport" role="status">
+          <Icone nom="importer" taille={16} />
+          <span>{apport ? t('biblio.import.deposer', { toile: titreToile(apport.cible) }) : tn('biblio.import.encours', importEnCours)}</span>
+        </div>
+      )}
+      {menu && (
+        <div className="biblio-calque-menu">
+          <MenuContextuel x={menu.x} y={menu.y} entrees={entreesDuMenu(menu)} fermer={() => setMenu(null)} />
+        </div>
+      )}
+      {fenetre?.type === 'deplacer' && espace && toutes && (
+        <DeplacerVers
+          entrees={entreesDes(fenetre.cles)}
+          toutes={toutes}
+          accueil={{ id: espace.racine, titre: titreAccueil || t('biblio.accueil') }}
+          fermer={() => setFenetre(null)}
+          choisir={(vers) => {
+            const es = entreesDes(fenetre.cles)
+            setFenetre(null)
+            deplacerVers(es, vers.id)
+          }}
+        />
+      )}
+      {fenetre?.type === 'confirmer' && <Confirmation titre={fenetre.titre} lignes={fenetre.lignes} oui={t('biblio.confirmer.oui')} repondre={fenetre.repondre} />}
+      {fenetre?.type === 'partage' && partage?.(fenetre.tableau, () => setFenetre(null))}
+      <BandeauAvis />
+    </>
+  )
+
+  if (telephone)
+    return (
+      <FournisseurVignettes value={vignettes}>
+        <div className="biblio-locale biblio-telephone biblio-unie" data-cherche={rechercheOuverte || undefined} data-choix={enChoix || undefined}>
+          <EnteteDoigt
+            titre={dossier ? titreToile(dossier) : accueilDeLaVue ? t('biblio.titre') : titreDeLaVue(vue)}
+            actions={
+              <>
+                {fenetres && <BoutonReglages onClick={fenetres.reglages} />}
+                {avatar && <span className="biblio-locale-avatar">{avatar}</span>}
+                {espace && <BoutonPlus onClick={() => setFeuilleNeuf(true)} />}
+              </>
+            }
+            requete={requete}
+            changer={setRequete}
+            cherche={rechercheOuverte}
+            chercher={setRechercheOuverte}
+          />
+          {rechercheOuverte ? (
+            rechercheAuDoigt()
+          ) : (
+            <>
+              {bienvenueAMontrer && accueilDeLaVue && espace && toutes && !premierPas && (
+                <CarteBienvenue titre={carteBienvenue.titre} lignes={carteBienvenue.lignes} partir={() => allerA(accueil)} fermer={fermerBienvenue} />
+              )}
+              {accueilDeLaVue && espace && toutes && !premierPas && (
+                <VedetteAccueil titre={titreAccueil || t('biblio.accueil')} resume={resumeAccueil} nombres={nombresDeLAccueil} onClick={() => allerA(accueil)} />
+              )}
+              {toutes && !premierPas && filtresAuDoigt()}
+              {dossier && (
+                <div className="biblio-locale-dossier">
+                  <button type="button" className="biblio-locale-retour" onClick={() => (fil.length > 0 ? parcourir(fil[fil.length - 1]!) : choisirVue({ portee: 'tout', filtre: 'tout', dossier: null }))}>
+                    <Icone nom="precedent" taille={16} trait={2} />
+                    <span>{fil.length > 0 ? titreToile(fil[fil.length - 1]!) : t('biblio.titre')}</span>
+                  </button>
+                  <a className="biblio-locale-voir" href={`/t/${encodeURIComponent(dossier)}`} onClick={(e) => surLien(e, `/t/${encodeURIComponent(dossier)}`)}>
+                    {t('biblio.menu.ouvrirToile')}
+                  </a>
+                </div>
+              )}
+              {corpsDeLaPage}
+            </>
+          )}
+          {enChoix && <div className="biblio-locale-choix">{barreChoix}</div>}
+          {parDessus}
+          {feuilleNeuf && (
+            <FeuilleBas titre={t('biblio.nouveau')} fermer={() => setFeuilleNeuf(false)} className="biblio-locale-feuille">
+              <ChoixCreation
+                creer={(g) => void creerPuisOuvrir(g)}
+                {...(outils
+                  ? {
+                      dossier: () => {
+                        setFeuilleNeuf(false)
+                        nouveauDossier()
+                      },
+                    }
+                  : {})}
+                occupe={creation}
+              />
+            </FeuilleBas>
+          )}
+        </div>
+      </FournisseurVignettes>
+    )
 
   return (
     <FournisseurVignettes value={vignettes}>
@@ -1301,20 +1789,8 @@ function BibliothequeBureau({
             {menuNeuf === 'tete' && <MenuNeuf creer={(g) => void creerPuisOuvrir(g)} dossier={outils ? () => nouveauDossier() : undefined} fermer={() => setMenuNeuf(false)} />}
           </div>
         </div>
-        {modeChoix || choisies.length > 1 ? (
-          <BarreChoix
-            choisies={entreesDes(choisies)}
-            ecrit={outils !== null}
-            deplacer={() => setFenetre({ type: 'deplacer', cles: choisies })}
-            favori={(oui) => void favoriCes(entreesDes(choisies), oui)}
-            dupliquer={() => dupliquerCes(entreesDes(choisies))}
-            jeter={() => jeterCes(entreesDes(choisies))}
-            fermer={() => {
-              setSel(RIEN)
-              setModeChoix(false)
-            }}
-            auDoigt={modeChoix}
-          />
+        {enChoix ? (
+          barreChoix
         ) : dossier && !cherche ? (
           <div className="biblio-titre">
             {fil.length > 0 && (
@@ -1409,166 +1885,9 @@ function BibliothequeBureau({
         )}
       </header>
 
-      <main
-        className="biblio-corps"
-        ref={corps}
-        aria-busy={!toutes && !erreur}
-        data-glisse={glisse ? '' : undefined}
-        onPointerDown={surAppui}
-        onDoubleClick={surDoubleClic}
-        onClick={surClic}
-        onContextMenu={surMenu}
-      >
-        {erreur ? (
-          <div className="biblio-vide" role="alert">
-            <p>{erreur}</p>
-            <button type="button" className="bouton" onClick={lire}>
-              {t('bandeau.reessayer')}
-            </button>
-          </div>
-        ) : !toutes ? (
-          <ul className="biblio-grille" aria-hidden>
-            {Array.from({ length: 10 }, (_, i) => (
-              <li key={i} className="biblio-attente">
-                <span />
-                <span />
-              </li>
-            ))}
-          </ul>
-        ) : toutes.length === 0 && !cherche ? (
-          // Rien encore : de quoi commencer, au lieu d'une toile déjà remplie.
-          <PremierPas
-            creer={(g) => void creerPuisOuvrir(g)}
-            occupe={creation}
-            attente={attente}
-            {...(importer && espace ? { importer: (f: File[]) => importerIci(f, espace.racine) } : {})}
-            {...(decouvrir ? { decouvrir: () => void decouvrir().then((id) => allerA(`/t/${encodeURIComponent(id)}`)) } : {})}
-          />
-        ) : visibles.length === 0 && !neuf ? (
-          <div className="biblio-vide">
-            <Icone nom={cherche ? 'recherche' : filtre !== 'tout' ? ICONE_GENRE[filtre] : ICONE_PORTEE[portee]} taille={28} trait={1.5} />
-            <p>{cherche ? t('biblio.aucunResultat', { requete: requete.trim() }) : vide().texte}</p>
-            {!cherche && <small>{vide().aide}</small>}
-          </div>
-        ) : (
-          <>
-            {(sections.length > 0 ? sections : [{ cle: 'vide', titre: '', entrees: [] } as Section]).map((s, i) => (
-              <section key={s.cle} className="biblio-section" aria-label={s.titre || undefined} data-rail={(accueilDeLaBibliotheque && s.cle === 'reprendre') || undefined}>
-                {s.titre && (
-                  <h2
-                    data-dossier={s.dans || undefined}
-                    data-depot={s.dans || undefined}
-                    data-survol-depot={(s.dans && survolDepot === s.dans) || undefined}
-                  >
-                    {s.dans !== undefined && <Icone nom={s.dans ? 'tableau' : 'equipe'} taille={15} />}
-                    {s.dans && renommage && 'dossier' in renommage && renommage.dossier === s.dans ? (
-                      <ChampRenommer
-                        valeur={s.titre}
-                        valider={(titre) => void renommerCe({ tableau: s.dans!, element: null, titre: s.titre }, titre)}
-                        annuler={() => setRenommage(null)}
-                      />
-                    ) : s.dans ? (
-                      <a
-                        href={adresseDeLaVue({ portee, filtre: 'tout', dossier: s.dans })}
-                        onClick={(e) => {
-                          if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
-                          e.preventDefault()
-                          parcourir(s.dans!)
-                        }}
-                      >
-                        {s.titre}
-                      </a>
-                    ) : (
-                      s.titre
-                    )}
-                    {s.voir && (
-                      <button type="button" className="biblio-voir" onClick={() => choisirVue(s.voir!)}>
-                        {t('biblio.toutVoir')}
-                        <Icone nom="chevronDroite" taille={13} trait={2} />
-                      </button>
-                    )}
-                  </h2>
-                )}
-                <ul className="biblio-grille" data-affichage={affichage} role="listbox" aria-multiselectable aria-label={s.titre || titreDeLaVue(vue)}>
-                  {i === 0 && neuf && (
-                    <li role="presentation">
-                      <button type="button" className="biblio-tuile biblio-tuile-neuve" disabled={creation} onClick={() => void creerPuisOuvrir(neuf)}>
-                        <span className="biblio-vignette" aria-hidden>
-                          <Icone nom="ajouter" taille={36} trait={1.2} />
-                        </span>
-                        <span className="biblio-tuile-titre">{t(`biblio.neuf.${neuf}`)}</span>
-                        <span className="biblio-tuile-ou">{dossier && dossier !== espace?.racine ? t('biblio.neuf.aideDans', { toile: titreToile(dossier) }) : t('biblio.neuf.aide')}</span>
-                      </button>
-                    </li>
-                  )}
-                  {s.entrees.map((e) => {
-                    const cle = cleDe(e)
-                    return (
-                      <Tuile
-                        key={cle}
-                        entree={e}
-                        menu={menuDuBouton}
-                        coche={modeChoix}
-                        parDossier={tri === 'dossier'}
-                        choisie={sel.choisies.has(cle)}
-                        focalisable={cle === premiereFocalisable}
-                        glissee={glissees.has(cle)}
-                        survolee={e.element === null && survolDepot === e.tableau}
-                        arrivee={arrivees.has(cleDe(e))}
-                        renommer={renommage !== null && 'cle' in renommage && renommage.cle === cle}
-                        valider={(titre) => {
-                          void renommerCe(e, titre)
-                          rendreFocus(cle)
-                        }}
-                        annuler={() => {
-                          setRenommage(null)
-                          rendreFocus(cle)
-                        }}
-                      />
-                    )
-                  })}
-                </ul>
-              </section>
-            ))}
-            {visibles.length === 0 && (
-              <div className="biblio-vide biblio-vide-bas">
-                <p>{vide().texte}</p>
-                <small>{vide().aide}</small>
-              </div>
-            )}
-          </>
-        )}
-        {cadre && <div className="biblio-cadre" style={{ left: cadre.gauche, top: cadre.haut, width: cadre.droite - cadre.gauche, height: cadre.bas - cadre.haut }} />}
-      </main>
+      {corpsDeLaPage}
 
-      {glisse && <Fantome entrees={entreesDes(glisse.cles)} x={glisse.x} y={glisse.y} />}
-      {(apport || importEnCours > 0) && (
-        <div className="biblio-apport" role="status">
-          <Icone nom="importer" taille={16} />
-          <span>{apport ? t('biblio.import.deposer', { toile: titreToile(apport.cible) }) : tn('biblio.import.encours', importEnCours)}</span>
-        </div>
-      )}
-      {menu && (
-        <div className="biblio-calque-menu">
-          <MenuContextuel x={menu.x} y={menu.y} entrees={entreesDuMenu(menu)} fermer={() => setMenu(null)} />
-        </div>
-      )}
-      {fenetre?.type === 'deplacer' && espace && toutes && (
-        <DeplacerVers
-          entrees={entreesDes(fenetre.cles)}
-          toutes={toutes}
-          accueil={{ id: espace.racine, titre: titreAccueil || t('biblio.accueil') }}
-          fermer={() => setFenetre(null)}
-          choisir={(vers) => {
-            const es = entreesDes(fenetre.cles)
-            setFenetre(null)
-            deplacerVers(es, vers.id)
-          }}
-        />
-      )}
-      {fenetre?.type === 'confirmer' && <Confirmation titre={fenetre.titre} lignes={fenetre.lignes} oui={t('biblio.confirmer.oui')} repondre={fenetre.repondre} />}
-      {fenetre?.type === 'partage' && partage?.(fenetre.tableau, () => setFenetre(null))}
-      <BandeauAvis />
+      {parDessus}
     </div>
     </FournisseurVignettes>
   )
@@ -1626,6 +1945,7 @@ function Tuile({
   glissee,
   survolee,
   arrivee,
+  detail,
   renommer,
   valider,
   annuler,
@@ -1642,6 +1962,8 @@ function Tuile({
   survolee: boolean
   /** Vient d'arriver (un import) : son anneau bat une fois. */
   arrivee?: boolean
+  /** Ce qu'on dit sous son titre, à la place de la toile qui la porte ou de son genre (au téléphone, quand on l'a ouverte). */
+  detail?: string
   renommer: boolean
   valider(titre: string): void
   annuler(): void
@@ -1679,7 +2001,7 @@ function Tuile({
       )}
       <span className="biblio-tuile-ou">
         <Icone nom={iconeDe(e)} taille={13} />
-        <span>{e.ou && !parDossier ? t('biblio.dans', { toile: e.ou }) : genreDe(e)}</span>
+        <span>{detail ?? (e.ou && !parDossier ? t('biblio.dans', { toile: e.ou }) : genreDe(e))}</span>
       </span>
     </li>
   )

@@ -30,14 +30,13 @@ export function BarreChoix({
 }) {
   const n = choisies.length
   const compte = n === 0 ? t('biblio.choisir.aide') : tn('biblio.selection', n)
-  // Seules les toiles se mettent en favori (pour l'instant) : le bouton suit celles du choix.
-  const toiles = choisies.filter((e) => e.element === null)
-  const tousFavoris = toiles.length > 0 && toiles.every((e) => e.favori)
+  // Tout se met en favori : les toiles et ce qu'elles portent.
+  const tousFavoris = n > 0 && choisies.every((e) => e.favori)
   return (
     <Ilot className="biblio-barre-choix" etiquette={compte}>
       <span className="biblio-barre-compte">{compte}</span>
       {ecrit && <BoutonIlot icone="dossier" libelle={t('biblio.menu.deplacer')} inactif={n === 0} onClick={deplacer} />}
-      {toiles.length > 0 && <BoutonIlot icone={tousFavoris ? 'favoriPlein' : 'favori'} libelle={t(tousFavoris ? 'biblio.menu.plusFavori' : 'biblio.menu.favori')} onClick={() => favori(!tousFavoris)} />}
+      {n > 0 && <BoutonIlot icone={tousFavoris ? 'favoriPlein' : 'favori'} libelle={t(tousFavoris ? 'biblio.menu.plusFavori' : 'biblio.menu.favori')} onClick={() => favori(!tousFavoris)} />}
       {ecrit && <BoutonIlot icone="menuDupliquer" libelle={t('biblio.menu.dupliquer')} raccourci="⌘D" inactif={n === 0} onClick={dupliquer} />}
       {ecrit && <BoutonIlot icone="corbeille" libelle={t('biblio.menu.corbeille')} raccourci="⌫" inactif={n === 0} onClick={jeter} />}
       <FiletIlot />
