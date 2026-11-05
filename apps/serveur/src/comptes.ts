@@ -54,6 +54,22 @@ export function activerInvitations(base: Base, utilisateur: Utilisateur, mainten
 }
 
 /**
+ * Fait entrer le compte dans les espaces qui l'avaient invité et dont il a passé le SSO. Le SSO d'un espace y fait
+ * entrer d'office qui le passe (`organizationProvisioning`, `auth.ts`), sauf qui a une invitation en attente : Better
+ * Auth la laisse alors attendre qu'on l'accepte par le lien du courriel, et sans courriel (pas de `NOTAK_SMTP_URL`), ou
+ * sans penser à l'ouvrir, la personne restait à la porte de l'espace de son équipe. La porte de l'entreprise répond de
+ * qui elle est : l'invitation vaut acceptée. Rend les espaces où le compte vient d'entrer.
+ */
+export function entrerParLeSso(base: Base, utilisateur: Utilisateur, maintenant: number): string[] {
+  const entres: string[] = []
+  for (const i of base.invitationsEspaceParLeSso(utilisateur.id, utilisateur.email, maintenant)) {
+    base.accepterInvitationEspace(i, utilisateur.id, maintenant)
+    entres.push(i.espace)
+  }
+  return entres
+}
+
+/**
  * Les admins du serveur (`NOTAK_ADMINS`, des adresses séparées par des virgules). Être admin du serveur ne donne aucun
  * droit sur les tableaux ni sur les espaces : seulement de voir ce qui regarde l'instance (une mise à jour à faire).
  */

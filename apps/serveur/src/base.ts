@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { type Cle, ErreurChiffrement, duDisque, pourLeDisque } from './chiffrement.ts'
 import { type Acces, RELATION_DU_ROLE, ROLES, type Role, roleDeRelation } from './droits.ts'
@@ -256,6 +257,13 @@ export interface Base {
   supprimerInvitationsPour(email: string): void
   /** L'adresse de ce compte est vérifiée (un lien ouvert, un fournisseur qui la garantit, un compte créé par l'admin). */
   emailVerifie(utilisateur: string): boolean
+  /**
+   * Les invitations à un espace (celles de Better Auth) qui attendent encore pour cette adresse, et qui viennent d'un
+   * espace dont le compte a passé le SSO : la porte de l'entreprise répond déjà de qui il est.
+   */
+  invitationsEspaceParLeSso(utilisateur: string, email: string, maintenant: number): { id: string; espace: string; role: string }[]
+  /** Fait entrer le compte dans l'espace par cette invitation, qui passe acceptée. */
+  accepterInvitationEspace(invitation: { id: string; espace: string; role: string }, utilisateur: string, maintenant: number): void
   /** Marque l'adresse de ce compte vérifiée. */
   verifierEmail(utilisateur: string): void
   // ---- Les échéances des accès donnés à des comptes ----
@@ -696,6 +704,26 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
     retirerInvitation: (tableau, email) => Number(executer('DELETE FROM invitations WHERE tableau = ? AND email = ?', tableau, email).changes) > 0,
     supprimerInvitationsPour: (email) => void executer('DELETE FROM invitations WHERE email = ?', email),
     emailVerifie: (u) => un('SELECT email_verifie FROM utilisateurs WHERE id = ?', u)?.email_verifie === 1,
+    invitationsEspaceParLeSso: (u, email, maintenant) =>
+      tous(
+        `SELECT DISTINCT i.id, i.organizationId AS espace, COALESCE(i.role, 'member') AS role FROM invitation i
+         JOIN ssoProvider p ON p.organizationId = i.organizationId
+         JOIN account a ON a.providerId = p.providerId AND a.userId = ?
+         WHERE lower(i.email) = lower(?) AND i.status = 'pending' AND i.expiresAt > ?
+           AND NOT EXISTS (SELECT 1 FROM member m WHERE m.organizationId = i.organizationId AND m.userId = ?)`,
+        u,
+        email,
+        new Date(maintenant).toISOString(),
+        u,
+      ) as unknown as { id: string; espace: string; role: string }[],
+    accepterInvitationEspace(i, u, maintenant) {
+      transaction(() => {
+        if (!un('SELECT 1 FROM member WHERE organizationId = ? AND userId = ?', i.espace, u)) {
+          executer('INSERT INTO member (id, organizationId, userId, role, createdAt) VALUES (?, ?, ?, ?, ?)', randomUUID(), i.espace, u, i.role, new Date(maintenant).toISOString())
+        }
+        executer("UPDATE invitation SET status = 'accepted' WHERE id = ?", i.id)
+      })
+    },
     verifierEmail: (u) => void executer('UPDATE utilisateurs SET email_verifie = 1 WHERE id = ?', u),
 
     echeance: (tableau, sujet) => (un('SELECT expire FROM echeances WHERE tableau = ? AND sujet = ?', tableau, sujet)?.expire as number | undefined) ?? null,

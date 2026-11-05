@@ -251,3 +251,54 @@ describe('la file d’envoi', () => {
     expect(delaiDEssai(20)).toBe(3_600_000)
   })
 })
+
+describe('une source qui nomme son espace après coup', () => {
+  let m: Monde
+  let ana: Compte
+  let bob: Compte
+  const sources: SourceRattachement[] = [{ ...CRM }]
+  let compteur = 0
+  const demander = async (action: string, cle: string) => {
+    const texte = JSON.stringify({ id: `demande-espace-${++compteur}-${m.maintenant()}`, action, cle })
+    const r = await m.appelerBrut('/api/outils/crm', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'notak-signature': signer(SECRET, texte, m.maintenant()) },
+      body: texte,
+    })
+    return (await r.json()) as { etat: string; dossiers: { tableau: string; espace: string }[] }
+  }
+  const envois = () => m.base.envoisAFaire(m.maintenant() + 1, 50).map((e) => e.type)
+
+  beforeAll(async () => {
+    m = monde({ rattachements: sources })
+    ana = await m.compte('Ana')
+    bob = await m.compte('Bob')
+  })
+  afterAll(() => m.fermer())
+
+  it('ne lit plus, ne jette plus et n’entend plus les dossiers rangés avant dans un espace personnel', async () => {
+    // Sans espace nommé, Ana range le dossier de la fiche dans son espace personnel.
+    const avant = (await (await m.appeler('/api/rattachements/crm/societe:1', { compte: ana, json: { titre: 'Dupont' } })).json()) as { tableau: string }
+    expect((await demander('lire', 'societe:1')).dossiers.map((d) => d.tableau)).toEqual([avant.tableau])
+    // L'équipe a désormais son espace : celui de Bob, ici.
+    const espace = m.base.espacePersonnel(bob.utilisateur.id)!
+    sources[0] = { ...CRM, espace }
+    expect(await demander('lire', 'societe:1')).toEqual({ etat: 'absent', dossiers: [] })
+    expect((await demander('jeter', 'societe:1')).etat).toBe('absent')
+    expect(m.base.rattachementsDeLaFiche('crm', 'societe:1')[0]).toMatchObject({ corbeille: null })
+    // Ana jette son ancien dossier : il reste le sien, l'outil n'en sait rien.
+    const deja = envois().length
+    const clients = m.base.tableau(avant.tableau)!.parent!
+    const doc = new Y.Doc()
+    Y.applyUpdate(doc, m.base.document(nomDuDocument(clients))!)
+    const elements = doc.getMap<Record<string, unknown>>('elements')
+    for (const [id, e] of elements) if ((e.contenu as { cible?: string }).cible === avant.tableau) elements.set(id, { ...e, corbeille: 1 })
+    m.base.enregistrerDocument(nomDuDocument(clients), Y.encodeStateAsUpdate(doc))
+    suivreLesDossiers({ base: m.base, sources: () => sources, maintenant: m.maintenant })(indexerDocument(m.base, clients, doc), { nom: 'Ana' })
+    expect(envois()).toHaveLength(deja)
+    // Le dossier de la fiche se crée dans l'espace de l'équipe, et c'est lui que l'outil lit.
+    const neuf = (await (await m.appeler('/api/rattachements/crm/societe:1', { compte: bob, json: { titre: 'Dupont' } })).json()) as { tableau: string }
+    expect(neuf.tableau).not.toBe(avant.tableau)
+    expect(await demander('lire', 'societe:1')).toMatchObject({ etat: 'present', dossiers: [{ tableau: neuf.tableau, espace }] })
+  })
+})

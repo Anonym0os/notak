@@ -190,7 +190,7 @@ NOTAK_RATTACHEMENTS=[{"source":"crm","nom":"Mon CRM","dossier":"Clients","origin
 | `nom` | le nom de l'outil, tel qu'on le lit dans Notak (« Ouvrir la fiche dans Mon CRM ») |
 | `dossier` | le titre du dossier qui range ceux de l'outil |
 | `origine` | l'adresse de l'outil : le lien de retour vers une fiche doit y être, sans quoi il est refusé |
-| `espace` | facultatif : l'espace où ranger les dossiers, pour qu'une équipe les partage. Sans lui, chacun a les siens, dans son espace personnel |
+| `espace` | facultatif : l'espace où ranger les dossiers, pour qu'une équipe les partage. Sans lui, chacun a les siens, dans son espace personnel. Nommé après coup, l'outil ne voit plus que les dossiers de cet espace : ceux rangés avant dans un espace personnel restent à qui les a créés, et l'outil n'en est plus prévenu |
 | `secret` | facultatif, 32 caractères au moins : il signe ce que l'outil demande à Notak et ce que Notak lui envoie (voir « Le catalogue »). Jamais rendu par l'API |
 | `webhook` | facultatif, avec `secret` : l'adresse, en https, où Notak prévient l'outil de ce que les gens font des dossiers |
 

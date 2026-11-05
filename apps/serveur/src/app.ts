@@ -18,7 +18,7 @@ import { type Base, DUREE_ACCES_PUBLIC_MS, DUREE_INVITATION_MS, type Fichier, ty
 import { type Auth, CHEMIN_AUTH, type Fournisseur, normaliserOrigine, utilisateurDeSession } from './auth.ts'
 import { type Demandes, creerDemandes, normaliserCode } from './demandesBureau.ts'
 import { type Autorisation, objetElement } from './autorisation.ts'
-import { accorderInvitation, activerInvitations, invitationValable, normaliserEmail } from './comptes.ts'
+import { accorderInvitation, activerInvitations, entrerParLeSso, invitationValable, normaliserEmail } from './comptes.ts'
 import type { Courrier } from './courriel.ts'
 import { creerExpiration } from './echeances.ts'
 import { type Cle, duDisque, pourLeDisque } from './chiffrement.ts'
@@ -31,6 +31,7 @@ import {
   ID_DEMANDE,
   type SourceRattachement,
   adresseDeLaFiche,
+  dossierDeLaSource,
   ecrireDossierNeuf,
   marquerCarte,
   mettreEnFile,
@@ -512,8 +513,10 @@ export function creerApp(ctx: Contexte): Hono {
   app.get('/api/moi', async (c) => {
     const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
-    // Une adresse tout juste vérifiée (le lien du courriel, un fournisseur relié) ouvre ce qui l'attendait.
-    if (base.invitationsPour(u.email).length > 0 && activerInvitations(base, u, ctx.maintenant()).length > 0) await droitsAJour()
+    // Une adresse tout juste vérifiée (le lien du courriel, un fournisseur relié) ouvre ce qui l'attendait ; le SSO d'un
+    // espace qui l'avait invité l'y fait entrer.
+    const ouverts = base.invitationsPour(u.email).length > 0 ? activerInvitations(base, u, ctx.maintenant()).length : 0
+    if (ouverts + entrerParLeSso(base, u, ctx.maintenant()).length > 0) await droitsAJour()
     return c.json(moi(u, estAdmin(u)))
   })
 
@@ -1339,7 +1342,7 @@ export function creerApp(ctx: Contexte): Hono {
     const fiches = new Map(
       base.rattachementsDe(ouverts).flatMap((r) => {
         const source = sourceNommee(r.source)
-        return r.cle && source ? [[r.tableau, { nom: source.nom, ...(r.adresse ? { adresse: r.adresse } : {}) }] as const] : []
+        return r.cle && source && dossierDeLaSource(ctx.rattachements ?? [], r) ? [[r.tableau, { nom: source.nom, ...(r.adresse ? { adresse: r.adresse } : {}) }] as const] : []
       }),
     )
     const entrees = lignes.flatMap((l) => {
@@ -2248,6 +2251,9 @@ export function creerApp(ctx: Contexte): Hono {
 
   // ---- Ce qu'un outil demande lui-même (le catalogue, docs/AUTO-HEBERGER.md) ----
 
+  /** Les dossiers d'une fiche qui comptent pour l'outil : dans son espace s'il en nomme un, sinon dans chacun. */
+  const rattachementsDeLaSource = (source: string, cle: string) =>
+    base.rattachementsDeLaFiche(source, cle).filter((r) => dossierDeLaSource(ctx.rattachements ?? [], r))
   /** Les dossiers d'une fiche, tels que l'outil les voit : dans chaque espace, là ou à la corbeille. */
   const lirePourLOutil = (source: string, cle: string) => {
     const cacheesDe = new Map<string, ReadonlySet<string>>()
@@ -2264,7 +2270,7 @@ export function creerApp(ctx: Contexte): Hono {
       }
       return cacheesDe.get(espace)!
     }
-    const dossiers = base.rattachementsDeLaFiche(source, cle).flatMap((r) => {
+    const dossiers = rattachementsDeLaSource(source, cle).flatMap((r) => {
       const ligne = base.tableau(r.tableau)
       if (!ligne) return []
       const jete = r.corbeille !== null || cachees(r.espace).has(r.tableau)
@@ -2277,7 +2283,7 @@ export function creerApp(ctx: Contexte): Hono {
   /** Fait ce que l'outil demande ; jamais d'effacement. Le geste est dans la table avant le document : rien ne lui revient. */
   const agirPourLOutil = async (source: string, action: Exclude<ActionOutil, 'fusionner'>, cle: string) => {
     const maintenant = ctx.maintenant()
-    for (const r of action === 'lire' ? [] : base.rattachementsDeLaFiche(source, cle)) {
+    for (const r of action === 'lire' ? [] : rattachementsDeLaSource(source, cle)) {
       if (!base.tableau(r.tableau)) continue
       if (action === 'jeter' && r.corbeille === null) {
         base.marquerCorbeille(r, maintenant, 'outil')

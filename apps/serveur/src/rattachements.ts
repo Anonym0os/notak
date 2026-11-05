@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 import type * as Y from 'yjs'
 import { nouvelId, planApres } from './arrivee.ts'
 import { normaliserOrigine } from './auth.ts'
-import type { Base } from './base.ts'
+import type { Base, Rattachement } from './base.ts'
 import type { ElementLu } from './contenu.ts'
 
 /**
@@ -103,6 +103,17 @@ export function sourcesDe(valeur: string | undefined, signaler: (message: string
     })
   }
   return [...lues.values()]
+}
+
+/**
+ * Un dossier compte-t-il pour sa source ? Une source qui nomme son espace (l'espace de l'équipe) n'a ses dossiers que
+ * là : ceux rangés avant dans l'espace personnel de quelqu'un, du temps où elle n'en nommait pas, restent à qui les a
+ * créés, comme n'importe quel dossier, mais l'outil ne les lit plus et n'en est plus prévenu. Sans espace nommé, chacun
+ * a les siens dans son espace personnel, et tous comptent.
+ */
+export function dossierDeLaSource(sources: readonly SourceRattachement[], r: Pick<Rattachement, 'source' | 'espace'>): boolean {
+  const s = sources.find((x) => x.source === r.source)
+  return Boolean(s) && (!s!.espace || s!.espace === r.espace)
 }
 
 /** Le titre d'un dossier : sans blancs autour, borné, et à défaut la clé de la fiche. */
@@ -228,7 +239,7 @@ export function suivreLesDossiers(o: { base: Base; sources: () => readonly Sourc
     if (touchees.length === 0) return
     const jetees = new Set(changement.jetees)
     for (const r of o.base.rattachementsDe(touchees)) {
-      if (!r.cle) continue
+      if (!r.cle || !dossierDeLaSource(o.sources(), r)) continue
       const jete = jetees.has(r.tableau)
       if (jete === (r.corbeille !== null)) continue
       const quand = o.maintenant()

@@ -121,6 +121,34 @@ describe('espaces', () => {
   })
 })
 
+describe('le SSO d’un espace et ses invitations', () => {
+  it('invité puis passé par le SSO de l’espace, on y entre sans ouvrir le courriel ; sans le SSO, l’invitation attend', async () => {
+    const e = await espaceAvec(ana, 'Acme')
+    const sso = { providerId: 'acme', issuer: 'http://idp.interne', domain: 'acme.fr', organizationId: e.id, oidcConfig: { clientId: 'c', clientSecret: 's', skipDiscovery: true, authorizationEndpoint: 'https://idp.acme.fr/a', tokenEndpoint: 'https://idp.acme.fr/t', jwksEndpoint: 'https://idp.acme.fr/k' } }
+    expect((await auth('/sso/register', ana, sso)).status).toBe(200)
+    m.tableau(ana, 'plans-acme', 'Plans', undefined, e.racine)
+    for (const c of [bob, cleo]) expect((await auth('/organization/invite-member', ana, { email: c.utilisateur.email, role: 'member', organizationId: e.id })).status).toBe(200)
+    // Bob arrive par le SSO de l'espace (Better Auth a relié le compte au fournisseur) ; l'invitation l'en empêchait.
+    const maintenant = new Date().toISOString()
+    m.base.db.prepare('INSERT INTO account (id, accountId, providerId, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)').run('compte-sso-bob', 'bob@idp', 'acme', bob.utilisateur.id, maintenant, maintenant)
+    expect(await statutSur(bob, 'plans-acme')).toBe(404)
+
+    expect((await m.appeler('/api/moi', { compte: bob })).status).toBe(200)
+    expect((await espaces(bob)).find((x) => x.id === e.id)).toMatchObject({ role: 'member' })
+    expect(await statutSur(bob, 'plans-acme')).toBe(200)
+    const statuts = m.base.db.prepare('SELECT email, status FROM invitation WHERE organizationId = ? ORDER BY email').all(e.id)
+    expect(statuts).toEqual([
+      { email: bob.utilisateur.email, status: 'accepted' },
+      { email: cleo.utilisateur.email, status: 'pending' },
+    ])
+    // Cléo n'a pas passé le SSO : elle reste invitée, et rien ne change à la page suivante de Bob.
+    expect((await m.appeler('/api/moi', { compte: cleo })).status).toBe(200)
+    expect((await espaces(cleo)).some((x) => x.id === e.id)).toBe(false)
+    expect((await m.appeler('/api/moi', { compte: bob })).status).toBe(200)
+    expect(m.base.membresEspace(e.id).filter((x) => x.utilisateur === bob.utilisateur.id)).toHaveLength(1)
+  })
+})
+
 describe('découverte OIDC', () => {
   const doc = {
     issuer: 'http://keycloak.lan/realms/acme',
