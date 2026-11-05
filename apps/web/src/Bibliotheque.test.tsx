@@ -229,6 +229,32 @@ describe('la page', () => {
     expect(hote.querySelector('.biblio-premiers-choix')).toBeNull()
   })
 
+  it('le tiroir de la colonne : ☰ l’ouvre ; une rubrique, Échap ou le voile le referment ; son « + » crée', async () => {
+    const crees: string[] = []
+    await ouvrir(
+      async () => TOUTES,
+      async (genre) => (crees.push(genre), { tableau: 'racine', element: null }),
+    )
+    const bouton = hote.querySelector<HTMLButtonElement>('[aria-controls="biblio-colonne"]')!
+    const ouvert = () => hote.querySelector('.biblio')!.hasAttribute('data-tiroir')
+    act(() => bouton.click())
+    expect([ouvert(), bouton.getAttribute('aria-expanded')]).toEqual([true, 'true'])
+    act(() => rubrique('Favoris').click())
+    expect([ouvert(), hote.querySelector('h1')!.textContent]).toEqual([false, 'Favoris'])
+    act(() => bouton.click())
+    act(() => void window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+    expect(ouvert()).toBe(false)
+    expect(document.activeElement).toBe(bouton)
+    act(() => bouton.click())
+    act(() => void hote.querySelector('.biblio-voile')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })))
+    expect(ouvert()).toBe(false)
+    act(() => hote.querySelector<HTMLButtonElement>('.biblio-nouveau-tete .biblio-nouveau-bouton')!.click())
+    const choix = [...hote.querySelectorAll<HTMLButtonElement>('.biblio-nouveau-tete [role="menuitem"]')]
+    expect(choix.map((b) => b.querySelector('span')!.firstChild!.textContent)).toEqual(['Toile', 'Page', 'Carte mentale'])
+    await act(async () => choix[0]!.click())
+    expect(crees).toEqual(['toile'])
+  })
+
   it('le bouton Nouveau propose une toile, une page ou une carte mentale', async () => {
     const crees: string[] = []
     await ouvrir(

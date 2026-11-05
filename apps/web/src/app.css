@@ -3935,6 +3935,13 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
     border-radius: 20px;
   }
 
+  /* Plus lourd que la règle du « + », écrite plus bas. */
+  .biblio-tete .biblio-nouveau-tete .biblio-nouveau-bouton {
+    width: 44px;
+    height: 44px;
+    border-radius: 22px;
+  }
+
   .biblio-tuile {
     -webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -3949,16 +3956,18 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   }
 }
 
+/* Le bouton ☰ et le « + » de la barre n'existent que quand la colonne est un tiroir ; le voile, quand il est ouvert. */
+.biblio-tete-tiroir,
+.biblio-voile {
+  display: none;
+}
+
 /*
- * Une fenêtre moyenne : un iPad en portrait (744 à 834 px), une fenêtre partagée ou étroite sur un ordinateur. La
- * colonne se resserre, le tri ne garde que ses icônes (leur nom reste à aria-label et à l'infobulle), la recherche cède
- * sa largeur, et la barre passe à la ligne plutôt que de pousser le compte hors de l'écran.
+ * Une fenêtre moyenne : un iPad en portrait (744 à 834 px), une fenêtre partagée ou étroite sur un ordinateur. Le tri ne
+ * garde que ses icônes (leur nom reste à aria-label et à l'infobulle), la recherche cède sa largeur, et la barre passe à
+ * la ligne plutôt que de pousser le compte hors de l'écran.
  */
 @media (max-width: 1023px) {
-  .biblio {
-    grid-template-columns: clamp(216px, 26vw, 264px) minmax(0, 1fr);
-  }
-
   .biblio-tete {
     flex-wrap: wrap;
     row-gap: 8px;
@@ -3998,8 +4007,97 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   }
 }
 
-/* Sur un écran étroit, la colonne devient une bande de rubriques qui défile, au-dessus de la barre. */
-@media (max-width: 760px) {
+/*
+ * De 600 à 1023 px, la colonne devient un tiroir, comme celle de Fichiers sur un iPad en portrait : la page prend toute
+ * la largeur, ☰ fait glisser la colonne par-dessus, sous un voile ; choisir une rubrique, toucher le voile ou Échap la
+ * referme. Le « + » de la barre remplace « Nouveau », qui s'y cacherait.
+ */
+@media (min-width: 600px) and (max-width: 1023px) {
+  .biblio {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .biblio-tete {
+    margin-left: 12px;
+  }
+
+  .biblio-tete-tiroir {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .biblio-colonne {
+    position: fixed;
+    top: calc(8px + var(--notak-zone-haut, 0px));
+    bottom: calc(8px + var(--notak-zone-bas, 0px));
+    left: calc(8px + var(--notak-zone-gauche, 0px));
+    z-index: 40;
+    width: min(300px, calc(100vw - 72px));
+    margin: 0;
+    /* Par-dessus la page, il est opaque : l'îlot translucide laisserait lire les tuiles au travers. */
+    background: var(--notak-carte, #fff);
+    box-shadow: 0 0 0 1px rgb(27 37 54 / 0.08), 0 24px 60px -18px rgb(27 37 54 / 0.45);
+    transform: translateX(calc(-100% - 24px));
+    visibility: hidden;
+    transition:
+      transform 0.32s cubic-bezier(0.32, 0.72, 0, 1),
+      visibility 0s linear 0.32s;
+  }
+
+  .biblio[data-tiroir] .biblio-colonne {
+    transform: none;
+    visibility: visible;
+    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .biblio-voile {
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+    display: block;
+    background: rgb(15 20 28 / 0.28);
+    animation: biblio-voile 0.2s ease;
+  }
+}
+
+@keyframes biblio-voile {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .biblio-colonne,
+  .biblio[data-tiroir] .biblio-colonne {
+    transition: none;
+  }
+
+  .biblio-voile {
+    animation: none;
+  }
+}
+
+/* Le « + » de la barre : un rond, et le menu « Nouveau » posé dessous, à sa largeur. */
+.biblio-nouveau-tete {
+  margin: 0;
+}
+
+.biblio-nouveau-tete .biblio-nouveau-bouton {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 18px;
+}
+
+.biblio-nouveau-tete .biblio-menu {
+  right: auto;
+  width: 280px;
+}
+
+/* Sur un écran étroit (une fenêtre de moins de 600 px), la colonne devient une bande de rubriques qui défile, au-dessus de la barre. */
+@media (max-width: 599px) {
   .biblio {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto minmax(0, 1fr);

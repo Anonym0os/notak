@@ -348,7 +348,10 @@ function BibliothequeBureau({
   const [tri, setTri] = useState<Tri>(lireTri)
   const [affichage, setAffichage] = useState<Affichage>(lireAffichage)
   const [requete, setRequete] = useState('')
-  const [menuNeuf, setMenuNeuf] = useState(false)
+  /** Le menu « Nouveau » ouvert, et d'où : la colonne, ou la barre quand la colonne est un tiroir. */
+  const [menuNeuf, setMenuNeuf] = useState<false | 'colonne' | 'tete'>(false)
+  /** Dans une fenêtre moyenne (un iPad en portrait), la colonne est un tiroir, qu'on ouvre par ☰. */
+  const [tiroir, setTiroir] = useState(false)
   const [sel, setSel] = useState<Selection>(RIEN)
   /** Au doigt, « Sélectionner » : toucher une tuile la choisit (ou la retire) au lieu de l'ouvrir. */
   const [modeChoix, setModeChoix] = useState(false)
@@ -365,6 +368,7 @@ function BibliothequeBureau({
   const [arrivees, setArrivees] = useState<ReadonlySet<string>>(new Set())
   const [cadre, setCadre] = useState<Boite | null>(null)
   const champ = useRef<HTMLInputElement>(null)
+  const boutonTiroir = useRef<HTMLButtonElement>(null)
   const nav = useRef<HTMLElement>(null)
   const corps = useRef<HTMLElement>(null)
   const minuteurs = useRef(new Set<ReturnType<typeof setTimeout>>())
@@ -401,6 +405,30 @@ function BibliothequeBureau({
     }, DUREE_CORRECTIF)
   }
   const toutes = useMemo(() => (serveur ? avecCorrectifs(serveur, correctifs) : null), [serveur, correctifs])
+
+  // Le tiroir refermé emporte le menu « Nouveau » qu'on y avait ouvert.
+  useEffect(() => {
+    if (!tiroir) setMenuNeuf((m) => (m === 'colonne' ? false : m))
+  }, [tiroir])
+  // Le tiroir ouvert : le clavier passe à sa rubrique courante ; Échap le referme et rend la main au bouton ☰.
+  useEffect(() => {
+    if (!tiroir) return
+    const image = requestAnimationFrame(() =>
+      (nav.current?.querySelector<HTMLElement>('.biblio-rubrique[aria-current="page"]') ?? nav.current?.querySelector<HTMLElement>('.biblio-rubrique'))?.focus({ preventScroll: true }),
+    )
+    const touche = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      e.stopPropagation()
+      setTiroir(false)
+      boutonTiroir.current?.focus()
+    }
+    window.addEventListener('keydown', touche, true)
+    return () => {
+      cancelAnimationFrame(image)
+      window.removeEventListener('keydown', touche, true)
+    }
+  }, [tiroir])
 
   // ⌘F cherche dans la bibliothèque ; Échap vide la recherche.
   useEffect(() => {
@@ -443,9 +471,10 @@ function BibliothequeBureau({
     setFiltre(apres.filtre)
     history.replaceState(null, '', adresseDeLaVue(apres))
   }
-  /** Une rubrique de la colonne : on quitte la recherche. */
+  /** Une rubrique de la colonne : on quitte la recherche, et le tiroir se referme sur la vue choisie. */
   const choisir = (r: Portee) => {
     setRequete('')
+    setTiroir(false)
     choisirVue({ portee: r })
   }
   const afficher = (a: Affichage) => {
@@ -1063,15 +1092,32 @@ function BibliothequeBureau({
 
   return (
     <FournisseurVignettes value={vignettes}>
-    <div className="biblio" data-apport={apport ? (apport.cible === espace?.racine ? 'accueil' : 'toile') : undefined} onDragEnter={surApport} onDragOver={surApport} onDragLeave={surDepart} onDrop={surLacher}>
-      <nav className="biblio-colonne" aria-label={t('biblio.titre')} ref={nav} onKeyDown={surToucheColonne} data-tauri-drag-region="deep">
+    <div className="biblio" data-tiroir={tiroir || undefined} data-apport={apport ? (apport.cible === espace?.racine ? 'accueil' : 'toile') : undefined} onDragEnter={surApport} onDragOver={surApport} onDragLeave={surDepart} onDrop={surLacher}>
+      {tiroir && <div className="biblio-voile" aria-hidden onPointerDown={() => setTiroir(false)} />}
+      <nav
+        className="biblio-colonne"
+        id="biblio-colonne"
+        aria-label={t('biblio.titre')}
+        ref={nav}
+        onKeyDown={surToucheColonne}
+        // Ce qu'on y choisit (une rubrique, l'accueil, l'aide, les réglages) referme le tiroir.
+        onClick={(e) => (e.target as HTMLElement).closest('.biblio-rubrique') && setTiroir(false)}
+        data-tauri-drag-region="deep"
+      >
         <div className="biblio-nouveau">
-          <button type="button" className="biblio-nouveau-bouton" aria-expanded={menuNeuf} aria-haspopup="menu" disabled={creation} onClick={() => setMenuNeuf((o) => !o)}>
+          <button
+            type="button"
+            className="biblio-nouveau-bouton"
+            aria-expanded={menuNeuf === 'colonne'}
+            aria-haspopup="menu"
+            disabled={creation}
+            onClick={() => setMenuNeuf((o) => (o === 'colonne' ? false : 'colonne'))}
+          >
             <Icone nom="ajouter" taille={18} trait={2} />
             {t('biblio.nouveau')}
             <Icone nom="chevronBas" taille={14} trait={2} />
           </button>
-          {menuNeuf && <MenuNeuf creer={(g) => void creerPuisOuvrir(g)} dossier={outils ? () => nouveauDossier() : undefined} fermer={() => setMenuNeuf(false)} />}
+          {menuNeuf === 'colonne' && <MenuNeuf creer={(g) => void creerPuisOuvrir(g)} dossier={outils ? () => nouveauDossier() : undefined} fermer={() => setMenuNeuf(false)} />}
         </div>
         {bouton('tout')}
         {bouton('recents')}
@@ -1107,6 +1153,38 @@ function BibliothequeBureau({
       </nav>
 
       <header className="biblio-tete" data-tauri-drag-region="deep">
+        {/* Quand la colonne est un tiroir : de quoi l'ouvrir, et « Nouveau », qui sinon s'y cacherait. */}
+        <div className="biblio-tete-tiroir">
+          <Ilot>
+            <button
+              type="button"
+              className="notak-ilot-bouton"
+              ref={boutonTiroir}
+              aria-label={t('biblio.colonne')}
+              title={t('biblio.colonne')}
+              aria-expanded={tiroir}
+              aria-controls="biblio-colonne"
+              onClick={() => setTiroir((o) => !o)}
+            >
+              <Icone nom="tiroir" taille={20} trait={1.5} />
+            </button>
+          </Ilot>
+          <div className="biblio-nouveau biblio-nouveau-tete">
+            <button
+              type="button"
+              className="biblio-nouveau-bouton"
+              aria-label={t('biblio.nouveau')}
+              title={t('biblio.nouveau')}
+              aria-expanded={menuNeuf === 'tete'}
+              aria-haspopup="menu"
+              disabled={creation}
+              onClick={() => setMenuNeuf((o) => (o === 'tete' ? false : 'tete'))}
+            >
+              <Icone nom="ajouter" taille={18} trait={2} />
+            </button>
+            {menuNeuf === 'tete' && <MenuNeuf creer={(g) => void creerPuisOuvrir(g)} dossier={outils ? () => nouveauDossier() : undefined} fermer={() => setMenuNeuf(false)} />}
+          </div>
+        </div>
         {modeChoix || choisies.length > 1 ? (
           <BarreChoix
             choisies={entreesDes(choisies)}
