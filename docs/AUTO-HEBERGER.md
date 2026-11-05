@@ -191,6 +191,8 @@ NOTAK_RATTACHEMENTS=[{"source":"crm","nom":"Mon CRM","dossier":"Clients","origin
 | `dossier` | le titre du dossier qui range ceux de l'outil |
 | `origine` | l'adresse de l'outil : le lien de retour vers une fiche doit y être, sans quoi il est refusé |
 | `espace` | facultatif : l'espace où ranger les dossiers, pour qu'une équipe les partage. Sans lui, chacun a les siens, dans son espace personnel |
+| `secret` | facultatif, 32 caractères au moins : il signe ce que l'outil demande à Notak et ce que Notak lui envoie (voir « Le catalogue »). Jamais rendu par l'API |
+| `webhook` | facultatif, avec `secret` : l'adresse, en https, où Notak prévient l'outil de ce que les gens font des dossiers |
 
 Le bouton de la fiche ouvre :
 
@@ -201,20 +203,48 @@ https://notak.exemple.fr/relier?source=crm&cle=societe:42&titre=Dupont%20SARL&re
 `cle` est l'identifiant de la fiche dans l'outil (lettres, chiffres, `:`, `.`, `_` et `-`, 128 au plus) : une fiche n'a
 qu'un dossier par espace. `titre` nomme le dossier à sa création ; on le renomme ensuite dans Notak comme une autre
 toile. `retour` est l'adresse de la fiche, que le dossier rappelle par un lien. Quelqu'un qui n'est pas connecté passe
-d'abord par l'écran de connexion, puis revient à la même adresse. Un dossier jeté à la corbeille compte comme absent :
-le bouton en propose un neuf.
+d'abord par l'écran de connexion, puis revient à la même adresse. Un dossier jeté à la corbeille y reste : le bouton
+propose de le remettre, jamais d'en faire un second.
 
 L'outil peut aussi montrer, sur la fiche, ce que range son dossier. Ses pages lisent, avec la session de la personne :
 
 | Adresse | Ce qu'elle rend |
 |---|---|
-| `GET /api/rattachements/<source>/<cle>` | `etat` : `present` (avec `tableau` et `titre`), `cache` (le dossier existe, la personne ne le voit pas) ou `absent` |
+| `GET /api/rattachements/<source>/<cle>` | `etat` : `present` ou `corbeille` (avec `tableau` et `titre`), `cache` (le dossier existe, la personne ne le voit pas) ou `absent` |
 | `GET /api/rattachements/<source>/<cle>/contenu` | le même `etat`, et pour un dossier présent, `elements` : chaque toile, page, carte mentale, photo, lien ou fichier qu'il range et que la personne lit, avec `genre`, `titre`, `modifie` (ms, ou `null`) et `chemin` (à ajouter à l'adresse du serveur), du plus récemment changé au plus ancien |
 
 Ces deux adresses ne s'ouvrent (CORS, avec les cookies) qu'à l'`origine` déclarée de l'outil, et seulement en lecture.
 L'appel se fait avec `credentials: 'include'`. Le cookie de session ne part que si l'outil et Notak sont sur le même
 site (`crm.exemple.fr` et `notak.exemple.fr`) ; ailleurs, l'outil n'a que le bouton. Sans session, la réponse est un
 401 : l'outil propose alors de se connecter à Notak.
+
+### Le catalogue : ce que l'outil et Notak se disent
+
+Un outil qui a un `secret` dialogue aussi avec Notak de serveur à serveur, sans session, par un catalogue fermé. Rien,
+dans ce catalogue, n'efface quoi que ce soit : un dossier va à la corbeille de sa toile, et en revient.
+
+Chaque message est signé : l'en-tête `Notak-Signature: t=<secondes unix>,v1=<hex>` porte l'HMAC-SHA256 de
+`<t>.<corps brut>` par le secret, et n'est valable que cinq minutes. Plusieurs `v1` passent, pour changer de secret sans
+coupure.
+
+**Ce que l'outil demande** : `POST /api/outils/<source>`, en JSON, `{ "id": …, "action": …, "cle": … }`. L'`id` (8 à
+128 caractères) rend la demande sûre à renvoyer : la même, sept jours durant, rend la même réponse sans rien refaire.
+
+| Action | Ce que fait Notak |
+|---|---|
+| `lire` | rien ; rend `{ etat, dossiers: [{ espace, etat, tableau, titre, jete_par }] }`, `etat` valant `present`, `corbeille` ou `absent` |
+| `jeter` | met le dossier de la fiche à la corbeille, dans chaque espace, en notant que l'outil l'y a mis ; rend comme `lire` |
+| `remettre` | le remet, seulement si c'est l'outil qui l'avait jeté : ce qu'une personne a jeté reste jeté ; rend comme `lire` |
+| `fusionner` | réservé : refusé (`action_reservee`) |
+
+Les refus : 404 si la source n'a pas de secret, 401 (`signature_invalide`) si la signature ne va pas, 400 pour une
+demande hors du catalogue. Un dossier remis après qu'on a vidé la corbeille de sa toile y retrouve une carte neuve.
+
+**Ce que Notak envoie** à `webhook`, signé de même : `{ "id", "type", "cle", "quand", "par" }`, où `type` vaut
+`dossier.cree`, `dossier.jete` ou `dossier.remis`, `quand` est en millisecondes et `par` est le nom de qui a fait le
+geste. Un envoi qui n'obtient pas de réponse 2xx est relancé (une minute, puis le double, une heure au plus) pendant
+environ une semaine. Un geste que l'outil a lui-même demandé ne lui est pas renvoyé. L'envoi ne fait que prévenir :
+l'outil relit l'état par `lire` avant d'en tirer quoi que ce soit.
 
 ## Fermer les inscriptions
 

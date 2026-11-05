@@ -1,6 +1,8 @@
+import { createHmac, timingSafeEqual } from 'node:crypto'
 import type * as Y from 'yjs'
 import { nouvelId, planApres } from './arrivee.ts'
 import { normaliserOrigine } from './auth.ts'
+import type { Base } from './base.ts'
 import type { ElementLu } from './contenu.ts'
 
 /**
@@ -20,7 +22,23 @@ export interface SourceRattachement {
   origine: string
   /** L'espace où ranger ; absent, l'espace personnel de qui crée. */
   espace?: string
+  /**
+   * Le secret partagé avec l'outil (32 caractères au moins) : il signe ce que l'outil demande (`POST /api/outils/…`)
+   * et ce que Notak lui envoie. Sans lui, ni l'un ni l'autre. Jamais rendu par l'API.
+   */
+  secret?: string
+  /** Où Notak prévient l'outil de ce que les gens font des dossiers (`dossier.cree`, `.jete`, `.remis`) ; avec `secret`. */
+  webhook?: string
 }
+
+/** Ce que Notak envoie à un outil, et rien d'autre (docs/AUTO-HEBERGER.md, « Le catalogue »). */
+export type TypeEnvoi = 'dossier.cree' | 'dossier.jete' | 'dossier.remis'
+/** Ce qu'un outil peut demander à Notak, et rien d'autre. `fusionner` est réservé : refusé tant qu'il n'est pas écrit. */
+export const ACTIONS_OUTIL = ['lire', 'jeter', 'remettre', 'fusionner'] as const
+export type ActionOutil = (typeof ACTIONS_OUTIL)[number]
+/** L'identifiant d'une demande d'un outil : ce qui la rend sûre à renvoyer. */
+export const ID_DEMANDE = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/
+const SECRET_MIN = 32
 
 const NOM_SOURCE = /^[a-z0-9][a-z0-9-]{0,31}$/
 /** La clé d'une fiche dans l'outil (`societe:42`) : courte, et sans rien qui se lise autrement dans une adresse. */
@@ -67,12 +85,21 @@ export function sourcesDe(valeur: string | undefined, signaler: (message: string
       continue
     }
     const espace = champ('espace')
+    // Le secret et le webhook : facultatifs ; écrits de travers, ils sont oubliés (et dits), pas la source.
+    const secret = champ('secret')
+    const secretLu = secret && secret.length >= SECRET_MIN ? secret : undefined
+    if (secret && !secretLu) signaler(`Notak : NOTAK_RATTACHEMENTS, « ${source} » : le secret doit faire ${SECRET_MIN} caractères au moins ; il est ignoré`)
+    const webhook = adresseDeWebhook(champ('webhook'))
+    if (champ('webhook') && !webhook) signaler(`Notak : NOTAK_RATTACHEMENTS, « ${source} » : le webhook doit être une adresse en https ; il est ignoré`)
+    else if (webhook && !secretLu) signaler(`Notak : NOTAK_RATTACHEMENTS, « ${source} » : un webhook sans secret ne reçoit rien`)
     lues.set(source, {
       source,
       nom: champ('nom').slice(0, 60),
       dossier: champ('dossier').slice(0, TITRE_MAX),
       origine: origine!,
       ...(espace ? { espace } : {}),
+      ...(secretLu ? { secret: secretLu } : {}),
+      ...(webhook && secretLu ? { webhook } : {}),
     })
   }
   return [...lues.values()]
@@ -127,4 +154,161 @@ export function poserCarteDeToile(doc: Y.Doc, cible: string, maintenant: number)
     const id = nouvelId(maintenant)
     stockes.set(id, { id, x, y, largeur: LARGEUR_CARTE, contenu: { type: 'tableau', cible }, plan: planApres(plan) })
   })
+}
+
+/** Une adresse de webhook : en https, ou en http vers cette machine (un essai). */
+function adresseDeWebhook(brute: string): string | null {
+  if (!brute) return null
+  try {
+    const u = new URL(brute)
+    const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '[::1]'
+    return u.protocol === 'https:' || (u.protocol === 'http:' && local) ? u.href : null
+  } catch {
+    return null
+  }
+}
+
+// ---- La signature : `Notak-Signature: t=<secondes>,v1=<hex>`, l'HMAC-SHA256 de `<t>.<corps>` ----
+
+/** L'en-tête qui signe `corps` à l'instant `maintenant` (ms). */
+export function signer(secret: string, corps: string, maintenant: number): string {
+  const t = Math.floor(maintenant / 1000)
+  return `t=${t},v1=${createHmac('sha256', secret).update(`${t}.${corps}`).digest('hex')}`
+}
+
+/**
+ * L'en-tête signe-t-il ce corps, à `tolerance` secondes près de `maintenant` (ms) ? Plusieurs `v1` passent, comme
+ * pendant le changement d'un secret. Une demande captée ne se rejoue donc pas plus tard ; avant, l'identifiant de la
+ * demande la rend sans effet.
+ */
+export function signatureValable(secret: string, corps: string, entete: string | null | undefined, maintenant: number, tolerance = 300): boolean {
+  if (!entete) return false
+  let t: string | null = null
+  const signatures: string[] = []
+  for (const morceau of entete.split(',')) {
+    const [cle, ...reste] = morceau.trim().split('=')
+    const valeur = reste.join('=').trim()
+    if (cle === 't' && /^\d+$/.test(valeur)) t = valeur
+    else if (cle === 'v1' && /^[0-9a-f]{64}$/i.test(valeur)) signatures.push(valeur.toLowerCase())
+  }
+  if (t === null || signatures.length === 0 || Math.abs(maintenant / 1000 - Number(t)) > tolerance) return false
+  const attendue = Buffer.from(createHmac('sha256', secret).update(`${t}.${corps}`).digest('hex'))
+  return signatures.some((v) => timingSafeEqual(attendue, Buffer.from(v)))
+}
+
+// ---- Les gestes des personnes sur les dossiers rattachés ----
+
+/** Les cartes de toiles qu'un enregistrement vient de jeter à la corbeille, ou d'en remettre (`indexerDocument`). */
+export interface ChangementDeCartes {
+  jetees: string[]
+  remises: string[]
+}
+export const AUCUNE_CARTE: ChangementDeCartes = { jetees: [], remises: [] }
+
+/** D'un résumé de toile à l'autre : une carte qui part à la corbeille, une qui en revient. Une carte effacée (corbeille vidée) n'y est pas. */
+export function changementDeCartes(
+  avant: { cartes?: readonly string[]; jetees?: readonly string[] } | null,
+  apres: { cartes?: readonly string[]; jetees?: readonly string[] } | null,
+): ChangementDeCartes {
+  const [ca, ja, cp, jp] = [avant?.cartes, avant?.jetees, apres?.cartes, apres?.jetees].map((l) => new Set(l ?? []))
+  return {
+    jetees: [...jp!].filter((id) => ca!.has(id) && !cp!.has(id)),
+    remises: [...cp!].filter((id) => ja!.has(id) && !ca!.has(id)),
+  }
+}
+
+/**
+ * Ce que deviennent les dossiers rattachés quand une personne jette ou remet leur carte : la table le retient (elle
+ * fait foi, même la corbeille vidée), et l'outil en est prévenu. Un geste que l'outil a demandé lui-même est déjà dans
+ * la table : il n'y change rien, et rien ne lui revient.
+ */
+export function suivreLesDossiers(o: { base: Base; sources: () => readonly SourceRattachement[]; maintenant: () => number }) {
+  return (changement: ChangementDeCartes, par: { nom: string } | undefined): void => {
+    const touchees = [...changement.jetees, ...changement.remises]
+    if (touchees.length === 0) return
+    const jetees = new Set(changement.jetees)
+    for (const r of o.base.rattachementsDe(touchees)) {
+      if (!r.cle) continue
+      const jete = jetees.has(r.tableau)
+      if (jete === (r.corbeille !== null)) continue
+      const quand = o.maintenant()
+      o.base.marquerCorbeille(r, jete ? quand : null, jete ? 'personne' : null)
+      mettreEnFile(o.base, o.sources(), r.source, jete ? 'dossier.jete' : 'dossier.remis', r.cle, quand, par?.nom ?? null)
+    }
+  }
+}
+
+/** Met un envoi dans la file, si la source a de quoi le recevoir. */
+export function mettreEnFile(base: Base, sources: readonly SourceRattachement[], source: string, type: TypeEnvoi, cle: string, quand: number, par: string | null): void {
+  const s = sources.find((x) => x.source === source)
+  if (!s?.webhook || !s.secret) return
+  const id = nouvelId(quand)
+  base.mettreEnvoiEnFile({ id, source, type, charge: JSON.stringify({ id, type, cle, quand, par }), cree: quand, prochain: quand })
+}
+
+/** Pose ou retire la marque de la corbeille sur la carte d'une toile, dans le document qui la porte. Rend s'il l'a trouvée. */
+export function marquerCarte(doc: Y.Doc, cible: string, corbeille: number | null): boolean {
+  const stockes = doc.getMap<ElementLu & { plan?: string }>('elements')
+  let trouvee = false
+  doc.transact(() => {
+    for (const [id, e] of [...stockes.entries()]) {
+      if (e.contenu?.type !== 'tableau' || e.contenu.cible !== cible || e.contenu.raccourci) continue
+      trouvee = true
+      if (corbeille === null) {
+        if (e.corbeille === undefined) continue
+        const { corbeille: _c, ...reste } = e
+        stockes.set(id, reste)
+      } else if (e.corbeille === undefined) stockes.set(id, { ...e, corbeille })
+    }
+  })
+  return trouvee
+}
+
+// ---- La file d'envoi ----
+
+/** Le délai avant le prochain essai : une minute, puis le double, une heure au plus. */
+export const delaiDEssai = (essais: number) => Math.min(60_000 * 2 ** Math.max(0, essais - 1), 3_600_000)
+/** Au-delà, l'envoi est abandonné : environ une semaine d'essais. */
+export const ESSAIS_MAX = 180
+
+/**
+ * Envoie ce qui attend dans la file, signé, à chaque outil ; relance plus tard ce qui échoue. `envoyer` : `fetch`, sauf
+ * dans les essais. Rend combien sont partis.
+ */
+export async function viderLaFile(o: {
+  base: Base
+  sources: readonly SourceRattachement[]
+  maintenant: () => number
+  envoyer?: typeof fetch
+}): Promise<number> {
+  const envoyer = o.envoyer ?? fetch
+  let partis = 0
+  for (const e of o.base.envoisAFaire(o.maintenant(), 20)) {
+    const s = o.sources.find((x) => x.source === e.source)
+    if (!s?.webhook || !s.secret) {
+      o.base.envoiManque(e.id, e.essais, null, 'la source n’a plus de webhook')
+      continue
+    }
+    let erreur: string | null = null
+    try {
+      const r = await envoyer(s.webhook, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'notak-signature': signer(s.secret, e.charge, o.maintenant()) },
+        body: e.charge,
+        redirect: 'error',
+        signal: AbortSignal.timeout(10_000),
+      })
+      if (r.ok) {
+        o.base.envoiLivre(e.id, o.maintenant())
+        partis++
+        continue
+      }
+      erreur = `réponse ${r.status}`
+    } catch (x) {
+      erreur = (x as Error).message || 'injoignable'
+    }
+    const essais = e.essais + 1
+    o.base.envoiManque(e.id, essais, essais >= ESSAIS_MAX ? null : o.maintenant() + delaiDEssai(essais), erreur)
+  }
+  return partis
 }

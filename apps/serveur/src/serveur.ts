@@ -15,7 +15,7 @@ import { creerLimiteur } from './debit.ts'
 import { creerExpiration } from './echeances.ts'
 import { indexerLesAbsents } from './indexation.ts'
 import type { Instance } from './instance.ts'
-import type { SourceRattachement } from './rattachements.ts'
+import { type SourceRattachement, suivreLesDossiers, viderLaFile } from './rattachements.ts'
 import { type Verificateur, creerVerificateur } from './misesAJour.ts'
 import { brancherSynchro, creerHocuspocus, nomDuDocument } from './synchro.ts'
 import { VERSION_NOTAK } from '../../../packages/tableau/src/version.ts'
@@ -148,7 +148,19 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     misesAJour,
   })
 
-  hocuspocus = creerHocuspocus(base, auth, autorisation, Date.now, expirer)
+  // Les gestes des personnes sur les dossiers rattachés à un autre outil, vus à l'enregistrement (`suivreLesDossiers`).
+  const sources = options.rattachements ?? []
+  hocuspocus = creerHocuspocus(base, auth, autorisation, Date.now, expirer, suivreLesDossiers({ base, sources: () => sources, maintenant: Date.now }))
+  // Ce que Notak doit dire aux outils part toutes les quinze secondes, un passage à la fois.
+  let envoiEnCours = false
+  const envois = setInterval(() => {
+    if (envoiEnCours || !sources.some((x) => x.webhook)) return
+    envoiEnCours = true
+    void viderLaFile({ base, sources, maintenant: Date.now })
+      .catch((e: unknown) => console.warn(`Notak : envoi aux outils différé (${(e as Error).message})`))
+      .finally(() => (envoiEnCours = false))
+  }, 15_000)
+  envois.unref()
   const synchro = brancherSynchro(http, hocuspocus, [origine, ...autresOrigines])
 
   return {
@@ -156,6 +168,7 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     async fermer() {
       clearInterval(relance)
       clearInterval(echeances)
+      clearInterval(envois)
       misesAJour.arreter()
       synchro.fermer()
       hocuspocus?.flushPendingStores()

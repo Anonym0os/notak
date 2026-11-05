@@ -24,7 +24,21 @@ import { creerExpiration } from './echeances.ts'
 import { type Cle, duDisque, pourLeDisque } from './chiffrement.ts'
 import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from './contenu.ts'
 import { rangerLesToiles } from './catalogue.ts'
-import { CLE_FICHE, type SourceRattachement, adresseDeLaFiche, ecrireDossierNeuf, poserCarteDeToile, titreDuDossier } from './rattachements.ts'
+import {
+  ACTIONS_OUTIL,
+  type ActionOutil,
+  CLE_FICHE,
+  ID_DEMANDE,
+  type SourceRattachement,
+  adresseDeLaFiche,
+  ecrireDossierNeuf,
+  marquerCarte,
+  mettreEnFile,
+  poserCarteDeToile,
+  signatureValable,
+  suivreLesDossiers,
+  titreDuDossier,
+} from './rattachements.ts'
 import type { Limiteur } from './debit.ts'
 import { AUCUN_CHANGEMENT, bilanDuRangement, rienNeChange } from './rangement.ts'
 import { RELATION_DU_ROLE, type Role, auMoins, role, roleDeRelation } from './droits.ts'
@@ -373,6 +387,8 @@ export function creerApp(ctx: Contexte): Hono {
 
   /** Un outil déclaré par `NOTAK_RATTACHEMENTS`, par ce qu'il écrit dans l'adresse. */
   const sourceNommee = (nom: string) => ctx.rattachements?.find((r) => r.source === nom)
+  /** Ce que deviennent les dossiers rattachés quand une personne en jette ou remet la carte (le même que la synchro). */
+  const suiviDesDossiers = suivreLesDossiers({ base, sources: () => ctx.rattachements ?? [], maintenant: ctx.maintenant })
 
   const instance = ctx.instance ?? INSTANCE_PAR_DEFAUT
   // Ce que l'écran de connexion lit avant tout compte : il se règle dessus (nom, inscription, thème). Et si l'instance
@@ -1282,12 +1298,16 @@ export function creerApp(ctx: Contexte): Hono {
     const ouverts = (await lisibles(u.id)).filter((id) => verrouPar(base, u.id, id) === null)
     const lignes = base.contenus(ouverts).map((l) => ({ ...l, lu: JSON.parse(l.resume) as { cartes?: string[]; jetees?: string[] } }))
     const resumesDesToiles = new Map(lignes.flatMap((l) => (l.genre === 'toile' ? [[l.tableau, l.lu] as const] : [])))
-    const { dossierDe, cachees } = rangerLesToiles(
-      ouverts.map((id) => {
+    // Un dossier rattaché à la corbeille y reste, sa carte effacée ou non : la table le dit (`rattachements.corbeille`).
+    // Il entre dans la règle comme une carte jetée, et ce qu'il range le suit.
+    const aLaCorbeille = base.rattachementsDe(ouverts).flatMap((r) => (r.cle && r.corbeille !== null ? [r.tableau] : []))
+    const { dossierDe, cachees } = rangerLesToiles([
+      ...ouverts.map((id) => {
         const lu = resumesDesToiles.get(id)
         return { id, parent: base.tableau(id)?.parent ?? null, ...(lu?.cartes ? { cartes: lu.cartes } : {}), ...(lu?.jetees ? { jetees: lu.jetees } : {}) }
       }),
-    )
+      ...(aLaCorbeille.length ? [{ id: '\u0000corbeille', parent: null, jetees: aLaCorbeille }] : []),
+    ])
     return { ouverts, lignes, dossierDe, cachees }
   }
 
@@ -1953,7 +1973,7 @@ export function creerApp(ctx: Contexte): Hono {
       if (etat) Y.applyUpdate(doc, etat)
       f(doc)
       base.enregistrerDocument(nom, Y.encodeStateAsUpdate(doc))
-      indexerDocument(base, tableau, doc)
+      suiviDesDossiers(indexerDocument(base, tableau, doc), utilisateur)
     } finally {
       doc.destroy()
     }
@@ -2021,17 +2041,40 @@ export function creerApp(ctx: Contexte): Hono {
 
   // ---- Les dossiers des fiches d'un autre outil (rattachements.ts) ----
 
-  type EtatFiche = { etat: 'present'; tableau: string; titre: string } | { etat: 'cache' } | { etat: 'absent' }
+  type EtatFiche = { etat: 'present' | 'corbeille'; tableau: string; titre: string } | { etat: 'cache' } | { etat: 'absent' }
   /**
-   * Où en est le dossier d'une fiche pour ce compte : là, et il le lit ; là, mais il ne le voit pas (on n'en crée pas
-   * un second) ; ou absent, ce qui comprend un dossier jeté à la corbeille : on en refait un neuf.
+   * Où en est le dossier d'une fiche pour ce compte : là, et il le lit ; à la corbeille (on le remet, on n'en refait
+   * pas un) ; là, mais il ne le voit pas (on n'en crée pas un second) ; ou absent.
    */
   const etatDuDossier = async (u: Utilisateur, r: Rattachement | null): Promise<EtatFiche> => {
     const ligne = r ? base.tableau(r.tableau) : null
     if (!r || !ligne) return { etat: 'absent' }
     if ((await roleSur(u.id, r.tableau)) === null) return { etat: 'cache' }
-    if ((await rangementPour(u)).cachees.has(r.tableau)) return { etat: 'absent' }
-    return { etat: 'present', tableau: r.tableau, titre: ligne.titre }
+    const jete = r.corbeille !== null || (await rangementPour(u)).cachees.has(r.tableau)
+    return { etat: jete ? 'corbeille' : 'present', tableau: r.tableau, titre: ligne.titre }
+  }
+  /**
+   * La toile qui porte la carte d'un dossier : son parent en base, s'il la porte (même jetée) ; sinon celle de son
+   * espace qui la porte ; à défaut, son parent, où l'on reposera une carte.
+   */
+  const porteurDe = (tableau: string): string | null => {
+    const parent = base.tableau(tableau)?.parent ?? null
+    const porte = (id: string) => {
+      const l = base.contenus([id]).find((x) => x.genre === 'toile')
+      const lu = l ? (JSON.parse(l.resume) as { cartes?: string[]; jetees?: string[] }) : null
+      return Boolean(lu?.cartes?.includes(tableau) || lu?.jetees?.includes(tableau))
+    }
+    if (parent && porte(parent)) return parent
+    const espace = base.tableau(tableau)?.espace
+    return (espace ? base.tableauxDeLEspace(espace).find((id) => id !== tableau && porte(id)) : undefined) ?? parent
+  }
+  /** Remet un dossier : sa carte sort de la corbeille, ou une carte neuve est posée là où elle était (la corbeille vidée). */
+  const remettreLeDossier = async (tableau: string, par: Utilisateur | undefined) => {
+    const porteur = porteurDe(tableau)
+    if (!porteur) return
+    await modifierDocument(porteur, par, (doc) => {
+      if (!marquerCarte(doc, tableau, null)) poserCarteDeToile(doc, tableau, ctx.maintenant())
+    })
   }
   /** La source et la fiche demandées, et l'espace où la source range ses dossiers pour ce compte. */
   const ficheDemandee = async (c: Context) => {
@@ -2170,7 +2213,114 @@ export function creerApp(ctx: Contexte): Hono {
       }
       const tableau = await creerDossierDans(u, parent, titre)
       base.poserRattachement({ espace, source: source.source, cle, tableau, adresse: adresse ?? null, cree: maintenant })
+      mettreEnFile(base, ctx.rattachements ?? [], source.source, 'dossier.cree', cle, maintenant, u.nom)
       return c.json({ etat: 'present', tableau, titre, source: source.nom, dossier: source.dossier }, 201)
+    })
+  })
+
+  /**
+   * Remet à sa place le dossier d'une fiche, jeté à la corbeille (le bouton « Le remettre » de `/relier`) : il faut
+   * pouvoir écrire là où il se range. L'outil en est prévenu, au nom de la personne.
+   */
+  app.post('/api/rattachements/:source/:cle/remettre', async (c) => {
+    const f = await ficheDemandee(c)
+    if (f instanceof Response) return f
+    const { u, source, cle, espace } = f
+    return aSonTour(async () => {
+      const r = base.rattachement(espace, source.source, cle)
+      const etat = await etatDuDossier(u, r)
+      if (etat.etat !== 'corbeille' || !r) return c.json({ ...etat, source: source.nom, dossier: source.dossier }, 200)
+      const porteur = porteurDe(r.tableau)
+      if (!porteur || !auMoins(await roleSur(u.id, porteur), 'edition')) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
+      // La table d'abord : l'enregistrement qui suit n'y voit plus rien à suivre, et l'outil n'est prévenu qu'une fois.
+      base.marquerCorbeille(r, null, null)
+      await remettreLeDossier(r.tableau, u)
+      mettreEnFile(base, ctx.rattachements ?? [], source.source, 'dossier.remis', cle, ctx.maintenant(), u.nom)
+      return c.json({ ...(await etatDuDossier(u, base.rattachement(espace, source.source, cle))), source: source.nom, dossier: source.dossier }, 200)
+    })
+  })
+
+  // ---- Ce qu'un outil demande lui-même (le catalogue, docs/AUTO-HEBERGER.md) ----
+
+  /** Les dossiers d'une fiche, tels que l'outil les voit : dans chaque espace, là ou à la corbeille. */
+  const lirePourLOutil = (source: string, cle: string) => {
+    const cacheesDe = new Map<string, ReadonlySet<string>>()
+    const cachees = (espace: string) => {
+      if (!cacheesDe.has(espace)) {
+        const ids = base.tableauxDeLEspace(espace)
+        const lus = new Map(
+          base.contenus(ids).flatMap((l) => (l.genre === 'toile' ? [[l.tableau, JSON.parse(l.resume) as { cartes?: string[]; jetees?: string[] }] as const] : [])),
+        )
+        cacheesDe.set(
+          espace,
+          rangerLesToiles(ids.map((id) => ({ id, parent: base.tableau(id)?.parent ?? null, cartes: lus.get(id)?.cartes ?? [], jetees: lus.get(id)?.jetees ?? [] }))).cachees,
+        )
+      }
+      return cacheesDe.get(espace)!
+    }
+    const dossiers = base.rattachementsDeLaFiche(source, cle).flatMap((r) => {
+      const ligne = base.tableau(r.tableau)
+      if (!ligne) return []
+      const jete = r.corbeille !== null || cachees(r.espace).has(r.tableau)
+      return [{ espace: r.espace, etat: jete ? ('corbeille' as const) : ('present' as const), tableau: r.tableau, titre: ligne.titre, jete_par: r.jete_par }]
+    })
+    const etat = dossiers.some((d) => d.etat === 'present') ? 'present' : dossiers.length ? 'corbeille' : 'absent'
+    return { etat, dossiers }
+  }
+
+  /** Fait ce que l'outil demande ; jamais d'effacement. Le geste est dans la table avant le document : rien ne lui revient. */
+  const agirPourLOutil = async (source: string, action: Exclude<ActionOutil, 'fusionner'>, cle: string) => {
+    const maintenant = ctx.maintenant()
+    for (const r of action === 'lire' ? [] : base.rattachementsDeLaFiche(source, cle)) {
+      if (!base.tableau(r.tableau)) continue
+      if (action === 'jeter' && r.corbeille === null) {
+        base.marquerCorbeille(r, maintenant, 'outil')
+        const porteur = porteurDe(r.tableau)
+        if (porteur) await modifierDocument(porteur, undefined, (doc) => void marquerCarte(doc, r.tableau, maintenant))
+      } else if (action === 'remettre' && r.corbeille !== null && r.jete_par === 'outil') {
+        // Ce qu'une personne a jeté reste jeté : l'outil ne remet que ce qu'il a lui-même mis à la corbeille.
+        base.marquerCorbeille(r, null, null)
+        await remettreLeDossier(r.tableau, undefined)
+      }
+    }
+    return lirePourLOutil(source, cle)
+  }
+
+  /**
+   * Une demande d'un outil, signée de son secret (`Notak-Signature`), sans session ni CORS : `lire`, `jeter`,
+   * `remettre`. La même demande (`id`) renvoyée rend la même réponse, sept jours durant, sans rien refaire.
+   */
+  app.post('/api/outils/:source', async (c) => {
+    const source = sourceNommee(c.req.param('source') ?? '')
+    if (!source?.secret) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+    const brut = await lireBorne(c.req.raw.body, 8 * 1024)
+    if (brut === 'trop gros') return c.json({ erreur: 'trop gros', code: 'trop_gros' }, 413)
+    const texteBrut = brut?.toString('utf8') ?? ''
+    if (!signatureValable(source.secret, texteBrut, c.req.header('notak-signature'), ctx.maintenant())) {
+      return c.json({ erreur: 'signature refusée', code: 'signature_invalide' }, 401)
+    }
+    let b: Record<string, unknown> | null = null
+    try {
+      const v: unknown = JSON.parse(texteBrut)
+      b = v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null
+    } catch {
+      b = null
+    }
+    const id = texte(b?.id)
+    const action = texte(b?.action) as ActionOutil
+    const cle = texte(b?.cle)
+    if (!b || !ID_DEMANDE.test(id) || !ACTIONS_OUTIL.includes(action) || !CLE_FICHE.test(cle) || Object.keys(b).some((k) => !['id', 'action', 'cle'].includes(k))) {
+      return c.json({ erreur: 'demande invalide', code: 'corps_invalide' }, 400)
+    }
+    if (action === 'fusionner') return c.json({ erreur: 'action réservée', code: 'action_reservee' }, 400)
+    const json = { 'content-type': 'application/json; charset=utf-8' }
+    return aSonTour(async () => {
+      const deja = base.demandeOutil(source.source, id)
+      if (deja !== null) return c.body(deja, 200, json)
+      const reponse = JSON.stringify(await agirPourLOutil(source.source, action, cle))
+      const maintenant = ctx.maintenant()
+      base.noterDemandeOutil(source.source, id, reponse, maintenant, maintenant - 7 * 24 * 3600_000)
+      return c.body(reponse, 200, json)
     })
   })
 

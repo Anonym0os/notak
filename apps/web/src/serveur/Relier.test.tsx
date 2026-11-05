@@ -97,6 +97,18 @@ describe('la page /relier', () => {
     expect(bouton(/Créer le dossier/)?.disabled).toBe(false)
   })
 
+  it('un dossier à la corbeille : elle propose de le remettre, jamais d’en faire un second', async () => {
+    routes[`GET ${CHEMIN}`] = () => json({ etat: 'corbeille', tableau: 'd42', titre: 'Dupont SARL', source: 'Mon CRM', dossier: 'Clients' })
+    await monter()
+    expect(titre()).toBe('Ce dossier est à la corbeille')
+    expect(hote.textContent).toContain('« Dupont SARL » a été mis à la corbeille de Notak.')
+    expect(bouton(/Créer/)).toBeUndefined()
+    routes[`POST ${CHEMIN}/remettre`] = () => json({ etat: 'present', tableau: 'd42', titre: 'Dupont SARL', source: 'Mon CRM', dossier: 'Clients' })
+    await act(async () => bouton(/Le remettre/)!.click())
+    expect(appels.at(-1)?.cle).toBe(`POST ${CHEMIN}/remettre`)
+    expect(location.pathname + location.search).toBe('/?dossier=d42')
+  })
+
   it('un dossier qu’on ne voit pas : elle le dit, sans proposer d’en faire un autre', async () => {
     routes[`GET ${CHEMIN}`] = () => json({ etat: 'cache', source: 'Mon CRM', dossier: 'Clients' })
     await monter()

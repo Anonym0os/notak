@@ -1,6 +1,7 @@
 import * as Y from 'yjs'
 import type { Base, EntreeIndex } from './base.ts'
 import { type TableauLu, idsDeFichiers, lireEtat, lireTableau, resumesDuTableau, texteCherchable } from './contenu.ts'
+import { type ChangementDeCartes, changementDeCartes } from './rattachements.ts'
 import { nomDuDocument } from './synchro.ts'
 
 /**
@@ -25,11 +26,17 @@ export function fichiersDuTableau(tableau: TableauLu): string[] {
 
 /**
  * Remet l'index d'un tableau à jour d'après son document : ce qu'on y cherche, les fichiers qu'il montre, et ce que
- * la bibliothèque montre de lui.
+ * la bibliothèque montre de lui. Rend les cartes de toiles qui viennent de partir à la corbeille ou d'en revenir,
+ * d'après le résumé d'avant : les dossiers rattachés à un autre outil en dépendent (`suivreLesDossiers`).
  */
-export function indexerDocument(base: Base, tableau: string, doc: Y.Doc): void {
+export function indexerDocument(base: Base, tableau: string, doc: Y.Doc): ChangementDeCartes {
+  const ligne = base.contenus([tableau]).find((l) => l.genre === 'toile')
+  const avant = ligne ? (JSON.parse(ligne.resume) as { cartes?: string[]; jetees?: string[] }) : null
   const lu = lireTableau(doc)
-  base.indexer(tableau, entreesDIndex(lu), fichiersDuTableau(lu), resumesDuTableau(lu))
+  const resumes = resumesDuTableau(lu)
+  base.indexer(tableau, entreesDIndex(lu), fichiersDuTableau(lu), resumes)
+  const apres = resumes.find((r) => r.genre === 'toile')
+  return changementDeCartes(avant, apres && apres.genre === 'toile' ? apres : null)
 }
 
 /** Indexe les tableaux enregistrés avant l'index (une base plus ancienne) ; rend leur nombre. */

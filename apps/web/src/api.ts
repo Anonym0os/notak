@@ -779,10 +779,10 @@ export async function lireBibliotheque(): Promise<EntreeBibliotheque[]> {
 }
 
 /**
- * Le dossier d'une fiche d'un autre outil (`/relier`) : là, et le compte le lit ; là, mais il ne le voit pas ; ou
- * absent. `source` est le nom de l'outil, `dossier` celui du dossier qui range ses fiches.
+ * Le dossier d'une fiche d'un autre outil (`/relier`) : là, et le compte le lit ; à la corbeille ; là, mais il ne le
+ * voit pas ; ou absent. `source` est le nom de l'outil, `dossier` celui du dossier qui range ses fiches.
  */
-export type DossierDeFiche = ({ etat: 'present'; tableau: string; titre: string } | { etat: 'absent' | 'cache' }) & { source: string; dossier: string }
+export type DossierDeFiche = ({ etat: 'present' | 'corbeille'; tableau: string; titre: string } | { etat: 'absent' | 'cache' }) & { source: string; dossier: string }
 
 /** Les refus du serveur sur une fiche, dans les mots de la page. */
 const REFUS_FICHE = {
@@ -803,6 +803,13 @@ export async function lireDossierDeFiche(source: string, cle: string): Promise<D
 /** Trouve le dossier de la fiche, ou le crée ; `adresse` : où la fiche s'ouvre dans l'outil. */
 export async function creerDossierDeFiche(source: string, cle: string, titre: string, adresse?: string): Promise<DossierDeFiche> {
   const r = await appeler(cheminDeFiche(source, cle), { titre, ...(adresse ? { adresse } : {}) })
+  if (!r.ok) throw await refus(r, REFUS_FICHE)
+  return (await r.json()) as DossierDeFiche
+}
+
+/** Remet à sa place le dossier d'une fiche, jeté à la corbeille. */
+export async function remettreDossierDeFiche(source: string, cle: string): Promise<DossierDeFiche> {
+  const r = await appeler(`${cheminDeFiche(source, cle)}/remettre`, {})
   if (!r.ok) throw await refus(r, REFUS_FICHE)
   return (await r.json()) as DossierDeFiche
 }

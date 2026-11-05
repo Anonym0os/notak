@@ -1,6 +1,6 @@
 import { Icone } from '@notak/tableau'
 import { useEffect, useRef, useState } from 'react'
-import { type DossierDeFiche, ErreurApi, creerDossierDeFiche, lireDossierDeFiche } from '../api'
+import { type DossierDeFiche, ErreurApi, creerDossierDeFiche, lireDossierDeFiche, remettreDossierDeFiche } from '../api'
 import { allerA, surLien } from '../chemin'
 import { t } from '../langue'
 import { PageApp } from '../PageApp'
@@ -26,6 +26,7 @@ export function ficheDeLAdresse(recherche: string): FicheDemandee | null {
 type Etat =
   | { type: 'charge' }
   | { type: 'absent'; source: string; dossier: string; creation: boolean; erreur: string | null }
+  | { type: 'corbeille'; titre: string; source: string; dossier: string; remise: boolean; erreur: string | null }
   | { type: 'cache' }
   | { type: 'impossible'; message: string }
 
@@ -48,6 +49,7 @@ export function PageRelier({ recherche = location.search }: { recherche?: string
       ouvrirLeDossier(d.tableau)
       return null
     }
+    if (d.etat === 'corbeille') return { type: 'corbeille', titre: d.titre, source: d.source, dossier: d.dossier, remise: false, erreur: null }
     return d.etat === 'cache' ? { type: 'cache' } : { type: 'absent', source: d.source, dossier: d.dossier, creation: false, erreur: null }
   }
 
@@ -86,6 +88,19 @@ export function PageRelier({ recherche = location.search }: { recherche?: string
     }
   }
 
+  // Le dossier jeté à la corbeille : on le remet, plutôt que d'en faire un second.
+  const remettre = async () => {
+    if (!fiche || etat.type !== 'corbeille' || etat.remise) return
+    setEtat({ ...etat, remise: true, erreur: null })
+    try {
+      const suite = suivre(await remettreDossierDeFiche(fiche.source, fiche.cle))
+      if (suite) setEtat(suite.type === 'corbeille' ? { ...suite, erreur: t('commun.echec') } : suite)
+    } catch (x) {
+      if (x instanceof ErreurApi && x.statut >= 400 && x.statut < 500) return setEtat({ type: 'impossible', message: x.message })
+      setEtat({ ...etat, remise: false, erreur: x instanceof Error ? x.message : t('commun.echec') })
+    }
+  }
+
   const versLaBibliotheque = (
     <a className="bouton" href="/" onClick={(e) => surLien(e, '/')}>
       {t('relier.bibliotheque')}
@@ -115,6 +130,29 @@ export function PageRelier({ recherche = location.search }: { recherche?: string
           <div className="relier-actions">
             <button type="button" className="bouton bouton-plein" disabled={etat.creation} onClick={() => void creer()}>
               {etat.creation ? t('relier.creation') : t('relier.creer')}
+            </button>
+            <a className="bouton" href="/" onClick={(e) => surLien(e, '/')}>
+              {t('relier.annuler')}
+            </a>
+          </div>
+        </section>
+      )}
+
+      {etat.type === 'corbeille' && (
+        <section className="app-carte relier-carte" ref={carte} tabIndex={-1} aria-labelledby="relier-corbeille" aria-busy={etat.remise}>
+          <h2 id="relier-corbeille">
+            <Icone nom="corbeille" taille={18} />
+            {t('relier.corbeille.titre')}
+          </h2>
+          <p>{t('relier.corbeille.texte', { titre: etat.titre, dossier: etat.dossier })}</p>
+          {etat.erreur && (
+            <p className="connexion-erreur" role="alert">
+              {etat.erreur}
+            </p>
+          )}
+          <div className="relier-actions">
+            <button type="button" className="bouton bouton-plein" disabled={etat.remise} onClick={() => void remettre()}>
+              {etat.remise ? t('relier.remise') : t('relier.remettre')}
             </button>
             <a className="bouton" href="/" onClick={(e) => surLien(e, '/')}>
               {t('relier.annuler')}

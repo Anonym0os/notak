@@ -479,6 +479,40 @@ CREATE INDEX rattachements_tableau ON rattachements(tableau);
 `)
     },
   },
+  {
+    version: 12,
+    nom: 'la corbeille des dossiers rattachés, les demandes des outils et la file d’envoi',
+    appliquer(db) {
+      db.exec(`
+-- Un dossier rattaché à la corbeille, et qui l'y a mis ('outil' ou 'personne') : la table fait foi, même la corbeille
+-- de la toile vidée. L'outil ne remet que ce qu'il a jeté.
+ALTER TABLE rattachements ADD COLUMN corbeille INTEGER;
+ALTER TABLE rattachements ADD COLUMN jete_par TEXT;
+-- Ce qu'un outil a demandé (POST /api/outils/…), et ce qu'il lui a été répondu : la même demande renvoyée n'a pas
+-- d'autre effet. Gardé sept jours.
+CREATE TABLE demandes_outils (
+  source TEXT NOT NULL,
+  id TEXT NOT NULL,
+  reponse TEXT NOT NULL,
+  cree INTEGER NOT NULL,
+  PRIMARY KEY (source, id)
+);
+-- Ce que Notak doit dire aux outils, signé, jusqu'à ce qu'ils l'aient reçu : relancé, puis abandonné (prochain nul).
+CREATE TABLE envois (
+  id TEXT PRIMARY KEY,
+  source TEXT NOT NULL,
+  type TEXT NOT NULL,
+  charge TEXT NOT NULL,
+  cree INTEGER NOT NULL,
+  essais INTEGER NOT NULL DEFAULT 0,
+  prochain INTEGER,
+  livre INTEGER,
+  erreur TEXT
+);
+CREATE INDEX envois_a_faire ON envois(prochain) WHERE livre IS NULL AND prochain IS NOT NULL;
+`)
+    },
+  },
 ]
 
 /**

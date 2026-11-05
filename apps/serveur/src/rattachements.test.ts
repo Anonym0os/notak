@@ -200,7 +200,7 @@ describe('les dossiers des fiches d’un autre outil', () => {
     expect(m.base.tableau(m.base.tableau(deBob)!.parent!)!.parent).toBe(bob.utilisateur.racine)
   })
 
-  it('un dossier jeté à la corbeille compte comme absent : on en refait un neuf', async () => {
+  it('un dossier jeté à la corbeille y reste : on ne le refait pas, on le remet', async () => {
     const premier = ((await lire(ana, 'societe:3')).corps as { tableau: string }).tableau
     const clients = m.base.tableau(premier)!.parent!
     // La carte du dossier, jetée dans le dossier de l'outil, comme le fait la bibliothèque.
@@ -211,11 +211,17 @@ describe('les dossiers des fiches d’un autre outil', () => {
     m.base.enregistrerDocument(nomDuDocument(clients), Y.encodeStateAsUpdate(doc))
     indexerDocument(m.base, clients, doc)
 
-    expect((await lire(ana, 'societe:3')).corps).toMatchObject({ etat: 'absent' })
-    const neuf = await relier(ana, 'societe:3', { titre: 'Nouveau' })
-    expect(neuf).toMatchObject({ statut: 201, corps: { etat: 'present', titre: 'Nouveau' } })
-    expect((neuf.corps as { tableau: string }).tableau).not.toBe(premier)
-    expect(((await lire(ana, 'societe:3')).corps as { tableau: string }).tableau).toBe((neuf.corps as { tableau: string }).tableau)
+    expect((await lire(ana, 'societe:3')).corps).toMatchObject({ etat: 'corbeille', tableau: premier })
+    // Ni la page, ni un second clic n'en font un autre.
+    expect(await relier(ana, 'societe:3', { titre: 'Nouveau' })).toMatchObject({ statut: 200, corps: { etat: 'corbeille', tableau: premier } })
+    const bibliotheque = (await (await m.appeler('/api/bibliotheque', { compte: ana })).json()) as Entree[]
+    expect(bibliotheque.some((e) => e.tableau === premier)).toBe(false)
+    // « Le remettre » : la carte sort de la corbeille, le dossier revient.
+    const r = await m.appeler(`/api/rattachements/crm/societe:3/remettre`, { compte: ana, json: {} })
+    expect(r.status).toBe(200)
+    expect(await r.json()).toMatchObject({ etat: 'present', tableau: premier })
+    expect(cartesVers(clients, premier)).toHaveLength(1)
+    expect(meta(clients).elements.find((e) => e.contenu.cible === premier)).not.toHaveProperty('corbeille')
   })
 })
 

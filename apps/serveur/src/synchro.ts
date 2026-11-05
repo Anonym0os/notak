@@ -11,6 +11,7 @@ import type { Autorisation } from './autorisation.ts'
 import { controler, miseAJourDuMessage } from './controle.ts'
 import type { Role } from './droits.ts'
 import { indexerDocument } from './indexation.ts'
+import type { ChangementDeCartes } from './rattachements.ts'
 import { verrouPar } from './verrou.ts'
 
 const PREFIXE = 'tableau:'
@@ -49,19 +50,24 @@ export function creerHocuspocus(
   autorisation: Autorisation,
   maintenant: () => number = Date.now,
   expirer?: () => Promise<unknown>,
+  /** Prévenu des cartes de toiles jetées ou remises à chaque enregistrement, avec qui l'a fait (`suivreLesDossiers`). */
+  surCartes?: (changement: ChangementDeCartes, par: Acteur | undefined) => void,
 ): Hocuspocus {
   const activite = suivreActivite(base, maintenant)
   return new Hocuspocus({
     extensions: [
       new Database({
         fetch: async ({ documentName }) => base.document(documentName),
-        store: async ({ documentName, state, document }) => {
+        store: async ({ documentName, state, document, lastContext }) => {
           base.enregistrerDocument(documentName, state)
           const id = idDuDocument(documentName)
           const titre = document.getMap('meta').get('titre')
           if (id && typeof titre === 'string') base.changerTitre(id, titre.slice(0, 200))
           // La recherche dans tous les tableaux suit ce qui vient d'être enregistré.
-          if (id && base.tableau(id)) indexerDocument(base, id, document)
+          if (id && base.tableau(id)) {
+            const changement = indexerDocument(base, id, document)
+            surCartes?.(changement, (lastContext as { utilisateur?: Acteur } | undefined)?.utilisateur)
+          }
         },
       }),
     ],

@@ -26,6 +26,20 @@ export interface Rattachement {
   /** Où la fiche s'ouvre, dans l'outil. */
   adresse: string | null
   cree: number
+  /** À la corbeille depuis (ms), ou `null`. */
+  corbeille: number | null
+  /** Qui l'y a mis : l'outil (il peut le remettre), ou une personne (il y reste). */
+  jete_par: 'outil' | 'personne' | null
+}
+
+/** Ce que Notak doit envoyer à un outil (table `envois`). */
+export interface Envoi {
+  id: string
+  source: string
+  type: string
+  charge: string
+  cree: number
+  essais: number
 }
 
 export interface LigneTableau {
@@ -296,10 +310,24 @@ export interface Base {
   retirerFavori(utilisateur: string, tableau: string): boolean
   /** Le dossier d'une fiche d'un autre outil dans un espace (`rattachements.ts`) ; la clé vide : celui de la source. */
   rattachement(espace: string, source: string, cle: string): Rattachement | null
-  /** Pose (ou remplace) le dossier d'une fiche. */
-  poserRattachement(r: Rattachement): void
+  /** Pose (ou remplace) le dossier d'une fiche : un dossier neuf n'est pas à la corbeille. */
+  poserRattachement(r: Omit<Rattachement, 'corbeille' | 'jete_par'>): void
   /** Les fiches dont ces toiles sont le dossier, la clé vide comprise. */
   rattachementsDe(tableaux: readonly string[]): Rattachement[]
+  /** Les dossiers d'une fiche, dans chaque espace. */
+  rattachementsDeLaFiche(source: string, cle: string): Rattachement[]
+  /** Met le dossier d'une fiche à la corbeille (`corbeille` : depuis quand), ou l'en sort (`null`). */
+  marquerCorbeille(r: Pick<Rattachement, 'espace' | 'source' | 'cle'>, corbeille: number | null, jetePar: 'outil' | 'personne' | null): void
+  /** La réponse déjà faite à cette demande d'un outil, ou `null`. */
+  demandeOutil(source: string, id: string): string | null
+  /** Retient la réponse à une demande ; oublie celles d'avant `oubli` (ms). */
+  noterDemandeOutil(source: string, id: string, reponse: string, cree: number, oubli: number): void
+  mettreEnvoiEnFile(e: Omit<Envoi, 'essais'> & { prochain: number }): void
+  /** Ce qui est à envoyer maintenant, le plus ancien d'abord. */
+  envoisAFaire(maintenant: number, limite: number): Envoi[]
+  envoiLivre(id: string, quand: number): void
+  /** Un essai manqué : `prochain` nul, l'envoi est abandonné. */
+  envoiManque(id: string, essais: number, prochain: number | null, erreur: string): void
   /** Les favoris d'un compte parmi les éléments des toiles (carte mentale, page, photo, lien, fichier), en `tableau/element`. */
   favorisElements(utilisateur: string): string[]
   definirFavoriElement(utilisateur: string, tableau: string, element: string, maintenant: number): void
@@ -783,7 +811,7 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
       (un('SELECT * FROM rattachements WHERE espace = ? AND source = ? AND cle = ?', espace, source, cle) as Rattachement | null),
     poserRattachement: (r) =>
       void executer(
-        'INSERT INTO rattachements (espace,source,cle,tableau,adresse,cree) VALUES (?,?,?,?,?,?) ON CONFLICT(espace,source,cle) DO UPDATE SET tableau = excluded.tableau, adresse = excluded.adresse, cree = excluded.cree',
+        'INSERT INTO rattachements (espace,source,cle,tableau,adresse,cree) VALUES (?,?,?,?,?,?) ON CONFLICT(espace,source,cle) DO UPDATE SET tableau = excluded.tableau, adresse = excluded.adresse, cree = excluded.cree, corbeille = NULL, jete_par = NULL',
         r.espace,
         r.source,
         r.cle,
@@ -791,6 +819,26 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
         r.adresse,
         r.cree,
       ),
+    rattachementsDeLaFiche: (source, cle) =>
+      tous('SELECT * FROM rattachements WHERE source = ? AND cle = ? ORDER BY cree', source, cle) as unknown as Rattachement[],
+    marquerCorbeille: (r, corbeille, jetePar) =>
+      void executer('UPDATE rattachements SET corbeille = ?, jete_par = ? WHERE espace = ? AND source = ? AND cle = ?', corbeille, jetePar, r.espace, r.source, r.cle),
+    demandeOutil: (source, id) => (un('SELECT reponse FROM demandes_outils WHERE source = ? AND id = ?', source, id)?.reponse as string | undefined) ?? null,
+    noterDemandeOutil(source, id, reponse, cree, oubli) {
+      executer('DELETE FROM demandes_outils WHERE cree < ?', oubli)
+      executer('INSERT OR IGNORE INTO demandes_outils (source,id,reponse,cree) VALUES (?,?,?,?)', source, id, reponse, cree)
+    },
+    mettreEnvoiEnFile: (e) =>
+      void executer('INSERT OR IGNORE INTO envois (id,source,type,charge,cree,prochain) VALUES (?,?,?,?,?,?)', e.id, e.source, e.type, e.charge, e.cree, e.prochain),
+    envoisAFaire: (maintenant, limite) =>
+      tous(
+        'SELECT id, source, type, charge, cree, essais FROM envois WHERE livre IS NULL AND prochain IS NOT NULL AND prochain <= ? ORDER BY cree, id LIMIT ?',
+        maintenant,
+        limite,
+      ) as unknown as Envoi[],
+    envoiLivre: (id, quand) => void executer('UPDATE envois SET livre = ?, erreur = NULL WHERE id = ?', quand, id),
+    envoiManque: (id, essais, prochain, erreur) =>
+      void executer('UPDATE envois SET essais = ?, prochain = ?, erreur = ? WHERE id = ?', essais, prochain, erreur.slice(0, 500), id),
     rattachementsDe(tableaux) {
       if (tableaux.length === 0) return []
       const voulus = new Set(tableaux)
