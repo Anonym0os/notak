@@ -312,6 +312,22 @@ describe("l'application web servie par le serveur", () => {
     expect((await fetch(`${adresse}/api/inexistant`)).headers.get('content-security-policy')).toBeNull()
   })
 
+  it('la page se revérifie à chaque fois, les fichiers à empreinte se gardent un an', async () => {
+    for (const chemin of ['/', '/t/abcdefgh', '/index.html']) {
+      expect((await fetch(adresse + chemin)).headers.get('cache-control')).toBe('no-cache')
+    }
+    expect((await fetch(`${adresse}/assets/app.js`)).headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
+    expect((await fetch(`${adresse}/api/inexistant`)).headers.get('cache-control')).toBeNull()
+  })
+
+  it('un fichier de assets/ disparu au déploiement répond 404, pas la page qu’on prendrait pour un script', async () => {
+    const r = await fetch(`${adresse}/assets/index-ancien.js`)
+    expect(r.status).toBe(404)
+    expect(r.headers.get('content-type')).not.toContain('text/html')
+    expect(r.headers.get('cache-control')).toBe('no-store')
+    expect(await r.text()).not.toContain('<title>Notak</title>')
+  })
+
   it('un partage reçu sans service worker revient à l’accueil au lieu d’une erreur', async () => {
     const r = await fetch(`${adresse}/partage`, { method: 'POST', body: new FormData(), redirect: 'manual' })
     expect(r.status).toBe(303)
