@@ -360,6 +360,19 @@ export const RUBRIQUES: Rubrique[] = [
     ],
   },
   {
+    id: 'document',
+    teinte: '#5856d6',
+    groupe: 'notak',
+    titre: 'reglages.rubrique.document',
+    icone: icone(
+      <>
+        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+        <path d="M14 3v5h5M9 13h6M9 17h4" />
+      </>,
+    ),
+    sections: [],
+  },
+  {
     id: 'carte',
     teinte: '#34c759',
     groupe: 'notak',
@@ -370,19 +383,6 @@ export const RUBRIQUES: Rubrique[] = [
         <circle cx="18" cy="6" r="2.5" />
         <circle cx="18" cy="18" r="2.5" />
         <path d="M8.5 11l7-4M8.5 13l7 4" />
-      </>,
-    ),
-    sections: [],
-  },
-  {
-    id: 'document',
-    teinte: '#5856d6',
-    groupe: 'notak',
-    titre: 'reglages.rubrique.document',
-    icone: icone(
-      <>
-        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-        <path d="M14 3v5h5M9 13h6M9 17h4" />
       </>,
     ),
     sections: [],

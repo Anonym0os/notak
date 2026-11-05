@@ -22,11 +22,11 @@ export const AU_DOIGT: Record<'fr' | 'en', Reecritures> = {
   ],
   en: [
     [/^# A note\n.*/s, '# A note\nTap twice on empty space, then write.'],
-    [/^# A tool\n.*/s, '# A tool\nTap the + at the bottom (the left bar on a tablet), then a tool: column, tasks, link, image, board. Dragged, it lands where you let go.'],
+    [/^# A tool\n.*/s, '# A tool\nTap the + at the bottom (the left bar on a tablet), then a tool: column, tasks, link, image, canvas. Dragged, it lands where you let go.'],
     [/^# A drop\n.*/s, '# An image\nThe Add image tool takes a photo, or picks one from the device.'],
     [/^# Unsorted\n.*/s, '# Unsorted\nThe Unsorted button, at the top right, opens the tray of items waiting for a place.'],
     [/^# Zoom and view\n.*/s, '# Zoom and view\nPinch to zoom; drag one finger on empty space to move the canvas.'],
-    [/^# Boards within boards\n.*/s, '# Boards within boards\nThe Board tool places a card: tap it twice to go in, the name at the top left to go back up.'],
+    [/^# Canvases within canvases\n.*/s, '# Canvases within canvases\nThe Canvas tool places a card: tap it twice to go in, the name at the top left to go back up.'],
     [/^# Search\n.*/s, '# Undo\nThe arrows at the top undo and redo.'],
     [/^# Shortcuts\n.*/s, '# The menu\nA long press on the canvas or on a card opens its menu.'],
     [/^# Settings\nCmd\+, sets (.*)/s, '# Settings\nThe gear, at the top right, sets $1'],

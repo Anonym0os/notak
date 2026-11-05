@@ -3178,6 +3178,50 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   font-size: 12.5px;
 }
 
+/* Une photo, l'aperçu d'un lien : l'image remplit la vignette, recadrée. */
+.biblio-vignette > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.biblio-vignette[data-genre='image'],
+.biblio-vignette[data-genre='lien'],
+.biblio-vignette[data-genre='fichier'] {
+  color: var(--biblio-pale);
+  background: color-mix(in srgb, var(--notak-fond, #ebedee) 70%, var(--notak-carte, #fff));
+}
+
+.biblio-vignette-lien,
+.biblio-vignette-fichier {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  max-width: 88%;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.biblio-vignette-lien > span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--notak-texte, #323b4a);
+}
+
+.biblio-vignette-favicon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+.biblio-vignette[data-fichier='pdf'] {
+  color: #d64545;
+}
+
 .biblio-tuile-neuve .biblio-vignette {
   background: color-mix(in srgb, var(--notak-carte, #fff) 50%, transparent);
   box-shadow: inset 0 0 0 1.5px rgb(50 59 74 / 0.14);

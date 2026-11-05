@@ -22,8 +22,8 @@ const RECENTS = 8
 const PAR_RUBRIQUE = 4
 const GENRES = [
   { rubrique: 'toiles', genre: 'toile' },
-  { rubrique: 'cartes', genre: 'arbre' },
   { rubrique: 'documents', genre: 'document' },
+  { rubrique: 'cartes', genre: 'arbre' },
 ] as const
 
 const titreDe = (e: EntreeBibliotheque) => e.titre || t('commun.sansTitre')

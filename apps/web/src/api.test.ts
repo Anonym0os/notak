@@ -60,7 +60,7 @@ describe('les refus du serveur, dits dans la langue de l’interface', () => {
   it('ce que l’appel dit pour son contexte passe avant la traduction du code', async () => {
     repond(404, { erreur: 'introuvable', code: 'introuvable' })
     definirLangue('en')
-    expect((await echec(listerAcces('t'))).message).toBe('Board not found')
+    expect((await echec(listerAcces('t'))).message).toBe('Canvas not found')
     repond(401, { erreur: 'mot de passe incorrect', code: 'mot_de_passe_incorrect' })
     expect((await echec(deverrouiller('t', 'x'))).message).toBe('Wrong password')
     repond(401, { erreur: 'identifiants incorrects', code: 'identifiants_incorrects' })

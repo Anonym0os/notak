@@ -62,7 +62,8 @@ export function entreesDeLAppareil(
       })
     }
     for (const r of fiches.get(e.id)?.resumes ?? []) {
-      if (r.genre === 'toile') continue
+      // Les photos, liens et fichiers attendent que la page sache les montrer (comme `/api/bibliotheque` sans `?genres=`).
+      if (r.genre !== 'arbre' && r.genre !== 'document') continue
       entrees.push({
         tableau: e.id,
         element: r.element,

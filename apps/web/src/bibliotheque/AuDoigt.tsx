@@ -208,7 +208,7 @@ export function LigneDoigt({ genre, titre, detail, requete, onClick }: { genre: 
 export function ChoixCreation({ creer, occupe = false }: { creer(genre: GenreNeuf): void; occupe?: boolean }) {
   return (
     <div className="biblio-locale-neuf" role="group" aria-label={t('biblio.nouveau')}>
-      {(['toile', 'arbre', 'document'] as const).map((g) => (
+      {(['toile', 'document', 'arbre'] as const).map((g) => (
         <button key={g} type="button" data-genre={g} disabled={occupe} onClick={() => creer(g)}>
           <span className="biblio-locale-pastille" data-genre={g}>
             <Icone nom={ICONE_GENRE[g]} taille={20} />

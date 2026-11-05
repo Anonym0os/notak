@@ -26,7 +26,7 @@ export interface TextesToile {
 }
 
 /** Le format des fiches : à changer quand `resumesDuTableau` rend autre chose, pour que tout se relise. */
-export const VERSION_FICHE = 1
+export const VERSION_FICHE = 2
 const BASE = 'notak:local:catalogue'
 /** Les toiles changées et pas encore relues : retenues tout de suite, pour qu'un arrêt brutal ne les perde pas. */
 const CLE_A_RELIRE = 'notak:local:catalogue:a-relire'

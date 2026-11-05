@@ -185,7 +185,10 @@ export function idsDeFichiers(elements: readonly ElementLu[]): Set<string> {
   return ids
 }
 
-/** Ce que la bibliothèque sait d'une toile, d'une carte mentale ou d'un document, de quoi dessiner sa vignette. */
+/**
+ * Ce que la bibliothèque sait d'une toile, et de chaque carte mentale, page, photo, lien et fichier qu'elle porte : de
+ * quoi dessiner sa vignette. `cree` : l'instant où l'élément est né, quand son identifiant le dit (`dateDeLId`).
+ */
 export type ResumeContenu =
   | {
       genre: 'toile'
@@ -204,8 +207,50 @@ export type ResumeContenu =
       cartes?: string[]
       jetees?: string[]
     }
-  | { genre: 'arbre'; element: string; titre: string; branches: string[] }
-  | { genre: 'document'; element: string; titre: string; lignes: string[] }
+  | { genre: 'arbre'; element: string; titre: string; branches: string[]; cree?: number }
+  | { genre: 'document'; element: string; titre: string; lignes: string[]; cree?: number }
+  | {
+      genre: 'image'
+      element: string
+      /** Sa légende : vide, la bibliothèque dit « Photo ». */
+      titre: string
+      fichier: string
+      /** Sa plus petite copie (environ 400 px de large) : la vignette ne charge pas l'image entière. */
+      petite?: string
+      /** En pixels, l'image d'origine. */
+      largeur: number
+      hauteur: number
+      cree?: number
+    }
+  | {
+      genre: 'lien'
+      element: string
+      /** Le titre qu'on lui a donné, sinon celui de la page. */
+      titre: string
+      url: string
+      site?: string
+      description?: string
+      /** L'image d'aperçu choisie à la main (un fichier du tableau), sinon celle de la page (une adresse). */
+      fichierImage?: string
+      image?: string
+      favicon?: string
+      cree?: number
+    }
+  | { genre: 'fichier'; element: string; titre: string; fichier: string; nom: string; typeMime: string; taille: number; cree?: number }
+
+/** L'alphabet de `nouvelId` (coeur/tableau.ts), que le serveur ne charge pas. */
+const BASE32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
+
+/**
+ * L'instant de création qu'un identifiant de `nouvelId` porte dans ses dix premiers signes, en ms. Rien pour un
+ * autre identifiant (celui d'un modèle, `crypto.randomUUID`), ni pour une date improbable.
+ */
+export function dateDeLId(id: string): number | undefined {
+  if (!/^[0-9A-HJKMNP-TV-Z]{26}$/.test(id)) return undefined
+  let t = 0
+  for (const c of id.slice(0, 10)) t = t * 32 + BASE32.indexOf(c)
+  return t > Date.UTC(2020, 0, 1) && t < Date.UTC(2100, 0, 1) ? t : undefined
+}
 
 /** Une boîte du plan d'une toile (voir `ResumeContenu`). */
 export type BoitePlan = [x: number, y: number, largeur: number, hauteur: number, couleur: string, type: string, lignes: number]
@@ -214,6 +259,8 @@ export type BoitePlan = [x: number, y: number, largeur: number, hauteur: number,
 const BOITES_MAX = 120
 const BRANCHES_MAX = 8
 const LIGNES_MAX = 5
+/** Au plus tant de photos, de liens et de fichiers par toile, chaque genre à part. */
+const PIECES_MAX = 400
 
 /** La hauteur par défaut de chaque type, en UG (celle de sa définition, que le serveur ne charge pas). */
 const HAUTEURS: Record<string, number> = {
@@ -257,9 +304,55 @@ function lignesDeTexte(e: ElementLu): number {
 
 const court = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s)
 
+/** Ce que la bibliothèque montre d'une photo, d'un lien ou d'un fichier ; rien pour un autre élément. */
+function resumePiece(e: ElementLu, cree: { cree?: number }): ResumeContenu | null {
+  const c = e.contenu
+  if (c.type === 'image' && chaine(c.fichier)) {
+    const tailles = (Array.isArray(c.tailles) ? (c.tailles as { largeur?: unknown; fichier?: unknown }[]) : []).filter(
+      (x) => typeof x?.largeur === 'number' && chaine(x.fichier),
+    ) as { largeur: number; fichier: string }[]
+    const petite = tailles.sort((a, b) => a.largeur - b.largeur)[0]?.fichier
+    const [largeur, hauteur] = [c.largeurOrigine, c.hauteurOrigine].map((v) => (typeof v === 'number' && v > 0 ? v : 1)) as [number, number]
+    return { genre: 'image', element: e.id, titre: court(chaine(c.legende).trim(), 200), fichier: chaine(c.fichier), ...(petite ? { petite } : {}), largeur, hauteur, ...cree }
+  }
+  if (c.type === 'lien' && chaine(c.url)) {
+    const apercu = (c.apercu ?? {}) as Record<string, unknown>
+    const choisie = chaine((c.image as { fichier?: unknown } | undefined)?.fichier)
+    // Une adresse qui mène à une image est son propre aperçu.
+    const image = apercu.estImage === true ? chaine(c.url) : chaine(apercu.image)
+    const description = court((chaine(c.legende) || chaine(apercu.description)).trim(), 200)
+    return {
+      genre: 'lien',
+      element: e.id,
+      titre: court((chaine(c.titre) || chaine(apercu.titre)).trim(), 200),
+      url: chaine(c.url),
+      ...(chaine(apercu.site) ? { site: chaine(apercu.site) } : {}),
+      ...(description ? { description } : {}),
+      ...(choisie ? { fichierImage: choisie } : image ? { image } : {}),
+      ...(chaine(apercu.favicon) ? { favicon: chaine(apercu.favicon) } : {}),
+      ...cree,
+    }
+  }
+  if (c.type === 'fichier' && chaine(c.fichier)) {
+    const nom = chaine(c.nom)
+    return {
+      genre: 'fichier',
+      element: e.id,
+      titre: court((chaine(c.titre) || nom).trim(), 200),
+      fichier: chaine(c.fichier),
+      nom,
+      typeMime: chaine(c.typeMime),
+      taille: typeof c.taille === 'number' ? c.taille : 0,
+      ...cree,
+    }
+  }
+  return null
+}
+
 /**
- * La toile elle-même, puis chaque carte mentale et chaque document qu'elle porte, hors corbeille : ce que la
- * bibliothèque montre d'elle. Les lignes, et ce qui est rangé dans une colonne, n'entrent pas dans le plan.
+ * La toile elle-même, puis chaque carte mentale, page, photo, lien et fichier qu'elle porte, hors corbeille (rangés
+ * dans une colonne ou dans les non triés compris) : ce que la bibliothèque montre d'elle. Les lignes, et ce qui est
+ * rangé dans une colonne, n'entrent pas dans le plan.
  */
 export function resumesDuTableau(t: TableauLu): ResumeContenu[] {
   const vivants = t.elements.filter((e) => e.corbeille === undefined)
@@ -292,9 +385,19 @@ export function resumesDuTableau(t: TableauLu): ResumeContenu[] {
       ...(jetees.length ? { jetees } : {}),
     },
   ]
+  const pieces = new Map<string, number>()
   for (const e of vivants) {
     const c = e.contenu
-    if (c.type === 'arbre') {
+    const ne = dateDeLId(e.id)
+    const cree = ne === undefined ? {} : { cree: ne }
+    if (c.type === 'image' || c.type === 'lien' || c.type === 'fichier') {
+      const n = pieces.get(c.type) ?? 0
+      const r = n < PIECES_MAX ? resumePiece(e, cree) : null
+      if (r) {
+        pieces.set(c.type, n + 1)
+        resumes.push(r)
+      }
+    } else if (c.type === 'arbre') {
       const sujets = Object.entries((c.sujets ?? {}) as Record<string, { parent?: unknown; ordre?: unknown; titre?: unknown; genre?: unknown }>)
       const parOrdre = (a: [string, { ordre?: unknown }], b: [string, { ordre?: unknown }]) => {
         const [x, y] = [chaine(a[1].ordre), chaine(b[1].ordre)]
@@ -308,7 +411,7 @@ export function resumesDuTableau(t: TableauLu): ResumeContenu[] {
             .slice(0, BRANCHES_MAX)
             .map(([, s]) => court(chaine(s.titre).trim(), 40))
         : []
-      resumes.push({ genre: 'arbre', element: e.id, titre: central ? chaine(central[1].titre).trim() : '', branches })
+      resumes.push({ genre: 'arbre', element: e.id, titre: central ? chaine(central[1].titre).trim() : '', branches, ...cree })
     } else if (c.type === 'document') {
       const d = imbrique(c.texte)
       const lignes = (d ? texteBrut(d) : '')
@@ -317,7 +420,7 @@ export function resumesDuTableau(t: TableauLu): ResumeContenu[] {
         .filter(Boolean)
         .slice(0, LIGNES_MAX)
         .map((l) => court(l, 120))
-      resumes.push({ genre: 'document', element: e.id, titre: chaine(c.titre).trim(), lignes })
+      resumes.push({ genre: 'document', element: e.id, titre: chaine(c.titre).trim(), lignes, ...cree })
     }
   }
   return resumes

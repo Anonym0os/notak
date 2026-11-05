@@ -16,7 +16,7 @@ const REMPLACEMENTS: Record<'fr' | 'en', Reecritures> = {
   ],
   en: [
     [/^# Shortcuts\n.*/s, '# Shortcuts\nType / to see them all.'],
-    [/^# Share\n.*/s, '# Keep a copy\nCmd+S saves a .notak copy, to keep wherever you like. The pill at the top right tells where your boards are.'],
+    [/^# Share\n.*/s, '# Keep a copy\nCmd+S saves a .notak copy, to keep wherever you like. The pill at the top right tells where your canvases are.'],
     [/^# Settings\n.*/s, '# Settings\nCmd+, sets the theme and the size.'],
   ],
 }
@@ -27,7 +27,7 @@ const REMPLACEMENTS: Record<'fr' | 'en', Reecritures> = {
  */
 const COPIE_AU_DOIGT: Record<'fr' | 'en', Reecritures> = {
   fr: [[/^# Garder une copie\n.*/s, '# Garder une copie\nLe dossier, en haut à droite, enregistre une copie .notak à ranger où vous voulez, et dit où sont vos toiles.']],
-  en: [[/^# Keep a copy\n.*/s, '# Keep a copy\nThe folder, at the top right, saves a .notak copy to keep wherever you like, and tells where your boards are.']],
+  en: [[/^# Keep a copy\n.*/s, '# Keep a copy\nThe folder, at the top right, saves a .notak copy to keep wherever you like, and tells where your canvases are.']],
 }
 
 const adapter = (m: ModeleTableau, langue: 'fr' | 'en', doigt: boolean): ModeleTableau =>

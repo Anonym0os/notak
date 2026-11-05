@@ -112,7 +112,7 @@ export function entreesLocales(
       ...(e.parent && e.parent !== racine && titres.has(e.parent) ? { dans: titres.get(e.parent) } : {}),
     })
     for (const r of resumes[e.id] ?? []) {
-      if (r.genre === 'toile') continue
+      if (r.genre !== 'arbre' && r.genre !== 'document') continue
       const cle = cleDe(e.id, r.element)
       liste.push({
         cle,
@@ -141,8 +141,8 @@ const ATTENTE_CONTENU = 200
 
 const RUBRIQUES = [
   { genre: 'toile', titre: 'biblio.rubrique.toiles' },
-  { genre: 'arbre', titre: 'biblio.rubrique.cartes' },
   { genre: 'document', titre: 'biblio.rubrique.documents' },
+  { genre: 'arbre', titre: 'biblio.rubrique.cartes' },
 ] as const
 
 const detailDe = (e: EntreeLocale) => (e.dans ? t('biblio.dans', { toile: e.dans }) : quand(e.vu))
@@ -326,8 +326,8 @@ export function BibliothequeLocale({
                   {titreDe(accueil)}
                 </span>
                 <span className="biblio-locale-detail">
-                  {[tn('biblio.compte.toiles', nombres.toiles), tn('biblio.compte.cartes', nombres.cartes), tn('biblio.compte.documents', nombres.documents)]
-                    .filter((_, i) => [nombres.toiles, nombres.cartes, nombres.documents][i]! > 0)
+                  {[tn('biblio.compte.toiles', nombres.toiles), tn('biblio.compte.documents', nombres.documents), tn('biblio.compte.cartes', nombres.cartes)]
+                    .filter((_, i) => [nombres.toiles, nombres.documents, nombres.cartes][i]! > 0)
                     .join(' · ') || quand(accueil.vu)}
                 </span>
               </span>

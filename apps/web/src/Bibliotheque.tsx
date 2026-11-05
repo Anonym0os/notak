@@ -86,7 +86,7 @@ import { t, tn } from './langue'
  * téléphone, la même page prend la forme de la bibliothèque de l'appareil (`bibliotheque/Telephone.tsx`).
  */
 
-export const RUBRIQUES = ['recents', 'favoris', 'partages', 'toiles', 'cartes', 'documents'] as const
+export const RUBRIQUES = ['recents', 'favoris', 'partages', 'toiles', 'documents', 'cartes'] as const
 export type Rubrique = (typeof RUBRIQUES)[number]
 export type Tri = 'date' | 'dossier'
 
@@ -582,7 +582,7 @@ function BibliothequeBureau({
     return l
   }
   const sousMenuCreer = (dans?: string): EntreeMenu[] =>
-    (['toile', 'arbre', 'document'] as const).map((g) => ({ libelle: t(`biblio.genre.${g}`), icone: ICONE_GENRE[g], faire: () => void creerPuisOuvrir(g, dans) }))
+    (['toile', 'document', 'arbre'] as const).map((g) => ({ libelle: t(`biblio.genre.${g}`), icone: ICONE_GENRE[g], faire: () => void creerPuisOuvrir(g, dans) }))
   const menuDuFond = (): EntreeMenu[] => [
     ...(espace
       ? [
@@ -1013,8 +1013,8 @@ function BibliothequeBureau({
         {partages && bouton('partages')}
         <p className="biblio-groupe">{t('biblio.mesContenus')}</p>
         {bouton('toiles')}
-        {bouton('cartes')}
         {bouton('documents')}
+        {bouton('cartes')}
         <p className="biblio-groupe">{t('biblio.maToile')}</p>
         <a
           className="biblio-rubrique"
@@ -1278,7 +1278,7 @@ function MenuNeuf({ creer, dossier, fermer }: { creer(genre: GenreNeuf): void; d
   }, [fermer])
   return (
     <div className="biblio-menu" role="menu" ref={menu}>
-      {(['toile', 'arbre', 'document'] as const).map((g) => (
+      {(['toile', 'document', 'arbre'] as const).map((g) => (
         <button key={g} type="button" role="menuitem" onClick={() => creer(g)}>
           <Icone nom={ICONE_GENRE[g]} taille={18} />
           <span>

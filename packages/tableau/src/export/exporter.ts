@@ -9,7 +9,7 @@ export const estFormatExport = (v: unknown): v is FormatExport => v === 'md' || 
 const chaine = (v: unknown): string => (typeof v === 'string' ? v : '')
 
 /**
- * La langue des quelques mots que l'export écrit lui-même (« Tableau : », « Non triés »). Ce n'est pas un
+ * La langue des quelques mots que l'export écrit lui-même (« Toile : », « Non triés »). Ce n'est pas un
  * dictionnaire d'interface : le reste de l'export est le texte de l'utilisateur, tel quel.
  */
 export type LangueExport = 'fr' | 'en'
@@ -17,8 +17,8 @@ export type LangueExport = 'fr' | 'en'
 export const langueExport = (v: unknown): LangueExport => (v === 'en' ? 'en' : 'fr')
 
 const MOTS: Record<LangueExport, { tableau: string; image: string; fichier: string; resolu: string; sansTitre: string; nonTries: string; deuxPoints: string }> = {
-  fr: { tableau: 'Tableau', image: 'Image', fichier: 'Fichier', resolu: 'résolu', sansTitre: 'Sans titre', nonTries: 'Non triés', deuxPoints: ' : ' },
-  en: { tableau: 'Board', image: 'Image', fichier: 'File', resolu: 'resolved', sansTitre: 'Untitled', nonTries: 'Unsorted', deuxPoints: ': ' },
+  fr: { tableau: 'Toile', image: 'Image', fichier: 'Fichier', resolu: 'résolu', sansTitre: 'Sans titre', nonTries: 'Non triés', deuxPoints: ' : ' },
+  en: { tableau: 'Canvas', image: 'Image', fichier: 'File', resolu: 'resolved', sansTitre: 'Untitled', nonTries: 'Unsorted', deuxPoints: ': ' },
 }
 
 interface Rendu {

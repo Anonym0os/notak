@@ -743,14 +743,17 @@ export async function noterElementVu(tableau: string, element: string): Promise<
   await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/elements/${encodeURIComponent(element)}/vu`, {}).catch(() => {})
 }
 
+/** Ce que la bibliothèque sait montrer ; les photos, liens et fichiers viendront avec leurs vignettes. */
+export type GenreMontre = 'toile' | 'arbre' | 'document'
+
 /** Une toile, une carte mentale ou un document de la bibliothèque. */
 export interface EntreeBibliotheque {
   tableau: string
   /** `null` : la toile elle-même. */
   element: string | null
-  genre: ResumeContenu['genre']
+  genre: GenreMontre
   titre: string
-  resume: ResumeContenu
+  resume: Extract<ResumeContenu, { genre: GenreMontre }>
   /** Le titre de la toile qui le porte, s'il la lit. */
   ou: string | null
   /** L'identifiant de cette toile, s'il la lit : le dossier du tri par dossier. */

@@ -282,6 +282,10 @@ export interface Base {
   favoris(utilisateur: string): string[]
   definirFavori(utilisateur: string, tableau: string, maintenant: number): void
   retirerFavori(utilisateur: string, tableau: string): boolean
+  /** Les favoris d'un compte parmi les éléments des toiles (carte mentale, page, photo, lien, fichier), en `tableau/element`. */
+  favorisElements(utilisateur: string): string[]
+  definirFavoriElement(utilisateur: string, tableau: string, element: string, maintenant: number): void
+  retirerFavoriElement(utilisateur: string, tableau: string, element: string): boolean
   /** Note l'ouverture d'un tableau ; seuls les plus récents sont gardés. */
   noterVu(utilisateur: string, tableau: string, maintenant: number): void
   /** Les tableaux ouverts en dernier par un compte, le plus récent d'abord. */
@@ -315,7 +319,7 @@ export interface Base {
    * fichiers qu'il montre.
    */
   indexer(tableau: string, entrees: readonly EntreeIndex[], fichiers?: readonly string[], contenus?: readonly ResumeContenu[]): void
-  /** Les toiles, cartes mentales et documents de ces tableaux, tels que l'index les a vus. */
+  /** Les toiles de ces tableaux, et les cartes mentales, pages, photos, liens et fichiers qu'elles portent, tels que l'index les a vus. */
   contenus(tableaux: readonly string[]): LigneContenu[]
   /** Les tableaux qui montrent ce fichier. */
   tableauxDuFichier(fichier: string): string[]
@@ -755,6 +759,21 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
     definirFavori: (u, t, maintenant) =>
       void executer('INSERT INTO favoris (utilisateur,tableau,cree) VALUES (?,?,?) ON CONFLICT(utilisateur,tableau) DO NOTHING', u, t, maintenant),
     retirerFavori: (u, t) => Number(executer('DELETE FROM favoris WHERE utilisateur = ? AND tableau = ?', u, t).changes) > 0,
+    favorisElements: (u) =>
+      (tous('SELECT tableau, element FROM favoris_elements WHERE utilisateur = ? ORDER BY cree DESC, tableau, element', u) as unknown as {
+        tableau: string
+        element: string
+      }[]).map((l) => `${l.tableau}/${l.element}`),
+    definirFavoriElement: (u, t, e, maintenant) =>
+      void executer(
+        'INSERT INTO favoris_elements (utilisateur,tableau,element,cree) VALUES (?,?,?,?) ON CONFLICT(utilisateur,tableau,element) DO NOTHING',
+        u,
+        t,
+        e,
+        maintenant,
+      ),
+    retirerFavoriElement: (u, t, e) =>
+      Number(executer('DELETE FROM favoris_elements WHERE utilisateur = ? AND tableau = ? AND element = ?', u, t, e).changes) > 0,
     noterVu(u, t, maintenant) {
       executer('INSERT INTO recents (utilisateur,tableau,vu) VALUES (?,?,?) ON CONFLICT(utilisateur,tableau) DO UPDATE SET vu = excluded.vu', u, t, maintenant)
       executer(

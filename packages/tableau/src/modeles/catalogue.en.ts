@@ -8,12 +8,12 @@ export const MODELES_EN: readonly ModeleTableau[] = [
   {
     id: 'humeur',
     titre: 'Mood board',
-    resume: 'Gather what sets the tone: colours, words, sounds, places.',
+    resume: 'Gather what sets the tone: colors, words, sounds, places.',
     couleur: 'rose',
     elements: [
       { genre: 'titre', texte: 'Mood: to fill in', x: 23, y: 0 },
       { genre: 'note', texte: '# The right word\nIn one word, the feeling I’m after.', couleur: 'rose', x: 0, y: 8 },
-      { genre: 'note', texte: '# Colours\nThree shades that make me think of it.', couleur: 'orange', x: 38, y: 8 },
+      { genre: 'note', texte: '# Colors\nThree shades that make me think of it.', couleur: 'orange', x: 38, y: 8 },
       { genre: 'note', texte: '# Materials\nRaw wood, linen, cold metal, paper…', couleur: 'brun', x: 76, y: 8 },
       { genre: 'note', texte: '# Sounds\nA song, background noise, a silence.', couleur: 'bleu', x: 0, y: 24 },
       { genre: 'note', texte: '# Places\nWhere I am when I think of it.', couleur: 'vert', x: 38, y: 24 },
@@ -41,7 +41,7 @@ export const MODELES_EN: readonly ModeleTableau[] = [
       },
       { genre: 'colonne', titre: 'In progress', couleur: 'bleu', x: 38, y: 24, contenu: [{ genre: 'taches', titre: 'This week', taches: ['First version', 'Progress check-in'] }] },
       { genre: 'colonne', titre: 'To review', couleur: 'orange', x: 76, y: 24, contenu: [{ genre: 'note', texte: 'What is waiting for a second pair of eyes.' }] },
-      { genre: 'colonne', titre: 'Done', couleur: 'vert', x: 114, y: 24, contenu: [{ genre: 'taches', taches: [{ texte: 'Start this board', faite: true }] }] },
+      { genre: 'colonne', titre: 'Done', couleur: 'vert', x: 114, y: 24, contenu: [{ genre: 'taches', taches: [{ texte: 'Start this canvas', faite: true }] }] },
     ],
   },
   {
@@ -104,7 +104,7 @@ export const MODELES_EN: readonly ModeleTableau[] = [
         couleur: 'vert',
         x: 76,
         y: 8,
-        contenu: [note('# Day 1\nArrival, getting to know the neighbourhood.'), note('# Don’t miss\nThe addresses noted while preparing.')],
+        contenu: [note('# Day 1\nArrival, getting to know the neighborhood.'), note('# Don’t miss\nThe addresses noted while preparing.')],
       },
       { genre: 'note', texte: '# Budget\nTransport · accommodation · meals · surprises', couleur: 'jaune', x: 0, y: 46 },
     ],
@@ -156,12 +156,12 @@ export const MODELES_EN: readonly ModeleTableau[] = [
   },
   {
     id: 'couleurs',
-    titre: 'Colour mood',
-    resume: 'A palette of coloured notes, each with its role in the project.',
+    titre: 'Color mood',
+    resume: 'A palette of colored notes, each with its role in the project.',
     couleur: 'orange',
     elements: [
       { genre: 'titre', texte: 'Project palette', x: 23, y: 0 },
-      { genre: 'note', texte: '# Dominant\nThe colour you see first.', couleur: 'bleu_nuit', x: 0, y: 8 },
+      { genre: 'note', texte: '# Dominant\nThe color you see first.', couleur: 'bleu_nuit', x: 0, y: 8 },
       { genre: 'note', texte: '# Support\nThe one that goes with it without stealing the show.', couleur: 'cyan', x: 38, y: 8 },
       { genre: 'note', texte: '# Accent\nA touch, no more.', couleur: 'orange', x: 76, y: 8 },
       { genre: 'note', texte: '# Background\nThe calm shade where everything rests.', couleur: 'gris', x: 0, y: 22 },

@@ -277,7 +277,7 @@ export async function importerEntrees(
   const commun = { ou: dans.titre, dans: dans.id, vu: maintenant, favori: false, partage: false }
   const entrees: EntreeBibliotheque[] = [
     ...resumesDuTableau({ titre: '', elements: poses as never }).flatMap((resume) =>
-      resume.genre === 'toile' ? [] : [{ tableau: dans.id, element: resume.element, genre: resume.genre, titre: resume.titre, resume, ...commun }],
+      resume.genre !== 'arbre' && resume.genre !== 'document' ? [] : [{ tableau: dans.id, element: resume.element, genre: resume.genre, titre: resume.titre, resume, ...commun }],
     ),
     ...b.toiles.map(({ id, titre }) => ({
       tableau: id,

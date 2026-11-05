@@ -427,6 +427,38 @@ CREATE UNIQUE INDEX deviceCode_userCode_uidx ON deviceCode(userCode);
 `)
     },
   },
+  {
+    version: 10,
+    nom: 'les photos, les liens et les fichiers dans la bibliothèque',
+    appliquer(db) {
+      db.exec(`
+-- La bibliothèque montre aussi chaque photo, lien et fichier des toiles (resumesDuTableau) : le genre s'élargit.
+-- SQLite ne change pas une contrainte en place : la table est refaite.
+CREATE TABLE contenus_neufs (
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  element TEXT NOT NULL,
+  genre TEXT NOT NULL CHECK (genre IN ('toile','arbre','document','image','lien','fichier')),
+  titre TEXT NOT NULL,
+  resume TEXT NOT NULL,
+  PRIMARY KEY (tableau, element)
+);
+INSERT INTO contenus_neufs SELECT tableau, element, genre, titre, resume FROM contenus;
+DROP TABLE contenus;
+ALTER TABLE contenus_neufs RENAME TO contenus;
+-- Les favoris d'un compte parmi ce que portent les toiles (carte mentale, page, photo, lien, fichier) ; ceux des
+-- toiles restent dans favoris.
+CREATE TABLE favoris_elements (
+  utilisateur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  element TEXT NOT NULL,
+  cree INTEGER NOT NULL,
+  PRIMARY KEY (utilisateur, tableau, element)
+);
+-- Tout se réindexe au prochain démarrage, ce qui remplit contenus des nouveaux genres.
+DELETE FROM recherche_etat;
+`)
+    },
+  },
 ]
 
 /**
