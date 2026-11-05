@@ -211,8 +211,11 @@ describe('l’édition locale : l’app s’ouvre sur la bibliothèque, partout'
     history.replaceState(null, '', '/')
     const { racine, el } = await demarrer({ toile: false })
     await vi.waitFor(() => expect(racine.querySelector('.biblio-hote .biblio')).not.toBeNull())
-    // Ses toiles, ses rubriques (pas de « Partagés avec moi » sans serveur), et la pastille du stockage en haut.
-    act(() => [...racine.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.dataset.rubrique === 'toiles')!.click())
+    // Ses toiles (la bibliothèque, puce « Toiles »), ses rubriques (pas de « Partagés avec moi » sans serveur), et la
+    // pastille du stockage en haut.
+    act(() => [...racine.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.dataset.rubrique === 'tout')!.click())
+    await vi.waitFor(() => expect(racine.querySelector('.biblio-puce[data-puce="toile"]')).not.toBeNull())
+    act(() => racine.querySelector<HTMLButtonElement>('.biblio-puce[data-puce="toile"]')!.click())
     await vi.waitFor(() => expect([...racine.querySelectorAll('.biblio-tuile-titre')].map((x) => x.textContent)).toContain('Voyage'))
     expect([...racine.querySelectorAll<HTMLElement>('[data-rubrique]')].map((b) => b.dataset.rubrique)).not.toContain('partages')
     expect(racine.querySelector('.biblio-tete .rangement-pastille')).not.toBeNull()

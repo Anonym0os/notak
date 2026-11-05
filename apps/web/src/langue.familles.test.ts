@@ -2,7 +2,8 @@
 import { type GenreNeuf, textesEn, textesFr } from '@notak/tableau'
 import { describe, expect, it } from 'vitest'
 import type { EntreeBibliotheque } from './api'
-import { RUBRIQUES, type Tri } from './Bibliotheque'
+import type { Tri } from './Bibliotheque'
+import { PLURIEL, PORTEES } from './bibliotheque/modele'
 import './langue'
 
 /**
@@ -25,7 +26,8 @@ describe('les clés bâties par modèle', () => {
   it('la bibliothèque a un texte pour chaque rubrique, chaque tri et chaque genre, dans les deux langues', () => {
     expect(couverts).toEqual([true, true, true])
     const cles = [
-      ...RUBRIQUES.flatMap((r) => [`biblio.rubrique.${r}`, `biblio.vide.${r}`, `biblio.vide.${r}.aide`]),
+      ...[...PORTEES, ...Object.values(PLURIEL)].flatMap((r) => [`biblio.rubrique.${r}`, `biblio.vide.${r}`, `biblio.vide.${r}.aide`]),
+      ...['tout', 'grille', 'liste'].map((x) => (x === 'tout' ? 'biblio.puce.tout' : `biblio.affichage.${x}`)),
       ...TRIS.map((x) => `biblio.tri.${x}`),
       ...GENRES_NEUFS.flatMap((g) => [`biblio.neuf.${g}`, `biblio.neuf.${g}.aide`, `biblio.neufAide.${g}`]),
       ...GENRES_ENTREES.map((g) => `biblio.genre.${g}`),

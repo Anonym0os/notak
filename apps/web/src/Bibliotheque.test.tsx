@@ -41,15 +41,15 @@ const TOUTES: EntreeBibliotheque[] = [
 
 describe('entreesDe', () => {
   it('trie par dernière ouverture, puis par titre, sans tenir à la casse', () => {
-    expect(entreesDe('toiles', TOUTES).map((e) => e.titre)).toEqual(['Budget', 'Voyage', 'atelier'])
-    expect(entreesDe('recents', TOUTES).map((e) => e.titre)).toEqual(['Budget', 'Plan', 'Voyage', ''])
+    expect(entreesDe({ portee: 'tout', filtre: 'toile' }, TOUTES).map((e) => e.titre)).toEqual(['Budget', 'Voyage', 'atelier'])
+    expect(entreesDe({ portee: 'recents', filtre: 'tout' }, TOUTES).map((e) => e.titre)).toEqual(['Budget', 'Plan', 'Voyage', ''])
   })
 
   it('range chaque genre dans sa rubrique, favoris et partages compris', () => {
-    expect(entreesDe('cartes', TOUTES).map((e) => e.titre)).toEqual(['Plan'])
-    expect(entreesDe('documents', TOUTES).map((e) => e.element)).toEqual(['notes'])
-    expect(entreesDe('favoris', TOUTES).map((e) => e.tableau)).toEqual(['voyage'])
-    expect(entreesDe('partages', TOUTES).map((e) => e.tableau)).toEqual(['budget'])
+    expect(entreesDe({ portee: 'tout', filtre: 'arbre' }, TOUTES).map((e) => e.titre)).toEqual(['Plan'])
+    expect(entreesDe({ portee: 'tout', filtre: 'document' }, TOUTES).map((e) => e.element)).toEqual(['notes'])
+    expect(entreesDe({ portee: 'favoris', filtre: 'tout' }, TOUTES).map((e) => e.tableau)).toEqual(['voyage'])
+    expect(entreesDe({ portee: 'partages', filtre: 'tout' }, TOUTES).map((e) => e.tableau)).toEqual(['budget'])
   })
 })
 
@@ -75,11 +75,11 @@ describe('les photos, les liens et les fichiers', () => {
 
   it('ont chacun leur rubrique, et les fichiers ouverts entrent dans les récents', () => {
     const toutes = [...TOUTES, ...PORTES]
-    expect(entreesDe('photos', toutes).map((e) => e.element)).toEqual(['port'])
-    expect(entreesDe('liens', toutes).map((e) => e.element)).toEqual(['site'])
-    expect(entreesDe('fichiers', toutes).map((e) => e.element)).toEqual(['billets'])
-    expect(entreesDe('recents', toutes)[0]!.element).toBe('billets')
-    expect(entreesDe('toiles', toutes).every((e) => e.genre === 'toile')).toBe(true)
+    expect(entreesDe({ portee: 'tout', filtre: 'image' }, toutes).map((e) => e.element)).toEqual(['port'])
+    expect(entreesDe({ portee: 'tout', filtre: 'lien' }, toutes).map((e) => e.element)).toEqual(['site'])
+    expect(entreesDe({ portee: 'tout', filtre: 'fichier' }, toutes).map((e) => e.element)).toEqual(['billets'])
+    expect(entreesDe({ portee: 'recents', filtre: 'tout' }, toutes)[0]!.element).toBe('billets')
+    expect(entreesDe({ portee: 'tout', filtre: 'toile' }, toutes).every((e) => e.genre === 'toile')).toBe(true)
   })
 
   it('se nomment même sans titre : « Photo », le site du lien', () => {
@@ -150,25 +150,37 @@ describe('la page', () => {
     await act(async () => racine.render(<PageBibliotheque charger={charger} {...(creer ? { creer } : {})} />))
   }
   const rubrique = (nom: string) => [...hote.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.textContent?.startsWith(nom))!
+  const puce = (nom: string) => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-puce')].find((b) => b.textContent?.startsWith(nom))!
   const titres = () => [...hote.querySelectorAll('.biblio-section h2')].map((h) => h.textContent)
   const tuiles = () => [...hote.querySelectorAll<HTMLElement>('[data-cle]')].map((li) => [li.querySelector('.biblio-tuile-titre')!.textContent, li.dataset.cle])
 
-  it('s’ouvre sur les récents, rangés par date, avec la tuile qui crée en tête ; chaque rubrique dit combien elle en a', async () => {
+  it('s’ouvre sur les récents, rangés par date, avec la tuile qui crée en tête ; la colonne et les puces disent combien', async () => {
     await ouvrir(async () => TOUTES)
     expect(rubrique('Récents').getAttribute('aria-current')).toBe('page')
     expect(hote.querySelector('h1')!.textContent).toBe('Récents')
-    expect(rubrique('Toiles').textContent).toBe('Toiles3')
+    expect(rubrique('Bibliothèque').textContent).toBe('Bibliothèque5')
     expect(rubrique('Favoris').textContent).toBe('Favoris1')
+    // Les puces comptent là où l'on est : deux toiles ouvertes parmi trois.
+    expect(puce('Tout').getAttribute('aria-pressed')).toBe('true')
+    expect(puce('Toiles').textContent).toBe('Toiles2')
+    expect(puce('Photos').hasAttribute('data-vide')).toBe(true)
     expect(hote.querySelector('.biblio-tuile-neuve')!.textContent).toContain('Nouvelle toile')
     expect(tuiles()[0]).toEqual(['Budget', 'budget/'])
     expect(hote.querySelectorAll('.biblio-tuile-ou')[2]!.textContent).toBe('dans Voyage')
   })
 
-  it('une rubrique se choisit ; le tri par dossier regroupe et se retient', async () => {
+  it('où et quoi se choisissent et se combinent ; le tri par dossier regroupe et se retient', async () => {
     await ouvrir(async () => TOUTES)
-    act(() => rubrique('Toiles').click())
-    expect(location.search).toBe('?vue=toiles')
+    act(() => puce('Cartes mentales').click())
+    expect(location.search).toBe('?type=arbre')
+    expect(tuiles()).toEqual([['Plan', 'voyage/plan']])
+    act(() => rubrique('Favoris').click())
+    expect(hote.querySelector('.biblio-vide')!.textContent).toContain('Aucune carte mentale.La puce « Tout » montre le reste.')
+    act(() => rubrique('Bibliothèque').click())
+    act(() => puce('Toiles').click())
+    expect(location.search).toBe('?vue=tout&type=toile')
     expect(hote.querySelector('h1')!.textContent).toBe('Toiles')
+    expect(tuiles().map(([, cle]) => cle)).toEqual(['budget/', 'voyage/', 'atelier/'])
     act(() => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-tri-choix')].find((b) => b.textContent === 'Par dossier')!.click())
     expect(titres()).toEqual(['Accueil', 'Partagés avec moi'])
     expect(localStorage.getItem('notak:bibliotheque-tri')).toBe('dossier')
@@ -487,7 +499,8 @@ describe('les gestes', () => {
       ),
     )
     const rubrique = (nom: string) => [...hote.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.textContent?.startsWith(nom))!
-    act(() => rubrique('Pages').click())
+    const puce = (nom: string) => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-puce')].find((b) => b.textContent?.startsWith(nom))!
+    act(() => puce('Pages').click())
     const fichier = new File(['# Compte rendu'], 'Compte rendu.md', { type: 'text/markdown' })
     const glisser = (type: string, sur: Element) => {
       const e = new Event(type, { bubbles: true, cancelable: true })
@@ -498,7 +511,7 @@ describe('les gestes', () => {
     // Sur le fond : l'accueil ; le bandeau dit où ils iraient.
     expect(glisser('dragover', hote.querySelector('.biblio-corps')!).defaultPrevented).toBe(true)
     expect(hote.querySelector('.biblio-apport')!.textContent).toBe('Déposer pour importer dans « Accueil »')
-    act(() => rubrique('Toiles').click())
+    act(() => puce('Toiles').click())
     glisser('dragover', tuile('voyage/'))
     expect(hote.querySelector('.biblio-apport')!.textContent).toBe('Déposer pour importer dans « Voyage »')
     expect(tuile('voyage/').hasAttribute('data-survol-depot')).toBe(true)
@@ -506,16 +519,18 @@ describe('les gestes', () => {
     expect(importes).toEqual([[['Compte rendu.md'], 'voyage']])
     expect(hote.querySelector('.biblio-apport')).toBeNull()
     expect(hote.querySelector('.notak-avis')!.textContent).toContain('Un fichier importé dans « Voyage » « vieux.pages » n’a pas pu être lu.')
-    // Un document n'a pas sa place dans « Toiles » : on passe aux récents, où l'import compte, la tuile choisie.
+    // Une page n'a pas sa place parmi les toiles : on passe aux récents, sans puce, où l'import compte, la tuile choisie.
     expect(rubrique('Récents').getAttribute('aria-current')).toBe('page')
+    expect(puce('Tout').getAttribute('aria-pressed')).toBe('true')
     expect(vus).toEqual(['voyage/cr'])
     const arrivee = hote.querySelector<HTMLElement>('[data-cle="voyage/cr"]')!
     expect(arrivee.getAttribute('aria-selected')).toBe('true')
     expect(arrivee.hasAttribute('data-arrivee')).toBe(true)
-    // Là où il a sa place, on reste : un document lâché sur « Pages ».
-    act(() => rubrique('Pages').click())
+    // Là où elle a sa place, on reste : une page lâchée sur les pages récentes.
+    act(() => puce('Pages').click())
     await act(async () => void glisser('drop', hote.querySelector('.biblio-corps')!))
-    expect(rubrique('Pages').getAttribute('aria-current')).toBe('page')
+    expect(puce('Pages').getAttribute('aria-pressed')).toBe('true')
+    expect(rubrique('Récents').getAttribute('aria-current')).toBe('page')
   })
 
   describe('au doigt et au Pencil', () => {

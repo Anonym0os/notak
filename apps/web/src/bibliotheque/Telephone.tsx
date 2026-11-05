@@ -1,11 +1,12 @@
 import { BandeauAvis, FeuilleBas, type GenreNeuf, Icone } from '@notak/tableau'
 import { type ReactNode, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { EntreeBibliotheque } from '../api'
-import { RUBRIQUES, type Rubrique, allerAEntree, entreesDe, filtrer, rubriqueDeLAdresse } from '../Bibliotheque'
+import { allerAEntree, entreesDe as entreesDeLaVue, filtrer } from '../Bibliotheque'
 import { allerA } from '../chemin'
 import { t } from '../langue'
 import { BoutonPlus, BoutonReglages, CarteBienvenue, ChoixCreation, EnteteDoigt, LigneDoigt, RubriqueDoigt, TuileDoigt, quand, useBienvenue } from './AuDoigt'
 import type { EspaceRangement } from './actions'
+import { type Vue, lireVue } from './modele'
 import { cleDe } from './selection'
 
 /**
@@ -19,6 +20,26 @@ import { cleDe } from './selection'
 
 /** Ce que la page du téléphone montre. */
 const AU_TELEPHONE = new Set<EntreeBibliotheque['genre']>(['toile', 'document', 'arbre'])
+
+/** Les filtres du téléphone, dans l'ordre de leur rangée ; chacun est une vue de la bibliothèque (où, et quoi). */
+const RUBRIQUES = ['recents', 'favoris', 'partages', 'toiles', 'documents', 'cartes'] as const
+type Rubrique = (typeof RUBRIQUES)[number]
+const VUE_DE: Record<Rubrique, Vue> = {
+  recents: { portee: 'recents', filtre: 'tout' },
+  favoris: { portee: 'favoris', filtre: 'tout' },
+  partages: { portee: 'partages', filtre: 'tout' },
+  toiles: { portee: 'tout', filtre: 'toile' },
+  documents: { portee: 'tout', filtre: 'document' },
+  cartes: { portee: 'tout', filtre: 'arbre' },
+}
+const entreesDe = (r: Rubrique, toutes: readonly EntreeBibliotheque[]) => entreesDeLaVue(VUE_DE[r], toutes)
+/** Le filtre que dit l'adresse, qu'elle vienne du téléphone (`?vue=toiles`) ou de la page du bureau (`?vue=tout&type=toile`). */
+function rubriqueDeLAdresse(): Rubrique | null {
+  const { portee, filtre } = lireVue(location.search)
+  const r = (Object.keys(VUE_DE) as Rubrique[]).find((x) => VUE_DE[x].portee === (portee ?? 'recents') && VUE_DE[x].filtre === filtre)
+  // La vue d'ensemble du téléphone tient lieu des récents et de toute la bibliothèque.
+  return r && !(r === 'recents' && !portee) ? r : null
+}
 
 /** Combien de récents dans la rangée, et de tuiles par genre avant « Tout voir ». */
 const RECENTS = 8

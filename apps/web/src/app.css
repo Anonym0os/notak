@@ -3067,6 +3067,84 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   box-shadow: 0 0 0 2px var(--notak-accent, #2f6feb);
 }
 
+/* La barre passe à la ligne pour les puces : elles prennent toujours une ligne à elles, sous le titre et les îlots. */
+.biblio-tete {
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+
+/*
+ * Les puces : quoi montrer (tout, ou un genre), sous la barre, comme celles de Google Drive. Elles se combinent avec la
+ * colonne (où). La rangée défile de côté plutôt que de pousser quoi que ce soit hors de l'écran.
+ */
+.biblio-puces {
+  display: flex;
+  flex: 1 0 100%;
+  order: 10;
+  gap: 6px;
+  min-width: 0;
+  margin: 0 -6px;
+  padding: 2px 6px 4px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.biblio-puces::-webkit-scrollbar {
+  display: none;
+}
+
+.biblio-puce {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 15px;
+  background: var(--notak-ilot-fond, color-mix(in srgb, var(--notak-carte, #fff) 88%, transparent));
+  box-shadow: var(--notak-ilot-ombre, var(--biblio-ombre));
+  color: inherit;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.biblio-puce svg {
+  flex: none;
+  color: var(--biblio-pale);
+}
+
+.biblio-puce small {
+  color: var(--biblio-pale);
+  font-size: 12px;
+}
+
+.biblio-puce[aria-pressed='true'] {
+  background: var(--notak-selection, #323b4a);
+  color: var(--notak-fond, #fff);
+}
+
+.biblio-puce[aria-pressed='true'] :is(svg, small) {
+  color: inherit;
+  opacity: 0.75;
+}
+
+/* Rien de ce genre ici : la puce reste, plus pâle. */
+.biblio-puce[data-vide]:not([aria-pressed='true']) {
+  color: var(--biblio-pale);
+  box-shadow: none;
+}
+
+.biblio-puce:focus-visible {
+  outline: 2px solid var(--notak-accent, #2f6feb);
+  outline-offset: 1px;
+}
+
 /* Les tuiles, comme celles de Xmind : une vignette blanche, le titre centré, la toile qui la porte. */
 .biblio-corps {
   min-height: 0;
@@ -3354,6 +3432,93 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 .biblio-tuile[data-survol-depot] .biblio-vignette {
   box-shadow: 0 0 0 3px var(--accent), 0 14px 30px -10px rgb(27 37 54 / 0.3);
   transform: scale(1.03);
+}
+
+/*
+ * L'affichage en liste : une ligne par tuile, la vignette en petit à gauche, le titre et où elle est, le « ••• » au bout,
+ * comme la vue en liste de Fichiers. Les mêmes gestes (choisir, glisser, ouvrir) valent : seule la forme change.
+ */
+.biblio-grille[data-affichage='liste'] {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile {
+  display: grid;
+  grid-template-areas: 'vignette titre plus' 'vignette ou plus';
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  justify-items: start;
+  gap: 2px 14px;
+  padding: 6px 8px;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-vignette {
+  grid-area: vignette;
+  width: 64px;
+  margin: 0;
+  border-radius: 8px;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile-titre {
+  grid-area: titre;
+  align-self: end;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile-ou {
+  grid-area: ou;
+  align-self: start;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-renommer {
+  grid-area: titre;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile-plus {
+  position: static;
+  grid-area: plus;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile-case {
+  top: 50%;
+  left: 40px;
+  transform: translate(-50%, -50%);
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile:hover {
+  background: var(--biblio-survol);
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile:hover .biblio-vignette,
+.biblio-grille[data-affichage='liste'] .biblio-tuile[data-survol-depot] .biblio-vignette {
+  transform: none;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile[aria-selected='true'] {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile[aria-selected='true'] .biblio-tuile-titre {
+  margin: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile[data-survol-depot] {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile-neuve .biblio-vignette svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* En petit, une toile vide se dit par son fond pointillé seul : le mot n'y tiendrait pas. */
+.biblio-grille[data-affichage='liste'] .biblio-vignette-vide {
+  display: none;
 }
 
 .biblio-section h2[data-survol-depot],
@@ -3762,6 +3927,12 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 
   .biblio-recherche-champ {
     height: 38px;
+  }
+
+  .biblio-puce {
+    height: 40px;
+    padding: 0 14px;
+    border-radius: 20px;
   }
 
   .biblio-tuile {

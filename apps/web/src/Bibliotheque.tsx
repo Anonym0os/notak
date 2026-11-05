@@ -69,6 +69,22 @@ import {
 import { FournisseurVignettes, type SourceVignettes, Vignette } from './bibliotheque/Vignettes'
 import { fichiers as fichiersServeur } from './fichiers'
 import { suivreAppuiLong } from './bibliotheque/appuiLong'
+import {
+  type Affichage,
+  type Filtre,
+  type Portee,
+  type Vue,
+  PLURIEL,
+  RECENTS_MAX,
+  TYPES,
+  adresseDeLaVue,
+  compterParGenre,
+  dansLaPortee,
+  duFiltre,
+  ecrireAffichage,
+  lireAffichage,
+  lireVue,
+} from './bibliotheque/modele'
 import { BarreChoix } from './bibliotheque/BarreChoix'
 import { PremierPas } from './bibliotheque/PremierPas'
 import { preparerClavier } from './bibliotheque/clavier'
@@ -87,31 +103,10 @@ import { t, tn } from './langue'
  * téléphone, la même page prend la forme de la bibliothèque de l'appareil (`bibliotheque/Telephone.tsx`).
  */
 
-export const RUBRIQUES = ['recents', 'favoris', 'partages', 'toiles', 'documents', 'cartes', 'photos', 'liens', 'fichiers'] as const
-export type Rubrique = (typeof RUBRIQUES)[number]
 export type Tri = 'date' | 'dossier'
 
-const ICONE_RUBRIQUE: Record<Rubrique, NomIcone> = {
-  recents: 'horloge',
-  favoris: 'etoile',
-  partages: 'equipe',
-  toiles: 'tableau',
-  cartes: 'carteMentale',
-  documents: 'document',
-  photos: 'photo',
-  liens: 'lien',
-  fichiers: 'fichier',
-}
+const ICONE_PORTEE: Record<Portee, NomIcone> = { tout: 'bibliotheque', recents: 'horloge', favoris: 'etoile', partages: 'equipe' }
 const ICONE_GENRE: Record<EntreeBibliotheque['genre'], NomIcone> = { toile: 'tableau', arbre: 'carteMentale', document: 'document', image: 'photo', lien: 'lien', fichier: 'fichier' }
-/** Le genre de chaque rubrique qui n'en montre qu'un. */
-const GENRE_DE: Partial<Record<Rubrique, EntreeBibliotheque['genre']>> = {
-  toiles: 'toile',
-  documents: 'document',
-  cartes: 'arbre',
-  photos: 'image',
-  liens: 'lien',
-  fichiers: 'fichier',
-}
 /** Ce qui s'ouvre en grand sur sa toile ; une photo, un lien ou un fichier s'ouvrent sur leur toile, centrés sur eux. */
 const EN_GRAND = new Set<EntreeBibliotheque['genre']>(['arbre', 'document'])
 
@@ -129,31 +124,30 @@ const domaineDe = (url: string) => {
     return ''
   }
 }
-/** Ce que crée la première tuile de chaque rubrique ; rien dans les favoris et les partages. */
-const NEUF_DE: Partial<Record<Rubrique, GenreNeuf>> = { recents: 'toile', toiles: 'toile', cartes: 'arbre', documents: 'document' }
+/**
+ * Ce que crée la première tuile : dans la bibliothèque et les récents, le genre de la puce (une toile pour « Tout ») ;
+ * rien pour une photo, un lien ou un fichier, qui s'importent, ni dans les favoris et les partages.
+ */
+function neufDe({ portee, filtre }: Vue): GenreNeuf | undefined {
+  if (portee !== 'tout' && portee !== 'recents') return undefined
+  if (filtre === 'tout') return 'toile'
+  return filtre === 'toile' || filtre === 'document' || filtre === 'arbre' ? filtre : undefined
+}
 
-/** Les récents s'arrêtent là : au-delà, on passe par les rubriques d'un genre. */
-const RECENTS_MAX = 60
 const JOUR = 86_400_000
 
 const parTitre = (a: EntreeBibliotheque, b: EntreeBibliotheque) =>
   (a.titre || '￿').localeCompare(b.titre || '￿', undefined, { sensitivity: 'base', numeric: true })
 const parOuverture = (a: EntreeBibliotheque, b: EntreeBibliotheque) => (b.vu ?? -1) - (a.vu ?? -1) || parTitre(a, b)
 
-/** Ce que montre chaque rubrique, la plus récemment ouverte d'abord, puis par titre. */
-export function entreesDe(rubrique: Rubrique, toutes: readonly EntreeBibliotheque[]): EntreeBibliotheque[] {
-  const garder = (f: (e: EntreeBibliotheque) => boolean) => toutes.filter(f).sort(parOuverture)
-  switch (rubrique) {
-    case 'recents':
-      return garder((e) => e.vu !== null).slice(0, RECENTS_MAX)
-    case 'favoris':
-      return garder((e) => e.favori)
-    case 'partages':
-      return garder((e) => e.partage)
-    default:
-      return garder((e) => e.genre === GENRE_DE[rubrique])
-  }
+/** Ce que montre une vue (où, et quoi), le plus récemment ouvert d'abord, puis par titre. */
+export function entreesDe(vue: Vue, toutes: readonly EntreeBibliotheque[]): EntreeBibliotheque[] {
+  const l = duFiltre(vue.filtre, dansLaPortee(vue.portee, toutes)).sort(parOuverture)
+  return vue.portee === 'recents' ? l.slice(0, RECENTS_MAX) : l
 }
+
+/** Le titre d'une vue : la portée, ou le genre quand on regarde toute la bibliothèque à travers une puce. */
+export const titreDeLaVue = ({ portee, filtre }: Vue) => (portee === 'tout' && filtre !== 'tout' ? t(`biblio.rubrique.${PLURIEL[filtre]}`) : t(`biblio.rubrique.${portee}`))
 
 /** Une suite de tuiles sous un titre ; `dans` : la toile que la section regroupe (tri par dossier). */
 export interface Section {
@@ -226,10 +220,6 @@ export const adresseDe = (e: Pick<EntreeBibliotheque, 'tableau' | 'element'> & {
  */
 export const allerAEntree = (e: Pick<EntreeBibliotheque, 'tableau' | 'element'>) => allerA(adresseDe(e), e.element ? { etat: { element: e.element } } : {})
 
-export const rubriqueDeLAdresse = (): Rubrique | null => {
-  const v = new URLSearchParams(location.search).get('vue')
-  return (RUBRIQUES as readonly string[]).includes(v ?? '') ? (v as Rubrique) : null
-}
 
 const CLE_TRI = 'notak:bibliotheque-tri'
 function lireTri(): Tri {
@@ -352,8 +342,11 @@ function BibliothequeBureau({
   const [serveur, setServeur] = useState<EntreeBibliotheque[] | null>(null)
   const [correctifs, setCorrectifs] = useState<{ n: number; correctif: Correctif }[]>([])
   const [erreur, setErreur] = useState<string | null>(null)
-  const [choisie, setChoisie] = useState<Rubrique | null>(rubriqueDeLAdresse)
+  const [depart] = useState(() => lireVue(location.search))
+  const [choisie, setChoisie] = useState<Portee | null>(depart.portee)
+  const [filtre, setFiltre] = useState<Filtre>(depart.filtre)
   const [tri, setTri] = useState<Tri>(lireTri)
+  const [affichage, setAffichage] = useState<Affichage>(lireAffichage)
   const [requete, setRequete] = useState('')
   const [menuNeuf, setMenuNeuf] = useState(false)
   const [sel, setSel] = useState<Selection>(RIEN)
@@ -422,16 +415,16 @@ function BibliothequeBureau({
     return () => window.removeEventListener('keydown', touche)
   }, [])
 
-  const parRubrique = useMemo(
-    () => (toutes ? (Object.fromEntries(RUBRIQUES.map((r) => [r, entreesDe(r, toutes)])) as Record<Rubrique, EntreeBibliotheque[]>) : null),
-    [toutes],
-  )
-  // On commence par les récents ; tant qu'on n'a rien ouvert, par les toiles.
-  const rubrique: Rubrique = choisie ?? (parRubrique && parRubrique.recents.length === 0 ? 'toiles' : 'recents')
+  // On commence par les récents ; tant qu'on n'a rien ouvert, par toute la bibliothèque.
+  const portee: Portee = choisie ?? (toutes && !toutes.some((e) => e.vu !== null) ? 'tout' : 'recents')
+  const vue: Vue = { portee, filtre }
   const cherche = requete.trim() !== ''
-  const visibles = toutes && parRubrique ? (cherche ? filtrer(toutes, requete).sort(parOuverture) : parRubrique[rubrique]) : []
+  // La recherche lit toute la bibliothèque, d'où qu'on soit ; les puces la filtrent encore.
+  const visibles = useMemo(() => (toutes ? (cherche ? duFiltre(filtre, filtrer(toutes, requete)).sort(parOuverture) : entreesDe({ portee, filtre }, toutes)) : []), [toutes, cherche, requete, portee, filtre])
+  /** Ce que chaque puce garderait, là où l'on est. */
+  const parGenre = useMemo(() => compterParGenre(toutes ? (cherche ? filtrer(toutes, requete) : dansLaPortee(portee, toutes)) : []), [toutes, cherche, requete, portee])
   const sections = tri === 'dossier' ? sectionsParDossier(visibles) : sectionsParDate(visibles)
-  const neuf = cherche ? undefined : NEUF_DE[rubrique]
+  const neuf = cherche ? undefined : neufDe(vue)
   // Les tuiles dans l'ordre où on les lit, de section en section : celui de ⇧ et des flèches.
   const ordre = useMemo(() => sections.flatMap((s) => s.entrees.map(cleDe)), [sections])
   const parCle = useMemo(() => new Map((toutes ?? []).map((e) => [cleDe(e), e])), [toutes])
@@ -443,10 +436,21 @@ function BibliothequeBureau({
   const outils: Outils | null = espace ? { espace, rangerToile, definirFavori } : null
   const titreToile = (id: string) => (espace && id === espace.racine ? titreAccueil || t('biblio.accueil') : parCle.get(`${id}/`)?.titre || t('commun.sansTitre'))
 
-  const choisir = (r: Rubrique) => {
-    setChoisie(r)
+  /** Change de vue : la portée (la colonne), le filtre (les puces), ou les deux ; l'adresse la redit. */
+  const choisirVue = (v: Partial<Vue>) => {
+    const apres: Vue = { portee: v.portee ?? portee, filtre: v.filtre ?? filtre }
+    setChoisie(apres.portee)
+    setFiltre(apres.filtre)
+    history.replaceState(null, '', adresseDeLaVue(apres))
+  }
+  /** Une rubrique de la colonne : on quitte la recherche. */
+  const choisir = (r: Portee) => {
     setRequete('')
-    history.replaceState(null, '', r === 'recents' ? '/' : `/?vue=${r}`)
+    choisirVue({ portee: r })
+  }
+  const afficher = (a: Affichage) => {
+    setAffichage(a)
+    ecrireAffichage(a)
   }
   const trier = (x: Tri) => {
     setTri(x)
@@ -552,8 +556,11 @@ function BibliothequeBureau({
     preparerClavier()
     const ou = dans ?? outils.espace.racine
     setMenuNeuf(false)
-    // Il doit se voir : la rubrique des toiles, sans recherche.
-    if (rubrique !== 'toiles' || cherche) choisir('toiles')
+    // Il doit se voir : toute la bibliothèque, ses toiles, sans recherche.
+    if (portee !== 'tout' || (filtre !== 'tout' && filtre !== 'toile') || cherche) {
+      setRequete('')
+      choisirVue({ portee: 'tout', filtre: 'toile' })
+    }
     void executer(creerDossier(outils, { id: ou, titre: titreToile(ou) })).then((r) => {
       if (!r) return
       const cle = `${r.toile}/`
@@ -923,8 +930,8 @@ function BibliothequeBureau({
     const es = entreesDes(choisies)
     const une = es.length === 1 ? es[0]! : null
     const fleches: Record<string, Direction> = { ArrowLeft: 'gauche', ArrowRight: 'droite', ArrowUp: 'haut', ArrowDown: 'bas' }
-    // Les flèches de la colonne restent à la colonne.
-    if (fleches[e.key] && !cmd && !nav.current?.contains(cible)) {
+    // Les flèches de la colonne restent à la colonne, celles des puces aux puces.
+    if (fleches[e.key] && !cmd && !nav.current?.contains(cible) && !cible.closest?.('.biblio-puces')) {
       e.preventDefault()
       aller(voisine(boitesTuiles(), ordre, courante ?? sel.ancre, fleches[e.key]!), e.shiftKey)
     } else if (cmd && !e.shiftKey && e.key.toLowerCase() === 'a') {
@@ -1002,8 +1009,11 @@ function BibliothequeBureau({
       plusTard(() => setArrivees(new Set()), 1200)
     }
     if (cles.length === 0) return battre([`${dans}/`])
-    const icite = entrees.every((e) => entreesDe(rubrique, [e]).length > 0)
-    if (cherche || !icite) choisir(icite ? rubrique : 'recents')
+    const icite = entrees.every((e) => entreesDe(vue, [e]).length > 0)
+    if (cherche || !icite) {
+      setRequete('')
+      if (!icite) choisirVue({ portee: 'recents', filtre: 'tout' })
+    }
     setSel({ choisies: new Set(cles), ancre: cles[0]! })
     setCourante(cles[0]!)
     battre(cles)
@@ -1034,13 +1044,19 @@ function BibliothequeBureau({
   /** La toile qui prendrait ce qu'on glisse : des tuiles, ou des fichiers de la machine. */
   const survolDepot = glisse?.cible ?? apport?.cible ?? null
 
-  const bouton = (r: Rubrique) => (
-    <button key={r} type="button" className="biblio-rubrique" data-rubrique={r} aria-current={!cherche && rubrique === r ? 'page' : undefined} onClick={() => choisir(r)}>
-      <Icone nom={ICONE_RUBRIQUE[r]} taille={18} />
+  const combien = (r: Portee) => (toutes && r !== 'recents' ? dansLaPortee(r, toutes).length : 0)
+  const bouton = (r: Portee) => (
+    <button key={r} type="button" className="biblio-rubrique" data-rubrique={r} aria-current={!cherche && portee === r ? 'page' : undefined} onClick={() => choisir(r)}>
+      <Icone nom={ICONE_PORTEE[r]} taille={18} />
       <span>{t(`biblio.rubrique.${r}`)}</span>
-      {parRubrique && r !== 'recents' && parRubrique[r].length > 0 && <small>{parRubrique[r].length}</small>}
+      {combien(r) > 0 && <small>{combien(r)}</small>}
     </button>
   )
+  /** Ce que dit une vue vide : le genre de la puce s'il y en a une, sinon la portée. */
+  const vide = (): { texte: string; aide: string } =>
+    filtre !== 'tout'
+      ? { texte: t(`biblio.vide.${PLURIEL[filtre]}`), aide: portee === 'tout' ? t(`biblio.vide.${PLURIEL[filtre]}.aide`) : t('biblio.vide.filtre.aide') }
+      : { texte: t(`biblio.vide.${portee}`), aide: t(`biblio.vide.${portee}.aide`) }
   const accueil = espace ? `/t/${encodeURIComponent(espace.racine)}` : '/'
   const glissees = new Set(glisse?.cles)
   const premiereFocalisable = courante && ordre.includes(courante) ? courante : (choisies[0] ?? ordre[0])
@@ -1057,16 +1073,10 @@ function BibliothequeBureau({
           </button>
           {menuNeuf && <MenuNeuf creer={(g) => void creerPuisOuvrir(g)} dossier={outils ? () => nouveauDossier() : undefined} fermer={() => setMenuNeuf(false)} />}
         </div>
+        {bouton('tout')}
         {bouton('recents')}
         {bouton('favoris')}
         {partages && bouton('partages')}
-        <p className="biblio-groupe">{t('biblio.mesContenus')}</p>
-        {bouton('toiles')}
-        {bouton('documents')}
-        {bouton('cartes')}
-        {bouton('photos')}
-        {bouton('liens')}
-        {bouton('fichiers')}
         <p className="biblio-groupe">{t('biblio.maToile')}</p>
         <a
           className="biblio-rubrique"
@@ -1112,7 +1122,7 @@ function BibliothequeBureau({
             auDoigt={modeChoix}
           />
         ) : (
-          <h1>{cherche ? t('biblio.resultats') : t(`biblio.rubrique.${rubrique}`)}</h1>
+          <h1>{cherche ? t('biblio.resultats') : titreDeLaVue(vue)}</h1>
         )}
         <div className="biblio-tete-droite">
           {/* Au doigt, pas de ⌘ ni de ⇧ pour choisir plusieurs tuiles : « Sélectionner », comme dans Fichiers. */}
@@ -1139,6 +1149,13 @@ function BibliothequeBureau({
               </button>
             ))}
           </Ilot>
+          <Ilot className="biblio-tri biblio-affichage" etiquette={t('biblio.affichage')}>
+            {(['grille', 'liste'] as const).map((a) => (
+              <button key={a} type="button" className="biblio-tri-choix" aria-pressed={affichage === a} aria-label={t(`biblio.affichage.${a}`)} title={t(`biblio.affichage.${a}`)} onClick={() => afficher(a)}>
+                <Icone nom={a === 'grille' ? 'vueGrille' : 'vueListe'} taille={16} />
+              </button>
+            ))}
+          </Ilot>
           <Ilot className="biblio-recherche">
             <label className="biblio-recherche-champ">
               <Icone nom="recherche" taille={17} />
@@ -1161,6 +1178,17 @@ function BibliothequeBureau({
             </Ilot>
           )}
         </div>
+        {toutes && toutes.length > 0 && (
+          <div className="biblio-puces" role="group" aria-label={t('biblio.puces')}>
+            {(['tout', ...TYPES] as const).map((f) => (
+              <button key={f} type="button" className="biblio-puce" data-puce={f} aria-pressed={filtre === f} data-vide={(f !== 'tout' && parGenre[f] === 0) || undefined} onClick={() => choisirVue({ filtre: f })}>
+                {f !== 'tout' && <Icone nom={ICONE_GENRE[f]} taille={15} />}
+                <span>{f === 'tout' ? t('biblio.puce.tout') : t(`biblio.rubrique.${PLURIEL[f]}`)}</span>
+                {f !== 'tout' && parGenre[f] > 0 && <small>{parGenre[f]}</small>}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       <main
@@ -1200,9 +1228,9 @@ function BibliothequeBureau({
           />
         ) : visibles.length === 0 && !neuf ? (
           <div className="biblio-vide">
-            <Icone nom={cherche ? 'recherche' : ICONE_RUBRIQUE[rubrique]} taille={28} trait={1.5} />
-            <p>{cherche ? t('biblio.aucunResultat', { requete: requete.trim() }) : t(`biblio.vide.${rubrique}`)}</p>
-            {!cherche && <small>{t(`biblio.vide.${rubrique}.aide`)}</small>}
+            <Icone nom={cherche ? 'recherche' : filtre !== 'tout' ? ICONE_GENRE[filtre] : ICONE_PORTEE[portee]} taille={28} trait={1.5} />
+            <p>{cherche ? t('biblio.aucunResultat', { requete: requete.trim() }) : vide().texte}</p>
+            {!cherche && <small>{vide().aide}</small>}
           </div>
         ) : (
           <>
@@ -1230,7 +1258,7 @@ function BibliothequeBureau({
                     )}
                   </h2>
                 )}
-                <ul className="biblio-grille" role="listbox" aria-multiselectable aria-label={s.titre || t(`biblio.rubrique.${rubrique}`)}>
+                <ul className="biblio-grille" data-affichage={affichage} role="listbox" aria-multiselectable aria-label={s.titre || titreDeLaVue(vue)}>
                   {i === 0 && neuf && (
                     <li role="presentation">
                       <button type="button" className="biblio-tuile biblio-tuile-neuve" disabled={creation} onClick={() => void creerPuisOuvrir(neuf)}>
@@ -1273,8 +1301,8 @@ function BibliothequeBureau({
             ))}
             {visibles.length === 0 && (
               <div className="biblio-vide biblio-vide-bas">
-                <p>{t(`biblio.vide.${rubrique}`)}</p>
-                <small>{t(`biblio.vide.${rubrique}.aide`)}</small>
+                <p>{vide().texte}</p>
+                <small>{vide().aide}</small>
               </div>
             )}
           </>
