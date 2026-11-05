@@ -168,6 +168,35 @@ export interface Section {
   titre: string
   dans?: string | null
   entrees: EntreeBibliotheque[]
+  /** « Tout voir » : la vue qui montre toute la rubrique, quand elle n'en montre qu'une part. */
+  voir?: Partial<Vue>
+}
+
+/** Combien de tuiles une rubrique de l'accueil montre avant « Tout voir ». */
+const PAR_RUBRIQUE = 8
+
+/**
+ * L'accueil de la bibliothèque, comme celui de Freeform ou de Google Drive : reprendre ce qu'on a ouvert, les favoris,
+ * les dossiers, puis une rubrique par genre, chacune avec « Tout voir ». Chaque entrée n'y paraît qu'une fois, dans la
+ * première rubrique qui la prend : la sélection et le clavier ne connaissent qu'une tuile par entrée.
+ */
+export function sectionsDeLAccueil(entrees: readonly EntreeBibliotheque[]): Section[] {
+  const montrees = new Set<string>()
+  const sections: Section[] = []
+  const ajouter = (cle: string, titre: string, candidates: EntreeBibliotheque[], voir?: Partial<Vue>, max = PAR_RUBRIQUE) => {
+    const toutes = [...candidates].sort(parOuverture)
+    const libres = toutes.filter((e) => !montrees.has(cleDe(e)))
+    const prises = libres.slice(0, max)
+    if (prises.length === 0) return
+    prises.forEach((e) => montrees.add(cleDe(e)))
+    sections.push({ cle, titre, entrees: prises, ...(voir && toutes.length > prises.length ? { voir } : {}) })
+  }
+  ajouter('reprendre', t('biblio.accueil.reprendre'), entrees.filter((e) => e.vu !== null), { portee: 'recents', filtre: 'tout' })
+  ajouter('favoris', t('biblio.rubrique.favoris'), entrees.filter((e) => e.favori), { portee: 'favoris', filtre: 'tout' })
+  ajouter('dossiers', t('biblio.dossiers'), entrees.filter(estDossier), undefined, Infinity)
+  for (const g of TYPES)
+    ajouter(`genre:${g}`, t(`biblio.rubrique.${PLURIEL[g]}`), entrees.filter((e) => e.genre === g && !estDossier(e)), { portee: 'tout', filtre: g })
+  return sections
 }
 
 /** Les tuiles rangées par date d'ouverture : aujourd'hui, les sept derniers jours, plus tôt, puis jamais ouvertes. */
@@ -474,7 +503,9 @@ function BibliothequeBureau({
     () => compterParGenre(toutes ? (cherche ? filtrer(toutes, requete) : baseDe({ portee, filtre: 'tout', ...(dossier ? { dossier } : {}) }, toutes)) : []),
     [toutes, cherche, requete, portee, dossier],
   )
-  const sections = tri === 'dossier' ? sectionsParDossier(visibles) : sectionsParDate(visibles)
+  // Toute la bibliothèque, sans puce ni recherche, triée par date : son accueil, en rubriques.
+  const accueilDeLaBibliotheque = portee === 'tout' && filtre === 'tout' && !dossier && !cherche && tri === 'date'
+  const sections = tri === 'dossier' ? sectionsParDossier(visibles) : accueilDeLaBibliotheque ? sectionsDeLAccueil(visibles) : sectionsParDate(visibles)
   const neuf = cherche ? undefined : neufDe(vue)
   // Les tuiles dans l'ordre où on les lit, de section en section : celui de ⇧ et des flèches.
   const ordre = useMemo(() => sections.flatMap((s) => s.entrees.map(cleDe)), [sections])
@@ -1422,7 +1453,7 @@ function BibliothequeBureau({
         ) : (
           <>
             {(sections.length > 0 ? sections : [{ cle: 'vide', titre: '', entrees: [] } as Section]).map((s, i) => (
-              <section key={s.cle} className="biblio-section" aria-label={s.titre || undefined}>
+              <section key={s.cle} className="biblio-section" aria-label={s.titre || undefined} data-rail={(accueilDeLaBibliotheque && s.cle === 'reprendre') || undefined}>
                 {s.titre && (
                   <h2
                     data-dossier={s.dans || undefined}
@@ -1449,6 +1480,12 @@ function BibliothequeBureau({
                       </a>
                     ) : (
                       s.titre
+                    )}
+                    {s.voir && (
+                      <button type="button" className="biblio-voir" onClick={() => choisirVue(s.voir!)}>
+                        {t('biblio.toutVoir')}
+                        <Icone nom="chevronDroite" taille={13} trait={2} />
+                      </button>
                     )}
                   </h2>
                 )}

@@ -4,7 +4,7 @@ import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EntreeBibliotheque } from './api'
-import { PageBibliotheque, adresseDe, entreesDe, filtrer, sectionsParDate, sectionsParDossier, titreDe } from './Bibliotheque'
+import { PageBibliotheque, adresseDe, entreesDe, filtrer, sectionsDeLAccueil, sectionsParDate, sectionsParDossier, titreDe } from './Bibliotheque'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -99,6 +99,21 @@ describe('les photos, les liens et les fichiers', () => {
 
 describe('les sections', () => {
   beforeEach(() => definirLangue('fr'))
+
+  it('l’accueil de la bibliothèque : reprendre, favoris, puis un genre par rubrique, chaque entrée une seule fois', () => {
+    const beaucoup = Array.from({ length: 10 }, (_, i) => entree({ tableau: `t${i}`, titre: `Toile ${i}` }))
+    const s = sectionsDeLAccueil([...TOUTES, ...PORTES, ...beaucoup])
+    expect(s.map((x) => [x.titre, x.entrees.length, x.voir ?? null])).toEqual([
+      ['Reprendre', 5, null],
+      ['Toiles', 8, { portee: 'tout', filtre: 'toile' }],
+      ['Photos', 1, null],
+      ['Liens', 1, null],
+    ])
+    const cles = s.flatMap((x) => x.entrees.map((e) => `${e.tableau}/${e.element ?? ''}`))
+    expect(new Set(cles).size).toBe(cles.length)
+    // « Voyage », favori et ouvert, est dans « Reprendre » : « Favoris » n'a plus rien à montrer.
+    expect(s.some((x) => x.cle === 'favoris')).toBe(false)
+  })
 
   it('par date : aujourd’hui, cette semaine, plus tôt, puis jamais ouvertes', () => {
     expect(sectionsParDate(TOUTES, MAINTENANT).map((s) => [s.titre, s.entrees.map((e) => e.titre)])).toEqual([
@@ -227,6 +242,17 @@ describe('la page', () => {
     await act(async () => racine.render(<PageBibliotheque charger={async () => []} attente />))
     expect(hote.querySelector('.biblio-premiers-attente')!.textContent).toBe('Recherche de vos toiles dans iCloud…')
     expect(hote.querySelector('.biblio-premiers-choix')).toBeNull()
+  })
+
+  it('la bibliothèque s’ouvre sur son accueil en rubriques ; « Tout voir » mène à la puce du genre', async () => {
+    const beaucoup = Array.from({ length: 10 }, (_, i) => entree({ tableau: `t${i}`, titre: `Toile ${i}` }))
+    await ouvrir(async () => [...TOUTES, ...beaucoup])
+    act(() => rubrique('Bibliothèque').click())
+    expect(titres()).toEqual(['Reprendre', 'ToilesTout voir'])
+    act(() => hote.querySelector<HTMLButtonElement>('.biblio-voir')!.click())
+    expect(location.search).toBe('?vue=tout&type=toile')
+    expect(puce('Toiles').getAttribute('aria-pressed')).toBe('true')
+    expect(hote.querySelectorAll('[data-cle]')).toHaveLength(13)
   })
 
   it('le tiroir de la colonne : ☰ l’ouvre ; une rubrique, Échap ou le voile le referment ; son « + » crée', async () => {

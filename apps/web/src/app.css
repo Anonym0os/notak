@@ -3171,6 +3171,51 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   text-decoration: none;
 }
 
+/*
+ * « Reprendre », en tête de l'accueil de la bibliothèque : une seule rangée, qui défile de côté, comme celle des Notes
+ * ou de Freeform ; en liste, elle reste une liste. Les marges laissent la place à l'ombre et au relief du survol.
+ */
+.biblio-section[data-rail] .biblio-grille[data-affichage='grille'] {
+  grid-auto-columns: minmax(168px, 206px);
+  grid-auto-flow: column;
+  grid-template-columns: none;
+  margin: -6px -6px 0;
+  padding: 6px 6px 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.biblio-section[data-rail] .biblio-grille[data-affichage='grille'] > li {
+  scroll-snap-align: start;
+}
+
+/* « Tout voir » d'une rubrique de l'accueil : au bout de son titre, à la couleur des liens. */
+.biblio-voir {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--notak-accent, #2f6feb);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.biblio-voir:hover {
+  background: var(--biblio-survol);
+}
+
+.biblio-voir:focus-visible {
+  outline: 2px solid var(--notak-accent, #2f6feb);
+  outline-offset: 1px;
+}
+
 .biblio-section h2 a:hover {
   color: var(--notak-texte, #323b4a);
   text-decoration: underline;
