@@ -749,6 +749,11 @@ export async function noterElementVu(tableau: string, element: string): Promise<
 export type GenreMontre = 'toile' | 'arbre' | 'document' | 'image' | 'lien' | 'fichier'
 /** Ce qu'un serveur ne rend que si on le lui demande (`?genres=`) : un client plus ancien ne saurait pas le montrer. */
 export const GENRES_EN_PLUS = ['image', 'lien', 'fichier'] as const
+/**
+ * Ce que la bibliothèque demande au serveur, en plus des toiles qui viennent toujours. `?genres=` dit tout ce qu'on
+ * veut, pas seulement ce qu'on veut de plus : sans `arbre` et `document`, les pages et les cartes mentales n'y seraient pas.
+ */
+export const GENRES_DEMANDES: readonly GenreMontre[] = ['arbre', 'document', ...GENRES_EN_PLUS]
 
 /** Une toile, une page, une carte mentale, une photo, un lien ou un fichier de la bibliothèque. */
 export interface EntreeBibliotheque {
@@ -773,7 +778,7 @@ export interface EntreeBibliotheque {
 
 /** Tout ce que le compte peut lire : ses toiles (sauf l'accueil), et ce qu'elles portent de pages, cartes mentales, photos, liens et fichiers. */
 export async function lireBibliotheque(): Promise<EntreeBibliotheque[]> {
-  const r = await appeler(`/api/bibliotheque?genres=${GENRES_EN_PLUS.join(',')}`)
+  const r = await appeler(`/api/bibliotheque?genres=${GENRES_DEMANDES.join(',')}`)
   if (!r.ok) throw await refus(r, {})
   return (await r.json()) as EntreeBibliotheque[]
 }

@@ -5,6 +5,7 @@ import {
   ErreurApi,
   deverrouiller,
   ecouterSessionFinie,
+  lireBibliotheque,
   lireDemandeBureau,
   lireInstance,
   listerAcces,
@@ -183,6 +184,15 @@ describe('la session qui prend fin sous la page', () => {
     expect(await sessionEncoreValide()).toBe(true)
     expect(signal).toHaveBeenCalledTimes(1)
     arreter()
+  })
+})
+
+describe('la bibliothèque', () => {
+  it('demande tous les genres qu’elle montre : `?genres=` dit tout ce qu’on veut, pages et cartes mentales comprises', async () => {
+    const demandes: string[] = []
+    vi.stubGlobal('fetch', async (chemin: string) => (demandes.push(chemin), Response.json([])))
+    await lireBibliotheque()
+    expect(demandes).toEqual(['/api/bibliotheque?genres=arbre,document,image,lien,fichier'])
   })
 })
 
