@@ -94,6 +94,7 @@ retrouvent. Avant de passer de l'une à l'autre, on enregistre une copie `.notak
 - **Un build mauvais est parti** : dans TestFlight, *Expirer le build*. Les appareils gardent le précédent, et la
   correction suivante part à la prochaine fusion.
 - **`can't find crate for phf_macros`, « mis-aligned LINKEDIT »** : le `strip` d'Xcode 27 abîme les proc-macros. `Cargo.toml` ne dépouille donc que le binaire de Notak. Il ne faut pas remettre `strip = true` sur tout le profil.
+- **Sur le Mac, Notak sans barre de titre, fenêtre qu'on ne déplace pas** : c'est l'app iPad que TestFlight propose aux Mac à puce Apple (son `.app` n'est qu'un `Wrapper`), le plus souvent parce que le build Mac est bloqué. On la jette, on installe la version « macOS » dans TestFlight, et on décoche *Apps iPhone et iPad sur les Mac avec puce Apple* (*Tarifs et disponibilité*).
 - **Le Mac de Samy est éteint** : la livraison attend le runner, jusqu'à 24 heures, puis échoue. On la relance par le bouton.
 
 ## Plus tard : la sortie publique
