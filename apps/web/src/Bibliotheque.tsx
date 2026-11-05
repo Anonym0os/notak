@@ -3,6 +3,7 @@ import {
   BoutonIlot,
   type EntreeMenu,
   type FenetresNotak,
+  type Fichier,
   type GenreNeuf,
   Icone,
   Ilot,
@@ -13,6 +14,7 @@ import {
   creerDans,
   demanderAMontrer,
   FeuilleBas,
+  ModaleFichier,
   quandPretes,
   type ResultatRecherche,
   resumesDuTableau,
@@ -52,6 +54,8 @@ import {
   jeterEntrees,
   importerEntrees,
   rangerDansUneNeuve,
+  rangerLesRestes,
+  restesDe,
   renommerEntree,
 } from './bibliotheque/actions'
 import { type Correctif, DUREE_CORRECTIF, avecCorrectifs, corriger } from './bibliotheque/correctifs'
@@ -92,6 +96,8 @@ import {
   estDossier,
   filDAriane,
   ecrireAffichage,
+  adresseDuDossier,
+  elementDeLAdresse,
   lireAffichage,
   lireVue,
 } from './bibliotheque/modele'
@@ -614,6 +620,21 @@ function BibliothequeBureau({
 
   const outils: Outils | null = espace ? { espace, rangerToile, definirFavori } : null
   const titreToile = (id: string) => (espace && id === espace.racine ? titreAccueil || t('biblio.accueil') : parCle.get(`${id}/`)?.titre || t('commun.sansTitre'))
+  /**
+   * Ce qu'on ouvre d'ici arrive avec le chemin des dossiers où il est rangé (`parent` : pour une toile qu'on vient d'y
+   * créer) : la barre de la toile le redit, et chaque maillon mène à sa liste, au lieu de croire qu'on vient de l'accueil.
+   */
+  const tenirLeChemin = (tableau: string, parent?: string) => {
+    if (!espace?.entrer || !toutes) return
+    const c = parent ? [...filDAriane(parent, toutes, espace.racine), tableau] : filDAriane(tableau, toutes, espace.racine)
+    for (let i = 1; i < c.length; i++) espace.entrer(c[i]!, c[i - 1]!)
+  }
+  /** Un dossier autre que l'accueil : il ne se montre jamais en toile, ni ce qu'il porte sur la sienne. */
+  const sousDossier = (id: string | null | undefined): boolean => {
+    if (!id || id === espace?.racine) return false
+    const e = parCle.get(`${id}/`)
+    return !!e && estDossier(e)
+  }
 
   /**
    * Change de vue : la portée (la colonne), le filtre (les puces), le dossier qu'on parcourt ; l'adresse la redit.
@@ -666,6 +687,7 @@ function BibliothequeBureau({
       if (titre && neuve.element === null && espace) espace.renommer(neuve.tableau, titre)
       // Ce qu'on vient de créer compte parmi les récents.
       void noterVu(neuve)
+      tenirLeChemin(neuve.tableau, neuve.element === null ? (dans ?? dossier ?? undefined) : undefined)
       allerAEntree(neuve)
     } finally {
       // Ce qu'on a créé s'est ouvert : la page a pu partir.
@@ -674,17 +696,49 @@ function BibliothequeBureau({
   }
   /** Ouvre la toile qui la porte, la vue centrée sur elle, choisie (pour une toile : sa carte). */
   const afficherDansSaToile = (e: Pick<EntreeBibliotheque, 'tableau' | 'element'>, porteuse: string) => {
+    tenirLeChemin(porteuse)
     demanderAMontrer(e.element ?? e.tableau)
     allerA(`/t/${encodeURIComponent(porteuse)}`)
   }
-  /** Une toile s'ouvre, une page ou une carte mentale en grand ; une photo, un lien ou un fichier, sur leur toile. */
+  /**
+   * Une toile s'ouvre, une page ou une carte mentale en grand ; une photo, un lien ou un fichier, sur leur toile, ou
+   * seuls quand c'est un dossier qui les range.
+   */
   const ouvrir = (e: EntreeBibliotheque) => {
-    // Un dossier s'ouvre ici, en liste de ce qu'il porte ; « Ouvrir la toile » l'ouvre en toile.
+    // Un dossier s'ouvre ici, en liste de ce qu'il porte : il n'a pas de toile à montrer.
     if (estDossier(e)) return parcourir(e.tableau)
-    if (e.element === null || EN_GRAND.has(e.genre)) return allerAEntree(e)
+    if (e.element === null || EN_GRAND.has(e.genre)) {
+      tenirLeChemin(e.tableau)
+      return allerAEntree(e)
+    }
     // Rien ne les ouvre en grand, qui le noterait : on le dit ici.
     void noterVu(e)
+    // Rangés dans un dossier, ils s'ouvrent seuls ; posés sur une toile, sur elle.
+    if (sousDossier(e.tableau)) return ouvrirSeul(e)
     afficherDansSaToile(e, e.tableau)
+  }
+  /** La photo ou le fichier qu'un dossier range, ouvert seul dans la fenêtre des fichiers. */
+  const [seul, setSeul] = useState<{ contenu: Fichier; adresse: string } | null>(null)
+  /** Les dossiers dont on vient de ranger les restes : la ligne s'en va sans attendre que le serveur relise leur toile. */
+  const [restesRanges, setRestesRanges] = useState<ReadonlySet<string>>(new Set())
+  const ouvrirSeul = (e: EntreeBibliotheque) => {
+    const r = e.resume
+    if (r.genre === 'lien') return ouvrirDehors(r.url)
+    const contenu: Fichier | null =
+      r.genre === 'image'
+        ? { type: 'fichier', fichier: r.fichier, nom: titreDe(e), typeMime: 'image/*', taille: 0 }
+        : r.genre === 'fichier'
+          ? { type: 'fichier', fichier: r.fichier, nom: r.nom, typeMime: r.typeMime, taille: r.taille, ...(r.titre && r.titre !== r.nom ? { titre: r.titre } : {}) }
+          : null
+    if (!contenu) return
+    vignettes.adresse(contenu.fichier).then(
+      (adresse) => {
+        if (!montee.current) return
+        if (adresse) setSeul({ contenu, adresse })
+        else annoncer({ texte: t('commun.echec') })
+      },
+      () => annoncer({ texte: t('commun.echec') }),
+    )
   }
 
   // ---- Les gestes ----
@@ -798,7 +852,10 @@ function BibliothequeBureau({
     }
   }
   const copierLiens = (es: EntreeBibliotheque[]) => {
-    void navigator.clipboard?.writeText(es.map((e) => (e.resume.genre === 'lien' ? e.resume.url : `${location.origin}${adresseDe(e)}`)).join('\n')).then(
+    // Un dossier et ce qu'il range n'ont d'adresse que dans la bibliothèque ; une page ou une carte, la leur, en grand.
+    const adresse = (e: EntreeBibliotheque) =>
+      estDossier(e) ? adresseDuDossier(e.tableau) : e.element && !EN_GRAND.has(e.genre) && sousDossier(e.tableau) ? adresseDuDossier(e.tableau, e.element) : adresseDe(e)
+    void navigator.clipboard?.writeText(es.map((e) => (e.resume.genre === 'lien' ? e.resume.url : `${location.origin}${adresse(e)}`)).join('\n')).then(
       () => annoncer({ texte: t(es.length > 1 ? 'biblio.annonce.liens' : 'biblio.annonce.lien') }),
       () => {},
     )
@@ -814,18 +871,13 @@ function BibliothequeBureau({
     const ecrit = outils !== null
     const l: EntreeMenu[] = []
     if (une && (une.element === null || EN_GRAND.has(une.genre))) l.push({ libelle: t('biblio.menu.ouvrir'), icone: 'ouvrir', raccourci: '↩', faire: () => ouvrir(une) })
-    // Une toile s'ouvre en toile et se parcourt ici ; un dossier, l'inverse.
-    if (une?.element === null)
-      l.push(
-        estDossier(une)
-          ? { libelle: t('biblio.menu.ouvrirToile'), icone: 'tableau', faire: () => allerAEntree(une) }
-          : { libelle: t('biblio.menu.parcourir'), icone: 'dossier', faire: () => parcourir(une.tableau) },
-      )
+    // Une toile s'ouvre en toile et se parcourt aussi ici ; un dossier ne fait que se parcourir (« Ouvrir »).
+    if (une?.element === null && !estDossier(une)) l.push({ libelle: t('biblio.menu.parcourir'), icone: 'dossier', faire: () => parcourir(une.tableau) })
     if (une?.resume.genre === 'lien') {
       const url = une.resume.url
-      l.push({ libelle: t('biblio.menu.ouvrirLien'), icone: 'ouvrir', faire: () => void window.open(url, '_blank', 'noopener,noreferrer') })
+      l.push({ libelle: t('biblio.menu.ouvrirLien'), icone: 'ouvrir', faire: () => ouvrirDehors(url) })
     }
-    if (porteuse) l.push({ libelle: t('biblio.menu.afficher'), icone: 'tableau', faire: () => afficherDansSaToile(une!, porteuse) })
+    if (porteuse && !sousDossier(porteuse)) l.push({ libelle: t('biblio.menu.afficher'), icone: 'tableau', faire: () => afficherDansSaToile(une!, porteuse) })
     // Au doigt, l'appui long mène aussi au choix de plusieurs, comme dans Fichiers : la tuile tenue y est déjà.
     if (ecranAuDoigt() && !modeChoix) l.push({ libelle: t('biblio.choisir'), icone: 'menuSelectionner', faire: () => setModeChoix(true) })
     l.push(null)
@@ -878,14 +930,14 @@ function BibliothequeBureau({
   ]
   const menuDuDossier = (dans: string): EntreeMenu[] => [
     { libelle: t('biblio.menu.parcourir'), icone: 'dossier', faire: () => parcourir(dans) },
-    { libelle: t('biblio.menu.ouvrirToile'), icone: 'ouvrir', faire: () => allerA(`/t/${encodeURIComponent(dans)}`) },
+    ...(sousDossier(dans) ? [] : [{ libelle: t('biblio.menu.ouvrirToile'), icone: 'ouvrir' as const, faire: () => allerA(`/t/${encodeURIComponent(dans)}`) }]),
     ...(espace
       ? [
           { libelle: t('biblio.menu.creerIci'), icone: 'ajouter' as const, sous: sousMenuCreer(dans), faire: () => {} },
           { libelle: t('biblio.menu.nouveauDossier'), icone: 'dossier' as const, faire: () => nouveauDossier(dans) },
           null,
           {
-            libelle: t('biblio.menu.renommerToile'),
+            libelle: t(sousDossier(dans) ? 'biblio.menu.renommerDossier' : 'biblio.menu.renommerToile'),
             icone: 'renommer' as const,
             faire: () => {
               preparerClavier()
@@ -1245,6 +1297,23 @@ function BibliothequeBureau({
     battre(cles)
     plusTard(() => tuileDe(cles[0]!)?.scrollIntoView?.({ block: 'nearest' }), 60)
   }
+  // L'élément que l'adresse demande dans son dossier (« Copier le lien », la fiche d'un autre outil) : choisi, et
+  // ouvert seul, une fois la liste arrivée. Un lien n'est que choisi : un onglet ouvert sans clic serait bloqué.
+  const demande = useRef(elementDeLAdresse(location.search))
+  useEffect(() => {
+    const el = demande.current
+    if (!el || !dossier || !toutes) return
+    demande.current = null
+    const e = parCle.get(`${dossier}/${el}`)
+    // L'adresse ne garde que le dossier : y revenir (le retour du navigateur) ne rouvre pas l'élément.
+    history.replaceState(history.state, '', adresseDuDossier(dossier))
+    if (!e) return
+    const cle = cleDe(e)
+    setSel({ choisies: new Set([cle]), ancre: cle })
+    setCourante(cle)
+    plusTard(() => tuileDe(cle)?.scrollIntoView?.({ block: 'nearest' }), 60)
+    if (e.resume.genre !== 'lien') ouvrir(e)
+  }, [toutes, dossier]) // une fois, à l’arrivée de la liste
   const importerCourant = useRef(importerIci)
   importerCourant.current = importerIci
   // Fichier › Importer… dans Notak de bureau : dans le dossier qu'on parcourt, sinon sur l'accueil, comme un fichier lâché sur le fond.
@@ -1479,6 +1548,25 @@ function BibliothequeBureau({
     )
   }
 
+  // La toile d'un dossier qui porte encore ce qu'aucune tuile ne montre (des notes d'avant qu'il soit un dossier) : on
+  // le dit, et on propose de le mettre dans une toile du dossier, plutôt que de le laisser invisible.
+  const entreeDuDossier = dossier ? parCle.get(`${dossier}/`) : undefined
+  const restes = dossier && entreeDuDossier && sousDossier(dossier) && !cherche && outils && !restesRanges.has(dossier) ? restesDe(entreeDuDossier) : 0
+  const rangerCesRestes = (d: string) => {
+    if (!outils) return
+    setRestesRanges((x) => new Set([...x, d]))
+    void executer(rangerLesRestes(outils, { id: d, titre: titreToile(d) }))
+  }
+  const ligneDesRestes = restes > 0 && dossier && (
+    <div className="biblio-restes" role="note">
+      <Icone nom="tableau" taille={16} />
+      <p>{tn('biblio.restes.texte', restes)}</p>
+      <button type="button" className="bouton" onClick={() => rangerCesRestes(dossier)}>
+        {t('biblio.restes.ranger')}
+      </button>
+    </div>
+  )
+
   const corpsDeLaPage = (
       <main
         className="biblio-corps"
@@ -1490,6 +1578,7 @@ function BibliothequeBureau({
         onClick={surClic}
         onContextMenu={surMenu}
       >
+        {ligneDesRestes}
         {erreur ? (
           <div className="biblio-vide" role="alert">
             <p>{erreur}</p>
@@ -1652,6 +1741,7 @@ function BibliothequeBureau({
       )}
       {fenetre?.type === 'confirmer' && <Confirmation titre={fenetre.titre} lignes={fenetre.lignes} oui={t('biblio.confirmer.oui')} repondre={fenetre.repondre} />}
       {fenetre?.type === 'partage' && partage?.(fenetre.tableau, () => setFenetre(null))}
+      {seul && <ModaleFichier contenu={seul.contenu} adresse={seul.adresse} fermer={() => setSeul(null)} />}
       <BandeauAvis />
     </>
   )
@@ -1691,9 +1781,11 @@ function BibliothequeBureau({
                     <Icone nom="precedent" taille={16} trait={2} />
                     <span>{fil.length > 0 ? titreToile(fil[fil.length - 1]!) : t('biblio.titre')}</span>
                   </button>
-                  <a className="biblio-locale-voir" href={`/t/${encodeURIComponent(dossier)}`} onClick={(e) => surLien(e, `/t/${encodeURIComponent(dossier)}`)}>
-                    {t('biblio.menu.ouvrirToile')}
-                  </a>
+                  {!sousDossier(dossier) && (
+                    <a className="biblio-locale-voir" href={`/t/${encodeURIComponent(dossier)}`} onClick={(e) => surLien(e, `/t/${encodeURIComponent(dossier)}`)}>
+                      {t('biblio.menu.ouvrirToile')}
+                    </a>
+                  )}
                 </div>
               )}
               {/* Sur sa ligne : à côté du retour et de « Ouvrir la toile », elle ne tiendrait pas dans la largeur d'un téléphone. */}
@@ -1861,7 +1953,7 @@ function BibliothequeBureau({
         )}
         <div className="biblio-tete-droite">
           {dossier && !cherche && !(modeChoix || choisies.length > 1) && fiche?.adresse && <Ilot className="biblio-ouvrir-toile">{lienFiche('biblio-ouvrir-toile-lien', true)}</Ilot>}
-          {dossier && !cherche && !(modeChoix || choisies.length > 1) && (
+          {dossier && !sousDossier(dossier) && !cherche && !(modeChoix || choisies.length > 1) && (
             <Ilot className="biblio-ouvrir-toile">
               <a className="biblio-ouvrir-toile-lien" href={`/t/${encodeURIComponent(dossier)}`} onClick={(e) => surLien(e, `/t/${encodeURIComponent(dossier)}`)}>
                 <Icone nom="tableau" taille={16} />

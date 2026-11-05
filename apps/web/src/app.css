@@ -5692,6 +5692,28 @@ button.biblio-arbre-chevron:hover {
 }
 
 /* « Fiche dans… » : le dossier d'une fiche d'un autre outil y mène, sous la ligne du dossier. */
+.biblio-restes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--biblio-remplissage);
+  color: var(--biblio-pale);
+  font-size: 14px;
+}
+
+.biblio-restes p {
+  flex: 1 1 240px;
+  margin: 0;
+}
+
+.biblio-restes svg {
+  flex: none;
+}
+
 .biblio-locale-fiche {
   display: flex;
   align-items: center;

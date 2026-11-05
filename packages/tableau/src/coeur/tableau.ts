@@ -983,8 +983,10 @@ export interface Tableau {
   /** Son arrière-plan : couleur du canevas et grille de points. Absent : le gris et les points. */
   fond?: Fond
   /**
-   * Elle se montre en dossier : la bibliothèque l'ouvre d'abord en liste de ce qu'elle porte, avec l'icône d'un dossier.
-   * C'est toujours une toile, qui s'ouvre aussi en toile ; seule sa façon de se présenter change.
+   * C'est un dossier : la bibliothèque le montre en liste de ce qu'il porte, avec l'icône d'un dossier. Son document
+   * reste celui d'une toile (il garde les cartes et les éléments qu'il range), mais il ne se montre jamais en toile, sauf
+   * l'accueil : `EspaceNotak` le renvoie à sa liste (prop `dossier`), et n'ouvre en grand que la page ou la carte qu'il
+   * range. Une toile se montre en dossier, et de nouveau en toile, depuis son menu dans la bibliothèque.
    */
   dossier?: boolean
   elements: Element[]

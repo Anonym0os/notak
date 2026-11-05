@@ -160,7 +160,7 @@ describe('les dossiers des fiches d’un autre outil', () => {
       chemin: `/?dossier=${dupont}`,
       elements: [
         { tableau: 'devis', element: null, genre: 'toile', titre: 'Devis 2027', modifie: 5000, chemin: '/t/devis' },
-        { tableau: dupont, element: 'cr', genre: 'document', titre: 'Compte rendu', modifie: null, chemin: `/t/${dupont}/e/cr` },
+        { tableau: dupont, element: 'cr', genre: 'document', titre: 'Compte rendu', modifie: null, chemin: `/?dossier=${dupont}&element=cr` },
       ],
     })
     // Une fiche sans dossier : son état, sans contenu.

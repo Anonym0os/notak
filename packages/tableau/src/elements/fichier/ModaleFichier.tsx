@@ -9,9 +9,10 @@ import { ouvrirFenetreFichier } from './ouverture'
 /**
  * Le fichier en grand, sur un voile à 70 %. Un PDF ou un texte se lit dans le lecteur du navigateur (80 % de la largeur,
  * 90 % de la hauteur) ; une image, un son ou une vidéo se montrent en grand ; le reste est une carte agrandie.
- * C'est un dialogue (communs/Dialogue), sans boîte : Échap ou un clic sur le fond la ferme.
+ * C'est un dialogue (communs/Dialogue), sans boîte : Échap ou un clic sur le fond la ferme. La bibliothèque s'en sert
+ * aussi, hors de toute toile, pour ce que range un dossier (`fermer` : à elle de la retirer).
  */
-export function ModaleFichier({ contenu: c, adresse }: { contenu: Fichier; adresse: string }) {
+export function ModaleFichier({ contenu: c, adresse, fermer = () => ouvrirFenetreFichier(null) }: { contenu: Fichier; adresse: string; fermer?: () => void }) {
   const genre = genreDe(c.nom, c.typeMime)
   const lecteur = lisible(c.typeMime)
   const titre = c.titre ?? c.nom
@@ -47,7 +48,7 @@ export function ModaleFichier({ contenu: c, adresse }: { contenu: Fichier; adres
     </div>
   )
   return (
-    <Dialogue nu className="notak-fenetre" etiquette={titre} voile="sombre" fermer={() => ouvrirFenetreFichier(null)} hote={document.body}>
+    <Dialogue nu className="notak-fenetre" etiquette={titre} voile="sombre" fermer={fermer} hote={document.body}>
       {corps}
     </Dialogue>
   )

@@ -2171,7 +2171,13 @@ export function creerApp(ctx: Contexte): Hono {
             titre: toile ? (base.tableau(l.tableau)?.titre ?? l.titre) : l.titre,
             ...(dossier ? { dossier: true } : {}),
             modifie: derniers.get(`${l.tableau}/${toile ? '' : l.element}`) ?? null,
-            chemin: toile ? (dossier ? `/?dossier=${encodeURIComponent(l.tableau)}` : `/t/${encodeURIComponent(l.tableau)}`) : `/t/${encodeURIComponent(l.tableau)}/e/${encodeURIComponent(l.element)}`,
+            // Un dossier n'a pas de toile à montrer : ce qu'il range s'ouvre depuis sa liste, dans la bibliothèque (seul,
+            // pour une photo ou un fichier ; en grand, pour une page).
+            chemin: toile
+              ? dossier
+                ? `/?dossier=${encodeURIComponent(l.tableau)}`
+                : `/t/${encodeURIComponent(l.tableau)}`
+              : `/?dossier=${encodeURIComponent(l.tableau)}&element=${encodeURIComponent(l.element)}`,
           }
         })
         .sort((a, b) => (b.modifie ?? 0) - (a.modifie ?? 0) || a.titre.localeCompare(b.titre, 'fr'))

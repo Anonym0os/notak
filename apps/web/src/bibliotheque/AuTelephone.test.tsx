@@ -239,14 +239,14 @@ describe('sur un serveur', () => {
     expect(hote.querySelector('[data-cle="atelier/"]')!.getAttribute('aria-selected')).toBe('true')
   })
 
-  it('un dossier s’y parcourt aussi, avec le retour à ce qui le porte et « Ouvrir la toile »', async () => {
+  it('un dossier s’y parcourt aussi, avec le retour à ce qui le porte, sans toile à ouvrir', async () => {
     const avecDossier = TOUTES.map((e) => (e.tableau === 'voyage' && e.element === null ? { ...e, dans: 'racine', resume: { ...e.resume, dossier: true as const } } : e))
     await ouvrir({ charger: async () => avecDossier })
     act(() => hote.querySelector<HTMLElement>('[data-cle="voyage/"]')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
     expect(location.search).toBe('?dossier=voyage')
     expect(hote.querySelector('.biblio-telephone h1')!.textContent).toBe('Voyage')
     expect(titres('.biblio-corps')).toEqual(['Plan'])
-    expect(hote.querySelector('.biblio-locale-dossier a')!.getAttribute('href')).toBe('/t/voyage')
+    expect(hote.querySelector('.biblio-locale-dossier a')).toBeNull()
     act(() => hote.querySelector<HTMLButtonElement>('.biblio-locale-retour')!.click())
     expect(location.search).toBe('?dossier=racine')
   })
@@ -259,8 +259,8 @@ describe('sur un serveur', () => {
     await ouvrir({ charger: async () => avecFiche })
     const fiche = hote.querySelector<HTMLAnchorElement>('.biblio-locale-fiche')!
     expect([fiche.textContent, fiche.getAttribute('href')]).toEqual(['Fiche dans Mon CRM', 'https://crm.exemple.fr/s/42'])
-    // La ligne du dossier reste celle d'avant : le retour, et « Ouvrir la toile ».
-    expect([...hote.querySelectorAll<HTMLAnchorElement>('.biblio-locale-dossier a')].map((a) => a.textContent)).toEqual(['Ouvrir la toile'])
+    // La ligne du dossier reste celle d'avant : le retour seul, un dossier n'ayant pas de toile à ouvrir.
+    expect([...hote.querySelectorAll<HTMLAnchorElement>('.biblio-locale-dossier a')].map((a) => a.textContent)).toEqual([])
   })
 
   it('sur un ordinateur, la page du bureau : ni roue ronde, ni carte de bienvenue', async () => {

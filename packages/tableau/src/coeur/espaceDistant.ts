@@ -398,6 +398,9 @@ export function creerEspaceDistant(options: OptionsEspaceDistant): EspaceDistant
       if (id === racine) return
       // Entrer dans un ancêtre par un renvoi ne retourne pas le chemin : on garde celui qu'on connaît.
       if (depuis === null || chemin(depuis).includes(id)) return
+      // Arriver depuis l'accueil (une adresse, la bibliothèque qui l'ouvre) ne défait pas le chemin qu'on connaît déjà :
+      // celui des dossiers où la toile est rangée, que la bibliothèque a dit avant de l'ouvrir.
+      if (depuis === racine && parents.has(id)) return
       parents.set(id, depuis)
     },
     retenir: (id) => retenirTableau(id, true),

@@ -29,6 +29,7 @@ import { PageDiagnostic } from '../ios/PageDiagnostic'
 import { Rangement } from '../local/Rangement'
 import { noterVu } from '../local/vus'
 import { allerA, useChemin } from '../chemin'
+import { adresseDuDossier } from '../bibliotheque/modele'
 import { type BilanImport, importerFichiers } from '../importation'
 import { BibliothequeApp } from '../local/BibliothequeApp'
 import { initialiserSynchro } from '../local/synchro'
@@ -281,6 +282,7 @@ function Espace({ el }: { el: EspaceLocal }) {
             adresse={adresse}
             enregistrer={() => void enregistrer()}
             bibliotheque={allerALaBibliotheque}
+            dossier={(id, o) => allerA(adresseDuDossier(id), o)}
             actions={(ici, ouvrir, _aide) => {
           courant.current = ici
           ouvrirTableau.current = ouvrir

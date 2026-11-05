@@ -1853,9 +1853,17 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const enGrandRef = useRef<Id | null>(null)
   enGrandRef.current = enGrand
   const annonce = useRef<Id | null>(null)
+  /**
+   * L'élément que l'adresse a demandé, tant qu'il ne s'est pas encore montré en grand. Son ouverture peut attendre un
+   * rendu, ou être refusée une première fois (les droits arrivent juste après) : d'ici là, rien n'est à refermer, et
+   * on redemande son ouverture quand la toile change.
+   */
+  const attendu = useRef<Id | null>(null)
   useEffect(() => {
+    if (enGrand !== null && enGrand === attendu.current) attendu.current = null
     // Seuls les changements sont dits : une toile qui vient de naître ne referme pas l'élément que l'adresse attend.
     if (enGrand === annonce.current) return
+    if (enGrand === null && attendu.current !== null) return
     annonce.current = enGrand
     services.pleinEcran?.(enGrand)
   }, [enGrand, services])
@@ -1876,14 +1884,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     // L'adresse nomme un élément : il est choisi et ouvert une seule fois, dès que le tableau l'a.
     if (!adresseElement) {
       ouvertParAdresse.current = null
+      attendu.current = null
       return
     }
-    if (ouvertParAdresse.current === adresseElement || lectureSeule) return
+    if ((ouvertParAdresse.current === adresseElement && attendu.current !== adresseElement) || lectureSeule) return
     const el = tableau.elements.find((x) => x.id === adresseElement)
     if (!el) return
     ouvertParAdresse.current = adresseElement
     if (!PLEIN_ECRAN.has(el.contenu.type)) return
     annonce.current = adresseElement
+    attendu.current = adresseElement
     setSelection(new Set([el.id]))
     definition(el.contenu.type)?.ouvrir?.(el, contexte)
   }, [adresseElement, tableau, contexte, lectureSeule])
@@ -2852,7 +2862,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       oublierEntree()
       const g = geste.current
       // Un glisser qui s'attarde sur un tableau y entre, et continue dedans.
-      if (versTableau && g?.type === 'glisser' && services.ouvrirTableau) {
+      // Un dossier montré en liste n'a pas de toile où entrer : on y dépose seulement.
+      if (versTableau && g?.type === 'glisser' && services.ouvrirTableau && !services.dossierEnListe?.(versTableau.id)) {
         const vise = versTableau
         const minuteur = setTimeout(
           () => {

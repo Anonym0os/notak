@@ -74,6 +74,7 @@ import { VerrouTableau } from '../Verrou'
 import { t, tn } from '../langue'
 import { adressePour } from '../adresse'
 import { allerA, useChemin } from '../chemin'
+import { adresseDuDossier } from '../bibliotheque/modele'
 import { useBandeau } from '../bandeaux'
 
 /**
@@ -425,6 +426,7 @@ function Espace({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
         services={servicesIci}
         adresse={adresse}
         bibliotheque={() => allerA('/')}
+        dossier={(id, o) => allerA(adresseDuDossier(id), o)}
         actions={(courant, ouvrir) => (
           <>
             <BullesDecouverte espace={espace} tableau={courant} compte={moi.id} />

@@ -26,7 +26,7 @@ import { cleDe, porteuseDe } from './selection'
  */
 
 /** Ce que la bibliothèque demande à l'espace pour ranger. */
-export type EspaceRangement = Pick<EspaceNavigable, 'racine' | 'magasin' | 'tableau' | 'ecouter' | 'creerTableau' | 'renommer' | 'lectureSeule' | 'synchronise'>
+export type EspaceRangement = Pick<EspaceNavigable, 'racine' | 'magasin' | 'tableau' | 'ecouter' | 'creerTableau' | 'renommer' | 'lectureSeule' | 'synchronise' | 'entrer'>
 
 export interface Outils {
   espace: EspaceRangement
@@ -174,6 +174,50 @@ export async function rangerDansUneNeuve(
         { type: 'retirer', cles: [cleDe(neuve)] },
         ...correctifs.flatMap((c) => (c.type === 'remplacer' ? [{ type: 'remplacer' as const, de: cleDe(c.par), par: voulues.find((x) => cleDe(x.e) === c.de)!.e }] : [])),
       ]
+    },
+  }
+}
+
+/** Ce qu'une toile porte et que la bibliothèque montre en tuiles. Le reste (notes, colonnes, formes…) ne se voit que sur une toile. */
+export const TYPES_EN_TUILE: ReadonlySet<string> = new Set(['tableau', 'document', 'arbre', 'image', 'lien', 'fichier'])
+
+/** Combien d'éléments la toile d'un dossier porte encore, que sa liste ne montre pas (d'après son plan). */
+export const restesDe = (e: Pick<EntreeBibliotheque, 'resume'>): number =>
+  e.resume.genre === 'toile' ? e.resume.boites.filter((b) => !TYPES_EN_TUILE.has(b[5])).length : 0
+
+/**
+ * Un dossier ne se montre qu'en liste : ce que sa toile porte encore et qu'aucune tuile ne montre (des notes, une colonne,
+ * des formes, posées quand il était une toile) part dans une toile neuve, rangée dans le dossier et nommée comme lui.
+ * Une ligne suit les éléments qu'elle relie ; ce que range une colonne part avec elle. Se défait.
+ */
+export async function rangerLesRestes(o: Outils, dossier: { id: string; titre: string }): Promise<Resultat> {
+  await quandPretes(o.espace, [dossier.id])
+  const places = o.espace
+    .magasin(dossier.id)
+    .lire()
+    .elements.filter((e) => e.corbeille === undefined && !e.parent && e.contenu.type !== 'ligne' && !TYPES_EN_TUILE.has(e.contenu.type))
+    .map((e) => ({ toile: dossier.id, element: e.id }))
+  if (places.length === 0) return rien()
+  const r = rangerDansNeuve(o.espace, places, dossier.id, dossier.titre)
+  await quandPretes(o.espace, [r.toile])
+  const neuve: EntreeBibliotheque = {
+    tableau: r.toile,
+    element: null,
+    genre: 'toile',
+    titre: dossier.titre,
+    resume: { genre: 'toile', element: '', titre: dossier.titre, boites: [] },
+    ou: dossier.titre,
+    dans: dossier.id,
+    vu: null,
+    favori: false,
+    partage: false,
+  }
+  return {
+    texte: tn('biblio.annonce.deplaces', places.length, { toile: dossier.titre }),
+    correctifs: [{ type: 'ajouter', entrees: [neuve] }],
+    async annuler() {
+      r.annuler()
+      return [{ type: 'retirer', cles: [cleDe(neuve)] }]
     },
   }
 }

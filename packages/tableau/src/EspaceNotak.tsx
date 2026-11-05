@@ -183,6 +183,7 @@ export function EspaceNotak({
   enregistrer,
   habillages: offreHabillages,
   bibliotheque,
+  dossier,
 }: {
   espace: EspaceNavigable
   services?: Services
@@ -215,6 +216,13 @@ export function EspaceNotak({
   habillages?: OffreHabillages
   /** Mène à la bibliothèque, la page d'accueil de l'application : une maison en tête de la barre. */
   bibliotheque?(): void
+  /**
+   * Mène à la liste d'un dossier, dans la bibliothèque. Avec lui, un dossier (`Tableau.dossier`) autre que l'accueil
+   * ne se montre jamais en toile : sa carte, le fil, l'adresse ou le retour du navigateur y mènent ; une page ou une
+   * carte mentale qu'il porte s'ouvre toujours en grand, et la refermer y ramène. `remplacer` : l'adresse de la toile
+   * du dossier ne reste pas dans l'historique (on y était arrivé sans le vouloir). Sans lui, un dossier s'ouvre en toile.
+   */
+  dossier?(id: Id, o: { remplacer: boolean }): void
 }) {
   const racine = espace.racine
   const [parcours, setParcours] = useState(() => parcoursDepart(racine))
@@ -252,7 +260,10 @@ export function EspaceNotak({
   const [outilsCaches, setOutilsCaches] = useState(lireOutilsCaches)
   const basculerOutils = useCallback(() => setOutilsCaches((c) => (ecrireOutilsCaches(!c), !c)), [])
 
-  const ouvrir = useCallback(
+  /** Un dossier que l'hôte montre en liste : tout ce qui n'est pas l'accueil et que sa méta dit dossier. */
+  const enListe = useCallback((id: Id) => dossier !== undefined && id !== racine && espace.tableau(id)?.dossier === true, [dossier, espace, racine])
+  /** Ouvre ce tableau en toile, quel qu'il soit : l'adresse s'en sert pour poser une page en grand sur son dossier. */
+  const ouvrirEnToile = useCallback(
     (id: Id) => {
       if (!espace.existe(id)) return
       demanderRenommage(null)
@@ -262,6 +273,15 @@ export function EspaceNotak({
       })
     },
     [espace],
+  )
+  /** Ouvre un tableau : une toile en toile, un dossier dans sa liste. */
+  const ouvrir = useCallback(
+    (id: Id) => {
+      if (!enListe(id)) return ouvrirEnToile(id)
+      demanderRenommage(null)
+      dossier!(id, { remplacer: false })
+    },
+    [enListe, ouvrirEnToile, dossier],
   )
 
   // Le tableau qu'on regarde est vu tel qu'il est, à chaque changement : la pastille d'activité des cartes ne s'allume
@@ -295,6 +315,7 @@ export function EspaceNotak({
       pleinEcran,
       elementAdresse: elementAdresse?.tableau === courant ? elementAdresse.element : null,
       ouvrirTableau: ouvrir,
+      ...(dossier ? { dossierEnListe: enListe } : {}),
       tableau: espace.tableau,
       ecouterEspace: espace.ecouter,
       creerTableau: (titre) => espace.creerTableau(titre, courant),
@@ -373,7 +394,7 @@ export function EspaceNotak({
         return neufs
       },
     }),
-    [hote, espace, ouvrir, courant, lectureSeule, droits, reglages.doubleClic, reglages.barre, presentation, pleinEcran, elementAdresse],
+    [hote, espace, ouvrir, enListe, dossier, courant, lectureSeule, droits, reglages.doubleClic, reglages.barre, presentation, pleinEcran, elementAdresse],
   )
 
   // L'adresse suit le tableau ouvert ; une adresse qu'on suit (retour du navigateur) ne se réécrit pas.
@@ -403,8 +424,13 @@ export function EspaceNotak({
       const essayer = () => {
         if (!espace.existe(cible)) return false
         enAttente.current = false
+        // Un dossier sans page à ouvrir en grand : sa liste, à la place de cette adresse.
+        if (!element && enListe(cible)) {
+          dossier!(cible, { remplacer: true })
+          return true
+        }
         suivie.current = cible
-        ouvrir(cible)
+        ouvrirEnToile(cible)
         return true
       }
       if (essayer()) return
@@ -422,7 +448,15 @@ export function EspaceNotak({
     }
     aller(adresse.lire(), adresse.lireElement?.() ?? null)
     return adresse.ecouter(aller)
-  }, [adresse, espace, ouvrir, racine])
+  }, [adresse, espace, ouvrirEnToile, enListe, dossier, racine])
+
+  // La toile d'un dossier ne sert que de fond à la page ou à la carte qu'il porte, ouverte en grand : refermée (ou
+  // jamais ouverte, quand on sait trop tard que c'est un dossier, une fois son document arrivé), on retourne à sa liste.
+  const courantEnListe = useSyncExternalStore(espace.ecouter, () => enListe(courant))
+  const enGrandIci = elementAdresse?.tableau === courant
+  useEffect(() => {
+    if (courantEnListe && !enGrandIci) dossier!(courant, { remplacer: true })
+  }, [courantEnListe, enGrandIci, courant, dossier])
 
   // Le tableau regardé reste ouvert, avec ceux vers lesquels il renvoie.
   useEffect(() => espace.retenir?.(courant), [espace, courant])

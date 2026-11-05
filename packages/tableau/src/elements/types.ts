@@ -109,6 +109,11 @@ export interface Services {
   /** Ouvrir un tableau imbriqué. */
   ouvrirTableau?(id: Id): void
   /**
+   * Ce tableau est un dossier que l'hôte montre en liste, jamais en toile (`EspaceNotak`, prop `dossier`) : un glisser
+   * qui s'attarde sur sa carte n'y entre pas, il s'y dépose seulement.
+   */
+  dossierEnListe?(id: Id): boolean
+  /**
    * Pose ces éléments dans un autre tableau (on les y a lâchés) : ils s'y rangent à la suite du contenu,
    * ou gardent leur disposition si le tableau est vide. `nonTries` : ils vont dans les non triés du tableau, dans l'ordre.
    */

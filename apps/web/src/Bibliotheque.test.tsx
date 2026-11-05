@@ -419,7 +419,7 @@ describe('les gestes', () => {
     /** « Voyage » se montre en dossier ; il porte la carte « Plan » et une page. */
     const AVEC_DOSSIER = TOUTES.map((e) => (e.tableau === 'voyage' && e.element === null ? { ...e, resume: { ...e.resume, dossier: true as const } } : e))
 
-    it('un dossier s’ouvre ici, en liste de ce qu’il porte, avec son chemin et « Ouvrir la toile » ; ce qu’on crée y va', async () => {
+    it('un dossier s’ouvre ici, en liste de ce qu’il porte, avec son chemin et sans toile à ouvrir ; ce qu’on crée y va', async () => {
       history.replaceState(null, '', '/')
       const crees: [string, string | undefined][] = []
       await act(async () =>
@@ -431,7 +431,8 @@ describe('les gestes', () => {
       expect(location.search).toBe('?dossier=voyage')
       expect(hote.querySelector('h1')!.textContent).toBe('Voyage')
       expect([...hote.querySelectorAll('.biblio-fil button')].map((b) => b.textContent)).toEqual(['Accueil'])
-      expect(hote.querySelector<HTMLAnchorElement>('.biblio-ouvrir-toile-lien')!.getAttribute('href')).toBe('/t/voyage')
+      // Un dossier n'est pas une toile : rien ne propose de l'ouvrir comme telle.
+      expect(hote.querySelector('.biblio-ouvrir-toile-lien')).toBeNull()
       expect([...hote.querySelectorAll<HTMLElement>('[data-cle]')].map((x) => x.dataset.cle).sort()).toEqual(['voyage/notes', 'voyage/plan'])
       // La colonne le montre dans l'arbre, courant ; aucune portée ne l'est.
       expect(hote.querySelector('.biblio-arbre [aria-current="page"]')!.textContent).toBe('Voyage')
@@ -479,7 +480,9 @@ describe('les gestes', () => {
       expect(tuile('atelier/').querySelector('.biblio-vignette')!.getAttribute('data-genre')).toBe('dossier')
       expect(hote.querySelector('.notak-avis')!.textContent).toContain('« atelier » se montre en dossier')
       const libelles = menu(tuile('atelier/')).map((b) => b.querySelector('.notak-e-libelle')!.textContent)
-      expect(libelles).toContain('Ouvrir la toile')
+      // En dossier, elle ne se montre plus en toile : « Ouvrir » la parcourt, et rien d'autre ne l'ouvre.
+      expect(libelles).toContain('Ouvrir')
+      expect(libelles).not.toContain('Ouvrir la toile')
       expect(libelles).toContain('Afficher comme toile')
       expect(libelles).not.toContain('Parcourir')
       act(() => void document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
@@ -550,11 +553,82 @@ describe('les gestes', () => {
     expect(libelles.some((l) => l?.startsWith('Ouvrir le lien'))).toBe(true)
     expect(libelles.some((l) => l === 'Ouvrir')).toBe(false)
     act(() => entree('Ouvrir le lien').click())
-    expect(ouverture).toHaveBeenCalledWith('https://www.hotel-lisbonne.pt/chambres', '_blank', 'noopener,noreferrer')
+    expect(ouverture).toHaveBeenCalledWith('https://www.hotel-lisbonne.pt/chambres', '_blank', 'noopener')
     menu(tuile('voyage/site'))
     await act(async () => entree('Ajouter aux favoris').click())
     expect(favoris).toEqual([['voyage', true, 'site']])
     ouverture.mockRestore()
+  })
+
+  describe('ce qu’un dossier range', () => {
+    /** « Voyage » devient un dossier : sa photo, son lien et son PDF n'ont plus de toile où s'ouvrir. */
+    const EN_DOSSIER = [...TOUTES, ...PORTES].map((e) => (e.tableau === 'voyage' && e.element === null ? { ...e, resume: { ...e.resume, dossier: true as const } } : e))
+    const vignettes = { adresse: async (f: string) => `/api/fichiers/${f}`, distant: () => true }
+    const monter = (extra: Partial<Parameters<typeof PageBibliotheque>[0]> = {}) =>
+      act(async () => racine.render(<PageBibliotheque charger={async () => EN_DOSSIER} espace={monde()} vignettes={vignettes} {...extra} />))
+
+    it('une photo ou un fichier s’ouvre seul, dans la fenêtre des fichiers, sans aller sur la toile du dossier', async () => {
+      history.replaceState(null, '', '/?dossier=voyage')
+      await monter()
+      await act(async () => tuile('voyage/port').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+      expect(location.pathname).toBe('/')
+      expect(document.querySelector<HTMLImageElement>('.notak-fenetre-image')!.getAttribute('src')).toBe('/api/fichiers/f-port')
+      act(() => document.querySelector('.notak-fenetre')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+      expect(document.querySelector('.notak-fenetre')).toBeNull()
+      await act(async () => tuile('voyage/billets').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+      expect(document.querySelector('.notak-fenetre-lecteur')!.getAttribute('src')).toBe('/api/fichiers/f-billets')
+      expect(location.pathname).toBe('/')
+    })
+
+    it('un lien s’ouvre dans le navigateur ; « Afficher dans sa toile » n’est plus proposé', async () => {
+      history.replaceState(null, '', '/?dossier=voyage')
+      const ouvertes: string[] = []
+      const espion = vi.spyOn(window, 'open').mockImplementation((u) => (ouvertes.push(String(u)), null))
+      onTestFinished(() => espion.mockRestore())
+      await monter()
+      act(() => tuile('voyage/site').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+      expect(ouvertes).toEqual(['https://www.hotel-lisbonne.pt/chambres'])
+      expect(location.pathname).toBe('/')
+      const libelles = menu(tuile('voyage/plan')).map((b) => b.querySelector('.notak-e-libelle')?.textContent)
+      expect(libelles).not.toContain('Afficher dans sa toile')
+    })
+
+    it('l’adresse d’un élément de dossier le choisit, et l’ouvre seul ; « Copier le lien » la donne', async () => {
+      history.replaceState(null, '', '/?dossier=voyage&element=port')
+      const copies: string[] = []
+      vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: async (x: string) => void copies.push(x) } })
+      await monter()
+      expect(document.querySelector<HTMLImageElement>('.notak-fenetre-image')!.getAttribute('src')).toBe('/api/fichiers/f-port')
+      expect(choisies()).toEqual(['voyage/port'])
+      act(() => document.querySelector('.notak-fenetre')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+      expect(document.querySelector('.notak-fenetre')).toBeNull()
+      menu(tuile('voyage/port'))
+      await act(async () => entree('Copier le lien').click())
+      menu(tuile('voyage/plan'))
+      await act(async () => entree('Copier le lien').click())
+      expect(copies).toEqual([`${location.origin}/?dossier=voyage&element=port`, `${location.origin}/t/voyage/e/plan`])
+    })
+
+    it('ce que sa toile porte encore et qu’aucune tuile ne montre se range dans une toile du dossier, et se défait', async () => {
+      history.replaceState(null, '', '/?dossier=voyage')
+      const espace = monde()
+      espace.magasin('voyage').faire([{ type: 'creer', element: { id: 'memo', x: 60, y: 0, largeur: 20, contenu: { type: 'note', texte: 'À ne pas perdre' } } as unknown as ElementToile }])
+      await act(async () => racine.render(<PageBibliotheque charger={async () => EN_DOSSIER} espace={espace} vignettes={vignettes} rangerToile={async () => ({ nouveaux: 0, perdus: 0, permanents: 0, liensOuverts: 0, liensEteints: 0, fait: true })} definirFavori={async () => {}} />))
+      // Le plan de « Voyage » (l'entrée d'essai) porte une note : la ligne le dit.
+      expect(hote.querySelector('.biblio-restes p')!.textContent).toBe('Une note ou une forme de ce dossier ne se voit que sur une toile.')
+      await act(async () => hote.querySelector<HTMLButtonElement>('.biblio-restes button')!.click())
+      expect(hote.querySelector('.biblio-restes')).toBeNull()
+      const restes = espace.tableau('voyage')!.elements
+      expect(restes.some((e) => e.id === 'memo')).toBe(false)
+      const carte = restes.find((e) => e.contenu.type === 'tableau')!
+      const neuve = (carte.contenu as { cible: string }).cible
+      expect(espace.tableau(neuve)!.titre).toBe('Voyage')
+      expect(espace.tableau(neuve)!.elements.map((e) => e.contenu.type)).toEqual(['note'])
+      // Le document et la carte mentale restent dans le dossier.
+      expect(restes.map((e) => e.id)).toEqual(expect.arrayContaining(['plan', 'notes']))
+      await act(async () => touche('z', { metaKey: true }))
+      expect(espace.tableau('voyage')!.elements.some((e) => e.contenu.type === 'note')).toBe(true)
+    })
   })
 
   it('« Afficher dans sa toile » ouvre celle qui la porte et lui demande de la montrer ; pour une toile, sa carte', async () => {

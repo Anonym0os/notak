@@ -131,6 +131,23 @@ export function adresseDeLaVue({ portee, filtre, dossier }: Vue): string {
   return q ? `/?${q}` : '/'
 }
 
+/**
+ * L'adresse d'un dossier dans la bibliothèque : il ne s'ouvre jamais en toile. Avec `element`, ce qu'il porte s'y
+ * choisit à l'arrivée, et s'ouvre seul (une photo, un fichier, une page) ; c'est ce que donnent « Copier le lien » et
+ * les fiches d'un autre outil.
+ */
+export function adresseDuDossier(dossier: string, element?: string | null): string {
+  const p = new URLSearchParams({ dossier })
+  if (element) p.set('element', element)
+  return `/?${p.toString()}`
+}
+
+/** L'élément que l'adresse demande d'ouvrir dans son dossier (`?dossier=…&element=…`), ou `null`. */
+export const elementDeLAdresse = (recherche: string): string | null => {
+  const p = new URLSearchParams(recherche)
+  return (p.get('dossier') && p.get('element')) || null
+}
+
 /** Comment les tuiles se montrent : en grille de vignettes, ou en liste, une ligne chacune. */
 export type Affichage = 'grille' | 'liste'
 const CLE_AFFICHAGE = 'notak:bibliotheque-affichage'
