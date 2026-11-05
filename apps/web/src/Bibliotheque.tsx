@@ -66,7 +66,8 @@ import {
   toutChoisir,
   voisine,
 } from './bibliotheque/selection'
-import { Vignette } from './bibliotheque/Vignettes'
+import { FournisseurVignettes, type SourceVignettes, Vignette } from './bibliotheque/Vignettes'
+import { fichiers as fichiersServeur } from './fichiers'
 import { suivreAppuiLong } from './bibliotheque/appuiLong'
 import { BarreChoix } from './bibliotheque/BarreChoix'
 import { PremierPas } from './bibliotheque/PremierPas'
@@ -86,7 +87,7 @@ import { t, tn } from './langue'
  * téléphone, la même page prend la forme de la bibliothèque de l'appareil (`bibliotheque/Telephone.tsx`).
  */
 
-export const RUBRIQUES = ['recents', 'favoris', 'partages', 'toiles', 'documents', 'cartes'] as const
+export const RUBRIQUES = ['recents', 'favoris', 'partages', 'toiles', 'documents', 'cartes', 'photos', 'liens', 'fichiers'] as const
 export type Rubrique = (typeof RUBRIQUES)[number]
 export type Tri = 'date' | 'dossier'
 
@@ -97,8 +98,37 @@ const ICONE_RUBRIQUE: Record<Rubrique, NomIcone> = {
   toiles: 'tableau',
   cartes: 'carteMentale',
   documents: 'document',
+  photos: 'photo',
+  liens: 'lien',
+  fichiers: 'fichier',
 }
-const ICONE_GENRE: Record<EntreeBibliotheque['genre'], NomIcone> = { toile: 'tableau', arbre: 'carteMentale', document: 'document' }
+const ICONE_GENRE: Record<EntreeBibliotheque['genre'], NomIcone> = { toile: 'tableau', arbre: 'carteMentale', document: 'document', image: 'photo', lien: 'lien', fichier: 'fichier' }
+/** Le genre de chaque rubrique qui n'en montre qu'un. */
+const GENRE_DE: Partial<Record<Rubrique, EntreeBibliotheque['genre']>> = {
+  toiles: 'toile',
+  documents: 'document',
+  cartes: 'arbre',
+  photos: 'image',
+  liens: 'lien',
+  fichiers: 'fichier',
+}
+/** Ce qui s'ouvre en grand sur sa toile ; une photo, un lien ou un fichier s'ouvrent sur leur toile, centrés sur eux. */
+const EN_GRAND = new Set<EntreeBibliotheque['genre']>(['arbre', 'document'])
+
+/** Le nom d'une tuile : son titre ; une photo sans légende se dit « Photo », un lien sans titre, son site. */
+export function titreDe(e: Pick<EntreeBibliotheque, 'titre' | 'genre' | 'resume'>): string {
+  if (e.titre) return e.titre
+  if (e.genre === 'image') return t('biblio.genre.image')
+  if (e.resume.genre === 'lien') return e.resume.site || domaineDe(e.resume.url) || t('biblio.genre.lien')
+  return t('commun.sansTitre')
+}
+const domaineDe = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return ''
+  }
+}
 /** Ce que crée la première tuile de chaque rubrique ; rien dans les favoris et les partages. */
 const NEUF_DE: Partial<Record<Rubrique, GenreNeuf>> = { recents: 'toile', toiles: 'toile', cartes: 'arbre', documents: 'document' }
 
@@ -120,12 +150,8 @@ export function entreesDe(rubrique: Rubrique, toutes: readonly EntreeBibliothequ
       return garder((e) => e.favori)
     case 'partages':
       return garder((e) => e.partage)
-    case 'toiles':
-      return garder((e) => e.genre === 'toile')
-    case 'cartes':
-      return garder((e) => e.genre === 'arbre')
-    case 'documents':
-      return garder((e) => e.genre === 'document')
+    default:
+      return garder((e) => e.genre === GENRE_DE[rubrique])
   }
 }
 
@@ -173,19 +199,26 @@ export function sectionsParDossier(entrees: readonly EntreeBibliotheque[]): Sect
 
 const sansAccents = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 
-/** Ce qui répond à une recherche : chaque mot dans le titre ou dans le nom de la toile qui le porte. */
+/** Ce qui se cherche d'une entrée, en plus de son titre : l'adresse et le site d'un lien, le nom d'un fichier. */
+const enPlus = (r: EntreeBibliotheque['resume']) =>
+  r.genre === 'lien' ? `${r.url} ${r.site ?? ''} ${r.description ?? ''}` : r.genre === 'fichier' ? r.nom : r.genre === 'image' ? 'photo' : ''
+
+/** Ce qui répond à une recherche : chaque mot dans le titre (l'adresse d'un lien, le nom d'un fichier) ou dans le nom de la toile qui le porte. */
 export function filtrer(entrees: readonly EntreeBibliotheque[], requete: string): EntreeBibliotheque[] {
   const mots = sansAccents(requete).split(/\s+/).filter(Boolean)
   if (mots.length === 0) return [...entrees]
   return entrees.filter((e) => {
-    const texte = sansAccents(`${e.titre} ${e.ou ?? ''}`)
+    const texte = sansAccents(`${titreDe(e)} ${enPlus(e.resume)} ${e.ou ?? ''}`)
     return mots.every((m) => texte.includes(m))
   })
 }
 
-/** L'adresse qui ouvre une entrée : la toile, ou l'élément en grand sur sa toile. */
-export const adresseDe = (e: Pick<EntreeBibliotheque, 'tableau' | 'element'>) =>
-  e.element === null ? `/t/${encodeURIComponent(e.tableau)}` : `/t/${encodeURIComponent(e.tableau)}/e/${encodeURIComponent(e.element)}`
+/**
+ * L'adresse qui ouvre une entrée : la toile, ou l'élément en grand sur sa toile. Une photo, un lien ou un fichier (le
+ * `genre` le dit) n'ont pas d'adresse à eux : c'est celle de leur toile.
+ */
+export const adresseDe = (e: Pick<EntreeBibliotheque, 'tableau' | 'element'> & { genre?: EntreeBibliotheque['genre'] }) =>
+  e.element === null || (e.genre && !EN_GRAND.has(e.genre)) ? `/t/${encodeURIComponent(e.tableau)}` : `/t/${encodeURIComponent(e.tableau)}/e/${encodeURIComponent(e.element)}`
 
 /**
  * Ouvre une entrée : la toile, ou l'élément en grand sur la sienne. Un élément porte `{ element }` dans son entrée
@@ -240,6 +273,9 @@ interface Glisse {
 /** Une toile, une carte ou un document entre dans les récents du compte. */
 const noterVuEntree = (e: Pick<EntreeBibliotheque, 'tableau' | 'element'>) => (e.element ? noterElementVu(e.tableau, e.element) : noterVuToile(e.tableau))
 
+/** Sur un serveur, les photos viennent de ses fichiers ; ses toiles laissent venir l'aperçu d'un lien. */
+const VIGNETTES_SERVEUR: SourceVignettes = { adresse: (f) => fichiersServeur.adresse(f), distant: () => true }
+
 /** Le pointeur à moins de tant de pixels du haut ou du bas de la page la fait défiler, pendant un cadre ou un glisser. */
 const BORD_DEFILEMENT = 48
 
@@ -281,6 +317,7 @@ function BibliothequeBureau({
   partage,
   importer,
   noterVu = noterVuEntree,
+  vignettes = VIGNETTES_SERVEUR,
   ecouter,
   partages = true,
   decouvrir,
@@ -309,6 +346,8 @@ function BibliothequeBureau({
   importer?: (fichiers: File[], dans: string) => Promise<BilanImport>
   /** Fait entrer une toile, une carte ou un document dans les récents du compte. */
   noterVu?: (e: Pick<EntreeBibliotheque, 'tableau' | 'element'>) => Promise<void>
+  /** D'où viennent les photos des vignettes, et quelles toiles laissent venir les images d'autres sites. */
+  vignettes?: SourceVignettes
 }) {
   const [serveur, setServeur] = useState<EntreeBibliotheque[] | null>(null)
   const [correctifs, setCorrectifs] = useState<{ n: number; correctif: Correctif }[]>([])
@@ -424,11 +463,17 @@ function BibliothequeBureau({
       setCreation(false)
     }
   }
-  const ouvrir = (e: EntreeBibliotheque) => allerAEntree(e)
   /** Ouvre la toile qui la porte, la vue centrée sur elle, choisie (pour une toile : sa carte). */
   const afficherDansSaToile = (e: Pick<EntreeBibliotheque, 'tableau' | 'element'>, porteuse: string) => {
     demanderAMontrer(e.element ?? e.tableau)
     allerA(`/t/${encodeURIComponent(porteuse)}`)
+  }
+  /** Une toile s'ouvre, une page ou une carte mentale en grand ; une photo, un lien ou un fichier, sur leur toile. */
+  const ouvrir = (e: EntreeBibliotheque) => {
+    if (e.element === null || EN_GRAND.has(e.genre)) return allerAEntree(e)
+    // Rien ne les ouvre en grand, qui le noterait : on le dit ici.
+    void noterVu(e)
+    afficherDansSaToile(e, e.tableau)
   }
 
   // ---- Les gestes ----
@@ -479,7 +524,7 @@ function BibliothequeBureau({
         },
       }),
     )
-  const nomDe = (es: EntreeBibliotheque[]) => (es.length === 1 ? es[0]!.titre || t('commun.sansTitre') : tn('biblio.deplacer.titre', es.length).replace(/^\S+\s/, ''))
+  const nomDe = (es: EntreeBibliotheque[]) => (es.length === 1 ? titreDe(es[0]!) : tn('biblio.deplacer.titre', es.length).replace(/^\S+\s/, ''))
   const deplacerVers = (es: EntreeBibliotheque[], vers: string) => {
     if (!outils || es.length === 0) return
     void executer(deplacerEntrees(outils, es, { id: vers, titre: titreToile(vers) }, confirmerOuverture(nomDe(es), vers)))
@@ -536,7 +581,7 @@ function BibliothequeBureau({
     }
   }
   const copierLiens = (es: EntreeBibliotheque[]) => {
-    void navigator.clipboard?.writeText(es.map((e) => `${location.origin}${adresseDe(e)}`).join('\n')).then(
+    void navigator.clipboard?.writeText(es.map((e) => (e.resume.genre === 'lien' ? e.resume.url : `${location.origin}${adresseDe(e)}`)).join('\n')).then(
       () => annoncer({ texte: t(es.length > 1 ? 'biblio.annonce.liens' : 'biblio.annonce.lien') }),
       () => {},
     )
@@ -547,12 +592,15 @@ function BibliothequeBureau({
   const menuDesTuiles = (cles: string[]): EntreeMenu[] => {
     const es = entreesDes(cles)
     const une = es.length === 1 ? es[0]! : null
-    const toiles = es.filter((e) => e.element === null)
-    const tousFavoris = toiles.length > 0 && toiles.every((e) => e.favori)
+    const tousFavoris = es.length > 0 && es.every((e) => e.favori)
     const porteuse = une && porteuseDe(une)
     const ecrit = outils !== null
     const l: EntreeMenu[] = []
-    if (une) l.push({ libelle: t('biblio.menu.ouvrir'), icone: 'ouvrir', raccourci: '↩', faire: () => ouvrir(une) })
+    if (une && (une.element === null || EN_GRAND.has(une.genre))) l.push({ libelle: t('biblio.menu.ouvrir'), icone: 'ouvrir', raccourci: '↩', faire: () => ouvrir(une) })
+    if (une?.resume.genre === 'lien') {
+      const url = une.resume.url
+      l.push({ libelle: t('biblio.menu.ouvrirLien'), icone: 'ouvrir', faire: () => void window.open(url, '_blank', 'noopener,noreferrer') })
+    }
     if (porteuse) l.push({ libelle: t('biblio.menu.afficher'), icone: 'tableau', faire: () => afficherDansSaToile(une!, porteuse) })
     l.push(null)
     if (une && ecrit)
@@ -566,11 +614,11 @@ function BibliothequeBureau({
         },
       })
     if (ecrit) l.push({ libelle: t('biblio.menu.dupliquer'), icone: 'menuDupliquer', raccourci: '⌘D', faire: () => dupliquerCes(es) })
-    if (toiles.length > 0)
+    if (es.length > 0)
       l.push({
         libelle: t(tousFavoris ? 'biblio.menu.plusFavori' : 'biblio.menu.favori'),
         icone: tousFavoris ? 'favoriPlein' : 'favori',
-        faire: () => void favoriCes(toiles, !tousFavoris),
+        faire: () => void favoriCes(es, !tousFavoris),
       })
     l.push(null)
     if (ecrit) l.push({ libelle: t('biblio.menu.deplacer'), icone: 'dossier', faire: () => setFenetre({ type: 'deplacer', cles }) })
@@ -998,6 +1046,7 @@ function BibliothequeBureau({
   const premiereFocalisable = courante && ordre.includes(courante) ? courante : (choisies[0] ?? ordre[0])
 
   return (
+    <FournisseurVignettes value={vignettes}>
     <div className="biblio" data-apport={apport ? (apport.cible === espace?.racine ? 'accueil' : 'toile') : undefined} onDragEnter={surApport} onDragOver={surApport} onDragLeave={surDepart} onDrop={surLacher}>
       <nav className="biblio-colonne" aria-label={t('biblio.titre')} ref={nav} onKeyDown={surToucheColonne} data-tauri-drag-region="deep">
         <div className="biblio-nouveau">
@@ -1015,6 +1064,9 @@ function BibliothequeBureau({
         {bouton('toiles')}
         {bouton('documents')}
         {bouton('cartes')}
+        {bouton('photos')}
+        {bouton('liens')}
+        {bouton('fichiers')}
         <p className="biblio-groupe">{t('biblio.maToile')}</p>
         <a
           className="biblio-rubrique"
@@ -1050,7 +1102,7 @@ function BibliothequeBureau({
             choisies={entreesDes(choisies)}
             ecrit={outils !== null}
             deplacer={() => setFenetre({ type: 'deplacer', cles: choisies })}
-            favori={(oui) => void favoriCes(entreesDes(choisies).filter((e) => e.element === null), oui)}
+            favori={(oui) => void favoriCes(entreesDes(choisies), oui)}
             dupliquer={() => dupliquerCes(entreesDes(choisies))}
             jeter={() => jeterCes(entreesDes(choisies))}
             fermer={() => {
@@ -1259,6 +1311,7 @@ function BibliothequeBureau({
       {fenetre?.type === 'partage' && partage?.(fenetre.tableau, () => setFenetre(null))}
       <BandeauAvis />
     </div>
+    </FournisseurVignettes>
   )
 }
 
@@ -1345,10 +1398,11 @@ function Tuile({
       data-survol-depot={survolee || undefined}
       data-arrivee={arrivee || undefined}
       data-glissee={glissee || undefined}
-      aria-label={e.titre || t('commun.sansTitre')}
+      aria-label={titreDe(e)}
       data-coche={coche || undefined}
+      data-genre={e.genre}
     >
-      <Vignette resume={e.resume} />
+      <Vignette resume={e.resume} tableau={e.tableau} />
       {coche && (
         <span className="biblio-tuile-case" aria-hidden>
           {choisie && <Icone nom="coche" taille={14} trait={2.4} />}
@@ -1362,7 +1416,7 @@ function Tuile({
       {renommer ? (
         <ChampRenommer valeur={e.titre} valider={valider} annuler={annuler} />
       ) : (
-        <span className="biblio-tuile-titre">{e.titre || t('commun.sansTitre')}</span>
+        <span className="biblio-tuile-titre">{titreDe(e)}</span>
       )}
       <span className="biblio-tuile-ou">
         <Icone nom={ICONE_GENRE[e.genre]} taille={13} />
@@ -1414,8 +1468,8 @@ function Fantome({ entrees, x, y }: { entrees: EntreeBibliotheque[]; x: number; 
   return (
     <div className="biblio-fantome" style={{ transform: `translate(${x + 14}px, ${y + 10}px)` }} aria-hidden>
       {entrees.length > 1 && <span className="biblio-fantome-pile" />}
-      <Vignette resume={e.resume} />
-      <span className="biblio-fantome-titre">{e.titre || t('commun.sansTitre')}</span>
+      <Vignette resume={e.resume} tableau={e.tableau} />
+      <span className="biblio-fantome-titre">{titreDe(e)}</span>
       {entrees.length > 1 && <span className="biblio-fantome-nombre">{entrees.length}</span>}
     </div>
   )

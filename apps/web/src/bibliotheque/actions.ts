@@ -30,7 +30,8 @@ export type EspaceRangement = Pick<EspaceNavigable, 'racine' | 'magasin' | 'tabl
 export interface Outils {
   espace: EspaceRangement
   rangerToile(tableau: string, parent: string, options?: { essai?: boolean; siPersonne?: boolean }): Promise<BilanRangement & { fait: boolean }>
-  definirFavori(tableau: string, favori: boolean): Promise<void>
+  /** `element` : ce que la toile porte (une page, une photo…) ; sans lui, la toile. */
+  definirFavori(tableau: string, favori: boolean, element?: string | null): Promise<void>
 }
 
 export interface Resultat {
@@ -233,7 +234,7 @@ export async function dupliquerEntrees(o: Outils, entrees: readonly EntreeBiblio
   }
 }
 
-/** Renomme une toile, une carte mentale ou un document ; les tuiles qu'une toile renommée porte suivent son nom. */
+/** Renomme une toile, ou ce qu'elle porte (sa page, sa photo…) ; les tuiles qu'une toile renommée porte suivent son nom. */
 export async function renommerEntree(o: Outils, e: Pick<EntreeBibliotheque, 'tableau' | 'element' | 'titre'>, titre: string, toutes: readonly EntreeBibliotheque[]): Promise<Correctif[]> {
   const propre = titre.trim()
   if (propre === e.titre) return []
@@ -245,11 +246,10 @@ export async function renommerEntree(o: Outils, e: Pick<EntreeBibliotheque, 'tab
   ]
 }
 
-/** Met ces toiles en favori, ou les en retire. */
+/** Met ces entrées en favori, ou les en retire : des toiles, et ce qu'elles portent. */
 export async function favoris(o: Outils, entrees: readonly EntreeBibliotheque[], favori: boolean): Promise<Correctif[]> {
-  const toiles = entrees.filter((e) => e.element === null)
-  await Promise.all(toiles.map((e) => o.definirFavori(e.tableau, favori)))
-  return toiles.map((e) => ({ type: 'changer', cle: cleDe(e), champs: { favori } }))
+  await Promise.all(entrees.map((e) => o.definirFavori(e.tableau, favori, e.element)))
+  return entrees.map((e) => ({ type: 'changer', cle: cleDe(e), champs: { favori } }))
 }
 
 /**
@@ -268,7 +268,7 @@ export async function importerEntrees(
 ): Promise<Resultat & { entrees: EntreeBibliotheque[] }> {
   const b = await importer(fichiers, dans.id)
   const poses = b.elements.filter((e) => !e.parent)
-  // Ce qui n'a pas de tuile ici : un fichier joint, une image, posés sur la toile.
+  // Ce qui ne s'ouvre pas en grand : un fichier joint, une photo, posés sur la toile, qu'on peut aller y voir.
   const joints = poses.filter((e) => e.contenu.type !== 'arbre' && e.contenu.type !== 'document')
   const nombre = poses.length + b.toiles.length
   const refus = b.refuses.length ? tn('biblio.import.refuses', b.refuses.length, { noms: b.refuses.map((nom) => t('biblio.import.nom', { nom })).join(', ') }) : ''
@@ -277,7 +277,7 @@ export async function importerEntrees(
   const commun = { ou: dans.titre, dans: dans.id, vu: maintenant, favori: false, partage: false }
   const entrees: EntreeBibliotheque[] = [
     ...resumesDuTableau({ titre: '', elements: poses as never }).flatMap((resume) =>
-      resume.genre !== 'arbre' && resume.genre !== 'document' ? [] : [{ tableau: dans.id, element: resume.element, genre: resume.genre, titre: resume.titre, resume, ...commun }],
+      resume.genre === 'toile' ? [] : [{ tableau: dans.id, element: resume.element, genre: resume.genre, titre: resume.titre, resume, ...commun }],
     ),
     ...b.toiles.map(({ id, titre }) => ({
       tableau: id,

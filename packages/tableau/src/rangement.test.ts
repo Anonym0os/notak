@@ -118,6 +118,23 @@ describe('rangement', () => {
     expect(accueil.elements.find((e) => e.id === 'doc')!.contenu).toMatchObject({ titre: 'Compte rendu' })
   })
 
+  it('renomme une photo (sa légende), un lien et un fichier (leur titre)', () => {
+    const { espace } = monde()
+    const m = espace.magasin('projets')
+    m.faire([
+      { type: 'creer', element: { id: 'photo', x: 0, y: 0, largeur: 10, contenu: { type: 'image', fichier: 'f', legende: '' } } as Element },
+      { type: 'creer', element: { id: 'site', x: 0, y: 10, largeur: 10, contenu: { type: 'lien', url: 'https://exemple.fr' } } as Element },
+      { type: 'creer', element: { id: 'pdf', x: 0, y: 20, largeur: 10, contenu: { type: 'fichier', fichier: 'g', nom: 'a.pdf' } } as unknown as Element },
+    ])
+    renommerChose(espace, { toile: 'projets', element: 'photo' }, 'Le port')
+    renommerChose(espace, { toile: 'projets', element: 'site' }, 'L’hôtel')
+    renommerChose(espace, { toile: 'projets', element: 'pdf' }, 'Billets')
+    const contenu = (id: string) => m.lire().elements.find((e) => e.id === id)!.contenu
+    expect(contenu('photo')).toMatchObject({ legende: 'Le port' })
+    expect(contenu('site')).toMatchObject({ titre: 'L’hôtel', url: 'https://exemple.fr' })
+    expect(contenu('pdf')).toMatchObject({ titre: 'Billets', nom: 'a.pdf' })
+  })
+
   it('copie un document ou une toile à côté de l’original, titrés « (copie) »', () => {
     const { espace } = monde()
     renommerChose(espace, { toile: 'accueil', element: 'doc' }, 'Budget')

@@ -81,7 +81,67 @@ function entreesServeur(): EntreeBibliotheque[] {
       resume: { genre: 'document' as const, element: `d${i}`, titre, lignes: ['Une première ligne assez longue', 'Puis une autre', 'Et la suite du texte'] },
       vu: i < 2 ? MAINTENANT - (i + 2) * HEURE : null,
     })),
+    ...PHOTOS.map(([titre], i) => ({
+      ...commun,
+      tableau: 't0',
+      element: `p${i}`,
+      genre: 'image' as const,
+      titre,
+      ou: 'Voyage au Japon',
+      dans: 't0',
+      resume: { genre: 'image' as const, element: `p${i}`, titre, fichier: `photo-${i}`, largeur: 4, hauteur: 3 },
+      vu: i === 0 ? MAINTENANT - HEURE / 2 : null,
+    })),
+    ...LIENS.map(([titre, url, site], i) => ({
+      ...commun,
+      tableau: 't3',
+      element: `l${i}`,
+      genre: 'lien' as const,
+      titre,
+      ou: 'Lectures',
+      dans: 't3',
+      resume: { genre: 'lien' as const, element: `l${i}`, titre, url, site },
+      vu: null,
+    })),
+    ...FICHIERS.map(([nom, typeMime], i) => ({
+      ...commun,
+      tableau: 't2',
+      element: `f${i}`,
+      genre: 'fichier' as const,
+      titre: nom,
+      ou: 'Budget 2027',
+      dans: 't2',
+      resume: { genre: 'fichier' as const, element: `f${i}`, titre: nom, fichier: `fichier-${i}`, nom, typeMime, taille: 1000 },
+      vu: null,
+    })),
   ]
+}
+
+/** Des photos sans réseau : des dégradés, à la place d'images. */
+const PHOTOS: [string, string, string][] = [
+  ['Le temple de Kyoto', '#e9a46b', '#8c3b2f'],
+  ['', '#7fb3d5', '#1b4f72'],
+  ['Marché de Nishiki', '#a9cf8f', '#3b6e2c'],
+  ['Le mont Fuji au matin', '#f5d0e0', '#6c3483'],
+]
+const LIENS: [string, string, string][] = [
+  ['Guide des ryokans', 'https://www.japan-guide.com/e/e2029.html', 'japan-guide.com'],
+  ['', 'https://fr.wikipedia.org/wiki/C%C3%A9ramique', ''],
+  ['Recette du dashi', 'https://www.justonecookbook.com/dashi/', 'Just One Cookbook'],
+]
+const FICHIERS: [string, string][] = [
+  ['Billets d’avion.pdf', 'application/pdf'],
+  ['Budget prévisionnel.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+  ['Plan de la maison.dwg', 'application/octet-stream'],
+]
+const VIGNETTES_BANC = {
+  async adresse(fichier: string) {
+    const [, a, b] = PHOTOS[Number(fichier.replace('photo-', ''))] ?? []
+    if (!a) return null
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><rect width="400" height="300" fill="url(#g)"/><circle cx="300" cy="80" r="38" fill="#fff" opacity=".55"/></svg>`
+    return `data:image/svg+xml,${encodeURIComponent(svg)}`
+  },
+  distant: () => false,
 }
 
 /** Le bouton de signalement, la cloche, le compte et la roue : la même largeur que les vrais. */
@@ -97,7 +157,7 @@ function BancServeur() {
   const [espace] = useState(() => creerEspace(monde()))
   return (
     <HoteNotak className="biblio-hote">
-      {(fenetres) => <PageBibliotheque charger={async () => entreesServeur()} espace={espace} fenetres={fenetres} compte={<Compte />} avatar={<BoutonIlot icone="compte" libelle="Compte" onClick={() => {}} />} />}
+      {(fenetres) => <PageBibliotheque charger={async () => entreesServeur()} vignettes={VIGNETTES_BANC} espace={espace} fenetres={fenetres} compte={<Compte />} avatar={<BoutonIlot icone="compte" libelle="Compte" onClick={() => {}} />} />}
     </HoteNotak>
   )
 }

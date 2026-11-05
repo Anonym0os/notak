@@ -172,13 +172,15 @@ function centralDe(contenu: Element['contenu']): string | null {
 
 /** Le contenu renommé : le document change de titre, la carte mentale celui de son sujet central. */
 function contenuRenomme(contenu: Element['contenu'], titre: string): Element['contenu'] | null {
-  if (contenu.type === 'document') return { ...contenu, titre }
+  if (contenu.type === 'document' || contenu.type === 'lien' || contenu.type === 'fichier') return { ...contenu, titre }
+  // Le nom d'une photo, dans la bibliothèque, est sa légende.
+  if (contenu.type === 'image') return { ...contenu, legende: titre }
   const central = centralDe(contenu)
   if (contenu.type !== 'arbre' || central === null) return null
   return { ...contenu, sujets: { ...contenu.sujets, [central]: { ...contenu.sujets[central]!, titre } } }
 }
 
-/** Renomme une toile, ou la carte mentale ou le document d'une toile (un pas d'historique sur elle). */
+/** Renomme une toile, ou ce qu'elle porte : une carte mentale, une page, une photo, un lien, un fichier (un pas d'historique sur elle). */
 export function renommerChose(espace: EspaceRangement, chose: { toile: Id; element: Id | null }, titre: string): void {
   if (chose.element === null) return void espace.renommer(chose.toile, titre)
   if (!ecrivable(espace, chose.toile)) return

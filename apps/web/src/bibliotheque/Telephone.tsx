@@ -17,6 +17,9 @@ import { cleDe } from './selection'
  * glisser : au doigt, on parcourt et on ouvre.
  */
 
+/** Ce que la page du téléphone montre. */
+const AU_TELEPHONE = new Set<EntreeBibliotheque['genre']>(['toile', 'document', 'arbre'])
+
 /** Combien de récents dans la rangée, et de tuiles par genre avant « Tout voir ». */
 const RECENTS = 8
 const PAR_RUBRIQUE = 4
@@ -65,7 +68,8 @@ export function BibliothequeTelephone({
 
   const lire = useCallback(() => {
     setErreur(null)
-    charger().then(setToutes, (x: Error) => setErreur(x.message || t('commun.echec')))
+    // Les photos, liens et fichiers ne viennent pas encore au téléphone : sa page ne les range nulle part.
+    charger().then((l) => setToutes(l.filter((e) => AU_TELEPHONE.has(e.genre))), (x: Error) => setErreur(x.message || t('commun.echec')))
   }, [charger])
   useEffect(lire, [lire])
 
@@ -90,7 +94,7 @@ export function BibliothequeTelephone({
   const tuiles = (liste: readonly EntreeBibliotheque[]) =>
     liste.map((e) => (
       <li key={cleDe(e)}>
-        <TuileDoigt genre={e.genre} resume={e.resume} titre={titreDe(e)} detail={detailDe(e)} onClick={() => ouvrir(e)} />
+        <TuileDoigt genre={e.genre as GenreNeuf} resume={e.resume} titre={titreDe(e)} detail={detailDe(e)} onClick={() => ouvrir(e)} />
       </li>
     ))
 
@@ -180,7 +184,7 @@ export function BibliothequeTelephone({
         {liste.length > 0 && <h2>{t(r ? 'biblio.resultats.titres' : 'biblio.rubrique.recents')}</h2>}
         <ul>
           {liste.map((e) => (
-            <LigneDoigt key={cleDe(e)} genre={e.genre} titre={titreDe(e)} detail={detailDe(e)} requete={r} onClick={() => ouvrir(e)} />
+            <LigneDoigt key={cleDe(e)} genre={e.genre as GenreNeuf} titre={titreDe(e)} detail={detailDe(e)} requete={r} onClick={() => ouvrir(e)} />
           ))}
         </ul>
         {r && toutes && liste.length === 0 && (

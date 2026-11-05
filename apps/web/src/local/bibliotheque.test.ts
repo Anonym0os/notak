@@ -53,6 +53,19 @@ describe('les entrées de l’appareil', () => {
     expect(e.find((x) => x.element === 'plan')!.vu).toBe(70)
   })
 
+  it('les photos, les liens et les fichiers des toiles, et leurs favoris', () => {
+    const fiches = new Map([
+      ['accueil', { resumes: [resumeToile(''), { genre: 'image' as const, element: 'port', titre: '', fichier: 'f', largeur: 1, hauteur: 1 }] }],
+      ['voyage', { resumes: [resumeToile('Voyage'), { genre: 'fichier' as const, element: 'pdf', titre: 'Billets', fichier: 'g', nom: 'b.pdf', typeMime: 'application/pdf', taille: 1 }] }],
+    ])
+    const e = entreesDeLAppareil([toile('accueil', ''), toile('voyage', 'Voyage', 'accueil')], 'accueil', fiches, new Map([['voyage/pdf', 1]]), {})
+    expect(e.map((x) => [x.genre, x.element, x.dans, x.favori])).toEqual([
+      ['image', 'port', 'accueil', false],
+      ['toile', null, 'accueil', false],
+      ['fichier', 'pdf', 'voyage', true],
+    ])
+  })
+
   it('une toile que le catalogue ne connaît pas encore se montre quand même, sans plan', () => {
     const e = entreesDeLAppareil([toile('accueil', 'Accueil'), toile('neuve', 'Neuve', 'accueil')], 'accueil', new Map(), new Map(), {})
     expect(e.map((x) => [x.titre, x.dans, x.resume.genre])).toEqual([['Neuve', 'accueil', 'toile']])
@@ -87,6 +100,8 @@ describe('la source de l’appareil', () => {
 
     await source.definirFavori(voyage, true)
     expect(index.favoris().has(`${voyage}/`)).toBe(true)
+    await source.definirFavori(voyage, true, 'une-photo')
+    expect(index.favoris().has(`${voyage}/une-photo`)).toBe(true)
 
     // Les toiles changées se relisent une fois retombées (le suivi du réseau) : on attend le catalogue.
     const changements = new Promise<void>((fin) => {

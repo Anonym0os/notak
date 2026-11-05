@@ -4,7 +4,7 @@ import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EntreeBibliotheque } from './api'
-import { PageBibliotheque, adresseDe, entreesDe, filtrer, sectionsParDate, sectionsParDossier } from './Bibliotheque'
+import { PageBibliotheque, adresseDe, entreesDe, filtrer, sectionsParDate, sectionsParDossier, titreDe } from './Bibliotheque'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -23,7 +23,7 @@ const entree = (e: Partial<EntreeBibliotheque> & Pick<EntreeBibliotheque, 'table
         ? { genre, element: '', titre: e.titre, boites: [[0, 0, 34, 7, 'jaune', 'note', 1]] }
         : genre === 'arbre'
           ? { genre, element: e.element ?? 'a', titre: e.titre, branches: ['Une', 'Deux', 'Trois'] }
-          : { genre, element: e.element ?? 'd', titre: e.titre, lignes: ['Première ligne'] },
+          : { genre: genre as 'document', element: e.element ?? 'd', titre: e.titre, lignes: ['Première ligne'] },
     ...e,
   }
 }
@@ -50,6 +50,50 @@ describe('entreesDe', () => {
     expect(entreesDe('documents', TOUTES).map((e) => e.element)).toEqual(['notes'])
     expect(entreesDe('favoris', TOUTES).map((e) => e.tableau)).toEqual(['voyage'])
     expect(entreesDe('partages', TOUTES).map((e) => e.tableau)).toEqual(['budget'])
+  })
+})
+
+/** Une photo sans légende, un lien et un PDF posés sur « Voyage ». */
+const PORTES: EntreeBibliotheque[] = [
+  { ...entree({ tableau: 'voyage', titre: '', ou: 'Voyage', dans: 'voyage' }), element: 'port', genre: 'image', resume: { genre: 'image', element: 'port', titre: '', fichier: 'f-port', largeur: 4, hauteur: 3 } },
+  {
+    ...entree({ tableau: 'voyage', titre: '', ou: 'Voyage', dans: 'voyage' }),
+    element: 'site',
+    genre: 'lien',
+    resume: { genre: 'lien', element: 'site', titre: '', url: 'https://www.hotel-lisbonne.pt/chambres', site: '' },
+  },
+  {
+    ...entree({ tableau: 'voyage', titre: 'Billets', ou: 'Voyage', dans: 'voyage', vu: MAINTENANT }),
+    element: 'billets',
+    genre: 'fichier',
+    resume: { genre: 'fichier', element: 'billets', titre: 'Billets', fichier: 'f-billets', nom: 'billets-tap.pdf', typeMime: 'application/pdf', taille: 12 },
+  },
+]
+
+describe('les photos, les liens et les fichiers', () => {
+  beforeEach(() => definirLangue('fr'))
+
+  it('ont chacun leur rubrique, et les fichiers ouverts entrent dans les récents', () => {
+    const toutes = [...TOUTES, ...PORTES]
+    expect(entreesDe('photos', toutes).map((e) => e.element)).toEqual(['port'])
+    expect(entreesDe('liens', toutes).map((e) => e.element)).toEqual(['site'])
+    expect(entreesDe('fichiers', toutes).map((e) => e.element)).toEqual(['billets'])
+    expect(entreesDe('recents', toutes)[0]!.element).toBe('billets')
+    expect(entreesDe('toiles', toutes).every((e) => e.genre === 'toile')).toBe(true)
+  })
+
+  it('se nomment même sans titre : « Photo », le site du lien', () => {
+    expect(PORTES.map(titreDe)).toEqual(['Photo', 'hotel-lisbonne.pt', 'Billets'])
+  })
+
+  it('se trouvent par l’adresse d’un lien et le nom d’un fichier', () => {
+    expect(filtrer(PORTES, 'lisbonne').map((e) => e.element)).toEqual(['site'])
+    expect(filtrer(PORTES, 'tap.pdf').map((e) => e.element)).toEqual(['billets'])
+    expect(filtrer(PORTES, 'photo').map((e) => e.element)).toEqual(['port'])
+  })
+
+  it('n’ont pas d’adresse à eux : celle de leur toile', () => {
+    expect(PORTES.map(adresseDe)).toEqual(['/t/voyage', '/t/voyage', '/t/voyage'])
   })
 })
 
@@ -339,6 +383,36 @@ describe('les gestes', () => {
     await act(async () => void hote.querySelector('.biblio-renommer')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
     await act(async () => void document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'N', metaKey: true, shiftKey: true, bubbles: true })))
     expect(espace.tableau('racine')!.elements.filter((e) => e.contenu.type === 'tableau')).toHaveLength(4)
+  })
+
+  it('une photo, un lien ou un fichier s’ouvrent sur leur toile, centrée sur eux, et entrent dans les récents', async () => {
+    history.replaceState(null, '', '/?vue=photos')
+    const vus: unknown[] = []
+    await act(async () => racine.render(<PageBibliotheque charger={async () => [...TOUTES, ...PORTES]} espace={monde()} noterVu={async (e) => void vus.push(e)} />))
+    expect(hote.querySelector('h1')!.textContent).toBe('Photos')
+    expect(tuile('voyage/port').querySelector('.biblio-tuile-titre')!.textContent).toBe('Photo')
+    act(() => tuile('voyage/port').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+    expect(location.pathname).toBe('/t/voyage')
+    expect(montrerDemande()).toBe('port')
+    expect(vus).toMatchObject([{ tableau: 'voyage', element: 'port' }])
+  })
+
+  it('le menu d’un lien l’ouvre ; ce qu’une toile porte se met en favori', async () => {
+    history.replaceState(null, '', '/?vue=liens')
+    const favoris: unknown[] = []
+    const ouverture = vi.spyOn(window, 'open').mockReturnValue(null)
+    await act(async () =>
+      racine.render(<PageBibliotheque charger={async () => [...TOUTES, ...PORTES]} espace={monde()} definirFavori={async (...a) => void favoris.push(a)} />),
+    )
+    const libelles = menu(tuile('voyage/site')).map((b) => b.textContent)
+    expect(libelles.some((l) => l?.startsWith('Ouvrir le lien'))).toBe(true)
+    expect(libelles.some((l) => l === 'Ouvrir')).toBe(false)
+    act(() => entree('Ouvrir le lien').click())
+    expect(ouverture).toHaveBeenCalledWith('https://www.hotel-lisbonne.pt/chambres', '_blank', 'noopener,noreferrer')
+    menu(tuile('voyage/site'))
+    await act(async () => entree('Ajouter aux favoris').click())
+    expect(favoris).toEqual([['voyage', true, 'site']])
+    ouverture.mockRestore()
   })
 
   it('« Afficher dans sa toile » ouvre celle qui la porte et lui demande de la montrer ; pour une toile, sa carte', async () => {

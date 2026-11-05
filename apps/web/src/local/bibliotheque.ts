@@ -2,8 +2,10 @@ import { type EntreeIndex, type Id, type ResumeContenu, rangerLesToiles } from '
 import type { BilanRangement, EntreeBibliotheque } from '../api'
 import type { BilanImport } from '../importation'
 import { t } from '../langue'
+import type { SourceVignettes } from '../bibliotheque/Vignettes'
 import type { FicheToile } from './catalogue'
 import type { EspaceLocal } from './espace'
+import { fichiersLocaux } from './fichiers'
 import { cleVu, lireVus, noterVu } from './vus'
 
 /**
@@ -24,8 +26,8 @@ type ResumeToile = Extract<ResumeContenu, { genre: 'toile' }>
 
 /**
  * Les entrées de l'appareil, comme celles qu'un serveur rend (`GET /api/bibliotheque`) : chaque toile hors l'accueil
- * et la corbeille, avec la toile qui la range ; chaque carte mentale et chaque document qu'elles portent, l'accueil
- * compris.
+ * et la corbeille, avec la toile qui la range ; chaque page, carte mentale, photo, lien et fichier qu'elles portent,
+ * l'accueil compris.
  */
 export function entreesDeLAppareil(
   toiles: readonly EntreeIndex[],
@@ -62,8 +64,7 @@ export function entreesDeLAppareil(
       })
     }
     for (const r of fiches.get(e.id)?.resumes ?? []) {
-      // Les photos, liens et fichiers attendent que la page sache les montrer (comme `/api/bibliotheque` sans `?genres=`).
-      if (r.genre !== 'arbre' && r.genre !== 'document') continue
+      if (r.genre === 'toile') continue
       entrees.push({
         tableau: e.id,
         element: r.element,
@@ -130,9 +131,11 @@ export function sourceLocale(
       if (!options.essai) index.declarer(toile, '', parent)
       return { ...BILAN_VIDE, fait: !options.essai }
     },
-    async definirFavori(toile: Id, favori: boolean) {
-      index.definirFavori(`${toile}/`, favori)
+    async definirFavori(toile: Id, favori: boolean, element: Id | null = null) {
+      index.definirFavori(`${toile}/${element ?? ''}`, favori)
     },
+    /** Les photos de l'appareil ; l'image d'un lien venue d'un autre site attend l'accord d'une toile reçue. */
+    vignettes: { adresse: fichiersLocaux.adresse, distant: (toile: Id) => !index.recu(toile) } satisfies SourceVignettes,
     async noterVu(e: Pick<EntreeBibliotheque, 'tableau' | 'element'>) {
       noterVu(cleVu(e.tableau, e.element))
     },

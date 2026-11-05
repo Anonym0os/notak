@@ -27,7 +27,7 @@ const entree = (e: Partial<EntreeBibliotheque> & Pick<EntreeBibliotheque, 'table
         ? { genre, element: '', titre: e.titre, boites: [] }
         : genre === 'arbre'
           ? { genre, element: e.element ?? 'a', titre: e.titre, branches: ['Une'] }
-          : { genre, element: e.element ?? 'd', titre: e.titre, lignes: ['Ligne'] },
+          : { genre: genre as 'document', element: e.element ?? 'd', titre: e.titre, lignes: ['Ligne'] },
     ...e,
   }
 }
