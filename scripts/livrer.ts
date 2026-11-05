@@ -18,7 +18,7 @@
  */
 import { spawnSync } from 'node:child_process'
 import { createPrivateKey, sign } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -230,6 +230,19 @@ function ios(ids: Identifiants, numero: string, envoi: boolean): number {
   return envoi ? envoyer(ids, join(dossier, ipa)) : 0
 }
 
+const LSREGISTER = '/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister'
+
+/**
+ * La copie de l'app que la construction laisse : le système la retient, et c'est à elle qu'il confie ensuite les liens
+ * `notak://`, à la place de l'app que TestFlight a installée (vu le 05/11/2026 : un lien de Silak lançait la copie du
+ * dossier du runner). Seul le paquet part chez Apple : la copie est oubliée du système, puis effacée une fois le paquet
+ * fait.
+ */
+function oublierLaCopie(app: string, effacer: boolean): void {
+  spawnSync(LSREGISTER, ['-u', app], { stdio: 'ignore' })
+  if (effacer) rmSync(app, { recursive: true, force: true })
+}
+
 function mac(ids: Identifiants, numero: string, envoi: boolean): number {
   if (!existsSync(PROFIL_MAC)) return (console.error('Le profil « Mac App Store » manque : bun run livrer profil'), 1)
   const installeur = identiteInstalleur(sortie('security', ['find-identity', '-v']))
@@ -248,6 +261,7 @@ function mac(ids: Identifiants, numero: string, envoi: boolean): number {
   const app = join(dossier, 'Notak.app')
   const pkg = join(dossier, 'Notak.pkg')
   const p = lancer('xcrun', ['productbuild', '--sign', installeur, '--component', app, '/Applications', pkg])
+  oublierLaCopie(app, p === 0)
   if (p !== 0) return p
   console.log(`\nMac ${numero} : ${pkg}`)
   return envoi ? envoyer(ids, pkg) : 0
