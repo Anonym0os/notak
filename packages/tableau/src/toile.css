@@ -2937,13 +2937,14 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 
 /*
  * Sur un téléphone, au doigt (Barres.tsx, `enFeuille`) : pas de barre à gauche. Un « + » rond en bas à gauche ouvre les
- * outils en feuille ; la barre d'une sélection, ou d'une note qu'on écrit, devient une bande en bas qui défile, au-dessus
- * du clavier quand il est là. La page de l'app laisse déjà la barre d'accueil autour de la toile.
+ * outils en feuille ; le coin droit est au bouton « Vue » (le zoom) et à la mini-carte, qu'il recouvrait. La barre d'une
+ * sélection, ou d'une note qu'on écrit, devient une bande en bas qui défile, au-dessus du clavier quand il est là. La
+ * page de l'app laisse déjà la barre d'accueil autour de la toile.
  */
 .notak-outils-ajouter {
   position: absolute;
   bottom: calc(16px + var(--notak-zone-bas, 0px));
-  right: calc(16px + var(--notak-zone-droite, 0px));
+  left: calc(16px + var(--notak-zone-gauche, 0px));
   z-index: 30;
   display: grid;
   place-items: center;

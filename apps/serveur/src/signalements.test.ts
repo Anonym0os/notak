@@ -88,11 +88,16 @@ describe('POST /api/signalements', () => {
     expect(existsSync(join(dossier, 'signalements', A_TRAITER, sansCapture.id, 'capture.png'))).toBe(false)
   })
 
+  it("le dit dans l'instance, sans compte : l'app d'iPhone ouvre la fenêtre d'une secousse là seulement", async () => {
+    expect(await (await fetch(`${origine}/api/instance`)).json()).toMatchObject({ signalements: true })
+  })
+
   it("répond comme une route absente quand l'instance ne reçoit pas de signalements", async () => {
     const autre = await demarrer({ port: 0, dossier: mkdtempSync(join(tmpdir(), 'notak-essai-')), secret: SECRET, openfga: openfgaEssai() })
     try {
       const r = await fetch(`http://localhost:${autre.port}/api/signalements`, { method: 'POST', body: '{}' })
       expect(r.status).toBe(404)
+      expect(await (await fetch(`http://localhost:${autre.port}/api/instance`)).json()).toMatchObject({ signalements: false })
     } finally {
       await autre.fermer()
     }

@@ -248,8 +248,8 @@ export function BarreOutils({
       </button>
     </Infobulle>
   )
-  // Sur un téléphone, la barre de gauche mangerait l'écran : un « + » en bas à droite, sous le pouce, ouvre les outils
-  // en feuille, comme Freeform, avec une vibration au toucher. Un outil touché se pose au milieu de la vue ; tiré, il
+  // Sur un téléphone, la barre de gauche mangerait l'écran : un « + » en bas à gauche (le coin droit est au zoom) ouvre
+  // les outils en feuille, comme Freeform, avec une vibration au toucher. Un outil touché se pose au milieu de la vue ; tiré, il
   // part avec le doigt sur la toile.
   if (enFeuille() && !grisee) {
     return (

@@ -330,8 +330,10 @@ export function creerApp(ctx: Contexte): Hono {
   }
 
   const instance = ctx.instance ?? INSTANCE_PAR_DEFAUT
-  // Ce que l'écran de connexion lit avant tout compte : il se règle dessus (nom, inscription, thème).
-  app.get('/api/instance', (c) => c.json({ ...instance, version: VERSION_NOTAK }))
+  // Ce que l'écran de connexion lit avant tout compte : il se règle dessus (nom, inscription, thème). Et si l'instance
+  // reçoit les signalements de bugs : l'app d'iPhone n'ouvre la fenêtre d'une secousse ou d'une capture d'écran que là
+  // où l'envoi aboutira (la route, elle, le dit déjà par son 404).
+  app.get('/api/instance', (c) => c.json({ ...instance, version: VERSION_NOTAK, signalements: ctx.dossierSignalements != null }))
 
   // « Est-ce bien un serveur Notak, et lequel ? » : l'app de bureau avant de s'y connecter, la surveillance du
   // conteneur (HEALTHCHECK). Sans compte, sans base, sans limite : rien n'y coûte.

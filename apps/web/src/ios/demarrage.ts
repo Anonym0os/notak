@@ -4,8 +4,10 @@
  *   app qui s'ouvre blanche la nuit détonne) ; ensuite, le réglage de la personne commande ;
  * - la vue native prend la couleur du fond de la page, et la barre d'état son style, à chaque changement de thème ;
  * - le clavier est suivi (`clavier.ts`), par la viewport et par l'événement de la coque ;
- * - le double toucher de l'Apple Pencil est relayé à la toile (`crayon.ts`).
+ * - le double toucher de l'Apple Pencil est relayé à la toile (`crayon.ts`) ;
+ * - une secousse ou une capture d'écran est relayée à la fenêtre de signalement (`signaler/geste.ts`).
  */
+import { relayerGeste } from '../signaler/geste'
 import { appliquerClavierDeLaCoque, type EvenementClavierCoque, suivreClavier } from './clavier'
 import { relayerDoubleToucher } from './crayon'
 import { reparerToucher } from './toucher'
@@ -79,6 +81,7 @@ export function demarrerMobile(fenetre: Window, coque: Coque): void {
   reparerToucher(fenetre)
   ecouterPlugin(coque, 'clavier', (d) => appliquerClavierDeLaCoque(fenetre.document, d as EvenementClavierCoque))
   ecouterPlugin(coque, 'crayon', (d) => relayerDoubleToucher(fenetre, d))
+  ecouterPlugin(coque, 'signaler', (d) => relayerGeste(fenetre, d))
   // La toile pose `data-theme` à son premier rendu : on attend qu'elle soit là.
   fenetre.requestAnimationFrame(() => suivreTheme(fenetre.document, fenetre, coque))
 }

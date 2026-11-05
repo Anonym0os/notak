@@ -17,7 +17,7 @@
 | Au premier lancement, le thème suit le système ; la vue native prend le fond du thème | `apps/web/src/ios/demarrage.ts` |
 | Pas de recherche de mises à jour sur mobile (c'est l'App Store) | `edition/locale.tsx`, `local/Rangement.tsx` |
 | Le nom de l'appareil dans un dossier partagé : « Notak · iPad » | `apps/web/src/local/synchro.ts` |
-| Le plugin `appareil` : Rust (le nom de la plateforme donné à la page) et Swift (infos, thème, photo, haptique, clavier) | `apps/bureau/plugins/appareil/` |
+| Le plugin `appareil` : Rust (le nom de la plateforme donné à la page) et Swift (infos, thème, photo, haptique, clavier, secousse et capture d'écran pour signaler un bug) | `apps/bureau/plugins/appareil/` |
 | La coque compile pour mobile : mises à jour et « Enregistrer sous » sous `#[cfg(desktop)]` | `apps/bureau/src-tauri/src/lib.rs`, `Cargo.toml` |
 | La configuration iOS et ce que l'app déclare au système | `src-tauri/tauri.ios.conf.json`, `src-tauri/Info.ios.plist` |
 | Les droits de la page sur mobile, et ceux du bureau limités au bureau | `src-tauri/capabilities/mobile.json`, `principale.json` |

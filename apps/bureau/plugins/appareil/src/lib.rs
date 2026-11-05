@@ -7,7 +7,8 @@
 //!
 //! Sur iOS, il porte aussi le natif que la page appelle directement (`invoke('plugin:appareil|infos')`), écrit en
 //! Swift dans `ios/Sources/AppareilPlugin.swift` : `infos`, `regler_theme`, `capturer_fenetre`, `haptique`,
-//! `partager`, `connexion_web`, et l'événement `clavier`. Les commandes sont déclarées dans `build.rs` ; la page n'y a droit que par une capacité
+//! `partager`, `connexion_web`, et les événements `clavier`, `crayon` et `signaler` (une secousse, une capture
+//! d'écran). Les commandes sont déclarées dans `build.rs` ; la page n'y a droit que par une capacité
 //! (`apps/bureau/src-tauri/capabilities/mobile.json`, `appareil:default`).
 use tauri::plugin::{Builder, TauriPlugin};
 use tauri::Runtime;
