@@ -230,7 +230,9 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   top: calc(100% + 9px);
   right: 0;
   box-sizing: border-box;
+  /* L'écran visible, moins la barre du haut et les zones sûres (barre d'état, barre d'accueil d'un iPad). */
   max-height: calc(100vh - 64px);
+  max-height: calc(100dvh - 72px - var(--notak-zone-haut, 0px) - var(--notak-zone-bas, 0px));
   overflow-y: auto;
   padding: 6px;
   border-radius: 16px;
@@ -1133,7 +1135,8 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
 .bandeau {
   position: fixed;
   z-index: 50;
-  bottom: 16px;
+  /* Au-dessus de la barre d'accueil d'un iPhone ou d'un iPad. */
+  bottom: calc(16px + var(--notak-zone-bas, 0px));
   left: 50%;
   display: flex;
   align-items: center;
@@ -2611,23 +2614,179 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
   height: 100%;
 }
 
-.biblio {
+/*
+ * Le premier écran d'une bibliothèque vide (bibliotheque/PremierPas.tsx), dans celle qui range comme dans celle du
+ * téléphone : un mot d'accueil, les trois choses qu'on crée, puis importer et le guide, en lignes de 60 px.
+ */
+.biblio-premiers {
+  --premiers-pale: color-mix(in srgb, var(--notak-texte, #323b4a) 62%, transparent);
+  --premiers-filet: color-mix(in srgb, var(--notak-texte, #323b4a) 9%, transparent);
+  box-sizing: border-box;
+  width: min(560px, 100%);
+  margin: 24px auto 48px;
+  color: var(--notak-texte, #323b4a);
+}
+
+.biblio-premiers h2 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.biblio-premiers > p {
+  margin: 0 0 18px;
+  color: var(--premiers-pale);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.biblio-premiers ul {
+  display: grid;
+  margin: 0 0 12px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--notak-carte, #fff);
+  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.06), 0 1px 3px rgb(27 37 54 / 0.06);
+  list-style: none;
+}
+
+.biblio-premiers li + li .biblio-premiers-choix {
+  border-top: 1px solid var(--premiers-filet);
+}
+
+.biblio-premiers-choix {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 60px;
+  padding: 10px 16px;
+  box-sizing: border-box;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.biblio-premiers-choix:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--notak-texte, #323b4a) 4%, transparent);
+}
+
+.biblio-premiers-choix:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.biblio-premiers-pastille {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--notak-texte, #323b4a) 7%, transparent);
+  color: var(--premiers-pale);
+}
+
+.biblio-premiers-pastille[data-genre='toile'] {
+  background: color-mix(in srgb, #2f6feb 14%, transparent);
+  color: #2f6feb;
+}
+
+.biblio-premiers-pastille[data-genre='arbre'] {
+  background: color-mix(in srgb, #ef8a2b 16%, transparent);
+  color: #d9771c;
+}
+
+.biblio-premiers-pastille[data-genre='document'] {
+  background: color-mix(in srgb, #3c9a54 16%, transparent);
+  color: #2f8a46;
+}
+
+.biblio-premiers-libelle {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.biblio-premiers-libelle small {
+  overflow: hidden;
+  color: var(--premiers-pale);
+  font-size: 13px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* En attendant iCloud : une roue, et ce qu'on attend. */
+.biblio-premiers-attente {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  margin-top: 64px;
+  color: var(--premiers-pale);
+  text-align: center;
+}
+
+.biblio-premiers-roue {
+  width: 26px;
+  height: 26px;
+  border: 3px solid var(--premiers-filet);
+  border-top-color: var(--premiers-pale);
+  border-radius: 50%;
+  animation: biblio-premiers-roue 0.9s linear infinite;
+}
+
+@keyframes biblio-premiers-roue {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .biblio-premiers-roue {
+    animation-duration: 2.4s;
+  }
+}
+
+/* Le rond du compte, dans l'îlot du haut de la bibliothèque de l'app. */
+.biblio-app-compte {
+  padding: 0;
+}
+
+.biblio,
+.biblio-unie {
   --biblio-pale: color-mix(in srgb, var(--notak-texte, #323b4a) 64%, transparent);
   --biblio-survol: rgb(50 59 74 / 0.05);
   --biblio-choisi: rgb(50 59 74 / 0.09);
   --biblio-ombre: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.08), 0 6px 16px -6px rgb(27 37 54 / 0.16);
+  /* Celles des pièces au doigt (les lignes des passages trouvés), que la page du bureau montre aussi. */
+  --biblio-discret: color-mix(in srgb, var(--notak-texte, #323b4a) 55%, transparent);
+  --biblio-remplissage: color-mix(in srgb, var(--notak-texte, #323b4a) 7%, transparent);
+}
+
+.biblio {
 
   display: grid;
   flex: 1;
   grid-template-columns: 264px minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
+  /* Ce qui dépasserait ne fait jamais glisser la page de côté, ni ne la dézoome sur un iPad. */
+  overflow-x: clip;
   background: var(--notak-fond, #ebedee);
   color: var(--notak-texte, #323b4a);
   font-family: var(--notak-police, 'Inter Variable', system-ui, sans-serif);
 }
 
-[data-theme='sombre'] .biblio {
+[data-theme='sombre'] .biblio,
+[data-theme='sombre'] .biblio-unie {
   --biblio-survol: rgb(255 255 255 / 0.05);
   --biblio-choisi: rgb(255 255 255 / 0.1);
   --biblio-ombre: 0 0 0 1px rgb(255 255 255 / 0.06), 0 6px 16px -6px rgb(0 0 0 / 0.5);
@@ -2916,6 +3075,84 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   box-shadow: 0 0 0 2px var(--notak-accent, #2f6feb);
 }
 
+/* La barre passe à la ligne pour les puces : elles prennent toujours une ligne à elles, sous le titre et les îlots. */
+.biblio-tete {
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+
+/*
+ * Les puces : quoi montrer (tout, ou un genre), sous la barre, comme celles de Google Drive. Elles se combinent avec la
+ * colonne (où). La rangée défile de côté plutôt que de pousser quoi que ce soit hors de l'écran.
+ */
+.biblio-puces {
+  display: flex;
+  flex: 1 0 100%;
+  order: 10;
+  gap: 6px;
+  min-width: 0;
+  margin: 0 -6px;
+  padding: 2px 6px 4px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.biblio-puces::-webkit-scrollbar {
+  display: none;
+}
+
+.biblio-puce {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 15px;
+  background: var(--notak-ilot-fond, color-mix(in srgb, var(--notak-carte, #fff) 88%, transparent));
+  box-shadow: var(--notak-ilot-ombre, var(--biblio-ombre));
+  color: inherit;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.biblio-puce svg {
+  flex: none;
+  color: var(--biblio-pale);
+}
+
+.biblio-puce small {
+  color: var(--biblio-pale);
+  font-size: 12px;
+}
+
+.biblio-puce[aria-pressed='true'] {
+  background: var(--notak-selection, #323b4a);
+  color: var(--notak-fond, #fff);
+}
+
+.biblio-puce[aria-pressed='true'] :is(svg, small) {
+  color: inherit;
+  opacity: 0.75;
+}
+
+/* Rien de ce genre ici : la puce reste, plus pâle. */
+.biblio-puce[data-vide]:not([aria-pressed='true']) {
+  color: var(--biblio-pale);
+  box-shadow: none;
+}
+
+.biblio-puce:focus-visible {
+  outline: 2px solid var(--notak-accent, #2f6feb);
+  outline-offset: 1px;
+}
+
 /* Les tuiles, comme celles de Xmind : une vignette blanche, le titre centré, la toile qui la porte. */
 .biblio-corps {
   min-height: 0;
@@ -2942,6 +3179,51 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   text-decoration: none;
 }
 
+/*
+ * « Reprendre », en tête de l'accueil de la bibliothèque : une seule rangée, qui défile de côté, comme celle des Notes
+ * ou de Freeform ; en liste, elle reste une liste. Les marges laissent la place à l'ombre et au relief du survol.
+ */
+.biblio-section[data-rail] .biblio-grille[data-affichage='grille'] {
+  grid-auto-columns: minmax(168px, 206px);
+  grid-auto-flow: column;
+  grid-template-columns: none;
+  margin: -6px -6px 0;
+  padding: 6px 6px 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.biblio-section[data-rail] .biblio-grille[data-affichage='grille'] > li {
+  scroll-snap-align: start;
+}
+
+/* « Tout voir » d'une rubrique de l'accueil : au bout de son titre, à la couleur des liens. */
+.biblio-voir {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--notak-accent, #2f6feb);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.biblio-voir:hover {
+  background: var(--biblio-survol);
+}
+
+.biblio-voir:focus-visible {
+  outline: 2px solid var(--notak-accent, #2f6feb);
+  outline-offset: 1px;
+}
+
 .biblio-section h2 a:hover {
   color: var(--notak-texte, #323b4a);
   text-decoration: underline;
@@ -2957,6 +3239,7 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 }
 
 .biblio-tuile {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3024,6 +3307,61 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 .biblio-vignette-vide {
   color: var(--biblio-pale);
   font-size: 12.5px;
+}
+
+/* Une photo, l'aperçu d'un lien : l'image remplit la vignette, recadrée. */
+.biblio-vignette > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Un dossier : son icône, au milieu d'un fond teinté de l'accent. */
+.biblio-vignette[data-genre='dossier'] {
+  background: color-mix(in srgb, var(--notak-accent, #2f6feb) 9%, var(--notak-carte, #fff));
+  color: color-mix(in srgb, var(--notak-accent, #2f6feb) 75%, var(--notak-texte, #323b4a));
+}
+
+.biblio-vignette[data-genre='dossier'] svg {
+  width: auto;
+  height: 46%;
+}
+
+.biblio-vignette[data-genre='image'],
+.biblio-vignette[data-genre='lien'],
+.biblio-vignette[data-genre='fichier'] {
+  color: var(--biblio-pale);
+  background: color-mix(in srgb, var(--notak-fond, #ebedee) 70%, var(--notak-carte, #fff));
+}
+
+.biblio-vignette-lien,
+.biblio-vignette-fichier {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  max-width: 88%;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.biblio-vignette-lien > span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--notak-texte, #323b4a);
+}
+
+.biblio-vignette-favicon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+.biblio-vignette[data-fichier='pdf'] {
+  color: #d64545;
 }
 
 .biblio-tuile-neuve .biblio-vignette {
@@ -3158,6 +3496,93 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 .biblio-tuile[data-survol-depot] .biblio-vignette {
   box-shadow: 0 0 0 3px var(--accent), 0 14px 30px -10px rgb(27 37 54 / 0.3);
   transform: scale(1.03);
+}
+
+/*
+ * L'affichage en liste : une ligne par tuile, la vignette en petit à gauche, le titre et où elle est, le « ••• » au bout,
+ * comme la vue en liste de Fichiers. Les mêmes gestes (choisir, glisser, ouvrir) valent : seule la forme change.
+ */
+.biblio-grille[data-affichage='liste'] {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile {
+  display: grid;
+  grid-template-areas: 'vignette titre plus' 'vignette ou plus';
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  justify-items: start;
+  gap: 2px 14px;
+  padding: 6px 8px;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-vignette {
+  grid-area: vignette;
+  width: 64px;
+  margin: 0;
+  border-radius: 8px;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile-titre {
+  grid-area: titre;
+  align-self: end;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile-ou {
+  grid-area: ou;
+  align-self: start;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-renommer {
+  grid-area: titre;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile-plus {
+  position: static;
+  grid-area: plus;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile-case {
+  top: 50%;
+  left: 40px;
+  transform: translate(-50%, -50%);
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile:hover {
+  background: var(--biblio-survol);
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile:hover .biblio-vignette,
+.biblio-grille[data-affichage='liste'] .biblio-tuile[data-survol-depot] .biblio-vignette {
+  transform: none;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile[aria-selected='true'] {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile[aria-selected='true'] .biblio-tuile-titre {
+  margin: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile[data-survol-depot] {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile-neuve .biblio-vignette svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* En petit, une toile vide se dit par son fond pointillé seul : le mot n'y tiendrait pas. */
+.biblio-grille[data-affichage='liste'] .biblio-vignette-vide {
+  display: none;
 }
 
 .biblio-section h2[data-survol-depot],
@@ -3311,7 +3736,7 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 .biblio-apport {
   position: fixed;
   z-index: 60;
-  bottom: 24px;
+  bottom: calc(24px + var(--notak-zone-bas, 0px));
   left: 50%;
   display: flex;
   align-items: center;
@@ -3471,8 +3896,401 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   }
 }
 
-/* Sur un écran étroit, la colonne devient une bande de rubriques qui défile, au-dessus de la barre. */
-@media (max-width: 760px) {
+/*
+ * Le « ••• » d'une tuile, dans le coin de sa vignette : le menu qu'on trouve au clic droit et à l'appui long, à portée
+ * d'un toucher et de VoiceOver. À la souris, il paraît au survol ; au doigt, il est toujours là.
+ */
+.biblio-tuile-plus {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--notak-carte, #fff) 88%, transparent);
+  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.08), 0 2px 6px rgb(27 37 54 / 0.12);
+  color: var(--notak-texte, #323b4a);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.biblio-tuile:hover .biblio-tuile-plus,
+.biblio-tuile:focus-within .biblio-tuile-plus,
+.biblio-tuile[aria-selected='true'] .biblio-tuile-plus,
+.biblio-tuile-plus:focus-visible {
+  opacity: 1;
+}
+
+/* En « Sélectionner », la case de chaque tuile, cochée quand elle est choisie, comme dans Fichiers. */
+.biblio-tuile-case {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  box-sizing: border-box;
+  border: 2px solid rgb(255 255 255 / 0.95);
+  border-radius: 12px;
+  background: rgb(27 37 54 / 0.18);
+  box-shadow: 0 1px 4px rgb(27 37 54 / 0.25);
+  color: #fff;
+}
+
+.biblio-tuile[aria-selected='true'] .biblio-tuile-case {
+  border-color: var(--notak-accent, #2f6feb);
+  background: var(--notak-accent, #2f6feb);
+}
+
+/* « Sélectionner » et « OK » : un mot dans un îlot, comme les boutons texte d'iOS. */
+.biblio-choisir-bouton {
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--notak-accent, #2f6feb);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.biblio-choisir-bouton:hover {
+  background: var(--biblio-survol);
+}
+
+/*
+ * Au doigt, à toutes les largeurs (l'iPad compris) : des cibles de 44 px, des îlots à la mesure du pouce, et pas de
+ * bulle système sur une tuile tenue (Notak a son menu, à l'appui long).
+ */
+@media (pointer: coarse) {
+  .biblio-rubrique {
+    min-height: 44px;
+  }
+
+  .biblio-tete .notak-ilot {
+    height: 44px;
+    border-radius: 22px;
+  }
+
+  .biblio-tete .notak-ilot-bouton,
+  .biblio-tri-choix,
+  .biblio-choisir-bouton {
+    min-width: 38px;
+    height: 38px;
+    border-radius: 19px;
+  }
+
+  .biblio-recherche-champ {
+    height: 38px;
+  }
+
+  .biblio-puce {
+    height: 40px;
+    padding: 0 14px;
+    border-radius: 20px;
+  }
+
+  /* Plus lourds que leurs règles de base, écrites plus bas. */
+  .biblio .biblio-arbre-chevron {
+    width: 32px;
+    height: 44px;
+  }
+
+  .biblio .biblio-ouvrir-toile-lien {
+    height: 38px;
+    border-radius: 19px;
+  }
+
+  /* Plus lourd que la règle du « + », écrite plus bas. */
+  .biblio-tete .biblio-nouveau-tete .biblio-nouveau-bouton {
+    width: 44px;
+    height: 44px;
+    border-radius: 22px;
+  }
+
+  .biblio-tuile {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .biblio-tuile-plus {
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    opacity: 1;
+  }
+}
+
+/* Dans un dossier : son chemin depuis l'accueil, en petit au-dessus de son nom ; chaque maillon s'y rend, et prend ce qu'on y lâche. */
+.biblio-titre {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.biblio-fil {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--biblio-pale);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.biblio-fil-maillon {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.biblio-fil-maillon button {
+  min-width: 0;
+  padding: 2px 4px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.biblio-fil-maillon:first-child button {
+  margin-left: -4px;
+}
+
+.biblio-fil-maillon button:hover {
+  color: var(--notak-texte, #323b4a);
+  text-decoration: underline;
+}
+
+.biblio-fil-maillon button[data-survol-depot] {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--notak-texte, #323b4a);
+}
+
+.biblio-fil-maillon svg {
+  flex: none;
+  opacity: 0.7;
+}
+
+/* « Ouvrir la toile » : le dossier qu'on parcourt s'ouvre aussi en toile, d'un toucher. */
+.biblio-ouvrir-toile-lien {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px 0 10px;
+  border-radius: 15px;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.biblio-ouvrir-toile-lien:hover {
+  background: var(--biblio-survol);
+}
+
+/* L'arbre des dossiers de la colonne : un chevron pour déplier, le dossier pour s'y rendre. */
+.biblio-arbre {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.biblio-arbre-ligne {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.biblio-arbre-ligne .biblio-rubrique {
+  flex: 1;
+  min-width: 0;
+  padding-left: 4px;
+}
+
+.biblio-arbre-chevron {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--biblio-pale);
+  cursor: pointer;
+}
+
+button.biblio-arbre-chevron:hover {
+  background: var(--biblio-survol);
+  color: var(--notak-texte, #323b4a);
+}
+
+/* Le bouton ☰ et le « + » de la barre n'existent que quand la colonne est un tiroir ; le voile, quand il est ouvert. */
+.biblio-tete-tiroir,
+.biblio-voile {
+  display: none;
+}
+
+/*
+ * Une fenêtre moyenne : un iPad en portrait (744 à 834 px), une fenêtre partagée ou étroite sur un ordinateur. Le tri ne
+ * garde que ses icônes (leur nom reste à aria-label et à l'infobulle), la recherche cède sa largeur, et la barre passe à
+ * la ligne plutôt que de pousser le compte hors de l'écran.
+ */
+@media (max-width: 1023px) {
+  .biblio-tete {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    margin: 8px 12px 0 20px;
+  }
+
+  .biblio-tete h1 {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .biblio-tete-droite {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: 8px;
+  }
+
+  .biblio-tri-choix {
+    padding: 0 7px;
+  }
+
+  .biblio-tri-libelle {
+    display: none;
+  }
+
+  /* La recherche part petite et grandit dans la place qui reste : une ligne qui passe à la ligne se compte avant que
+     ses éléments ne rétrécissent, et une recherche large d'emblée y renverrait le compte. */
+  .biblio-recherche.notak-ilot {
+    flex: 1 1 132px;
+    min-width: 132px;
+    max-width: 280px;
+  }
+
+  .biblio-recherche-champ {
+    width: 100%;
+  }
+}
+
+/*
+ * De 600 à 1023 px, la colonne devient un tiroir, comme celle de Fichiers sur un iPad en portrait : la page prend toute
+ * la largeur, ☰ fait glisser la colonne par-dessus, sous un voile ; choisir une rubrique, toucher le voile ou Échap la
+ * referme. Le « + » de la barre remplace « Nouveau », qui s'y cacherait.
+ */
+@media (min-width: 600px) and (max-width: 1023px) {
+  .biblio {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .biblio-tete {
+    margin-left: 12px;
+  }
+
+  .biblio-tete-tiroir {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .biblio-colonne {
+    position: fixed;
+    top: calc(8px + var(--notak-zone-haut, 0px));
+    bottom: calc(8px + var(--notak-zone-bas, 0px));
+    left: calc(8px + var(--notak-zone-gauche, 0px));
+    z-index: 40;
+    width: min(300px, calc(100vw - 72px));
+    margin: 0;
+    /* Par-dessus la page, il est opaque : l'îlot translucide laisserait lire les tuiles au travers. */
+    background: var(--notak-carte, #fff);
+    box-shadow: 0 0 0 1px rgb(27 37 54 / 0.08), 0 24px 60px -18px rgb(27 37 54 / 0.45);
+    transform: translateX(calc(-100% - 24px));
+    visibility: hidden;
+    transition:
+      transform 0.32s cubic-bezier(0.32, 0.72, 0, 1),
+      visibility 0s linear 0.32s;
+  }
+
+  .biblio[data-tiroir] .biblio-colonne {
+    transform: none;
+    visibility: visible;
+    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .biblio-voile {
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+    display: block;
+    background: rgb(15 20 28 / 0.28);
+    animation: biblio-voile 0.2s ease;
+  }
+}
+
+@keyframes biblio-voile {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .biblio-colonne,
+  .biblio[data-tiroir] .biblio-colonne {
+    transition: none;
+  }
+
+  .biblio-voile {
+    animation: none;
+  }
+}
+
+/* Le « + » de la barre : un rond, et le menu « Nouveau » posé dessous, à sa largeur. */
+.biblio-nouveau-tete {
+  margin: 0;
+}
+
+.biblio-nouveau-tete .biblio-nouveau-bouton {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 18px;
+}
+
+.biblio-nouveau-tete .biblio-menu {
+  right: auto;
+  width: 280px;
+}
+
+/* Sur un écran étroit (une fenêtre de moins de 600 px), la colonne devient une bande de rubriques qui défile, au-dessus de la barre. */
+@media (max-width: 599px) {
   .biblio {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto minmax(0, 1fr);
@@ -3512,9 +4330,9 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 
   .biblio-menu {
     position: fixed;
-    top: 56px;
-    right: 8px;
-    left: 8px;
+    top: calc(56px + var(--notak-zone-haut, 0px));
+    right: calc(8px + var(--notak-zone-droite, 0px));
+    left: calc(8px + var(--notak-zone-gauche, 0px));
   }
 
   .biblio-rubrique {
@@ -4303,10 +5121,10 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 }
 
 /*
- * La bibliothèque de l'édition locale, au doigt (local/BibliothequeLocale.tsx) : la page où l'on arrive, posée sur la
- * toile ouverte. Un grand titre et le « + », la recherche, la toile d'accueil en vedette, la rangée des récents (comme
- * les « Recently viewed » de Fresha), puis les toiles, les cartes et les documents en grilles de deux, comme les
- * tableaux de Savee. La recherche replie le grand titre, comme celle des Notes d'iOS.
+ * La bibliothèque au téléphone, son cadre et ses pièces au doigt (bibliotheque/AuDoigt.tsx) : un grand titre et le
+ * « + », la recherche, la toile d'accueil en vedette, la rangée des filtres, comme les tableaux de Savee et les
+ * « Recently viewed » de Fresha. La recherche replie le grand titre, comme celle des Notes d'iOS. Les sections et les
+ * tuiles sont celles de toutes les largeurs (`.biblio-unie`, plus bas).
  */
 .biblio-locale {
   --biblio-gouttiere: 16px;
@@ -4532,40 +5350,17 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   color: var(--notak-accent, #2f6feb);
 }
 
-.biblio-locale-vedette:active .biblio-locale-vedette-plan,
-.biblio-locale-tuile:active .biblio-vignette {
+.biblio-locale-vedette:active .biblio-locale-vedette-plan {
   transform: scale(0.97);
   transition: transform 0.1s ease;
 }
 
-.biblio-locale-rubrique {
-  margin-bottom: 28px;
-}
-
-.biblio-locale-rubrique-tete {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.biblio-locale-rubrique h2,
 .biblio-locale-resultats h2 {
   margin: 0 0 10px;
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 26px;
-}
-
-.biblio-locale-rubrique-tete h2 {
-  margin: 0;
-}
-
-.biblio-locale-compte {
-  margin-left: 4px;
-  color: var(--biblio-discret);
-  font-weight: 500;
 }
 
 .biblio-locale-voir {
@@ -4575,53 +5370,6 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   background: none;
   color: var(--notak-accent, #2f6feb) !important;
   font-size: 15px !important;
-}
-
-/* Les récents glissent de côté, d'une tuile à l'autre ; la troisième dépasse du bord pour le dire. */
-.biblio-locale-rangee {
-  display: grid;
-  grid-auto-columns: 148px;
-  grid-auto-flow: column;
-  gap: 12px;
-  margin: 0 calc(-1 * var(--biblio-gouttiere));
-  padding: 0 var(--biblio-gouttiere) 4px;
-  overflow-x: auto;
-  scroll-padding: 0 var(--biblio-gouttiere);
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-  list-style: none;
-}
-
-.biblio-locale-rangee::-webkit-scrollbar {
-  display: none;
-}
-
-.biblio-locale-rangee > li {
-  scroll-snap-align: start;
-}
-
-.biblio-locale-grille {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 18px 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.biblio-locale-tuile {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  background: none;
-  text-align: left;
-}
-
-.biblio-locale-tuile .biblio-vignette {
-  margin-bottom: 8px;
-  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.05);
 }
 
 .biblio-locale-titre {
@@ -4643,7 +5391,10 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   white-space: nowrap;
 }
 
-/* La pastille du genre : une toile en bleu, une carte en orange, un document en vert ; un passage d'une note en gris. */
+/*
+ * La pastille du genre : une toile en bleu, une carte mentale en orange, une page en vert, une photo en violet, un lien
+ * en bleu-vert, un dossier à l'accent ; un fichier et le passage d'une note en gris.
+ */
 .biblio-locale-pastille {
   display: grid;
   place-items: center;
@@ -4665,9 +5416,25 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   color: #2f8a46;
 }
 
-.biblio-locale-pastille[data-genre='note'] {
+.biblio-locale-pastille[data-genre='note'],
+.biblio-locale-pastille[data-genre='fichier'] {
   background: var(--biblio-remplissage);
   color: var(--biblio-discret);
+}
+
+.biblio-locale-pastille[data-genre='image'] {
+  background: color-mix(in srgb, #9a5bd6 15%, transparent);
+  color: #8447c4;
+}
+
+.biblio-locale-pastille[data-genre='lien'] {
+  background: color-mix(in srgb, #1d9aa6 15%, transparent);
+  color: #138591;
+}
+
+.biblio-locale-pastille[data-genre='dossier'] {
+  background: color-mix(in srgb, var(--notak-accent, #2f6feb) 12%, transparent);
+  color: var(--notak-accent, #2f6feb);
 }
 
 /* Le choix de ce qu'on crée : dans la feuille du « + », ou sur la page tant qu'elle est vide. */
@@ -4707,15 +5474,6 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   font-size: 16px;
   font-weight: 600;
   line-height: 21px;
-}
-
-.biblio-locale-premiers {
-  margin-bottom: 28px;
-}
-
-.biblio-locale-premiers p {
-  margin: 0 0 10px;
-  color: var(--biblio-discret);
 }
 
 /* Les résultats : des lignes de 56 px, la pastille du genre, le titre et où il est. */
@@ -4850,11 +5608,147 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 }
 
 /*
- * La bibliothèque d'un serveur au téléphone (bibliotheque/Telephone.tsx) : la même page que celle de l'appareil, mais
- * seule à l'écran. Elle ne passe pas devant les bandeaux du serveur, ni devant les feuilles qu'elle ouvre.
+ * Seule à l'écran (une toile ne se monte qu'à son adresse), elle ne passe pas devant les bandeaux, ni devant les
+ * feuilles qu'elle ouvre.
  */
 .biblio-locale.biblio-telephone {
   z-index: 0;
+}
+
+/*
+ * La bibliothèque unique, au téléphone (Bibliotheque.tsx) : le cadre et l'en-tête de la bibliothèque au doigt, autour
+ * des sections et des tuiles de toutes les largeurs. Grilles de deux, « Reprendre » qui glisse, titres de rubrique en
+ * grand ; le choix de plusieurs tuiles monte en barre au bas de l'écran.
+ */
+.biblio-unie .biblio-corps {
+  min-height: 0;
+  padding: 0;
+  overflow: visible;
+}
+
+.biblio-unie .biblio-section + .biblio-section {
+  margin-top: 28px;
+}
+
+.biblio-unie .biblio-section h2 {
+  margin: 0 0 12px;
+  color: var(--notak-texte);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 26px;
+}
+
+/* Plus lourd que `.biblio-locale button`, qui rend la couleur du texte à tout bouton. */
+.biblio-unie .biblio-voir {
+  color: var(--notak-accent, #2f6feb);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.biblio-unie .biblio-grille {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 12px;
+}
+
+.biblio-unie .biblio-section[data-rail] .biblio-grille[data-affichage='grille'] {
+  grid-auto-columns: calc((100% - 12px) * 0.44);
+  gap: 12px;
+  margin: -6px calc(-1 * var(--biblio-gouttiere)) 0;
+  padding: 6px var(--biblio-gouttiere) 8px;
+  scroll-padding: 0 var(--biblio-gouttiere);
+  scrollbar-width: none;
+}
+
+.biblio-unie .biblio-section[data-rail] .biblio-grille::-webkit-scrollbar {
+  display: none;
+}
+
+.biblio-unie .biblio-tuile-titre {
+  font-size: 15px;
+}
+
+.biblio-unie .biblio-tuile-ou {
+  font-size: 13px;
+}
+
+.biblio-locale-filtre[data-vide]:not([aria-pressed='true']) {
+  color: var(--biblio-discret) !important;
+}
+
+/* Dans un dossier : d'où l'on vient, à gauche, comme le retour d'iOS ; « Ouvrir la toile » à droite. */
+.biblio-locale-dossier {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -8px 0 16px;
+}
+
+.biblio-locale-retour {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--notak-accent, #2f6feb) !important;
+  font-size: 16px !important;
+}
+
+.biblio-locale-retour span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.biblio-locale-dossier .biblio-locale-voir {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: none;
+}
+
+/* Le choix de plusieurs tuiles : la barre de ses gestes, au bas de l'écran, au-dessus de la barre d'accueil d'iOS. */
+.biblio-locale-choix {
+  position: fixed;
+  right: calc(12px + var(--notak-zone-droite, 0px));
+  bottom: calc(12px + var(--notak-zone-bas, 0px));
+  left: calc(12px + var(--notak-zone-gauche, 0px));
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+}
+
+.biblio-locale-choix .notak-ilot {
+  max-width: 100%;
+  height: 52px;
+  border-radius: 26px;
+}
+
+.biblio-unie[data-choix] {
+  padding-bottom: calc(var(--notak-zone-bas, 0px) + 88px);
+}
+
+/* Les passages trouvés dans le contenu, sous les tuiles de la recherche, sur la page du bureau. */
+.biblio .biblio-passages {
+  max-width: 720px;
+  margin-top: 32px;
+}
+
+.biblio .biblio-passages button {
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.biblio .biblio-passages h2 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 /* La rangée des espaces et des filtres : elle glisse de côté sous la recherche, comme les filtres de Photos. */
@@ -4901,13 +5795,6 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 
 .biblio-locale-filtre[aria-pressed='true'] small {
   color: color-mix(in srgb, var(--notak-fond) 70%, transparent);
-}
-
-/* La toile d'accueil, l'espace où tout se range : à part des filtres, à la couleur de l'accent. Elle s'ouvre. */
-.biblio-locale-filtre[data-espace] {
-  background: color-mix(in srgb, var(--notak-accent, #2f6feb) 12%, transparent);
-  color: var(--notak-accent, #2f6feb) !important;
-  font-weight: 600;
 }
 
 .biblio-locale-filtres-sep {

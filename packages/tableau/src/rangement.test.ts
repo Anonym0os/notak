@@ -3,7 +3,7 @@ import { creerEspace } from './coeur/espace'
 import { type Element, type Tableau, nouvelleColonne, nouvelleNote, surLeTableau } from './coeur/tableau'
 import { nouvelleCarteMentale } from './elements/arbre'
 import { nouveauDocument } from './elements/document/texte'
-import { carteDeLaToile, creerDans, deplacer, dupliquer, jeter, rangerDansNeuve, renommerChose, toilesPortees } from './rangement'
+import { carteDeLaToile, creerDans, deplacer, dupliquer, jeter, montrerEnDossier, rangerDansNeuve, renommerChose, toilesPortees } from './rangement'
 
 const renvoi = (id: string, cible: string, x = 0): Element => ({ id, x, y: 0, largeur: 10, contenu: { type: 'tableau', cible } })
 
@@ -116,6 +116,33 @@ describe('rangement', () => {
     expect(espace.tableau('projets')!.titre).toBe('Chantiers')
     expect(titreCarte(accueil, 'carte')).toBe('Idées')
     expect(accueil.elements.find((e) => e.id === 'doc')!.contenu).toMatchObject({ titre: 'Compte rendu' })
+  })
+
+  it('montre une toile en dossier, et de nouveau en toile, sans toucher à ce qu’elle porte', () => {
+    const { espace } = monde()
+    espace.magasin('projets').faire([{ type: 'creer', element: nouvelleNote(0, 0) }])
+    expect(montrerEnDossier(espace, 'projets', true)).toBe(true)
+    expect(espace.tableau('projets')!.dossier).toBe(true)
+    expect(espace.tableau('projets')!.elements).toHaveLength(1)
+    expect(montrerEnDossier(espace, 'projets', false)).toBe(true)
+    expect(espace.tableau('projets')).not.toHaveProperty('dossier')
+  })
+
+  it('renomme une photo (sa légende), un lien et un fichier (leur titre)', () => {
+    const { espace } = monde()
+    const m = espace.magasin('projets')
+    m.faire([
+      { type: 'creer', element: { id: 'photo', x: 0, y: 0, largeur: 10, contenu: { type: 'image', fichier: 'f', legende: '' } } as Element },
+      { type: 'creer', element: { id: 'site', x: 0, y: 10, largeur: 10, contenu: { type: 'lien', url: 'https://exemple.fr' } } as Element },
+      { type: 'creer', element: { id: 'pdf', x: 0, y: 20, largeur: 10, contenu: { type: 'fichier', fichier: 'g', nom: 'a.pdf' } } as unknown as Element },
+    ])
+    renommerChose(espace, { toile: 'projets', element: 'photo' }, 'Le port')
+    renommerChose(espace, { toile: 'projets', element: 'site' }, 'L’hôtel')
+    renommerChose(espace, { toile: 'projets', element: 'pdf' }, 'Billets')
+    const contenu = (id: string) => m.lire().elements.find((e) => e.id === id)!.contenu
+    expect(contenu('photo')).toMatchObject({ legende: 'Le port' })
+    expect(contenu('site')).toMatchObject({ titre: 'L’hôtel', url: 'https://exemple.fr' })
+    expect(contenu('pdf')).toMatchObject({ titre: 'Billets', nom: 'a.pdf' })
   })
 
   it('copie un document ou une toile à côté de l’original, titrés « (copie) »', () => {

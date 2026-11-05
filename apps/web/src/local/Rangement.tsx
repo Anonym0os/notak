@@ -70,12 +70,26 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
   // L'app d'un iPhone ou d'un iPad : ni navigateur, ni ordinateur.
   const app = dansCoque() && !bureau
   const jours = depuisQuand(derniere)
+  // Synchronisées (iCloud dans l'app, un dossier choisi dans le navigateur), les toiles ont une copie ailleurs : la
+  // pastille le dit, et ne réclame plus de copie .notak.
+  const etatSynchro = useSyncExternalStore(ecouterSynchro, lireEtatSynchro)
+  const synchro = etatSynchro.mode === 'active' ? etatSynchro : null
+  const nuage = synchro?.nuage === true
   // Safari efface pour de bon après une semaine sans visite ; ailleurs, le navigateur n'efface que si on le lui
   // demande ou faute de place : pas de quoi alarmer à la première visite.
   const fragile = safariNonInstalle()
-  // Jamais copié : seulement si le navigateur menace d'effacer. Sinon, au bout d'une semaine sans copie.
-  const alerte = jours === null ? fragile : jours >= COPIE_CONSEILLEE
-  const etiquette = message ?? (jours === null ? t(bureau ? 'local.pastilleBureau' : app ? 'local.pastilleApp' : 'local.pastille') : jours === 0 ? t('local.copieAujourdhui') : tn('local.copieIlYa', jours))
+  // Jamais copié : seulement si le navigateur menace d'effacer. Sinon, au bout d'une semaine sans copie. Synchronisé :
+  // seulement si la synchro bute.
+  const alerte = synchro ? Boolean(synchro.erreur) : jours === null ? fragile : jours >= COPIE_CONSEILLEE
+  const etiquetteSynchro = synchro && t(synchro.erreur ? 'local.pastilleSynchroErreur' : nuage ? 'local.pastilleNuage' : 'local.pastilleDossier')
+  const etiquette =
+    message ??
+    etiquetteSynchro ??
+    (jours === null ? t(bureau ? 'local.pastilleBureau' : app ? 'local.pastilleApp' : 'local.pastille') : jours === 0 ? t('local.copieAujourdhui') : tn('local.copieIlYa', jours))
+  // Ce que le panneau dit d'abord : où elles sont, qui les voit, ce qui les effacerait.
+  const ici = nuage ? t('local.iciNuage') : synchro ? t('local.iciDossier', { nom: synchro.nom }) : t(bureau ? 'bureau.rangement.ici' : app ? 'local.iciApp' : 'local.ici')
+  const rienNePart = nuage ? t('local.rienNePartNuage') : synchro ? t('local.rienNePartDossier') : bureau ? t('bureau.rangement.rienNePart') : t('local.rienNePart')
+  const efface = nuage ? t('local.effaceNuage') : t(bureau ? 'local.effaceBureau' : app ? 'local.effaceApp' : 'local.efface')
 
   const proteger = async () => setGarde((await navigator.storage?.persist?.()) ?? null)
 
@@ -89,10 +103,10 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
         <div className="app-panneau partage-panneau rangement-panneau" ref={panneau} role="dialog" aria-label={t('local.titre')}>
           <h2>{t('local.titre')}</h2>
           {/* L'app de bureau se connecte à un serveur quand on le lui demande : elle a ses propres mots. */}
-          <p>{t(bureau ? 'bureau.rangement.ici' : app ? 'local.iciApp' : 'local.ici')}</p>
+          <p>{ici}</p>
           <ul className="rangement-faits">
-            <li>{bureau ? t('bureau.rangement.rienNePart') : t('local.rienNePart')}</li>
-            <li>{t(bureau ? 'local.effaceBureau' : app ? 'local.effaceApp' : 'local.efface')}</li>
+            <li>{rienNePart}</li>
+            <li>{efface}</li>
             {safariNonInstalle() && <li className="rangement-attention">{t('local.safari')}</li>}
           </ul>
 

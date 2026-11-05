@@ -30,7 +30,7 @@ type Branche = [titre: string, enfants?: Branche[], reglage?: Parameters<typeof 
 
 const CARTE: Branche[] = [
   ['Le problème', [['Les notes se perdent'], ['Les outils se multiplient'], ['Personne ne retrouve rien']]],
-  ['Notre réponse', [['Une toile', [['Libre'], ['Infinie']]], ['Une carte mentale', [['Rapide au clavier'], ['Belle à présenter']]], ['Un document']], { livraison: 'percer' }],
+  ['Notre réponse', [['Une toile', [['Libre'], ['Infinie']]], ['Une page'], ['Une carte mentale', [['Rapide au clavier'], ['Belle à présenter']]]], { livraison: 'percer' }],
   ['Le marché', [['2024 : les premiers essais'], ['2025 : la bêta'], ['2026 : le lancement'], ['2027 : les équipes'], ['2028 : l’international']], { miseEnPage: 'chronologie' }],
   ['La concurrence', [['Notion', [['Lourd'], ['Lent']]], ['Miro', [['Cher']]], ['Xmind', [['Fermé']]], ['Milanote']], { miseEnPage: 'arete' }],
   ['L’équipe', [['Une petite équipe qui livre chaque semaine, proche de ceux qui l’utilisent et qui écoute vraiment ce qu’ils disent.']], { miseEnPage: 'paroles' }],

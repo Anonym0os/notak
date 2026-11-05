@@ -90,6 +90,31 @@ describe('migrations', () => {
     copie.close()
   })
 
+  it('la bibliothèque des photos, liens et fichiers : les contenus d’avant restent, les nouveaux genres entrent, et tout se réindexe', () => {
+    const db = new DatabaseSync(':memory:')
+    db.exec('PRAGMA foreign_keys = ON')
+    migrer(db, undefined, MIGRATIONS.filter((m) => m.version < 10))
+    db.prepare('INSERT INTO utilisateurs (id,email,nom,couleur,racine) VALUES (?,?,?,?,?)').run('u1', 'ana@exemple.fr', 'Ana', '#e03131', 't1')
+    db.prepare('INSERT INTO tableaux (id,titre,proprietaire,parent) VALUES (?,?,?,?)').run('t1', 'Voyage', 'u1', null)
+    db.prepare('INSERT INTO contenus (tableau,element,genre,titre,resume) VALUES (?,?,?,?,?)').run('t1', 'e1', 'document', 'Notes', '{}')
+    expect(() => db.prepare('INSERT INTO contenus (tableau,element,genre,titre,resume) VALUES (?,?,?,?,?)').run('t1', 'e2', 'image', '', '{}')).toThrow(/CHECK/)
+    db.prepare('INSERT INTO recherche_etat (tableau) VALUES (?)').run('t1')
+
+    migrer(db, undefined, MIGRATIONS)
+    expect(versionDe(db)).toBe(derniere)
+    expect(db.prepare('SELECT tableau, element, genre, titre FROM contenus').all()).toEqual([{ tableau: 't1', element: 'e1', genre: 'document', titre: 'Notes' }])
+    for (const genre of ['image', 'lien', 'fichier'])
+      db.prepare('INSERT INTO contenus (tableau,element,genre,titre,resume) VALUES (?,?,?,?,?)').run('t1', `x-${genre}`, genre, '', '{}')
+    expect(() => db.prepare('INSERT INTO contenus (tableau,element,genre,titre,resume) VALUES (?,?,?,?,?)').run('t1', 'y', 'autre', '', '{}')).toThrow(/CHECK/)
+    expect(db.prepare('SELECT COUNT(*) AS n FROM recherche_etat').get()).toEqual({ n: 0 })
+    // Une toile qui s'en va emporte ses contenus et les favoris de ses éléments.
+    db.prepare('INSERT INTO favoris_elements (utilisateur,tableau,element,cree) VALUES (?,?,?,?)').run('u1', 't1', 'e1', 1)
+    db.prepare('DELETE FROM tableaux WHERE id = ?').run('t1')
+    expect(db.prepare('SELECT COUNT(*) AS n FROM contenus').get()).toEqual({ n: 0 })
+    expect(db.prepare('SELECT COUNT(*) AS n FROM favoris_elements').get()).toEqual({ n: 0 })
+    db.close()
+  })
+
   it('une migration qui échoue est annulée en entier et la version ne bouge pas', () => {
     const db = new DatabaseSync(':memory:')
     const essai: Migration[] = [

@@ -33,14 +33,28 @@ export interface ReseauLocal extends Reseau {
   ecouterChangements(f: (id: Id) => void): () => void
 }
 
+/**
+ * Qui suit le contenu des tableaux (le catalogue de la bibliothèque) : prévenu tout de suite qu'un tableau a changé
+ * (de quoi s'en souvenir si l'app s'arrêtait là), puis invité à le relire une fois les changements retombés, ou quand
+ * on le ferme. Ce que le chargement de sa base apporte n'est pas un changement.
+ */
+export interface SuiviTableaux {
+  change(id: Id): void
+  relire(id: Id, doc: Y.Doc): void
+}
+
+/** Le temps que les changements retombent avant qu'on relise un tableau (une frappe ne relit pas tout à chaque lettre). */
+export const DELAI_SUIVI = 1500
+
 export interface OptionsReseauLocal {
   index: IndexEspace
   /** Le début du nom des bases IndexedDB (`notak:local:` par défaut). */
   prefixe?: string
+  suivi?: SuiviTableaux
 }
 
 /** Garde un document dans IndexedDB et le relie aux autres onglets. Rend la persistance et de quoi tout arrêter. */
-function garder(prefixe: string, id: Id, doc: Y.Doc, index: IndexEspace) {
+function garder(prefixe: string, id: Id, doc: Y.Doc, index: IndexEspace, suivi?: SuiviTableaux) {
   // Un nom réservé (`/t/fichiers`, une copie trafiquée) n'ouvre jamais une base de l'espace : le document reste en
   // mémoire, vide, et rien ne s'écrit.
   if (idReserve(id)) return { persistance: { whenSynced: Promise.resolve() }, arreter: () => {} }
@@ -67,9 +81,27 @@ function garder(prefixe: string, id: Id, doc: Y.Doc, index: IndexEspace) {
   }
   meta.observe(noter)
   void persistance.whenSynced.then(noter)
+  // Le suivi : un geste ici, un autre onglet, le dossier synchronisé ; pas ce que la base vient de rendre.
+  let aRelire: ReturnType<typeof setTimeout> | undefined
+  const relire = () => {
+    aRelire = undefined
+    suivi?.relire(id, doc)
+  }
+  const changement = (_maj: Uint8Array, origine: unknown) => {
+    if (!suivi || origine === persistance) return
+    if (aRelire === undefined) suivi.change(id)
+    clearTimeout(aRelire)
+    aRelire = setTimeout(relire, DELAI_SUIVI)
+  }
+  doc.on('update', changement)
   return {
     persistance,
     arreter() {
+      doc.off('update', changement)
+      if (aRelire !== undefined) {
+        clearTimeout(aRelire)
+        relire()
+      }
       meta.unobserve(noter)
       doc.off('update', envoyer)
       canal?.close()
@@ -79,11 +111,11 @@ function garder(prefixe: string, id: Id, doc: Y.Doc, index: IndexEspace) {
   }
 }
 
-export function creerReseauLocal({ index, prefixe = 'notak:local:' }: OptionsReseauLocal): ReseauLocal {
+export function creerReseauLocal({ index, prefixe = 'notak:local:', suivi }: OptionsReseauLocal): ReseauLocal {
   const charges = new Map<Id, Promise<unknown>>()
   return {
     persister(id, doc) {
-      const g = garder(prefixe, id, doc, index)
+      const g = garder(prefixe, id, doc, index, suivi)
       charges.set(id, g.persistance.whenSynced)
       return () => {
         charges.delete(id)
@@ -119,7 +151,7 @@ export function creerReseauLocal({ index, prefixe = 'notak:local:' }: OptionsRes
 
     async avec(id, f) {
       const doc = new Y.Doc()
-      const g = garder(prefixe, id, doc, index)
+      const g = garder(prefixe, id, doc, index, suivi)
       try {
         await g.persistance.whenSynced
         return f(doc)

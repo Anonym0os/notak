@@ -1,10 +1,56 @@
-import { type BoitePlan, FOND_NOTE, type ResumeContenu } from '@notak/tableau'
+import { type BoitePlan, FOND_NOTE, ICONE_DU_GENRE, Icone, type ResumeContenu, extensionDe, genreDe } from '@notak/tableau'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { t } from '../langue'
 
-/** Le dessin d'une entrée : le plan d'une toile, une carte mentale et ses branches, la page d'un document. */
-export function Vignette({ resume }: { resume: ResumeContenu }) {
+/**
+ * Ce que les vignettes demandent à l'édition : l'adresse d'un fichier (une photo, l'image choisie d'un lien), et si
+ * une toile laisse venir le contenu d'autres sites (l'image d'aperçu d'un lien) — une toile reçue d'une copie attend
+ * qu'on le permette, comme sur la toile elle-même. Sans fournisseur, aucune image ne se charge : on voit le genre.
+ */
+export interface SourceVignettes {
+  adresse(fichier: string): Promise<string | null>
+  distant(tableau: string): boolean
+}
+const ContexteVignettes = createContext<SourceVignettes | null>(null)
+export const FournisseurVignettes = ContexteVignettes.Provider
+
+/** L'adresse d'un fichier, une fois connue ; `null` tant qu'elle ne l'est pas, ou s'il est introuvable. */
+function useAdresse(fichier: string | undefined): string | null {
+  const source = useContext(ContexteVignettes)
+  const [adresse, setAdresse] = useState<string | null>(null)
+  useEffect(() => {
+    setAdresse(null)
+    if (!fichier || !source) return
+    let vivant = true
+    source.adresse(fichier).then(
+      (a) => vivant && setAdresse(a),
+      () => {},
+    )
+    return () => {
+      vivant = false
+    }
+  }, [fichier, source])
+  return adresse
+}
+
+/**
+ * Le dessin d'une entrée : le plan d'une toile, une carte mentale et ses branches, la page d'un document, la photo
+ * elle-même, l'aperçu d'un lien, l'icône d'un fichier. `tableau` : la toile qui la porte (l'accord pour les images
+ * d'autres sites).
+ */
+export function Vignette({ resume, tableau }: { resume: ResumeContenu; tableau?: string }) {
   if (resume.genre === 'document') return <VignetteDocument titre={resume.titre} lignes={resume.lignes} />
   if (resume.genre === 'arbre') return <VignetteCarte central={resume.titre} branches={resume.branches} />
+  if (resume.genre === 'image') return <VignettePhoto fichier={resume.petite ?? resume.fichier} />
+  if (resume.genre === 'lien') return <VignetteLien resume={resume} tableau={tableau} />
+  if (resume.genre === 'fichier') return <VignetteFichier nom={resume.nom} typeMime={resume.typeMime} />
+  // Une toile qui se montre en dossier : l'icône d'un dossier, comme dans Fichiers.
+  if (resume.dossier)
+    return (
+      <span className="biblio-vignette" data-genre="dossier" aria-hidden>
+        <Icone nom="dossier" taille={56} trait={1.2} />
+      </span>
+    )
   return (
     <span className="biblio-vignette" data-genre="toile" aria-hidden>
       {resume.boites.length === 0 ? <span className="biblio-vignette-vide">{t('tableau.vide')}</span> : <PlanToile boites={resume.boites} />}
@@ -195,3 +241,60 @@ export function VignetteDocument({ titre, lignes }: { titre: string; lignes: str
   )
 }
 
+
+/** Une photo : elle-même, recadrée au format de la tuile ; en attendant, un fond neutre. */
+function VignettePhoto({ fichier }: { fichier: string }) {
+  const adresse = useAdresse(fichier)
+  return (
+    <span className="biblio-vignette" data-genre="image" aria-hidden>
+      {adresse ? <img src={adresse} alt="" loading="lazy" decoding="async" draggable={false} /> : <Icone nom="fichierImage" taille={32} />}
+    </span>
+  )
+}
+
+/** Garde ce qui ressemble à une adresse web d'image : rien d'autre ne se charge depuis la bibliothèque. */
+const adresseWeb = (a: string | undefined) => (a && /^https:\/\//i.test(a) ? a : undefined)
+
+/** Un lien : l'image qu'on lui a choisie, sinon celle de la page (si la toile le permet), et son site. */
+function VignetteLien({ resume, tableau }: { resume: Extract<ResumeContenu, { genre: 'lien' }>; tableau?: string }) {
+  const source = useContext(ContexteVignettes)
+  const choisie = useAdresse(resume.fichierImage)
+  const permis = !!source && (!tableau || source.distant(tableau))
+  const image = choisie ?? (permis ? adresseWeb(resume.image) : undefined)
+  const icone = permis ? adresseWeb(resume.favicon) : undefined
+  const [rate, setRate] = useState(false)
+  const site = resume.site || domaine(resume.url)
+  return (
+    <span className="biblio-vignette" data-genre="lien" aria-hidden>
+      {image && !rate ? (
+        <img src={image} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" draggable={false} onError={() => setRate(true)} />
+      ) : (
+        <span className="biblio-vignette-lien">
+          {icone ? <img className="biblio-vignette-favicon" src={icone} alt="" referrerPolicy="no-referrer" draggable={false} /> : <Icone nom="fichierWeb" taille={28} />}
+          <span>{site}</span>
+        </span>
+      )}
+    </span>
+  )
+}
+
+const domaine = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}
+
+/** Un fichier : l'icône de son genre et son extension, comme sa carte sur la toile. */
+function VignetteFichier({ nom, typeMime }: { nom: string; typeMime: string }) {
+  const genre = genreDe(nom, typeMime)
+  return (
+    <span className="biblio-vignette" data-genre="fichier" data-fichier={genre} aria-hidden>
+      <span className="biblio-vignette-fichier">
+        <Icone nom={ICONE_DU_GENRE[genre]} taille={36} trait={1.5} />
+        {extensionDe(nom) && <span>{extensionDe(nom).toUpperCase()}</span>}
+      </span>
+    </span>
+  )
+}

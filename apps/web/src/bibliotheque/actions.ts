@@ -6,6 +6,7 @@ import {
   deplacer,
   dupliquer,
   jeter,
+  montrerEnDossier,
   quandPretes,
   rangerDansNeuve,
   renommerChose,
@@ -30,7 +31,8 @@ export type EspaceRangement = Pick<EspaceNavigable, 'racine' | 'magasin' | 'tabl
 export interface Outils {
   espace: EspaceRangement
   rangerToile(tableau: string, parent: string, options?: { essai?: boolean; siPersonne?: boolean }): Promise<BilanRangement & { fait: boolean }>
-  definirFavori(tableau: string, favori: boolean): Promise<void>
+  /** `element` : ce que la toile porte (une page, une photo…) ; sans lui, la toile. */
+  definirFavori(tableau: string, favori: boolean, element?: string | null): Promise<void>
 }
 
 export interface Resultat {
@@ -233,7 +235,7 @@ export async function dupliquerEntrees(o: Outils, entrees: readonly EntreeBiblio
   }
 }
 
-/** Renomme une toile, une carte mentale ou un document ; les tuiles qu'une toile renommée porte suivent son nom. */
+/** Renomme une toile, ou ce qu'elle porte (sa page, sa photo…) ; les tuiles qu'une toile renommée porte suivent son nom. */
 export async function renommerEntree(o: Outils, e: Pick<EntreeBibliotheque, 'tableau' | 'element' | 'titre'>, titre: string, toutes: readonly EntreeBibliotheque[]): Promise<Correctif[]> {
   const propre = titre.trim()
   if (propre === e.titre) return []
@@ -245,11 +247,10 @@ export async function renommerEntree(o: Outils, e: Pick<EntreeBibliotheque, 'tab
   ]
 }
 
-/** Met ces toiles en favori, ou les en retire. */
+/** Met ces entrées en favori, ou les en retire : des toiles, et ce qu'elles portent. */
 export async function favoris(o: Outils, entrees: readonly EntreeBibliotheque[], favori: boolean): Promise<Correctif[]> {
-  const toiles = entrees.filter((e) => e.element === null)
-  await Promise.all(toiles.map((e) => o.definirFavori(e.tableau, favori)))
-  return toiles.map((e) => ({ type: 'changer', cle: cleDe(e), champs: { favori } }))
+  await Promise.all(entrees.map((e) => o.definirFavori(e.tableau, favori, e.element)))
+  return entrees.map((e) => ({ type: 'changer', cle: cleDe(e), champs: { favori } }))
 }
 
 /**
@@ -268,7 +269,7 @@ export async function importerEntrees(
 ): Promise<Resultat & { entrees: EntreeBibliotheque[] }> {
   const b = await importer(fichiers, dans.id)
   const poses = b.elements.filter((e) => !e.parent)
-  // Ce qui n'a pas de tuile ici : un fichier joint, une image, posés sur la toile.
+  // Ce qui ne s'ouvre pas en grand : un fichier joint, une photo, posés sur la toile, qu'on peut aller y voir.
   const joints = poses.filter((e) => e.contenu.type !== 'arbre' && e.contenu.type !== 'document')
   const nombre = poses.length + b.toiles.length
   const refus = b.refuses.length ? tn('biblio.import.refuses', b.refuses.length, { noms: b.refuses.map((nom) => t('biblio.import.nom', { nom })).join(', ') }) : ''
@@ -317,12 +318,15 @@ export async function creerDossier(o: Outils, ou: { id: string; titre: string })
   await quandPretes(o.espace, [ou.id])
   const titre = t('biblio.dossier.nouveau')
   const { tableau } = creerDans(o.espace, ou.id, 'toile', titre)
+  // Un dossier est une toile qui se montre en dossier : la bibliothèque l'ouvre en liste.
+  await quandPretes(o.espace, [tableau])
+  montrerEnDossier(o.espace, tableau, true)
   const neuf: EntreeBibliotheque = {
     tableau,
     element: null,
     genre: 'toile',
     titre,
-    resume: { genre: 'toile', element: '', titre, boites: [] },
+    resume: { genre: 'toile', element: '', titre, boites: [], dossier: true },
     ou: ou.titre,
     dans: ou.id,
     vu: null,
@@ -337,6 +341,31 @@ export async function creerDossier(o: Outils, ou: { id: string; titre: string })
       const carte = carteDeLaToile(o.espace, ou.id, tableau)
       if (carte) jeter(o.espace, [{ toile: ou.id, element: carte }])
       return [{ type: 'retirer', cles: [cleDe(neuf)] }]
+    },
+  }
+}
+
+/**
+ * Montre une toile en dossier (la bibliothèque l'ouvre en liste de ce qu'elle porte), ou de nouveau en toile. Rien
+ * d'autre ne change ; se défait.
+ */
+export async function montrerEntreeEnDossier(o: Outils, e: EntreeBibliotheque, oui: boolean): Promise<Resultat | null> {
+  if (e.element !== null || e.resume.genre !== 'toile') return null
+  await quandPretes(o.espace, [e.tableau])
+  const resumeVoulu = (dossier: boolean) => {
+    const { dossier: _d, ...r } = e.resume as Extract<EntreeBibliotheque['resume'], { genre: 'toile' }>
+    return dossier ? { ...r, dossier: true as const } : r
+  }
+  const poser = (dossier: boolean): Correctif[] => {
+    if (!montrerEnDossier(o.espace, e.tableau, dossier)) throw new Error(t('biblio.annonce.lectureSeule'))
+    return [{ type: 'changer', cle: cleDe(e), champs: { resume: resumeVoulu(dossier) } }]
+  }
+  const correctifs = poser(oui)
+  return {
+    texte: t(oui ? 'biblio.annonce.enDossier' : 'biblio.annonce.enToile', { titre: e.titre || t('commun.sansTitre') }),
+    correctifs,
+    async annuler() {
+      return poser(!oui)
     },
   }
 }

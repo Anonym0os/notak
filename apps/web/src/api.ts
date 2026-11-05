@@ -697,8 +697,10 @@ export async function listerFavoris(): Promise<TableauAccessible[]> {
   return (await r.json()) as TableauAccessible[]
 }
 
-export async function definirFavori(tableau: string, favori: boolean): Promise<void> {
-  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/favori`, undefined, favori ? 'PUT' : 'DELETE')
+/** Met une toile en favori, ou l'en retire ; avec `element`, ce qu'elle porte (une page, une photo, un lien…). */
+export async function definirFavori(tableau: string, favori: boolean, element: string | null = null): Promise<void> {
+  const chemin = element === null ? '' : `/elements/${encodeURIComponent(element)}`
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}${chemin}/favori`, undefined, favori ? 'PUT' : 'DELETE')
   if (!r.ok) throw await refus(r, { ...TABLEAU_ABSENT, 400: 'erreur.accueil_pas_favori' })
 }
 
@@ -738,19 +740,24 @@ export async function noterVu(tableau: string): Promise<void> {
   await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/vu`, {}).catch(() => {})
 }
 
-/** Note l'ouverture en grand d'une carte mentale ou d'un document, pour les récents de la bibliothèque. */
+/** Note l'ouverture d'une carte mentale, d'une page, d'une photo, d'un lien ou d'un fichier, pour les récents de la bibliothèque. */
 export async function noterElementVu(tableau: string, element: string): Promise<void> {
   await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/elements/${encodeURIComponent(element)}/vu`, {}).catch(() => {})
 }
 
-/** Une toile, une carte mentale ou un document de la bibliothèque. */
+/** Ce que la bibliothèque montre : les toiles, et ce qu'elles portent qui se retrouve (photos, liens et fichiers compris). */
+export type GenreMontre = 'toile' | 'arbre' | 'document' | 'image' | 'lien' | 'fichier'
+/** Ce qu'un serveur ne rend que si on le lui demande (`?genres=`) : un client plus ancien ne saurait pas le montrer. */
+export const GENRES_EN_PLUS = ['image', 'lien', 'fichier'] as const
+
+/** Une toile, une page, une carte mentale, une photo, un lien ou un fichier de la bibliothèque. */
 export interface EntreeBibliotheque {
   tableau: string
   /** `null` : la toile elle-même. */
   element: string | null
-  genre: ResumeContenu['genre']
+  genre: GenreMontre
   titre: string
-  resume: ResumeContenu
+  resume: Extract<ResumeContenu, { genre: GenreMontre }>
   /** Le titre de la toile qui le porte, s'il la lit. */
   ou: string | null
   /** L'identifiant de cette toile, s'il la lit : le dossier du tri par dossier. */
@@ -762,9 +769,9 @@ export interface EntreeBibliotheque {
   partage: boolean
 }
 
-/** Tout ce que le compte peut lire : ses toiles (sauf l'accueil), leurs cartes mentales et leurs documents. */
+/** Tout ce que le compte peut lire : ses toiles (sauf l'accueil), et ce qu'elles portent de pages, cartes mentales, photos, liens et fichiers. */
 export async function lireBibliotheque(): Promise<EntreeBibliotheque[]> {
-  const r = await appeler('/api/bibliotheque')
+  const r = await appeler(`/api/bibliotheque?genres=${GENRES_EN_PLUS.join(',')}`)
   if (!r.ok) throw await refus(r, {})
   return (await r.json()) as EntreeBibliotheque[]
 }

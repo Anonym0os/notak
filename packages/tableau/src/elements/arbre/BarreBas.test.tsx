@@ -55,12 +55,12 @@ describe('la barre du bas', () => {
     a.fin()
   })
 
-  it('le zoom : le courant et le menu des paliers, cochés, avec « Ajuster la carte » en dernier', () => {
+  it('le zoom : le courant et le menu des paliers, cochés, avec « Ajuster la carte mentale » en dernier', () => {
     const a = monter({ zoom: 1.37 })
     expect(a.hote.querySelector('.notak-arbre-bas-zoom .notak-arbre-bas-valeur')?.textContent).toBe('137%')
     a.clic(a.hote.querySelector('.notak-arbre-bas-zoom button')!)
     const items = [...a.hote.querySelectorAll('.notak-arbre-bas-zoom [role^=menuitem]')]
-    expect(items.map((i) => i.textContent?.replace(/\s/g, ' '))).toEqual(['800%', '500%', '400%', '300%', '200%', '150%', '137%', '120%', '100%', '80%', '50%', '20%', '10%', '5%', '2%', 'Ajuster la carte'])
+    expect(items.map((i) => i.textContent?.replace(/\s/g, ' '))).toEqual(['800%', '500%', '400%', '300%', '200%', '150%', '137%', '120%', '100%', '80%', '50%', '20%', '10%', '5%', '2%', 'Ajuster la carte mentale'])
     expect(items.filter((i) => i.getAttribute('aria-checked') === 'true').map((i) => i.textContent?.replace(/\s/g, ' '))).toEqual(['137%'])
     a.clic(items[4]!)
     expect(a.p.zoomer).toHaveBeenCalledWith(2)
@@ -70,7 +70,7 @@ describe('la barre du bas', () => {
     a.fin()
   })
 
-  it('dans le plan, le menu se réduit à 300…80 sans « Ajuster la carte », et le compteur disparaît', () => {
+  it('dans le plan, le menu se réduit à 300…80 sans « Ajuster la carte mentale », et le compteur disparaît', () => {
     const a = monter({ enPlan: true })
     expect(a.hote.querySelector('.notak-arbre-bas-compteur')).toBeNull()
     a.clic(a.hote.querySelector('.notak-arbre-bas-zoom button')!)

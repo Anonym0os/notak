@@ -1,4 +1,5 @@
-// Le tableau d'accueil d'un compte neuf. Données pures : le serveur le pose à l'inscription.
+// Le guide « Découvrir Notak », créé à la demande depuis la bibliothèque (l'accueil d'un compte neuf naît vide).
+// Données pures.
 import type { ModeleTableau } from './construire'
 
 export const ACCUEIL: ModeleTableau = {

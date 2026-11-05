@@ -1,7 +1,7 @@
 # Notak de bureau
 
 L'app de bureau de Notak, faite avec [Tauri 2](https://tauri.app) : l'édition locale de Notak (celle de notak.app),
-embarquée dans l'application. Par défaut, ni compte ni serveur : les tableaux vivent sur l'ordinateur, l'app s'ouvre
+embarquée dans l'application. Par défaut, ni compte ni serveur : les toiles vivent sur l'ordinateur, l'app s'ouvre
 sans réseau, et elle se met à jour d'elle-même, de versions signées (`docs/MISES-A-JOUR.md`). Pour travailler à
 plusieurs, la même app peut aussi joindre un serveur Notak, choisi dans l'app (voir plus bas).
 
@@ -114,7 +114,7 @@ ouvertes depuis le système se dit comme telle (`file_pleine`).
 - **L'application est embarquée, et ne parle qu'à ce que permet sa CSP** (`app.security.csp`, tirée de
   `packages/tableau/src/securite.ts` ; un essai vérifie qu'elle n'a pas dérivé). Tauri n'ajoute pas ses empreintes à
   `style-src` (`dangerousDisableAssetCspModification`) : un navigateur ignorerait sinon `'unsafe-inline'`, et l'éditeur
-  perdrait ses styles. **Ne jamais changer l'identifiant (`app.notak.bureau`) ni le schéma des adresses** : les tableaux
+  perdrait ses styles. **Ne jamais changer l'identifiant (`app.notak.bureau`) ni le schéma des adresses** : les toiles
   vivent dans le stockage de cette origine ; en changer, c'est les perdre de vue.
 - **La fenêtre reste chez elle** (`src/navigation.rs`) : elle est créée par la coque (`create: false` dans la
   configuration) pour y brancher deux gardes. Toute navigation vers autre chose que l'application, le serveur choisi
@@ -178,10 +178,10 @@ ouvertes depuis le système se dit comme telle (`file_pleine`).
 - **Le glisser-déposer de fichiers est laissé à la page** (`dragDropEnabled: false`). Sans cela, Tauri intercepte les
   fichiers lâchés sur la fenêtre et Notak ne reçoit plus les images déposées sur la toile.
 - **La barre de titre se fond dans la barre d'îlots** (`titleBarStyle: "Overlay"`) : les trois boutons de la fenêtre
-  se posent à gauche de la barre du haut du tableau, de la carte et du document, qui leur laisse 96 px ; comme chez
+  se posent à gauche de la barre du haut de la toile, de la carte mentale et de la page, qui leur laisse 96 px ; comme chez
   Xmind (`trafficLightPosition` x 20, y 36 : à 20 px du bord, centrés à 34 px du haut), les îlots de 36 px, posés à
   16 px du haut, se centrent dessus. Pas de cadre autour de la page : la fenêtre a déjà son bord. Le panneau de gauche
-  de la carte laisse aux boutons leur rangée. La bande du tableau sert de poignée pour déplacer la fenêtre
+  de la carte mentale laisse aux boutons leur rangée. La bande de la toile sert de poignée pour déplacer la fenêtre
   (`data-tauri-drag-region`). L'application web le sait par `data-bureau` sur la racine du document.
 - **Pas de service worker** : l'app embarque ses fichiers et se met à jour par la coque ; un service worker y servirait
   une vieille version par-dessus la nouvelle (`apps/web/src/pwa.ts` le retire s'il en reste un).

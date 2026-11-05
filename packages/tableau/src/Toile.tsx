@@ -447,6 +447,12 @@ interface PropsToile {
    * taille : l'aperçu d'un modèle au téléphone, au-dessus de la feuille du choix.
    */
   cadrer?: boolean
+  /**
+   * La toile n'a jamais été vue ici (pas de `cameraInitiale`) et son contenu est arrivé : elle s'ouvre sur ce qu'elle
+   * porte, dégagé des barres (`cam.arrivee`), plutôt qu'à l'origine, sous elles. Une fois ; une toile vide reste où
+   * elle est, et ce qu'on y pose ensuite ne fait pas bouger la vue.
+   */
+  arriver?: boolean
 }
 
 /** Le texte qu'on écrit part dans le tableau à ce rythme au plus, en millisecondes. */
@@ -461,7 +467,7 @@ const DOUBLE_TOUCHER_PX = 24
 /** Un doigt qui a bougé de plus que cela (px) tire le fond : ce n'est plus un toucher. */
 const SEUIL_TOUCHER = 8
 
-export function Toile({ magasin: source, services = {}, cameraInitiale, surCamera, cadrer }: PropsToile) {
+export function Toile({ magasin: source, services = {}, cameraInitiale, surCamera, cadrer, arriver }: PropsToile) {
   const lectureSeule = !!services.lectureSeule
   // Les droits du serveur, lus au moment du geste : ils peuvent changer sans que la toile se refasse.
   const droitsActuels = useRef(services.droits)
@@ -2024,6 +2030,24 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (!cible) return
     cadree.current = vue
     lancerAnimation(cible)
+  })
+  // [première visite] Ce que les barres couvrent de la toile : l'en-tête de l'espace en haut, la barre d'outils à gauche
+  // (au téléphone, il n'y a que le « + » du bas).
+  const degagement = () => {
+    const div = racine.current
+    if (!div) return { haut: 0, gauche: 0 }
+    const o = div.getBoundingClientRect()
+    const tete = div.closest('.notak-espace')?.querySelector(':scope > .notak-entete')?.getBoundingClientRect()
+    const barre = div.querySelector('.notak-barre-outils')?.getBoundingClientRect()
+    const aGauche = barre && barre.height > barre.width && barre.left - o.left < o.width / 3
+    return { haut: tete ? Math.max(0, tete.bottom - o.top) : 0, gauche: aGauche ? Math.max(0, barre.right - o.left) : 0 }
+  }
+  const premiereVisiteFaite = useRef(!!cameraInitiale)
+  useLayoutEffect(() => {
+    if (premiereVisiteFaite.current || !arriver || vue.largeur <= 1) return
+    premiereVisiteFaite.current = true
+    const c = contenu()
+    if (c) setCamera(cam.arrivee(c, vue, degagement()))
   })
 
   const zoomerVers = (echelle: number) => {

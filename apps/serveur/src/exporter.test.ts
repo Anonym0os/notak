@@ -99,7 +99,7 @@ describe('exporterTexte', () => {
         '',
         'pain',
         '',
-        '*Tableau : Budget*',
+        '*Toile : Budget*',
         '',
         '*Image : Plage*',
         '',
@@ -118,7 +118,7 @@ describe('exporterTexte', () => {
     const t = exporterTexte(tableau, 'txt', titreDe)
     expect(t.startsWith('Voyage\n\nPlan\n\nPartir tôt\n\nValises\n\n[ ] passeport\n\nHôtel (https://hotel.fr)')).toBe(true)
     expect(t).not.toMatch(/[*#>]/)
-    expect(t).toContain('Tableau : Budget')
+    expect(t).toContain('Toile : Budget')
     expect(t).not.toContain('jetée')
   })
 
@@ -187,11 +187,11 @@ describe('exporterTexte en anglais', () => {
     } as never
     const md = exporterTexte(tableau, 'md', () => undefined, 'en')
     expect(md).toContain('# Untitled')
-    expect(md).toContain('*Board: Untitled*')
+    expect(md).toContain('*Canvas: Untitled*')
     expect(md).toContain('*File: plan.pdf*')
     expect(md).toContain('> (resolved)')
     expect(md).toContain('> Ana : Bonjour')
-    expect(exporterTexte(tableau, 'txt')).toContain('Tableau : Sans titre')
+    expect(exporterTexte(tableau, 'txt')).toContain('Toile : Sans titre')
   })
 })
 

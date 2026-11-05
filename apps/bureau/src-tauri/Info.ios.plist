@@ -111,10 +111,10 @@
     </dict>
   </dict>
   <key>NSCameraUsageDescription</key>
-  <string>To put a photo you take straight onto your board.</string>
+  <string>To put a photo you take straight onto your canvas.</string>
   <key>NSPhotoLibraryAddUsageDescription</key>
-  <string>To save an image from a board to your photos, when you ask.</string>
+  <string>To save an image from a canvas to your photos, when you ask.</string>
   <key>NSMicrophoneUsageDescription</key>
-  <string>To record a voice note onto a board, when you ask.</string>
+  <string>To record a voice note onto a canvas, when you ask.</string>
 </dict>
 </plist>

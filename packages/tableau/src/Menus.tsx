@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Element, Id } from './coeur/tableau'
 import { definition } from './elements/registre'
+import { demanderAMontrer } from './elements/tableau/montrer'
 import { Confirmation, Dialogue } from './communs'
 import { t, tn } from './langue'
 import type { ContexteToile, ResultatRecherche } from './elements/types'
@@ -160,6 +161,8 @@ export function Recherche(props: {
                 type="button"
                 disabled={!ouvrirTableau}
                 onClick={() => {
+                  // Le passage trouvé est dans un élément : la toile qui s'ouvre se centre sur lui, et le choisit.
+                  if (r.element) demanderAMontrer(r.element)
                   ouvrirTableau?.(r.tableau)
                   fermer()
                 }}

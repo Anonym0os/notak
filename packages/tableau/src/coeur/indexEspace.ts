@@ -52,6 +52,12 @@ export interface IndexEspace {
   retirerRecu(id: Id): void
   /** Prévenu quand une marque est posée ou retirée (et pour elles seules, pas pour chaque changement de l'index). */
   ecouterRecus(f: () => void): () => void
+  /**
+   * Les favoris de l'espace, et depuis quand (ms) : une toile (`toile/`), ou un élément d'une toile (`toile/élément`),
+   * la clé de la bibliothèque. Ils voyagent avec l'index, donc d'un appareil à l'autre par le dossier synchronisé.
+   */
+  favoris(): ReadonlyMap<string, number>
+  definirFavori(cle: string, favori: boolean): void
   ecouter(f: () => void): () => void
 }
 
@@ -72,6 +78,9 @@ export function creerIndexEspace(doc: Y.Doc, maintenant: () => number = Date.now
   const tableaux = doc.getMap<unknown>('tableaux')
   const meta = doc.getMap<unknown>('meta')
   const accueils = doc.getMap<unknown>('accueils')
+  // Une clé par favori : deux appareils qui en ajoutent chacun les retrouvent tous ; retirer l'emporte sur un ajout
+  // plus ancien, comme chaque écriture d'une Y.Map.
+  const favoris = doc.getMap<unknown>('favoris')
 
   const lire = (id: Id): EntreeIndex | undefined => {
     const v = tableaux.get(id)
@@ -163,6 +172,11 @@ export function creerIndexEspace(doc: Y.Doc, maintenant: () => number = Date.now
       })
     },
     retirerRecu: (id) => void meta.delete(cleRecu(id)),
+    favoris: () => new Map([...favoris.entries()].flatMap(([cle, quand]) => (typeof quand === 'number' ? [[cle, quand] as const] : []))),
+    definirFavori(cle, favori) {
+      if (!favori) return void (favoris.has(cle) && favoris.delete(cle))
+      if (typeof favoris.get(cle) !== 'number') favoris.set(cle, maintenant())
+    },
     ecouterRecus(f) {
       ecouteursRecus.add(f)
       return () => void ecouteursRecus.delete(f)

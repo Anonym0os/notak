@@ -60,6 +60,7 @@ import { estPageServeur, estServeurDansApp, signalerVie } from '../bureau'
 import { lancerMisesAJour } from '../MiseAJour'
 import { enregistrerServiceWorker, signalerNouvelleVersion } from '../pwa'
 import { PageAutoriser } from '../serveur/Autoriser'
+import { poserLeGuideServeur } from '../serveur/guide'
 import { PAGE_AUTORISER } from '../serveur/appareil'
 import { BandeauxServeur } from '../serveur/Bandeaux'
 import { FichierEnAttente } from '../serveur/FichierEnAttente'
@@ -337,6 +338,7 @@ function Accueil({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
           <PageBibliotheque
             espace={espace}
             fenetres={fenetres}
+            decouvrir={() => poserLeGuideServeur(espace)}
             partage={(tableau, fermer) => <PartageEnFenetre tableau={tableau} moi={moi} fermer={fermer} />}
             importer={(f, dans) => importerFichiers(f, dans, espace, services)}
             compte={

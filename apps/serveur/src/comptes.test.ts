@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { agentAuDoigt } from './accueil.ts'
 import { creerAuth } from './auth.ts'
 import { type Base, DUREE_INVITATION_MS, ouvrirBase } from './base.ts'
 import { COULEURS, activerInvitations } from './comptes.ts'
@@ -30,73 +29,25 @@ describe('inscription', () => {
     expect(compte.password).toMatch(/^\$argon2id\$/)
   })
 
-  it('remplit l’accueil d’un compte neuf : un document avec son titre, des colonnes et des notes qui présentent les gestes', async () => {
+  it('l’accueil d’un compte neuf naît vide, à son nom : la bibliothèque propose de créer, et le guide sur demande', async () => {
     const base = neuf()
     const u = await inscrire(base, { email: 'ana@exemple.fr', motDePasse: 'motdepasse', nom: 'Ana' })
     const etat = base.document(nomDuDocument(u.racine))
     expect(etat).not.toBeNull()
     const t = lireEtat(etat!)
     expect(t.titre).toBe('Accueil d’Ana')
-    const colonnes = t.elements.filter((e) => e.contenu.type === 'colonne')
-    expect(colonnes.length).toBeGreaterThanOrEqual(4)
-    const enfants = t.elements.filter((e) => e.parent)
-    expect(enfants.length).toBeGreaterThan(8)
-    for (const e of enfants) expect(colonnes.map((c) => c.id)).toContain(e.parent)
-    expect(t.elements.some((e) => e.contenu.type === 'taches')).toBe(true)
-    // La recherche dans tous les tableaux trouve déjà l'accueil.
-    expect(base.chercher('"raccourcis"', [u.racine], 5).length).toBeGreaterThan(0)
+    expect(t.elements).toEqual([])
+    // La recherche dans tous les tableaux le trouve déjà, par son titre.
+    expect(base.chercher('"accueil"', [u.racine], 5).length).toBeGreaterThan(0)
   })
 
-  it('l’accueil d’un compte qui s’inscrit en anglais naît en anglais, de même forme', async () => {
+  it('l’accueil d’un compte qui s’inscrit en anglais porte un nom anglais', async () => {
     const base = neuf()
-    const fr = await inscrire(base, { email: 'ana@exemple.fr', motDePasse: 'motdepasse', nom: 'Ana' })
     const en = await inscrire(base, { email: 'bob@exemple.fr', motDePasse: 'motdepasse', nom: 'Bob', langue: 'en' })
-    const [a, b] = [fr, en].map((u) => lireEtat(base.document(nomDuDocument(u.racine))!))
-    expect(b!.titre).toBe('Bob’s home')
+    const b = lireEtat(base.document(nomDuDocument(en.racine))!)
+    expect(b.titre).toBe('Bob’s home')
     expect(base.tableau(en.racine)?.titre).toBe('Bob’s home')
-    expect(b!.elements).toHaveLength(a!.elements.length)
-    expect(JSON.stringify(b!.elements)).toContain('Welcome to Notak')
-    expect(JSON.stringify(a!.elements)).toContain('Bienvenue sur Notak')
-  })
-
-  it('l’accueil d’un compte créé depuis un téléphone présente les gestes au doigt ; depuis un ordinateur, ceux de la souris', async () => {
-    const base = neuf()
-    const auth = authEssai(base)
-    // Par la route, comme le navigateur : c'est l'agent utilisateur de la requête qui crée le compte qui décide.
-    const inscrireDepuis = async (agent: string, email: string, langue: 'fr' | 'en' = 'fr') => {
-      const r = await auth.handler(
-        new Request(`${ORIGINE_ESSAI}/api/auth/sign-up/email`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', origin: ORIGINE_ESSAI, 'user-agent': agent },
-          body: JSON.stringify({ email, password: 'motdepasse', name: 'Ana', langue }),
-        }),
-      )
-      expect(r.status).toBe(200)
-      const u = base.utilisateurParEmail(email)!
-      return JSON.stringify(lireEtat(base.document(nomDuDocument(u.racine))!).elements)
-    }
-    const iphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'
-    const android = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36'
-    const mac = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15'
-
-    const auDoigt = await inscrireDepuis(iphone, 'ana@exemple.fr')
-    expect(auDoigt).toContain('Touchez deux fois le vide')
-    expect(auDoigt).toContain('La roue, en haut à droite, règle le thème, la taille, votre photo et votre couleur.')
-    expect(auDoigt).not.toMatch(/Cmd|Double-cliquez|Tapez \/|depuis votre bureau/)
-    // Ce qui n'est qu'au serveur reste : le partage.
-    expect(auDoigt).toContain('Le bouton Partager')
-    expect(await inscrireDepuis(android, 'bob@exemple.fr', 'en')).toContain('Tap twice on empty space')
-    const souris = await inscrireDepuis(mac, 'cleo@exemple.fr')
-    expect(souris).toContain('Double-cliquez sur le vide')
-    expect(souris).not.toContain('Touchez')
-  })
-
-  it('reconnaît un téléphone ou une tablette à l’agent utilisateur', () => {
-    expect(agentAuDoigt('Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148')).toBe(true)
-    expect(agentAuDoigt('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0 Safari/537.36')).toBe(false)
-    // La commande `serveur:compte` et les appels sans en-têtes : un accueil à la souris.
-    expect(agentAuDoigt(undefined)).toBe(false)
-    expect(agentAuDoigt(null)).toBe(false)
+    expect(b.elements).toEqual([])
   })
 
   it('deux comptes n’ont aucun identifiant d’élément en commun', async () => {

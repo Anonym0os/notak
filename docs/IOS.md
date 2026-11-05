@@ -129,7 +129,7 @@ Notés tels que le propriétaire les a donnés en essayant l'app. Une ligne coch
 | 2 | En mode dessin, deux doigts qui pincent dessinent des hachures au lieu de zoomer ; on ne peut pas se déplacer | les doigts déplacent et zooment la vue, le Pencil dessine | codé : la couche mène la vue (`poserCamera`) ; une paume posée pendant que le Pencil écrit ne bouge rien ; sans stylet connu, un doigt dessine et deux naviguent |
 | 3 | Le double toucher du Pencil (sur son flanc) ne fait rien | il change d'outil comme dans Notes (gomme, outil précédent, couleurs), selon le réglage d'iOS | codé : `UIPencilInteraction` (`AppareilPlugin.swift`) → `ios/crayon.ts` → la couche |
 | 4 | Il faut ouvrir le mode dessin pour dessiner au Pencil | le Pencil dessine directement sur la toile (le fond et les éléments), sans passer par l'outil ; sur l'interface (barres, menus, boutons) il agit comme le doigt, glisser-déposer compris | codé : `surLaToile`, `dessinerAuCrayon` ; un toucher du doigt enregistre et referme ; `toucher.ts` rattrape aussi les clics perdus du Pencil |
-| 5 | Pas de choix | un réglage : « le Pencil dessine » ou « le Pencil fait comme le doigt » (choisir, déplacer, naviguer) | codé : Réglages › Tableau › Apple Pencil ; « comme le doigt » le laisse agir comme une souris (choisir, déplacer, lasso) |
+| 5 | Pas de choix | un réglage : « le Pencil dessine » ou « le Pencil fait comme le doigt » (choisir, déplacer, naviguer) | codé : Réglages › Toile › Apple Pencil ; « comme le doigt » le laisse agir comme une souris (choisir, déplacer, lasso) |
 | 6 | Pour supprimer ou dupliquer un élément, il faut rester appuyé dessus (menu du clic droit) | un toucher sur l'élément montre ses actions rapides juste au-dessus de lui, proprement, sur iPad comme sur téléphone | codé : `ActionsRapides.tsx` (Couper, Copier, Dupliquer, Supprimer, •••). Retour d'essai : la barre traînait derrière l'élément quand on tirait la toile (replacée par React toutes les 150 ms) et sortait de l'écran ; elle suit maintenant la caméra du geste image par image, reste entière dans la vue, passe dessous près du haut et se cache quand l'élément sort |
 | 7 | Dans la barre de gauche d'une sélection (une ligne : Couleur, Début, Fin, Étiquette…), les boutons ne sont pas alignés : un sur deux est décalé | une colonne droite, chaque bouton centré | codé : l'ancre d'un bouton à menu centre son bouton (`toile.css`) |
 
@@ -200,9 +200,9 @@ ouverts, image Docker) et celui-ci partagent la coque. Pour qu'ils s'emboîtent 
 
 ## La fiche App Store (brouillon, à finir en phase 6 dans `apps/bureau/app-store/metadata/`)
 
-- **Nom** : Notak (vérifier la disponibilité dans App Store Connect dès le premier jour ; repli « Notak – Tableaux
+- **Nom** : Notak (vérifier la disponibilité dans App Store Connect dès le premier jour ; repli « Notak – Toiles
   d'idées »). **Sous-titre** fr : « Vos idées sur une toile libre » ; en : “Your ideas on a free canvas”.
-- **Mots-clés** fr : `tableau,notes,idées,moodboard,toile,mind map,croquis,pencil,hors ligne,milanote` ; en :
+- **Mots-clés** fr : `tableau,notes,idées,moodboard,toile,carte mentale,croquis,pencil,hors ligne,milanote` ; en :
   `board,notes,ideas,moodboard,canvas,mind map,sketch,pencil,offline,milanote`.
 - **Description** (structure, fr et en) : ce que c'est en une phrase (notes, images, liens, colonnes, flèches,
   tâches, croquis sur une toile sans bords) ; « Rien ne quitte votre iPhone ou iPad » ; l'Apple Pencil ; Fichiers et

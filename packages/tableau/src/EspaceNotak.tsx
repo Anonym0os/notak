@@ -69,6 +69,9 @@ const LARGEUR_SUSPENSION = 44
 export const EVENEMENT_REGLAGES = 'notak-reglages'
 /** Ouvre les réglages de la toile montée dessous : les mêmes, au même thème, que ceux de sa roue. */
 export const demanderReglages = () => void window.dispatchEvent(new Event(EVENEMENT_REGLAGES))
+/** De même pour la fenêtre des raccourcis (la bibliothèque de l'app, posée sur la toile, a son « Aide »). */
+export const EVENEMENT_AIDE = 'notak-aide'
+export const demanderAide = () => void window.dispatchEvent(new Event(EVENEMENT_AIDE))
 
 /** La barre des outils de gauche, montrée ou cachée : un choix de la machine, gardé d'une visite à l'autre. */
 const CLE_OUTILS = 'notak:outils-caches'
@@ -238,8 +241,12 @@ export function EspaceNotak({
   const ouvrirReglages = useCallback(() => setReglagesOuverts(true), [])
   useEffect(() => {
     window.addEventListener(EVENEMENT_REGLAGES, ouvrirReglages)
-    return () => window.removeEventListener(EVENEMENT_REGLAGES, ouvrirReglages)
-  }, [ouvrirReglages])
+    window.addEventListener(EVENEMENT_AIDE, ouvrirAide)
+    return () => {
+      window.removeEventListener(EVENEMENT_REGLAGES, ouvrirReglages)
+      window.removeEventListener(EVENEMENT_AIDE, ouvrirAide)
+    }
+  }, [ouvrirReglages, ouvrirAide])
   const vues = useRef<Vues | null>(null)
   vues.current ??= lireVuesEnregistrees()
   const [outilsCaches, setOutilsCaches] = useState(lireOutilsCaches)
@@ -677,6 +684,7 @@ export function EspaceNotak({
               magasin={espace.magasin(courant)}
               services={services}
               cameraInitiale={vues.current[courant]?.camera}
+              arriver={charge}
               surCamera={surCamera}
             />
           )}

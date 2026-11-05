@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto'
 import * as Y from 'yjs'
-import { documentAccueil } from './accueil.ts'
 import { type Base, DUREE_INVITATION_MS, type Invitation, type Utilisateur } from './base.ts'
 import { ROLES, role, titreAccueil } from './droits.ts'
 import { indexerDocument } from './indexation.ts'
@@ -64,18 +63,20 @@ export function adminsDe(valeur: string | undefined): string[] {
 
 /**
  * Donne au compte qui vient de naître son espace personnel et son tableau d'accueil, qui en est la racine, et active
- * les invitations en attente pour son adresse, si elle est vérifiée (un fournisseur qui la garantit). `doigt` : il
- * naît sur un téléphone, l'accueil y présente les gestes au doigt.
+ * les invitations en attente pour son adresse, si elle est vérifiée (un fournisseur qui la garantit). L'accueil naît
+ * vide, à son nom : on arrive sur la bibliothèque, qui propose de créer, et le guide des gestes (« Découvrir Notak »,
+ * apps/web/src/serveur/guide.ts) ne vient que si on le demande.
  */
-export function preparerCompte(base: Base, utilisateur: Utilisateur, langue?: 'fr' | 'en', doigt = false): void {
+export function preparerCompte(base: Base, utilisateur: Utilisateur, langue?: 'fr' | 'en'): void {
   const titre = titreAccueil(utilisateur.nom, langue)
   base.transaction(() => {
     const espace = creerOrganisationPersonnelle(base.db, utilisateur, new Date().toISOString())
     base.creerTableau({ id: utilisateur.racine, titre, proprietaire: utilisateur.id, parent: null, espace })
     base.definirEspace(espace, utilisateur.racine, true)
     base.definirAcces({ tableau: utilisateur.racine, utilisateur: utilisateur.id, role: 'proprietaire' })
-    // L'accueil naît rempli : il présente les gestes. Le document est enregistré comme le ferait la synchro.
-    const accueil = documentAccueil(titre, langue, doigt)
+    // Le document est enregistré comme le ferait la synchro, et indexé : la recherche le trouve par son titre.
+    const accueil = new Y.Doc()
+    accueil.getMap('meta').set('titre', titre)
     base.enregistrerDocument(nomDuDocument(utilisateur.racine), Y.encodeStateAsUpdate(accueil))
     indexerDocument(base, utilisateur.racine, accueil)
     accueil.destroy()

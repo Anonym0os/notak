@@ -67,7 +67,7 @@ export function plansPour(actuel: readonly { id: Id; plan: string }[], voulu: re
 
 /**
  * Le magasin d'un tableau, posé sur un document Yjs :
- * `elements` (id → élément + `plan`) et `meta` (`titre`, `couleur`, `etiquettes`).
+ * `elements` (id → élément + `plan`) et `meta` (`titre`, `couleur`, `etiquettes`, `fond`, `dossier`).
  * Le document peut être relié à un serveur : le magasin n'en sait rien.
  */
 export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteur | undefined } = {}): MagasinYjs {
@@ -157,6 +157,7 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
       ...(typeof couleur === 'string' ? { couleur: couleur as CouleurNote } : {}),
       ...(etiquettes.length > 0 ? { etiquettes } : {}),
       ...(fond ? { fond } : {}),
+      ...(meta.get('dossier') === true ? { dossier: true } : {}),
       elements: liste.map((l) => l.element),
     }
   }
@@ -337,6 +338,10 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
         if (JSON.stringify(t.fond) !== JSON.stringify(fondStocke())) {
           if (t.fond) meta.set('fond', t.fond)
           else meta.delete('fond')
+        }
+        if ((t.dossier === true) !== (meta.get('dossier') === true)) {
+          if (t.dossier) meta.set('dossier', true)
+          else meta.delete('dossier')
         }
         const voulus = new Set(t.elements.map((e) => e.id))
         // Ce que la toile ne sait pas lire n'est pas dans `t` : ce n'est pas une raison de l'effacer.

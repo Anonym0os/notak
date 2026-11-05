@@ -1,6 +1,5 @@
-// Le tableau d'accueil, au doigt : l'édition locale et le serveur le réécrivent avec les mêmes règles. Ce fichier est
-// lu par le serveur sans la toile (Node, sans bundler) : il ne tire rien d'autre que des types.
-import type { ModeleTableau } from './construire'
+// Le guide « Découvrir Notak », au doigt : l'app et l'édition serveur le réécrivent avec les mêmes règles.
+import { LARGEUR_COLONNE_MODELE, type ModeleTableau } from './construire'
 
 /** Une note dont le texte répond au motif est réécrite (`String.replace` : `$1` reprend ce que le motif a pris). */
 export type Reecritures = readonly (readonly [RegExp, string])[]
@@ -23,11 +22,11 @@ export const AU_DOIGT: Record<'fr' | 'en', Reecritures> = {
   ],
   en: [
     [/^# A note\n.*/s, '# A note\nTap twice on empty space, then write.'],
-    [/^# A tool\n.*/s, '# A tool\nTap the + at the bottom (the left bar on a tablet), then a tool: column, tasks, link, image, board. Dragged, it lands where you let go.'],
+    [/^# A tool\n.*/s, '# A tool\nTap the + at the bottom (the left bar on a tablet), then a tool: column, tasks, link, image, canvas. Dragged, it lands where you let go.'],
     [/^# A drop\n.*/s, '# An image\nThe Add image tool takes a photo, or picks one from the device.'],
     [/^# Unsorted\n.*/s, '# Unsorted\nThe Unsorted button, at the top right, opens the tray of items waiting for a place.'],
     [/^# Zoom and view\n.*/s, '# Zoom and view\nPinch to zoom; drag one finger on empty space to move the canvas.'],
-    [/^# Boards within boards\n.*/s, '# Boards within boards\nThe Board tool places a card: tap it twice to go in, the name at the top left to go back up.'],
+    [/^# Canvases within canvases\n.*/s, '# Canvases within canvases\nThe Canvas tool places a card: tap it twice to go in, the name at the top left to go back up.'],
     [/^# Search\n.*/s, '# Undo\nThe arrows at the top undo and redo.'],
     [/^# Shortcuts\n.*/s, '# The menu\nA long press on the canvas or on a card opens its menu.'],
     [/^# Settings\nCmd\+, sets (.*)/s, '# Settings\nThe gear, at the top right, sets $1'],
@@ -48,5 +47,14 @@ export function reecrire(m: ModeleTableau, regles: Reecritures): ModeleTableau {
   return { ...m, elements: parcourir(m.elements) as ModeleTableau['elements'] }
 }
 
-/** L'accueil tel qu'on le lit sur un écran qu'on touche. */
-export const accueilAuDoigt = (m: ModeleTableau, langue: 'fr' | 'en'): ModeleTableau => reecrire(m, AU_DOIGT[langue])
+/**
+ * Au doigt, le titre passe au-dessus de la première colonne : une tablette en portrait ou un téléphone ouvre la toile
+ * sur son coin, où un titre centré sur les quatre colonnes tomberait au bord.
+ */
+export const titreAuDoigt = (m: ModeleTableau): ModeleTableau => ({
+  ...m,
+  elements: m.elements.map((e) => (e.genre === 'titre' ? { ...e, x: 0, largeur: LARGEUR_COLONNE_MODELE } : e)),
+})
+
+/** Le guide tel qu'on le lit sur un écran qu'on touche. */
+export const accueilAuDoigt = (m: ModeleTableau, langue: 'fr' | 'en'): ModeleTableau => titreAuDoigt(reecrire(m, AU_DOIGT[langue]))

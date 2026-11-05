@@ -19,6 +19,9 @@ describe('accueil de l’édition locale', () => {
       expect(tout).not.toMatch(/Cmd|⌘|[Dd]ouble-c|Espace et|Space and|Tapez \/|Type \/|depuis votre bureau|from your desktop|Partager|Share button|compte|account/)
       expect(tout).toMatch(/\.notak/)
       expect(tout).toMatch(langue === 'fr' ? /Touchez deux fois/ : /Tap twice/)
+      // Le titre au-dessus de la première colonne, là où la toile s'ouvre, pas au milieu des quatre.
+      expect(accueilLocal(langue, true).elements.find((e) => e.genre === 'titre')).toMatchObject({ x: 0 })
+      expect(accueilLocal(langue, false).elements.find((e) => e.genre === 'titre')).toMatchObject({ x: 44 })
     }
   })
 })

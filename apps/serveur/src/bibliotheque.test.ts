@@ -133,6 +133,47 @@ describe('GET /api/bibliotheque', () => {
     expect(r.map(cle)).toContain('voyage/')
   })
 
+  it('les photos, liens et fichiers, seulement si on les demande : une app d’avant ne reçoit que ce qu’elle sait montrer', async () => {
+    ecrire('voyage', 'Voyage', (d) => {
+      poser(d, { type: 'document', titre: 'Budget', texte: texte('Train : 80 €') }, { id: 'budget' })
+      poser(d, { type: 'image', fichier: 'f-port', largeurOrigine: 40, hauteurOrigine: 30, legende: 'Le port' }, { id: 'port' })
+      poser(d, { type: 'lien', url: 'https://exemple.fr', statut: 'pret', apercu: { titre: 'Exemple' } }, { id: 'site' })
+      poser(d, { type: 'fichier', fichier: 'f-devis', nom: 'devis.pdf', typeMime: 'application/pdf', taille: 12 }, { id: 'devis' })
+    })
+    const avant = (await lire(ana)) as Entree[]
+    expect(avant.map((e) => e.genre).filter((g) => !['toile', 'arbre', 'document'].includes(g))).toEqual([])
+    const r = await m.appeler('/api/bibliotheque?genres=image,lien,fichier', { compte: ana })
+    const tous = (await r.json()) as Entree[]
+    const parCle = new Map(tous.map((e) => [cle(e), e]))
+    expect(parCle.get('voyage/port')).toMatchObject({ genre: 'image', titre: 'Le port', ou: 'Voyage', resume: { fichier: 'f-port' } })
+    expect(parCle.get('voyage/site')).toMatchObject({ genre: 'lien', titre: 'Exemple', resume: { url: 'https://exemple.fr' } })
+    expect(parCle.get('voyage/devis')).toMatchObject({ genre: 'fichier', titre: 'devis.pdf', resume: { typeMime: 'application/pdf' } })
+    // Les toiles viennent toujours ; ce qu'on n'a pas demandé, non.
+    expect(tous.map(cle)).toContain('voyage/')
+    expect(tous.map(cle)).not.toContain('voyage/budget')
+  })
+
+  it('un élément en favori : la photo, la page ; pas ce qui n’est pas sur la toile', async () => {
+    const favori = (id: string, el: string, methode: 'PUT' | 'DELETE', c: Compte | null = ana) =>
+      m.appeler(`/api/tableaux/${id}/elements/${el}/favori`, { methode, compte: c ?? undefined })
+    expect((await favori('voyage', 'port', 'PUT')).status).toBe(204)
+    expect((await favori('voyage', 'budget', 'PUT')).status).toBe(204)
+    expect((await favori('voyage', 'inconnu', 'PUT')).status).toBe(404)
+    expect((await favori('secret', 'x', 'PUT', bob)).status).toBe(404)
+    expect((await favori('voyage', 'port', 'PUT', null)).status).toBe(401)
+    const lu = async () => new Map(((await (await m.appeler('/api/bibliotheque?genres=image,document,arbre', { compte: ana })).json()) as Entree[]).map((e) => [cle(e), e]))
+    let r = await lu()
+    expect(r.get('voyage/port')!.favori).toBe(true)
+    expect(r.get('voyage/budget')!.favori).toBe(true)
+    expect(r.get('voyage/')!.favori).toBe(false)
+    // Le favori d'Ana n'est pas celui de Bob.
+    const deBob = (await lire(bob)) as Entree[]
+    expect(deBob.find((e) => cle(e) === 'voyage/budget')!.favori).toBe(false)
+    expect((await favori('voyage', 'port', 'DELETE')).status).toBe(204)
+    r = await lu()
+    expect(r.get('voyage/port')!.favori).toBe(false)
+  })
+
   it('ne garde que les éléments ouverts les plus récents', () => {
     for (let i = 0; i < ELEMENTS_VUS_GARDES + 3; i++) m.base.noterElementVu(ana.utilisateur.id, 'voyage', `e${i}`, Date.now() + 1000 + i)
     const gardes = m.base.vus(ana.utilisateur.id).filter((v) => v.element !== '')

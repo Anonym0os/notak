@@ -2,9 +2,9 @@
 import { type Element as ElementToile, creerEspace, definirLangue, montrerDemande } from '@notak/tableau'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EntreeBibliotheque } from './api'
-import { PageBibliotheque, adresseDe, entreesDe, filtrer, sectionsParDate, sectionsParDossier } from './Bibliotheque'
+import { PageBibliotheque, adresseDe, entreesDe, filtrer, sectionsDeLAccueil, sectionsParDate, sectionsParDossier, titreDe } from './Bibliotheque'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -23,7 +23,7 @@ const entree = (e: Partial<EntreeBibliotheque> & Pick<EntreeBibliotheque, 'table
         ? { genre, element: '', titre: e.titre, boites: [[0, 0, 34, 7, 'jaune', 'note', 1]] }
         : genre === 'arbre'
           ? { genre, element: e.element ?? 'a', titre: e.titre, branches: ['Une', 'Deux', 'Trois'] }
-          : { genre, element: e.element ?? 'd', titre: e.titre, lignes: ['Première ligne'] },
+          : { genre: genre as 'document', element: e.element ?? 'd', titre: e.titre, lignes: ['Première ligne'] },
     ...e,
   }
 }
@@ -41,27 +41,86 @@ const TOUTES: EntreeBibliotheque[] = [
 
 describe('entreesDe', () => {
   it('trie par dernière ouverture, puis par titre, sans tenir à la casse', () => {
-    expect(entreesDe('toiles', TOUTES).map((e) => e.titre)).toEqual(['Budget', 'Voyage', 'atelier'])
-    expect(entreesDe('recents', TOUTES).map((e) => e.titre)).toEqual(['Budget', 'Plan', 'Voyage', ''])
+    expect(entreesDe({ portee: 'tout', filtre: 'toile' }, TOUTES).map((e) => e.titre)).toEqual(['Budget', 'Voyage', 'atelier'])
+    expect(entreesDe({ portee: 'recents', filtre: 'tout' }, TOUTES).map((e) => e.titre)).toEqual(['Budget', 'Plan', 'Voyage', ''])
   })
 
   it('range chaque genre dans sa rubrique, favoris et partages compris', () => {
-    expect(entreesDe('cartes', TOUTES).map((e) => e.titre)).toEqual(['Plan'])
-    expect(entreesDe('documents', TOUTES).map((e) => e.element)).toEqual(['notes'])
-    expect(entreesDe('favoris', TOUTES).map((e) => e.tableau)).toEqual(['voyage'])
-    expect(entreesDe('partages', TOUTES).map((e) => e.tableau)).toEqual(['budget'])
+    expect(entreesDe({ portee: 'tout', filtre: 'arbre' }, TOUTES).map((e) => e.titre)).toEqual(['Plan'])
+    expect(entreesDe({ portee: 'tout', filtre: 'document' }, TOUTES).map((e) => e.element)).toEqual(['notes'])
+    expect(entreesDe({ portee: 'favoris', filtre: 'tout' }, TOUTES).map((e) => e.tableau)).toEqual(['voyage'])
+    expect(entreesDe({ portee: 'partages', filtre: 'tout' }, TOUTES).map((e) => e.tableau)).toEqual(['budget'])
+  })
+})
+
+/** Une photo sans légende, un lien et un PDF posés sur « Voyage ». */
+const PORTES: EntreeBibliotheque[] = [
+  { ...entree({ tableau: 'voyage', titre: '', ou: 'Voyage', dans: 'voyage' }), element: 'port', genre: 'image', resume: { genre: 'image', element: 'port', titre: '', fichier: 'f-port', largeur: 4, hauteur: 3 } },
+  {
+    ...entree({ tableau: 'voyage', titre: '', ou: 'Voyage', dans: 'voyage' }),
+    element: 'site',
+    genre: 'lien',
+    resume: { genre: 'lien', element: 'site', titre: '', url: 'https://www.hotel-lisbonne.pt/chambres', site: '' },
+  },
+  {
+    ...entree({ tableau: 'voyage', titre: 'Billets', ou: 'Voyage', dans: 'voyage', vu: MAINTENANT }),
+    element: 'billets',
+    genre: 'fichier',
+    resume: { genre: 'fichier', element: 'billets', titre: 'Billets', fichier: 'f-billets', nom: 'billets-tap.pdf', typeMime: 'application/pdf', taille: 12 },
+  },
+]
+
+describe('les photos, les liens et les fichiers', () => {
+  beforeEach(() => definirLangue('fr'))
+
+  it('ont chacun leur rubrique, et les fichiers ouverts entrent dans les récents', () => {
+    const toutes = [...TOUTES, ...PORTES]
+    expect(entreesDe({ portee: 'tout', filtre: 'image' }, toutes).map((e) => e.element)).toEqual(['port'])
+    expect(entreesDe({ portee: 'tout', filtre: 'lien' }, toutes).map((e) => e.element)).toEqual(['site'])
+    expect(entreesDe({ portee: 'tout', filtre: 'fichier' }, toutes).map((e) => e.element)).toEqual(['billets'])
+    expect(entreesDe({ portee: 'recents', filtre: 'tout' }, toutes)[0]!.element).toBe('billets')
+    expect(entreesDe({ portee: 'tout', filtre: 'toile' }, toutes).every((e) => e.genre === 'toile')).toBe(true)
+  })
+
+  it('se nomment même sans titre : « Photo », le site du lien', () => {
+    expect(PORTES.map(titreDe)).toEqual(['Photo', 'hotel-lisbonne.pt', 'Billets'])
+  })
+
+  it('se trouvent par l’adresse d’un lien et le nom d’un fichier', () => {
+    expect(filtrer(PORTES, 'lisbonne').map((e) => e.element)).toEqual(['site'])
+    expect(filtrer(PORTES, 'tap.pdf').map((e) => e.element)).toEqual(['billets'])
+    expect(filtrer(PORTES, 'photo').map((e) => e.element)).toEqual(['port'])
+  })
+
+  it('n’ont pas d’adresse à eux : celle de leur toile', () => {
+    expect(PORTES.map(adresseDe)).toEqual(['/t/voyage', '/t/voyage', '/t/voyage'])
   })
 })
 
 describe('les sections', () => {
   beforeEach(() => definirLangue('fr'))
 
+  it('l’accueil de la bibliothèque : reprendre, favoris, puis un genre par rubrique, chaque entrée une seule fois', () => {
+    const beaucoup = Array.from({ length: 10 }, (_, i) => entree({ tableau: `t${i}`, titre: `Toile ${i}` }))
+    const s = sectionsDeLAccueil([...TOUTES, ...PORTES, ...beaucoup])
+    expect(s.map((x) => [x.titre, x.entrees.length, x.voir ?? null])).toEqual([
+      ['Reprendre', 5, null],
+      ['Toiles', 8, { portee: 'tout', filtre: 'toile' }],
+      ['Photos', 1, null],
+      ['Liens', 1, null],
+    ])
+    const cles = s.flatMap((x) => x.entrees.map((e) => `${e.tableau}/${e.element ?? ''}`))
+    expect(new Set(cles).size).toBe(cles.length)
+    // « Voyage », favori et ouvert, est dans « Reprendre » : « Favoris » n'a plus rien à montrer.
+    expect(s.some((x) => x.cle === 'favoris')).toBe(false)
+  })
+
   it('par date : aujourd’hui, cette semaine, plus tôt, puis jamais ouvertes', () => {
     expect(sectionsParDate(TOUTES, MAINTENANT).map((s) => [s.titre, s.entrees.map((e) => e.titre)])).toEqual([
       ['Aujourd’hui', ['Budget', 'Plan']],
       ['Cette semaine', ['Voyage']],
       ['Plus tôt', ['']],
-      ['Pas encore ouvertes', ['atelier']],
+      ['Pas encore ouverts', ['atelier']],
     ])
   })
 
@@ -69,7 +128,7 @@ describe('les sections', () => {
     expect(sectionsParDossier(TOUTES).map((s) => [s.titre, s.dans, s.entrees.map((e) => e.titre)])).toEqual([
       ['Voyage', 'voyage', ['Plan', '']],
       ['Accueil', 'racine', ['Voyage', 'atelier']],
-      ['Partagées avec moi', null, ['Budget']],
+      ['Partagés avec moi', null, ['Budget']],
     ])
   })
 
@@ -106,27 +165,39 @@ describe('la page', () => {
     await act(async () => racine.render(<PageBibliotheque charger={charger} {...(creer ? { creer } : {})} />))
   }
   const rubrique = (nom: string) => [...hote.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.textContent?.startsWith(nom))!
+  const puce = (nom: string) => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-puce')].find((b) => b.textContent?.startsWith(nom))!
   const titres = () => [...hote.querySelectorAll('.biblio-section h2')].map((h) => h.textContent)
   const tuiles = () => [...hote.querySelectorAll<HTMLElement>('[data-cle]')].map((li) => [li.querySelector('.biblio-tuile-titre')!.textContent, li.dataset.cle])
 
-  it('s’ouvre sur les récents, rangés par date, avec la tuile qui crée en tête ; chaque rubrique dit combien elle en a', async () => {
+  it('s’ouvre sur les récents, rangés par date, avec la tuile qui crée en tête ; la colonne et les puces disent combien', async () => {
     await ouvrir(async () => TOUTES)
     expect(rubrique('Récents').getAttribute('aria-current')).toBe('page')
     expect(hote.querySelector('h1')!.textContent).toBe('Récents')
-    expect(rubrique('Toiles').textContent).toBe('Toiles3')
+    expect(rubrique('Bibliothèque').textContent).toBe('Bibliothèque5')
     expect(rubrique('Favoris').textContent).toBe('Favoris1')
+    // Les puces comptent là où l'on est : deux toiles ouvertes parmi trois.
+    expect(puce('Tout').getAttribute('aria-pressed')).toBe('true')
+    expect(puce('Toiles').textContent).toBe('Toiles2')
+    expect(puce('Photos').hasAttribute('data-vide')).toBe(true)
     expect(hote.querySelector('.biblio-tuile-neuve')!.textContent).toContain('Nouvelle toile')
     expect(tuiles()[0]).toEqual(['Budget', 'budget/'])
     expect(hote.querySelectorAll('.biblio-tuile-ou')[2]!.textContent).toBe('dans Voyage')
   })
 
-  it('une rubrique se choisit ; le tri par dossier regroupe et se retient', async () => {
+  it('où et quoi se choisissent et se combinent ; le tri par dossier regroupe et se retient', async () => {
     await ouvrir(async () => TOUTES)
-    act(() => rubrique('Toiles').click())
-    expect(location.search).toBe('?vue=toiles')
+    act(() => puce('Cartes mentales').click())
+    expect(location.search).toBe('?type=arbre')
+    expect(tuiles()).toEqual([['Plan', 'voyage/plan']])
+    act(() => rubrique('Favoris').click())
+    expect(hote.querySelector('.biblio-vide')!.textContent).toContain('Aucune carte mentale.La puce « Tout » montre le reste.')
+    act(() => rubrique('Bibliothèque').click())
+    act(() => puce('Toiles').click())
+    expect(location.search).toBe('?vue=tout&type=toile')
     expect(hote.querySelector('h1')!.textContent).toBe('Toiles')
+    expect(tuiles().map(([, cle]) => cle)).toEqual(['budget/', 'voyage/', 'atelier/'])
     act(() => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-tri-choix')].find((b) => b.textContent === 'Par dossier')!.click())
-    expect(titres()).toEqual(['Accueil', 'Partagées avec moi'])
+    expect(titres()).toEqual(['Accueil', 'Partagés avec moi'])
     expect(localStorage.getItem('notak:bibliotheque-tri')).toBe('dossier')
     // Rangée par dossier, une tuile ne répète pas sa toile : elle dit son genre.
     expect(hote.querySelector('[data-cle] .biblio-tuile-ou')!.textContent).toBe('Toile')
@@ -148,21 +219,69 @@ describe('la page', () => {
     expect(hote.querySelector('.biblio-vide')!.textContent).toContain('Rien ne s’appelle « zzz ».')
   })
 
-  it('sans rien d’ouvert, commence par les toiles ; la tuile neuve crée puis ouvre', async () => {
+  it('sans rien encore, le premier écran : de quoi créer, qui crée puis ouvre, au lieu d’une toile déjà remplie', async () => {
     const crees: string[] = []
     await ouvrir(
       async () => [],
       async (genre) => (crees.push(genre), { tableau: 'neuve', element: null }),
     )
-    expect(rubrique('Toiles').getAttribute('aria-current')).toBe('page')
-    expect(hote.querySelector('.biblio-vide')!.textContent).toContain('Aucune toile.')
-    act(() => rubrique('Cartes mentales').click())
-    await act(async () => hote.querySelector<HTMLButtonElement>('.biblio-tuile-neuve')!.click())
+    const premiers = hote.querySelector('.biblio-premiers')!
+    expect(premiers.querySelector('h2')!.textContent).toBe('Bienvenue dans Notak')
+    const choix = [...premiers.querySelectorAll<HTMLButtonElement>('.biblio-premiers-choix')]
+    expect(choix.map((b) => b.querySelector('.biblio-premiers-libelle > span')!.textContent)).toEqual(['Toile', 'Page', 'Carte mentale'])
+    await act(async () => choix[2]!.click())
     expect(crees).toEqual(['arbre'])
     expect(location.pathname).toBe('/t/neuve')
   })
 
-  it('le bouton Nouveau propose une toile, une carte ou un document', async () => {
+  it('le premier écran propose le guide quand on peut le poser, et attend iCloud quand il le faut', async () => {
+    await act(async () => racine.render(<PageBibliotheque charger={async () => []} decouvrir={async () => 'guide'} />))
+    const decouvrir = [...hote.querySelectorAll<HTMLButtonElement>('.biblio-premiers-choix')].find((b) => b.textContent?.startsWith('Découvrir Notak'))!
+    await act(async () => decouvrir.click())
+    expect(location.pathname).toBe('/t/guide')
+    await act(async () => racine.render(<PageBibliotheque charger={async () => []} attente />))
+    expect(hote.querySelector('.biblio-premiers-attente')!.textContent).toBe('Recherche de vos toiles dans iCloud…')
+    expect(hote.querySelector('.biblio-premiers-choix')).toBeNull()
+  })
+
+  it('la bibliothèque s’ouvre sur son accueil en rubriques ; « Tout voir » mène à la puce du genre', async () => {
+    const beaucoup = Array.from({ length: 10 }, (_, i) => entree({ tableau: `t${i}`, titre: `Toile ${i}` }))
+    await ouvrir(async () => [...TOUTES, ...beaucoup])
+    act(() => rubrique('Bibliothèque').click())
+    expect(titres()).toEqual(['Reprendre', 'ToilesTout voir'])
+    act(() => hote.querySelector<HTMLButtonElement>('.biblio-voir')!.click())
+    expect(location.search).toBe('?vue=tout&type=toile')
+    expect(puce('Toiles').getAttribute('aria-pressed')).toBe('true')
+    expect(hote.querySelectorAll('[data-cle]')).toHaveLength(13)
+  })
+
+  it('le tiroir de la colonne : ☰ l’ouvre ; une rubrique, Échap ou le voile le referment ; son « + » crée', async () => {
+    const crees: string[] = []
+    await ouvrir(
+      async () => TOUTES,
+      async (genre) => (crees.push(genre), { tableau: 'racine', element: null }),
+    )
+    const bouton = hote.querySelector<HTMLButtonElement>('[aria-controls="biblio-colonne"]')!
+    const ouvert = () => hote.querySelector('.biblio')!.hasAttribute('data-tiroir')
+    act(() => bouton.click())
+    expect([ouvert(), bouton.getAttribute('aria-expanded')]).toEqual([true, 'true'])
+    act(() => rubrique('Favoris').click())
+    expect([ouvert(), hote.querySelector('h1')!.textContent]).toEqual([false, 'Favoris'])
+    act(() => bouton.click())
+    act(() => void window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+    expect(ouvert()).toBe(false)
+    expect(document.activeElement).toBe(bouton)
+    act(() => bouton.click())
+    act(() => void hote.querySelector('.biblio-voile')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })))
+    expect(ouvert()).toBe(false)
+    act(() => hote.querySelector<HTMLButtonElement>('.biblio-nouveau-tete .biblio-nouveau-bouton')!.click())
+    const choix = [...hote.querySelectorAll<HTMLButtonElement>('.biblio-nouveau-tete [role="menuitem"]')]
+    expect(choix.map((b) => b.querySelector('span')!.firstChild!.textContent)).toEqual(['Toile', 'Page', 'Carte mentale'])
+    await act(async () => choix[0]!.click())
+    expect(crees).toEqual(['toile'])
+  })
+
+  it('le bouton Nouveau propose une toile, une page ou une carte mentale', async () => {
     const crees: string[] = []
     await ouvrir(
       async () => TOUTES,
@@ -170,8 +289,8 @@ describe('la page', () => {
     )
     act(() => hote.querySelector<HTMLButtonElement>('.biblio-nouveau-bouton')!.click())
     const choix = [...hote.querySelectorAll<HTMLButtonElement>('.biblio-menu [role="menuitem"]')]
-    expect(choix.map((b) => b.querySelector('span')!.firstChild!.textContent)).toEqual(['Toile', 'Carte mentale', 'Document'])
-    await act(async () => choix[2]!.click())
+    expect(choix.map((b) => b.querySelector('span')!.firstChild!.textContent)).toEqual(['Toile', 'Page', 'Carte mentale'])
+    await act(async () => choix[1]!.click())
     expect(crees).toEqual(['document'])
     expect(location.pathname).toBe('/t/racine/e/doc')
     expect(hote.querySelector('.biblio-menu')).toBeNull()
@@ -258,7 +377,7 @@ describe('les gestes', () => {
     expect(choisies()).toEqual(['voyage/'])
     appuyer(tuile('budget/'), { metaKey: true })
     expect(choisies()).toHaveLength(2)
-    expect(hote.querySelector('.biblio-barre-choix')!.textContent).toContain('2 sélectionnées')
+    expect(hote.querySelector('.biblio-barre-choix')!.textContent).toContain('2 sélectionnés')
     appuyer(tuile('atelier/'), { shiftKey: true })
     expect(choisies()).toHaveLength(3)
     touche('Escape')
@@ -282,16 +401,73 @@ describe('les gestes', () => {
     const libelles = menu(tuile('voyage/')).map((b) => b.querySelector('.notak-e-libelle')!.textContent)
     expect(libelles).toEqual([
       'Ouvrir',
+      'Parcourir',
       'Afficher dans sa toile',
       'Renommer',
       'Dupliquer',
       'Retirer des favoris',
+      'Afficher comme dossier',
       'Déplacer vers…',
       'Copier le lien',
       'Mettre à la corbeille',
     ])
-    expect(hote.querySelectorAll('.notak-menu .notak-e-icone svg')).toHaveLength(8)
+    expect(hote.querySelectorAll('.notak-menu .notak-e-icone svg')).toHaveLength(10)
     expect(choisies()).toEqual(['voyage/'])
+  })
+
+  describe('les dossiers', () => {
+    /** « Voyage » se montre en dossier ; il porte la carte « Plan » et une page. */
+    const AVEC_DOSSIER = TOUTES.map((e) => (e.tableau === 'voyage' && e.element === null ? { ...e, resume: { ...e.resume, dossier: true as const } } : e))
+
+    it('un dossier s’ouvre ici, en liste de ce qu’il porte, avec son chemin et « Ouvrir la toile » ; ce qu’on crée y va', async () => {
+      history.replaceState(null, '', '/')
+      const crees: [string, string | undefined][] = []
+      await act(async () =>
+        racine.render(<PageBibliotheque charger={async () => AVEC_DOSSIER} espace={monde()} creer={async (g, dans) => (crees.push([g, dans]), { tableau: dans ?? 'racine', element: 'neuf' })} />),
+      )
+      expect(tuile('voyage/').querySelector('.biblio-tuile-ou')!.textContent).toBe('dans Accueil')
+      act(() => tuile('voyage/').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+      expect(location.pathname).toBe('/')
+      expect(location.search).toBe('?dossier=voyage')
+      expect(hote.querySelector('h1')!.textContent).toBe('Voyage')
+      expect([...hote.querySelectorAll('.biblio-fil button')].map((b) => b.textContent)).toEqual(['Accueil'])
+      expect(hote.querySelector<HTMLAnchorElement>('.biblio-ouvrir-toile-lien')!.getAttribute('href')).toBe('/t/voyage')
+      expect([...hote.querySelectorAll<HTMLElement>('[data-cle]')].map((x) => x.dataset.cle).sort()).toEqual(['voyage/notes', 'voyage/plan'])
+      // La colonne le montre dans l'arbre, courant ; aucune portée ne l'est.
+      expect(hote.querySelector('.biblio-arbre [aria-current="page"]')!.textContent).toBe('Voyage')
+      expect(hote.querySelector('[data-rubrique][aria-current="page"]')).toBeNull()
+      expect(hote.querySelector('.biblio-tuile-neuve .biblio-tuile-ou')!.textContent).toBe('dans « Voyage »')
+      await act(async () => hote.querySelector<HTMLButtonElement>('.biblio-tuile-neuve')!.click())
+      expect(crees).toEqual([['toile', 'voyage']])
+    })
+
+    it('le fil d’Ariane et l’accueil de la colonne y mènent ; une portée en sort', async () => {
+      history.replaceState(null, '', '/?dossier=voyage')
+      await act(async () => racine.render(<PageBibliotheque charger={async () => AVEC_DOSSIER} espace={monde()} />))
+      act(() => hote.querySelector<HTMLButtonElement>('.biblio-fil button')!.click())
+      expect(location.search).toBe('?dossier=racine')
+      expect(hote.querySelector('h1')!.textContent).toBe('Accueil')
+      expect([...hote.querySelectorAll<HTMLElement>('[data-cle]')].map((x) => x.dataset.cle).sort()).toEqual(['atelier/', 'voyage/'])
+      act(() => [...hote.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.dataset.rubrique === 'favoris')!.click())
+      expect(location.search).toBe('?vue=favoris')
+      expect(hote.querySelector('.biblio-fil')).toBeNull()
+    })
+
+    it('une toile se montre en dossier, et de nouveau en toile ; chaque fois, le menu le propose et Annuler le défait', async () => {
+      const espace = await ouvrir()
+      menu(tuile('atelier/'))
+      await act(async () => entree('Afficher comme dossier').click())
+      expect(espace.tableau('atelier')!.dossier).toBe(true)
+      expect(tuile('atelier/').querySelector('.biblio-vignette')!.getAttribute('data-genre')).toBe('dossier')
+      expect(hote.querySelector('.notak-avis')!.textContent).toContain('« atelier » se montre en dossier')
+      const libelles = menu(tuile('atelier/')).map((b) => b.querySelector('.notak-e-libelle')!.textContent)
+      expect(libelles).toContain('Ouvrir la toile')
+      expect(libelles).toContain('Afficher comme toile')
+      expect(libelles).not.toContain('Parcourir')
+      act(() => void document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+      await act(async () => void document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true })))
+      expect(espace.tableau('atelier')).not.toHaveProperty('dossier')
+    })
   })
 
   it('le clic droit du fond crée, range et choisit tout', async () => {
@@ -321,6 +497,9 @@ describe('les gestes', () => {
     const carte = espace.tableau('racine')!.elements.find((e) => e.contenu.type === 'tableau' && !['voyage', 'atelier'].includes(e.contenu.cible))!
     const dossier = (carte.contenu as { cible: string }).cible
     expect(espace.tableau(dossier)!.titre).toBe('Nouveau dossier')
+    // C'est une toile qui se montre en dossier.
+    expect(espace.tableau(dossier)!.dossier).toBe(true)
+    expect(tuile(`${dossier}/`).querySelector('.biblio-vignette')!.getAttribute('data-genre')).toBe('dossier')
     expect(location.search).toBe('?vue=toiles')
     expect(choisies()).toEqual([`${dossier}/`])
     expect(hote.querySelector<HTMLInputElement>('.biblio-renommer')!.value).toBe('Nouveau dossier')
@@ -328,6 +507,36 @@ describe('les gestes', () => {
     await act(async () => void hote.querySelector('.biblio-renommer')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
     await act(async () => void document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'N', metaKey: true, shiftKey: true, bubbles: true })))
     expect(espace.tableau('racine')!.elements.filter((e) => e.contenu.type === 'tableau')).toHaveLength(4)
+  })
+
+  it('une photo, un lien ou un fichier s’ouvrent sur leur toile, centrée sur eux, et entrent dans les récents', async () => {
+    history.replaceState(null, '', '/?vue=photos')
+    const vus: unknown[] = []
+    await act(async () => racine.render(<PageBibliotheque charger={async () => [...TOUTES, ...PORTES]} espace={monde()} noterVu={async (e) => void vus.push(e)} />))
+    expect(hote.querySelector('h1')!.textContent).toBe('Photos')
+    expect(tuile('voyage/port').querySelector('.biblio-tuile-titre')!.textContent).toBe('Photo')
+    act(() => tuile('voyage/port').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+    expect(location.pathname).toBe('/t/voyage')
+    expect(montrerDemande()).toBe('port')
+    expect(vus).toMatchObject([{ tableau: 'voyage', element: 'port' }])
+  })
+
+  it('le menu d’un lien l’ouvre ; ce qu’une toile porte se met en favori', async () => {
+    history.replaceState(null, '', '/?vue=liens')
+    const favoris: unknown[] = []
+    const ouverture = vi.spyOn(window, 'open').mockReturnValue(null)
+    await act(async () =>
+      racine.render(<PageBibliotheque charger={async () => [...TOUTES, ...PORTES]} espace={monde()} definirFavori={async (...a) => void favoris.push(a)} />),
+    )
+    const libelles = menu(tuile('voyage/site')).map((b) => b.textContent)
+    expect(libelles.some((l) => l?.startsWith('Ouvrir le lien'))).toBe(true)
+    expect(libelles.some((l) => l === 'Ouvrir')).toBe(false)
+    act(() => entree('Ouvrir le lien').click())
+    expect(ouverture).toHaveBeenCalledWith('https://www.hotel-lisbonne.pt/chambres', '_blank', 'noopener,noreferrer')
+    menu(tuile('voyage/site'))
+    await act(async () => entree('Ajouter aux favoris').click())
+    expect(favoris).toEqual([['voyage', true, 'site']])
+    ouverture.mockRestore()
   })
 
   it('« Afficher dans sa toile » ouvre celle qui la porte et lui demande de la montrer ; pour une toile, sa carte', async () => {
@@ -402,7 +611,8 @@ describe('les gestes', () => {
       ),
     )
     const rubrique = (nom: string) => [...hote.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.textContent?.startsWith(nom))!
-    act(() => rubrique('Documents').click())
+    const puce = (nom: string) => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-puce')].find((b) => b.textContent?.startsWith(nom))!
+    act(() => puce('Pages').click())
     const fichier = new File(['# Compte rendu'], 'Compte rendu.md', { type: 'text/markdown' })
     const glisser = (type: string, sur: Element) => {
       const e = new Event(type, { bubbles: true, cancelable: true })
@@ -413,7 +623,7 @@ describe('les gestes', () => {
     // Sur le fond : l'accueil ; le bandeau dit où ils iraient.
     expect(glisser('dragover', hote.querySelector('.biblio-corps')!).defaultPrevented).toBe(true)
     expect(hote.querySelector('.biblio-apport')!.textContent).toBe('Déposer pour importer dans « Accueil »')
-    act(() => rubrique('Toiles').click())
+    act(() => puce('Toiles').click())
     glisser('dragover', tuile('voyage/'))
     expect(hote.querySelector('.biblio-apport')!.textContent).toBe('Déposer pour importer dans « Voyage »')
     expect(tuile('voyage/').hasAttribute('data-survol-depot')).toBe(true)
@@ -421,15 +631,111 @@ describe('les gestes', () => {
     expect(importes).toEqual([[['Compte rendu.md'], 'voyage']])
     expect(hote.querySelector('.biblio-apport')).toBeNull()
     expect(hote.querySelector('.notak-avis')!.textContent).toContain('Un fichier importé dans « Voyage » « vieux.pages » n’a pas pu être lu.')
-    // Un document n'a pas sa place dans « Toiles » : on passe aux récents, où l'import compte, la tuile choisie.
+    // Une page n'a pas sa place parmi les toiles : on passe aux récents, sans puce, où l'import compte, la tuile choisie.
     expect(rubrique('Récents').getAttribute('aria-current')).toBe('page')
+    expect(puce('Tout').getAttribute('aria-pressed')).toBe('true')
     expect(vus).toEqual(['voyage/cr'])
     const arrivee = hote.querySelector<HTMLElement>('[data-cle="voyage/cr"]')!
     expect(arrivee.getAttribute('aria-selected')).toBe('true')
     expect(arrivee.hasAttribute('data-arrivee')).toBe(true)
-    // Là où il a sa place, on reste : un document lâché sur « Documents ».
-    act(() => rubrique('Documents').click())
+    // Là où elle a sa place, on reste : une page lâchée sur les pages récentes.
+    act(() => puce('Pages').click())
     await act(async () => void glisser('drop', hote.querySelector('.biblio-corps')!))
-    expect(rubrique('Documents').getAttribute('aria-current')).toBe('page')
+    expect(puce('Pages').getAttribute('aria-pressed')).toBe('true')
+    expect(rubrique('Récents').getAttribute('aria-current')).toBe('page')
+  })
+
+  describe('au doigt et au Pencil', () => {
+    /** Un appui du doigt (ou du Pencil) : jsdom n'a pas de PointerEvent, son type se pose à la main. */
+    const pointeur = (el: Element | Window, type: string, sorte: 'touch' | 'pen', init: MouseEventInit = {}) => {
+      const e = new MouseEvent(type, { bubbles: true, button: 0, clientX: 50, clientY: 60, ...init })
+      Object.defineProperties(e, { pointerType: { value: sorte }, pointerId: { value: 1 } })
+      el.dispatchEvent(e)
+    }
+    /** Un écran qu'on touche, assez large pour la page du bureau (un iPad). */
+    const ecranTactile = () =>
+      vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(pointer: coarse)', media: q, addEventListener() {}, removeEventListener() {} }))
+    afterEach(() => {
+      vi.useRealTimers()
+      vi.unstubAllGlobals()
+    })
+
+    it('un appui long ouvre le menu de la tuile sans l’ouvrir ; le doigt qui bouge (on fait défiler) l’annule', async () => {
+      await ouvrir()
+      vi.useFakeTimers()
+      act(() => pointeur(tuile('budget/'), 'pointerdown', 'touch'))
+      act(() => pointeur(window, 'pointermove', 'touch', { clientX: 50, clientY: 90 }))
+      act(() => void vi.advanceTimersByTime(600))
+      expect(hote.querySelector('.notak-menu')).toBeNull()
+
+      act(() => pointeur(tuile('voyage/'), 'pointerdown', 'touch'))
+      act(() => void vi.advanceTimersByTime(500))
+      expect(entree('Ouvrir')).toBeTruthy()
+      expect(choisies()).toEqual(['voyage/'])
+      // Le doigt se relève sur la tuile : le clic qui suit n'ouvre rien.
+      act(() => {
+        pointeur(window, 'pointerup', 'touch')
+        tuile('voyage/').click()
+      })
+      expect(location.pathname).toBe('/')
+    })
+
+    it('un appui long sur le fond ouvre le menu du fond', async () => {
+      await ouvrir()
+      vi.useFakeTimers()
+      act(() => pointeur(hote.querySelector('.biblio-corps')!, 'pointerdown', 'touch'))
+      act(() => void vi.advanceTimersByTime(500))
+      expect(entree('Nouveau dossier')).toBeTruthy()
+    })
+
+    it('le Pencil ouvre d’un toucher, comme le doigt', async () => {
+      await ouvrir()
+      act(() => {
+        pointeur(tuile('budget/'), 'pointerdown', 'pen')
+        tuile('budget/').click()
+      })
+      expect(location.pathname).toBe('/t/budget')
+    })
+
+    it('le « ••• » d’une tuile ouvre son menu, sans la choisir d’abord', async () => {
+      await ouvrir()
+      act(() => tuile('atelier/').querySelector<HTMLButtonElement>('.biblio-tuile-plus')!.click())
+      expect(entree('Renommer')).toBeTruthy()
+      expect(choisies()).toEqual(['atelier/'])
+    })
+
+    it('« Sélectionner » : toucher choisit et retire, la barre agit sur le choix, « OK » en sort', async () => {
+      ecranTactile()
+      await ouvrir()
+      act(() => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-choisir-bouton')].find((b) => b.textContent === 'Sélectionner')!.click())
+      expect(hote.querySelector('.biblio-barre-choix')!.textContent).toContain('Touchez pour choisir')
+      expect(hote.querySelectorAll('.biblio-tuile-case').length).toBeGreaterThan(0)
+      const toucher = (cle: string) =>
+        act(() => {
+          pointeur(tuile(cle), 'pointerdown', 'touch')
+          tuile(cle).click()
+        })
+      toucher('voyage/')
+      toucher('budget/')
+      expect(choisies().sort()).toEqual(['budget/', 'voyage/'])
+      expect(location.pathname).toBe('/')
+      expect(hote.querySelector('.biblio-barre-choix')!.textContent).toContain('2 sélectionnés')
+      toucher('budget/')
+      expect(choisies()).toEqual(['voyage/'])
+      // La barre met en favori ce qui est choisi : « Voyage » l'est déjà, le bouton l'en retire.
+      expect(hote.querySelector('.biblio-barre-choix [aria-label="Retirer des favoris"]')).not.toBeNull()
+      act(() => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-choisir-bouton')].find((b) => b.textContent === 'OK')!.click())
+      expect(choisies()).toEqual([])
+      expect(hote.querySelector('.biblio-tuile-case')).toBeNull()
+    })
+
+    it('renommer au doigt fait monter le clavier : un champ relais prend le focus dans le geste, puis le vrai', async () => {
+      ecranTactile()
+      await ouvrir()
+      act(() => tuile('atelier/').querySelector<HTMLButtonElement>('.biblio-tuile-plus')!.click())
+      act(() => entree('Renommer').click())
+      expect(document.getElementById('notak-relais-clavier')).not.toBeNull()
+      expect(document.activeElement).toBe(hote.querySelector('.biblio-renommer'))
+    })
   })
 })

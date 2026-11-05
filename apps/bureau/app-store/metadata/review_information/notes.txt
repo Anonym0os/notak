@@ -1,4 +1,4 @@
-Notak works without any account or network: open the app, the welcome board is there, create notes, draw with the Apple Pencil, export a .notak copy to Files. Nothing is collected and we run no server.
+Notak works without any account or network: open the app, the home canvas is one tap away, create notes, draw with the Apple Pencil, export a .notak copy to Files. Nothing is collected and we run no server.
 
 “Connect to a Notak server” takes the address of a server that the person hosts themselves (the server is open source, AGPL-3.0, same repository), much like a mail client takes a mail server address. For review, a demonstration server is provided below, with an e-mail and password account only (no third-party sign-in).
 

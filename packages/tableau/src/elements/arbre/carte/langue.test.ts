@@ -36,7 +36,7 @@ describe('les textes de l’onglet Carte', () => {
       expect(['arbre.carte.fond', 'arbre.carte.brancheColoree', 'arbre.carte.equilibree', 'arbre.carte.uniforme', 'arbre.carte.relationSuit', 'arbre.carte.libre', 'arbre.carte.policeCjk', 'arbre.carte.themesPerso'].map((c) => t(c))).toEqual([
         'Background Color',
         'Colored Branch',
-        'Balance Map',
+        'Balance Mind Map',
         'Uniform Topic Length',
         'Line Color Follow Topic',
         'Free Branch Position',

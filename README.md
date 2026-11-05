@@ -1,14 +1,14 @@
 # Notak
 
-**Free-form visual boards: notes, images, links, columns, arrows, tasks, sketches, on an infinite canvas.**
+**Free-form visual canvases: notes, images, links, columns, arrows, tasks, sketches, with no edges.**
 An open-source alternative to Milanote, in TypeScript and React. *[Lire en français](README.fr.md)*
 
-![Notak's welcome board](docs/captures/accueil.en.png)
+![Notak's welcome canvas](docs/captures/accueil.en.png)
 
 ## Try it
 
 **[notak.app](https://notak.app)** runs entirely in your browser: no account, no server, nothing leaves your
-device. Your boards live in the browser; press **Cmd+S** to keep a `.notak` copy wherever you like (your disk,
+device. Your canvases live in the browser; press **Cmd+S** to keep a `.notak` copy wherever you like (your disk,
 iCloud Drive, a USB stick), **Cmd+O** to open one. On Chrome and Edge for desktop you can also sync a folder of your
 cloud drive (experimental).
 
@@ -43,14 +43,14 @@ The other files: the `.msi` (Windows, for the whole machine), the `.deb` and the
 then every update asks for the administrator password, when you quit the app. The `.app.tar.gz` and `.sig` files are
 for updates, and `SHA256SUMS.txt` is for checking a download.
 
-Your boards from notak.app come along: in the browser, **Cmd+S** (Ctrl+S) keeps a `.notak` copy, which the app opens
+Your canvases from notak.app come along: in the browser, **Cmd+S** (Ctrl+S) keeps a `.notak` copy, which the app opens
 with a double click.
 
 ## Two editions, one codebase
 
 | | **Local** (notak.app) | **Server** (self-hosted) |
 |---|---|---|
-| Where boards live | in the browser (IndexedDB), plus `.notak` copies | on your server (SQLite), cached offline in the browser |
+| Where canvases live | in the browser (IndexedDB), plus `.notak` copies | on your server (SQLite), cached offline in the browser |
 | Accounts | none | yes |
 | Working together | swap `.notak` files, or sync a shared folder | live: presence, cursors, comments, sharing by address or link |
 | Link previews | address only (browsers can't read other sites) | title, image, player |
@@ -92,7 +92,7 @@ scenarios). The code is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 ### The server edition (accounts, live collaboration)
 
 Two containers: Notak serves the app, the accounts and live collaboration on port 3005, and
-[OpenFGA](https://openfga.dev) evaluates permissions (who can read, comment, edit or own each board). Notak's data
+[OpenFGA](https://openfga.dev) evaluates permissions (who can read, comment, edit or own each canvas). Notak's data
 (SQLite database and uploaded files) lives in a Compose volume named after the folder (`notak_notak-donnees` for a
 `notak` folder: `docker volume ls`) and is the source of truth: OpenFGA only holds a copy, rebuilt from it if it is
 ever lost. The image is published for amd64 and arm64 (`ghcr.io/anonym0os/notak`); all you need is
@@ -139,8 +139,8 @@ machine (Caddy: `reverse_proxy localhost:3005`); for a proxy elsewhere, set `NOT
 
 The desktop app connects to your server: "Connect to a Notak server…", then its address (HTTPS with a real
 certificate, except on `localhost`; for a server at home with no domain name, Tailscale works, see
-[`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md#un-serveur-à-la-maison-sans-nom-de-domaine)). The server's boards stay
-on the server and the computer's boards stay on the computer, until you ask the app to copy the latter to the server.
+[`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md#un-serveur-à-la-maison-sans-nom-de-domaine)). The server's canvases stay
+on the server and the computer's canvases stay on the computer, until you ask the app to copy the latter to the server.
 Signing in with Google, Microsoft, GitHub or a space's SSO goes through your browser and a code to confirm.
 
 Accounts go through [Better Auth](https://www.better-auth.com). Optional settings, in the `.env`:
@@ -164,10 +164,10 @@ and the desktop app: [`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md) (in French
 
 #### Encryption at rest
 
-> **Lose the key, lose the data.** Nothing can decrypt the boards or the files without it: keep a copy outside the
+> **Lose the key, lose the data.** Nothing can decrypt the canvases or the files without it: keep a copy outside the
 > server (a password manager, a printed sheet in a drawer), and back it up apart from the data.
 
-Give the server a key and it writes the boards' content (their Yjs state) and the uploaded files, resized copies
+Give the server a key and it writes the canvases' content (their Yjs state) and the uploaded files, resized copies
 included, encrypted on disk with AES-256-GCM. The server holds the key and decrypts in memory, so search, activity,
 export and public links all keep working: this protects the disk and its backups, it is not end-to-end encryption.
 
@@ -185,12 +185,12 @@ docker compose run --rm --no-deps notak node apps/serveur/outils/chiffrer.ts
 docker compose up -d
 ```
 
-The tool says how many documents and files it encrypted: "0 document(s) et 0 fichier(s)" on a server that has boards
+The tool says how many documents and files it encrypted: "0 document(s) et 0 fichier(s)" on a server that has canvases
 means it did not open the right folder. Without Docker, stop the server and run `bun run serveur:chiffrer` with the
 same variables (`NOTAK_DONNEES` for the data folder). A wrong key, or a missing one in front of encrypted data, stops
-the server at startup rather than serving empty boards.
+the server at startup rather than serving empty canvases.
 
-What stays **in clear**, because the server needs to read it without opening each board: board titles, the search
+What stays **in clear**, because the server needs to read it without opening each canvas: canvas titles, the search
 index (SQLite FTS5, which holds the text of the elements), activity and notification excerpts, and account e-mail
 addresses (plus names, colors and sharing rights). So also encrypt the host's disk (LUKS, an encrypted volume
 from your provider): the key in `NOTAK_CLE` covers the content, the disk covers the rest.

@@ -23,6 +23,7 @@ import type { Courrier } from './courriel.ts'
 import { creerExpiration } from './echeances.ts'
 import { type Cle, duDisque, pourLeDisque } from './chiffrement.ts'
 import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from './contenu.ts'
+import { rangerLesToiles } from './catalogue.ts'
 import type { Limiteur } from './debit.ts'
 import { AUCUN_CHANGEMENT, bilanDuRangement, rienNeChange } from './rangement.ts'
 import { RELATION_DU_ROLE, type Role, auMoins, role, roleDeRelation } from './droits.ts'
@@ -119,6 +120,8 @@ const COULEUR_COMPTE = /^#[0-9a-f]{6}$/i
 const TYPES_PHOTO = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
 /** Combien de tableaux récents la liste montre. */
 const RECENTS_AFFICHES = 12
+/** Ce que `/api/bibliotheque` rend sans `?genres=` : les genres qu'une app d'avant les photos, liens et fichiers sait montrer. */
+const GENRES_D_AVANT = ['toile', 'arbre', 'document']
 /** Combien de résultats la recherche dans tous les tableaux rend au plus. */
 const RESULTATS_RECHERCHE = 30
 /** Combien de gestes l'activité d'un tableau rend, par défaut et au plus. */
@@ -1147,6 +1150,23 @@ export function creerApp(ctx: Contexte): Hono {
     return c.body(null, 204)
   })
 
+  // Une carte mentale, une page, une photo, un lien ou un fichier en favori : il doit être sur la toile, hors corbeille.
+  app.put('/api/tableaux/:id/elements/:element/favori', async (c) => {
+    const g = await garde(c, 'lecture')
+    if (g instanceof Response) return g
+    const element = c.req.param('element')
+    if (!base.contenus([g.id]).some((x) => x.element === element && x.genre !== 'toile')) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+    base.definirFavoriElement(g.u.id, g.id, element, ctx.maintenant())
+    return c.body(null, 204)
+  })
+
+  app.delete('/api/tableaux/:id/elements/:element/favori', async (c) => {
+    const g = await garde(c, 'lecture')
+    if (g instanceof Response) return g
+    base.retirerFavoriElement(g.u.id, g.id, c.req.param('element'))
+    return c.body(null, 204)
+  })
+
   /**
    * Range une toile dans une autre (la bibliothèque, ou sa carte glissée d'une toile à l'autre). Il faut posséder la
    * toile et pouvoir écrire dans la nouvelle ; ni l'accueil, ni dans elle-même ou ce qu'elle contient, ni d'un espace à
@@ -1199,7 +1219,7 @@ export function creerApp(ctx: Contexte): Hono {
     return c.body(null, 204)
   })
 
-  // Et chaque carte mentale ou document qu'il ouvre en grand.
+  // Et chaque élément qu'il ouvre en grand : une carte mentale, une page, une photo, un lien, un fichier.
   app.post('/api/tableaux/:id/elements/:element/vu', async (c) => {
     const g = await garde(c, 'lecture')
     if (g instanceof Response) return g
@@ -1210,19 +1230,23 @@ export function creerApp(ctx: Contexte): Hono {
   })
 
   /**
-   * La bibliothèque : chaque toile que le compte peut lire (sauf son accueil), et chaque carte mentale et
-   * document qu'elles portent, avec la toile qui les porte (son titre, `ou`, et son identifiant, `dans`), la dernière
-   * fois qu'il les a ouverts, et ses favoris et partages. Ce qui est sous un mot de passe pas encore donné n'y est pas.
-   * Une toile est dans celle qui porte sa carte, où qu'on l'ait glissée ; sa carte jetée, elle est à la corbeille et
-   * n'y est plus, ni rien de ce qu'elle contient.
+   * La bibliothèque : chaque toile que le compte peut lire (sauf son accueil), et ce qu'elles portent (cartes mentales,
+   * pages, et, si on les demande par `?genres=`, photos, liens et fichiers), avec la toile qui les porte (son titre,
+   * `ou`, et son identifiant, `dans`), la dernière fois qu'il les a ouverts, et ses favoris et partages. Ce qui est sous
+   * un mot de passe pas encore donné n'y est pas. Une toile est dans celle qui porte sa carte, où qu'on l'ait glissée ;
+   * sa carte jetée, elle est à la corbeille et n'y est plus, ni rien de ce qu'elle contient. Sans `?genres=`, les
+   * genres d'avant seulement : une app plus ancienne, branchée sur ce serveur, ne reçoit rien qu'elle ne sait montrer.
    */
   app.get('/api/bibliotheque', async (c) => {
     const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    const demandes = c.req.query('genres')?.split(',')
+    const genres = new Set<string>(demandes?.length ? [...demandes, 'toile'] : GENRES_D_AVANT)
     const ouverts = (await lisibles(u.id)).filter((id) => verrouPar(base, u.id, id) === null)
     const ouvrables = new Set(ouverts)
     const vus = new Map(base.vus(u.id).map((v) => [`${v.tableau}/${v.element}`, v.vu]))
     const favoris = new Set(base.favoris(u.id))
+    const favorisElements = new Set(base.favorisElements(u.id))
     const partages = new Set(base.tableauxAccessibles(u.id).flatMap((t) => (t.role === 'proprietaire' ? [] : [t.id])))
     const titres = new Map<string, string>()
     const titreDe = (id: string) => {
@@ -1230,28 +1254,16 @@ export function creerApp(ctx: Contexte): Hono {
       return titres.get(id)!
     }
     const lignes = base.contenus(ouverts).map((l) => ({ ...l, lu: JSON.parse(l.resume) as { cartes?: string[]; jetees?: string[] } }))
-    const portees = new Map<string, string[]>()
-    const jetees = new Set<string>()
-    for (const l of lignes) {
-      if (l.genre !== 'toile') continue
-      for (const cible of l.lu.cartes ?? []) portees.set(cible, [...(portees.get(cible) ?? []), l.tableau])
-      for (const cible of l.lu.jetees ?? []) jetees.add(cible)
-    }
-    const dossierDe = (id: string) => {
-      const parent = base.tableau(id)?.parent ?? null
-      const la = portees.get(id) ?? []
-      return parent !== null && la.includes(parent) ? parent : (la[0] ?? parent)
-    }
-    const cachees = new Set(ouverts.filter((id) => jetees.has(id) && !portees.has(id)))
-    for (let ajoute = cachees.size > 0; ajoute; ) {
-      ajoute = false
-      for (const id of ouverts) {
-        const d = dossierDe(id)
-        if (!cachees.has(id) && d !== null && cachees.has(d)) ajoute = Boolean(cachees.add(id))
-      }
-    }
+    // La règle du rangement, la même que dans l'app (catalogue.ts) : chaque toile lue, son parent en base, ses cartes.
+    const resumesDesToiles = new Map(lignes.flatMap((l) => (l.genre === 'toile' ? [[l.tableau, l.lu] as const] : [])))
+    const { dossierDe, cachees } = rangerLesToiles(
+      ouverts.map((id) => {
+        const lu = resumesDesToiles.get(id)
+        return { id, parent: base.tableau(id)?.parent ?? null, ...(lu?.cartes ? { cartes: lu.cartes } : {}), ...(lu?.jetees ? { jetees: lu.jetees } : {}) }
+      }),
+    )
     const entrees = lignes.flatMap((l) => {
-      if ((l.genre === 'toile' && l.tableau === u.racine) || cachees.has(l.tableau)) return []
+      if ((l.genre === 'toile' && l.tableau === u.racine) || cachees.has(l.tableau) || !genres.has(l.genre)) return []
       const ligne = base.tableau(l.tableau)
       if (!ligne) return []
       const toile = l.genre === 'toile'
@@ -1267,7 +1279,7 @@ export function creerApp(ctx: Contexte): Hono {
           ou: parent && ouvrables.has(parent) ? titreDe(parent) : null,
           dans: parent && ouvrables.has(parent) ? parent : null,
           vu: vus.get(`${l.tableau}/${l.element}`) ?? null,
-          favori: toile && favoris.has(l.tableau),
+          favori: toile ? favoris.has(l.tableau) : favorisElements.has(`${l.tableau}/${l.element}`),
           partage: toile && partages.has(l.tableau),
         },
       ]

@@ -982,6 +982,11 @@ export interface Tableau {
   etiquettes?: Etiquette[]
   /** Son arrière-plan : couleur du canevas et grille de points. Absent : le gris et les points. */
   fond?: Fond
+  /**
+   * Elle se montre en dossier : la bibliothèque l'ouvre d'abord en liste de ce qu'elle porte, avec l'icône d'un dossier.
+   * C'est toujours une toile, qui s'ouvre aussi en toile ; seule sa façon de se présenter change.
+   */
+  dossier?: boolean
   elements: Element[]
 }
 

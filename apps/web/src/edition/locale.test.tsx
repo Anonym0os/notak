@@ -21,7 +21,25 @@ vi.mock('@notak/tableau', async (origine) => ({
   },
   BullesDecouverte: () => null,
 }))
-vi.mock('../local/synchro', () => ({ initialiserSynchro: async () => {} }))
+// L'état de la synchro, lu par la pastille du stockage : toujours le même objet, comme le vrai.
+const AUCUNE_SYNCHRO = { mode: 'aucune' } as const
+vi.mock('../local/synchro', () => ({ initialiserSynchro: async () => {}, lireEtatSynchro: () => AUCUNE_SYNCHRO, ecouterSynchro: () => () => {} }))
+/**
+ * Les racines que l'édition monte à son chargement : démontées après chaque essai. Laissées vivantes, leurs minuteurs
+ * (le décompte de l'écran de panne, l'enregistrement…) sonnaient après la fin du fichier, quand jsdom n'est plus là.
+ */
+const racines = vi.hoisted(() => [] as import('react-dom/client').Root[])
+vi.mock('react-dom/client', async (origine) => {
+  const vrai = await origine<typeof import('react-dom/client')>()
+  return {
+    ...vrai,
+    createRoot: (...a: Parameters<typeof vrai.createRoot>) => {
+      const r = vrai.createRoot(...a)
+      racines.push(r)
+      return r
+    },
+  }
+})
 
 const attendre = (ms = 30) => act(async () => void (await new Promise((fin) => setTimeout(fin, ms))))
 
@@ -37,17 +55,22 @@ function copieDe(tete: string): Uint8Array {
 
 /**
  * L'édition locale, démarrée pour de bon sur `#racine` (le module se monte à son chargement). Rend l'espace qu'elle
- * ouvre (le même que celui des services) : ce que la personne y fait, et ce qu'elle y reçoit.
+ * ouvre (le même que celui des services) : ce que la personne y fait, et ce qu'elle y reçoit. `/` ouvre la
+ * bibliothèque ; pour les essais de la toile (`toile`, par défaut), on part de l'adresse de l'accueil.
  */
-async function demarrer() {
+async function demarrer({ toile = true }: { toile?: boolean } = {}) {
   vi.resetModules()
   m.services = null
   document.body.innerHTML = '<div id="racine"></div>'
-  await act(async () => void (await import('./locale')))
-  for (let i = 0; i < 40 && !m.services; i++) await attendre(25)
-  expect(m.services, 'l’édition locale n’a pas donné ses services à la toile').not.toBeNull()
   const { espaceLocal } = await import('../local/espace')
-  return { el: await espaceLocal(), services: m.services!, racine: document.getElementById('racine')! }
+  const el = await espaceLocal()
+  if (toile && !location.pathname.startsWith('/t/')) history.replaceState(null, '', `/t/${encodeURIComponent(el.index.racine())}`)
+  await act(async () => void (await import('./locale')))
+  if (toile) {
+    for (let i = 0; i < 40 && !m.services; i++) await attendre(25)
+    expect(m.services, 'l’édition locale n’a pas donné ses services à la toile').not.toBeNull()
+  } else await attendre(50)
+  return { el, services: m.services!, racine: document.getElementById('racine')! }
 }
 
 // Un espace où l'on a déjà travaillé : une copie rouverte s'y range, au lieu de devenir l'accueil (la page repartirait).
@@ -70,6 +93,7 @@ beforeEach(() => {
   )
 })
 afterEach(() => {
+  act(() => racines.splice(0).forEach((r) => r.unmount()))
   document.body.innerHTML = ''
   delete (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
   vi.unstubAllGlobals()
@@ -147,27 +171,30 @@ describe('l’édition locale dans l’app de bureau', () => {
   })
 })
 
-describe('l’édition locale au téléphone : l’app s’ouvre sur la bibliothèque', () => {
+describe('l’édition locale : l’app s’ouvre sur la bibliothèque, partout', () => {
   /** Un téléphone (au doigt et étroit), ou un ordinateur. */
   const ecran = (telephone: boolean) =>
     vi.stubGlobal('matchMedia', (q: string) => ({ matches: telephone && q.includes('coarse'), media: q, addEventListener() {}, removeEventListener() {} }))
+  /** Un iPad : au doigt, et large. */
+  const ipad = () => vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(pointer: coarse)', media: q, addEventListener() {}, removeEventListener() {} }))
   afterEach(() => history.replaceState(null, '', '/'))
 
-  it('sans adresse précise, la bibliothèque, l’accueil en vedette ; le mot de la première visite attend la toile', async () => {
+  it('au téléphone, la bibliothèque, l’accueil en vedette ; le mot de la première visite attend la toile', async () => {
     ecran(true)
     localStorage.removeItem('notak:local:accueilli')
     history.replaceState(null, '', '/')
-    const { racine } = await demarrer()
+    const { racine, el } = await demarrer({ toile: false })
     await vi.waitFor(() => expect(racine.querySelector('.biblio-locale-vedette')).not.toBeNull())
-    expect(location.pathname).toBe('/toiles')
-    expect(racine.querySelector('.bandeau')).toBeNull()
-    // L'accueil touché s'ouvre par-dessus : la bibliothèque s'efface, le mot de la première visite vient.
-    await act(async () => racine.querySelector<HTMLButtonElement>('.biblio-locale-vedette')!.click())
     expect(location.pathname).toBe('/')
+    expect(racine.querySelector('.bandeau')).toBeNull()
+    // L'accueil touché ouvre sa toile : la bibliothèque s'efface, le mot de la première visite vient.
+    await act(async () => racine.querySelector<HTMLButtonElement>('.biblio-locale-vedette')!.click())
+    expect(location.pathname).toBe(`/t/${el.index.racine()}`)
+    await vi.waitFor(() => expect(m.services).not.toBeNull())
     expect(racine.querySelector('.biblio-locale')).toBeNull()
     expect(racine.querySelector('.bandeau')?.textContent).toContain('Vos toiles restent')
     // Le retour y ramène.
-    history.back()
+    await act(async () => history.back())
     await vi.waitFor(() => expect(racine.querySelector('.biblio-locale')).not.toBeNull())
   })
 
@@ -175,17 +202,45 @@ describe('l’édition locale au téléphone : l’app s’ouvre sur la biblioth
     ecran(true)
     history.replaceState(null, '', '/t/voyage')
     const { racine } = await demarrer()
-    await attendre(50)
-    expect(racine.querySelector('.biblio-locale')).toBeNull()
+    expect(racine.querySelector('.biblio-locale, .biblio')).toBeNull()
     expect(location.pathname).toBe('/t/voyage')
   })
 
-  it('sur un ordinateur, `/` ouvre la toile d’accueil, comme avant', async () => {
-    ecran(false)
+  it('sur un iPad, la bibliothèque est celle qui range, sur les toiles de l’appareil ; une toile ouverte la remplace', async () => {
+    ipad()
     history.replaceState(null, '', '/')
-    const { racine } = await demarrer()
-    await attendre(50)
-    expect(racine.querySelector('.biblio-locale')).toBeNull()
+    const { racine, el } = await demarrer({ toile: false })
+    await vi.waitFor(() => expect(racine.querySelector('.biblio-hote .biblio')).not.toBeNull())
+    // Ses toiles (la bibliothèque, puce « Toiles »), ses rubriques (pas de « Partagés avec moi » sans serveur), et la
+    // pastille du stockage en haut.
+    act(() => [...racine.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.dataset.rubrique === 'tout')!.click())
+    await vi.waitFor(() => expect(racine.querySelector('.biblio-puce[data-puce="toile"]')).not.toBeNull())
+    act(() => racine.querySelector<HTMLButtonElement>('.biblio-puce[data-puce="toile"]')!.click())
+    await vi.waitFor(() => expect([...racine.querySelectorAll('.biblio-tuile-titre')].map((x) => x.textContent)).toContain('Voyage'))
+    expect([...racine.querySelectorAll<HTMLElement>('[data-rubrique]')].map((b) => b.dataset.rubrique)).not.toContain('partages')
+    expect(racine.querySelector('.biblio-tete .rangement-pastille')).not.toBeNull()
+    // Une toile ouverte : la bibliothèque s'efface, la toile se monte à son adresse.
+    const voyage = el.index.lister().find((e) => e.titre === 'Voyage')!.id
+    await act(async () => racine.querySelector<HTMLElement>(`[data-cle="${voyage}/"]`)!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+    expect(location.pathname).toBe(`/t/${voyage}`)
+    await vi.waitFor(() => expect(m.services).not.toBeNull())
+    expect(racine.querySelector('.biblio')).toBeNull()
+  })
+
+  it('sur un ordinateur aussi, `/` ouvre la bibliothèque ; l’ancienne adresse `/toiles` y mène ; ⌥⌘O y ramène', async () => {
+    ecran(false)
+    history.replaceState(null, '', '/toiles')
+    const { racine } = await demarrer({ toile: false })
+    await vi.waitFor(() => expect(racine.querySelector('.biblio')).not.toBeNull())
     expect(location.pathname).toBe('/')
+    // Depuis une toile, ⌥⌘O revient à la bibliothèque.
+    await act(async () => {
+      history.pushState(null, '', '/t/voyage')
+      dispatchEvent(new PopStateEvent('popstate'))
+    })
+    await vi.waitFor(() => expect(racine.querySelector('.biblio')).toBeNull())
+    await act(async () => void window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyO', key: 'o', metaKey: true, altKey: true, bubbles: true })))
+    expect(location.pathname).toBe('/')
+    await vi.waitFor(() => expect(racine.querySelector('.biblio')).not.toBeNull())
   })
 })

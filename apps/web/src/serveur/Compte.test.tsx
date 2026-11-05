@@ -49,7 +49,7 @@ describe('le menu du compte', () => {
   it('dans un navigateur : ses lignes d’avant, rien de l’app de bureau', async () => {
     await monter()
     expect(lignes()).toEqual([
-      'BibliothèqueToiles, cartes, documents⌥⌘O',
+      'BibliothèqueToiles, pages, cartes mentales⌥⌘O',
       'Espaces d’équipeMembres, rôles, SSO',
       'Envoyer vers NotakiPhone, favori',
       'AideRaccourcis clavier',
