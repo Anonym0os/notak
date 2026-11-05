@@ -44,6 +44,13 @@ export function Vignette({ resume, tableau }: { resume: ResumeContenu; tableau?:
   if (resume.genre === 'image') return <VignettePhoto fichier={resume.petite ?? resume.fichier} />
   if (resume.genre === 'lien') return <VignetteLien resume={resume} tableau={tableau} />
   if (resume.genre === 'fichier') return <VignetteFichier nom={resume.nom} typeMime={resume.typeMime} />
+  // Une toile qui se montre en dossier : l'icône d'un dossier, comme dans Fichiers.
+  if (resume.dossier)
+    return (
+      <span className="biblio-vignette" data-genre="dossier" aria-hidden>
+        <Icone nom="dossier" taille={56} trait={1.2} />
+      </span>
+    )
   return (
     <span className="biblio-vignette" data-genre="toile" aria-hidden>
       {resume.boites.length === 0 ? <span className="biblio-vignette-vide">{t('tableau.vide')}</span> : <PlanToile boites={resume.boites} />}

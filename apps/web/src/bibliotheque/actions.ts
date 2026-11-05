@@ -6,6 +6,7 @@ import {
   deplacer,
   dupliquer,
   jeter,
+  montrerEnDossier,
   quandPretes,
   rangerDansNeuve,
   renommerChose,
@@ -317,12 +318,15 @@ export async function creerDossier(o: Outils, ou: { id: string; titre: string })
   await quandPretes(o.espace, [ou.id])
   const titre = t('biblio.dossier.nouveau')
   const { tableau } = creerDans(o.espace, ou.id, 'toile', titre)
+  // Un dossier est une toile qui se montre en dossier : la bibliothèque l'ouvre en liste.
+  await quandPretes(o.espace, [tableau])
+  montrerEnDossier(o.espace, tableau, true)
   const neuf: EntreeBibliotheque = {
     tableau,
     element: null,
     genre: 'toile',
     titre,
-    resume: { genre: 'toile', element: '', titre, boites: [] },
+    resume: { genre: 'toile', element: '', titre, boites: [], dossier: true },
     ou: ou.titre,
     dans: ou.id,
     vu: null,
@@ -337,6 +341,31 @@ export async function creerDossier(o: Outils, ou: { id: string; titre: string })
       const carte = carteDeLaToile(o.espace, ou.id, tableau)
       if (carte) jeter(o.espace, [{ toile: ou.id, element: carte }])
       return [{ type: 'retirer', cles: [cleDe(neuf)] }]
+    },
+  }
+}
+
+/**
+ * Montre une toile en dossier (la bibliothèque l'ouvre en liste de ce qu'elle porte), ou de nouveau en toile. Rien
+ * d'autre ne change ; se défait.
+ */
+export async function montrerEntreeEnDossier(o: Outils, e: EntreeBibliotheque, oui: boolean): Promise<Resultat | null> {
+  if (e.element !== null || e.resume.genre !== 'toile') return null
+  await quandPretes(o.espace, [e.tableau])
+  const resumeVoulu = (dossier: boolean) => {
+    const { dossier: _d, ...r } = e.resume as Extract<EntreeBibliotheque['resume'], { genre: 'toile' }>
+    return dossier ? { ...r, dossier: true as const } : r
+  }
+  const poser = (dossier: boolean): Correctif[] => {
+    if (!montrerEnDossier(o.espace, e.tableau, dossier)) throw new Error(t('biblio.annonce.lectureSeule'))
+    return [{ type: 'changer', cle: cleDe(e), champs: { resume: resumeVoulu(dossier) } }]
+  }
+  const correctifs = poser(oui)
+  return {
+    texte: t(oui ? 'biblio.annonce.enDossier' : 'biblio.annonce.enToile', { titre: e.titre || t('commun.sansTitre') }),
+    correctifs,
+    async annuler() {
+      return poser(!oui)
     },
   }
 }

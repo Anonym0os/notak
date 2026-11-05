@@ -23,6 +23,7 @@ export {
   deplacer,
   dupliquer,
   jeter,
+  montrerEnDossier,
   quandPretes,
   rangerDansNeuve,
   renommerChose,

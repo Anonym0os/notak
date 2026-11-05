@@ -48,7 +48,7 @@ export async function poserNotak(c: ContenuNotak, espace: EspaceNavigable, paren
   for (const { tb, lu } of ordre) {
     const m = espace.magasin(nouveaux.get(tb.id)!)
     const couleur = tb.couleur ?? lu.couleur
-    if (couleur) m.remplacer({ ...m.lire(), couleur: couleur as never })
+    if (couleur || lu.dossier) m.remplacer({ ...m.lire(), ...(couleur ? { couleur: couleur as never } : {}), ...(lu.dossier ? { dossier: true } : {}) })
     // La corbeille ne voyage pas : on importe ce qu'on voit.
     const ops: Operation[] = lu.elements.filter((e) => e.corbeille === undefined).map((e) => ({ type: 'creer', element: renommer(e, nouveaux) as unknown as Element }))
     if (Array.isArray(lu.etiquettes) && lu.etiquettes.length > 0) ops.push({ type: 'etiquettes', de: [], vers: lu.etiquettes as never })

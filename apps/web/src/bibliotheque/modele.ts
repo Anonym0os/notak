@@ -46,10 +46,62 @@ export function compterParGenre(entrees: readonly EntreeBibliotheque[]): Record<
   return n
 }
 
-/** La vue qu'on regarde : où, et quoi. */
+/** La vue qu'on regarde : où, et quoi ; `dossier`, une toile qu'on parcourt, tient lieu de portée. */
 export interface Vue {
   portee: Portee
   filtre: Filtre
+  dossier?: string
+}
+
+// ---- Les dossiers : une toile, parcourue comme un dossier ----
+
+/** Une toile qui se montre en dossier (`Tableau.dossier`) : elle s'ouvre d'abord ici, en liste de ce qu'elle porte. */
+export const estDossier = (e: Pick<EntreeBibliotheque, 'element' | 'resume'>) => e.element === null && e.resume.genre === 'toile' && e.resume.dossier === true
+
+/** Ce qu'une toile porte directement : les toiles qu'elle range, et ses pages, cartes, photos, liens et fichiers. */
+export const contenuDuDossier = (id: string, entrees: readonly EntreeBibliotheque[]) => entrees.filter((e) => e.dans === id && !(e.element === null && e.tableau === id))
+
+/**
+ * Le chemin d'une toile depuis l'accueil, elle comprise : `[accueil, …, id]`. Une toile dont on ne lit pas le haut (un
+ * partage) commence là où l'on ne sait plus ; un cycle (une carte posée dans sa propre descendante) s'arrête.
+ */
+export function filDAriane(id: string, entrees: readonly EntreeBibliotheque[], racine: string | null): string[] {
+  const dansDe = new Map(entrees.flatMap((e) => (e.element === null ? [[e.tableau, e.dans] as const] : [])))
+  const fil = [id]
+  for (let ici = id; ici !== racine; ) {
+    const haut = dansDe.get(ici)
+    if (!haut || fil.includes(haut)) break
+    fil.unshift(haut)
+    ici = haut
+  }
+  return fil
+}
+
+/** Un nœud de l'arbre des dossiers de la colonne. */
+export interface NoeudDossier {
+  id: string
+  titre: string
+  enfants: NoeudDossier[]
+}
+
+/** L'arbre des dossiers sous `racine` (l'accueil), par titre : les toiles montrées en dossier, à leur place. */
+export function arbreDesDossiers(entrees: readonly EntreeBibliotheque[], racine: string): NoeudDossier[] {
+  const dossiers = entrees.filter(estDossier)
+  const ids = new Set(dossiers.map((e) => e.tableau))
+  const sous = new Map<string, EntreeBibliotheque[]>()
+  for (const e of dossiers) {
+    // Un dossier rangé dans une toile ordinaire remonte au premier dossier au-dessus d'elle, sinon à l'accueil.
+    const fil = filDAriane(e.tableau, entrees, racine).slice(0, -1)
+    const haut = [...fil].reverse().find((x) => ids.has(x)) ?? racine
+    sous.set(haut, [...(sous.get(haut) ?? []), e])
+  }
+  const parTitre = (a: EntreeBibliotheque, b: EntreeBibliotheque) => a.titre.localeCompare(b.titre, undefined, { sensitivity: 'base', numeric: true })
+  const batir = (haut: string, vus: Set<string>): NoeudDossier[] =>
+    (sous.get(haut) ?? [])
+      .filter((e) => !vus.has(e.tableau))
+      .sort(parTitre)
+      .map((e) => ({ id: e.tableau, titre: e.titre, enfants: batir(e.tableau, new Set([...vus, e.tableau])) }))
+  return batir(racine, new Set([racine]))
 }
 
 /** Les anciennes adresses (`?vue=toiles`) : une rubrique d'un seul genre, c'est toute la bibliothèque, filtrée. */
@@ -59,19 +111,21 @@ const ANCIENNES: Record<string, Genre> = Object.fromEntries(Object.entries(PLURI
  * La vue que dit l'adresse (`?vue=favoris&type=image`), ou `null` pour la portée si elle n'en dit rien : la page choisit
  * alors (les récents, sinon tout). Une ancienne adresse d'un seul genre (`?vue=photos`) se lit encore.
  */
-export function lireVue(recherche: string): { portee: Portee | null; filtre: Filtre } {
+export function lireVue(recherche: string): { portee: Portee | null; filtre: Filtre; dossier?: string } {
   const p = new URLSearchParams(recherche)
+  const dossier = p.get('dossier')
   const vue = p.get('vue') ?? ''
   const type = p.get('type') ?? ''
   const filtre: Filtre = (TYPES as readonly string[]).includes(type) ? (type as Genre) : 'tout'
   if (ANCIENNES[vue]) return { portee: 'tout', filtre: ANCIENNES[vue] }
-  return { portee: (PORTEES as readonly string[]).includes(vue) ? (vue as Portee) : null, filtre }
+  return { portee: (PORTEES as readonly string[]).includes(vue) ? (vue as Portee) : null, filtre, ...(dossier ? { dossier } : {}) }
 }
 
-/** L'adresse d'une vue : `/` pour les récents sans filtre, sinon ce qui la redit. */
-export function adresseDeLaVue({ portee, filtre }: Vue): string {
+/** L'adresse d'une vue : `/` pour les récents sans filtre, sinon ce qui la redit ; un dossier, `?dossier=<id>`. */
+export function adresseDeLaVue({ portee, filtre, dossier }: Vue): string {
   const p = new URLSearchParams()
-  if (portee !== 'recents') p.set('vue', portee)
+  if (dossier) p.set('dossier', dossier)
+  else if (portee !== 'recents') p.set('vue', portee)
   if (filtre !== 'tout') p.set('type', filtre)
   const q = p.toString()
   return q ? `/?${q}` : '/'

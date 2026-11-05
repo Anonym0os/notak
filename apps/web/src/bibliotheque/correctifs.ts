@@ -12,7 +12,7 @@ export type Correctif =
   | { type: 'ajouter'; entrees: EntreeBibliotheque[] }
   /** Une entrée passée ailleurs : sous une autre clé (un élément recréé), ou dans un autre dossier. */
   | { type: 'remplacer'; de: string; par: EntreeBibliotheque }
-  | { type: 'changer'; cle: string; champs: Partial<Pick<EntreeBibliotheque, 'titre' | 'favori' | 'dans' | 'ou'>> }
+  | { type: 'changer'; cle: string; champs: Partial<Pick<EntreeBibliotheque, 'titre' | 'favori' | 'dans' | 'ou' | 'resume'>> }
 
 /** Le temps laissé au serveur pour suivre : son enregistrement attend au plus dix secondes après le dernier geste. */
 export const DUREE_CORRECTIF = 14_000

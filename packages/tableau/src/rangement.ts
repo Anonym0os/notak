@@ -191,6 +191,20 @@ export function renommerChose(espace: EspaceRangement, chose: { toile: Id; eleme
 }
 
 /**
+ * Montre une toile en dossier, ou de nouveau en toile (`Tableau.dossier`) : la bibliothèque l'ouvre alors en liste de
+ * ce qu'elle porte. Rien d'autre ne change. Rend faux si on ne peut pas l'écrire.
+ */
+export function montrerEnDossier(espace: EspaceRangement, toile: Id, oui: boolean): boolean {
+  if (!ecrivable(espace, toile)) return false
+  const m = espace.magasin(toile)
+  const t = m.lire()
+  if ((t.dossier === true) === oui) return true
+  const { dossier: _d, ...reste } = t
+  m.remplacer(oui ? { ...reste, dossier: true } : reste)
+  return true
+}
+
+/**
  * Copie une toile (et son contenu), une carte mentale ou un document, posée juste après l'original sur la même toile,
  * titrée « … (copie) ». `porteuse` : la toile qui porte la carte de la toile copiée. Rend la copie.
  */

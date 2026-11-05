@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
+import { lireTableau } from '../export/contenu'
 import { enLectureSeule } from './magasin'
 import { type ElementStocke, creerMagasinYjs, plansPour } from './magasinYjs'
 import { type Element, type Tableau, annoter, auPremierPlan, nouvelleNote } from './tableau'
@@ -16,6 +17,20 @@ const note = (x: number, y = 0): Element => ({ ...nouvelleNote(x, y) })
 const ids = (t: Tableau) => t.elements.map((e) => e.id)
 
 describe('magasin Yjs', () => {
+  it('une toile montrée en dossier le reste chez l’autre, et le redevient toile ; l’export le lit aussi', () => {
+    const { a, ma, mb } = relies()
+    ma.faire([{ type: 'creer', element: note(1) }])
+    ma.remplacer({ ...ma.lire(), dossier: true })
+    expect(mb.lire().dossier).toBe(true)
+    expect(lireTableau(a).dossier).toBe(true)
+    // Le contenu n'a pas bougé.
+    expect(ids(mb.lire())).toEqual(ids(ma.lire()))
+    const { dossier: _d, ...sans } = mb.lire()
+    mb.remplacer(sans)
+    expect(ma.lire()).not.toHaveProperty('dossier')
+    expect(lireTableau(a)).not.toHaveProperty('dossier')
+  })
+
   it('les gestes de chacun arrivent chez l’autre', () => {
     const { ma, mb } = relies()
     const [n1, n2] = [note(1), note(2)]

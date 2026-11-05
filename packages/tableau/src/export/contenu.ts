@@ -43,6 +43,8 @@ export interface TableauLu {
   /** Les étiquettes du tableau et son arrière-plan, tels que `meta` les garde : seul le format `.notak` les reprend. */
   etiquettes?: unknown[]
   fond?: unknown
+  /** Elle se montre en dossier dans la bibliothèque (`Tableau.dossier`). */
+  dossier?: boolean
   /** Du plus bas au plus haut dans l'empilement. */
   elements: ElementLu[]
 }
@@ -72,6 +74,7 @@ export function lireTableau(doc: Y.Doc): TableauLu {
     ...(typeof couleur === 'string' ? { couleur } : {}),
     ...(Array.isArray(etiquettes) && etiquettes.length > 0 ? { etiquettes } : {}),
     ...(fond !== undefined && fond !== null ? { fond } : {}),
+    ...(meta.get('dossier') === true ? { dossier: true } : {}),
     elements: brutes.map((b) => b.element),
   }
 }
@@ -195,6 +198,8 @@ export type ResumeContenu =
       element: ''
       titre: string
       couleur?: string
+      /** Elle se montre en dossier : la bibliothèque l'ouvre en liste de ce qu'elle porte. */
+      dossier?: true
       /**
        * Le plan : chaque élément posé, en UG, avec sa couleur (une clé de la palette des notes, ou rien), son type, et
        * le nombre de lignes à y dessiner (le texte d'une note ou d'une liste, les cartes d'une colonne).
@@ -380,6 +385,7 @@ export function resumesDuTableau(t: TableauLu): ResumeContenu[] {
       element: '',
       titre: t.titre,
       ...(t.couleur ? { couleur: t.couleur } : {}),
+      ...(t.dossier ? { dossier: true as const } : {}),
       boites,
       ...(cartes.length ? { cartes } : {}),
       ...(jetees.length ? { jetees } : {}),

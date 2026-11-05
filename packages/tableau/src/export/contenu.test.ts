@@ -5,6 +5,13 @@ import { type ElementLu, type TableauLu, dateDeLId, resumesDuTableau } from './c
 const poser = (id: string, contenu: ElementLu['contenu'], champs: Partial<ElementLu> = {}): ElementLu => ({ id, x: 0, y: 0, largeur: 20, contenu, ...champs })
 const toile = (elements: ElementLu[]): TableauLu => ({ titre: 'Voyage', elements })
 
+describe('le résumé d’une toile montrée en dossier', () => {
+  it('le dit ; une toile ordinaire, non', () => {
+    expect(resumesDuTableau({ titre: 'Projets', dossier: true, elements: [] })[0]).toMatchObject({ genre: 'toile', titre: 'Projets', dossier: true })
+    expect(resumesDuTableau({ titre: 'Projets', elements: [] })[0]).not.toHaveProperty('dossier')
+  })
+})
+
 describe('les résumés d’une toile pour la bibliothèque', () => {
   it('une photo : sa légende, son fichier, sa plus petite copie et ses proportions', () => {
     const image = {

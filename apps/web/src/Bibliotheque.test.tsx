@@ -375,16 +375,73 @@ describe('les gestes', () => {
     const libelles = menu(tuile('voyage/')).map((b) => b.querySelector('.notak-e-libelle')!.textContent)
     expect(libelles).toEqual([
       'Ouvrir',
+      'Parcourir',
       'Afficher dans sa toile',
       'Renommer',
       'Dupliquer',
       'Retirer des favoris',
+      'Afficher comme dossier',
       'Déplacer vers…',
       'Copier le lien',
       'Mettre à la corbeille',
     ])
-    expect(hote.querySelectorAll('.notak-menu .notak-e-icone svg')).toHaveLength(8)
+    expect(hote.querySelectorAll('.notak-menu .notak-e-icone svg')).toHaveLength(10)
     expect(choisies()).toEqual(['voyage/'])
+  })
+
+  describe('les dossiers', () => {
+    /** « Voyage » se montre en dossier ; il porte la carte « Plan » et une page. */
+    const AVEC_DOSSIER = TOUTES.map((e) => (e.tableau === 'voyage' && e.element === null ? { ...e, resume: { ...e.resume, dossier: true as const } } : e))
+
+    it('un dossier s’ouvre ici, en liste de ce qu’il porte, avec son chemin et « Ouvrir la toile » ; ce qu’on crée y va', async () => {
+      history.replaceState(null, '', '/')
+      const crees: [string, string | undefined][] = []
+      await act(async () =>
+        racine.render(<PageBibliotheque charger={async () => AVEC_DOSSIER} espace={monde()} creer={async (g, dans) => (crees.push([g, dans]), { tableau: dans ?? 'racine', element: 'neuf' })} />),
+      )
+      expect(tuile('voyage/').querySelector('.biblio-tuile-ou')!.textContent).toBe('dans Accueil')
+      act(() => tuile('voyage/').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+      expect(location.pathname).toBe('/')
+      expect(location.search).toBe('?dossier=voyage')
+      expect(hote.querySelector('h1')!.textContent).toBe('Voyage')
+      expect([...hote.querySelectorAll('.biblio-fil button')].map((b) => b.textContent)).toEqual(['Accueil'])
+      expect(hote.querySelector<HTMLAnchorElement>('.biblio-ouvrir-toile-lien')!.getAttribute('href')).toBe('/t/voyage')
+      expect([...hote.querySelectorAll<HTMLElement>('[data-cle]')].map((x) => x.dataset.cle).sort()).toEqual(['voyage/notes', 'voyage/plan'])
+      // La colonne le montre dans l'arbre, courant ; aucune portée ne l'est.
+      expect(hote.querySelector('.biblio-arbre [aria-current="page"]')!.textContent).toBe('Voyage')
+      expect(hote.querySelector('[data-rubrique][aria-current="page"]')).toBeNull()
+      expect(hote.querySelector('.biblio-tuile-neuve .biblio-tuile-ou')!.textContent).toBe('dans « Voyage »')
+      await act(async () => hote.querySelector<HTMLButtonElement>('.biblio-tuile-neuve')!.click())
+      expect(crees).toEqual([['toile', 'voyage']])
+    })
+
+    it('le fil d’Ariane et l’accueil de la colonne y mènent ; une portée en sort', async () => {
+      history.replaceState(null, '', '/?dossier=voyage')
+      await act(async () => racine.render(<PageBibliotheque charger={async () => AVEC_DOSSIER} espace={monde()} />))
+      act(() => hote.querySelector<HTMLButtonElement>('.biblio-fil button')!.click())
+      expect(location.search).toBe('?dossier=racine')
+      expect(hote.querySelector('h1')!.textContent).toBe('Accueil')
+      expect([...hote.querySelectorAll<HTMLElement>('[data-cle]')].map((x) => x.dataset.cle).sort()).toEqual(['atelier/', 'voyage/'])
+      act(() => [...hote.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.dataset.rubrique === 'favoris')!.click())
+      expect(location.search).toBe('?vue=favoris')
+      expect(hote.querySelector('.biblio-fil')).toBeNull()
+    })
+
+    it('une toile se montre en dossier, et de nouveau en toile ; chaque fois, le menu le propose et Annuler le défait', async () => {
+      const espace = await ouvrir()
+      menu(tuile('atelier/'))
+      await act(async () => entree('Afficher comme dossier').click())
+      expect(espace.tableau('atelier')!.dossier).toBe(true)
+      expect(tuile('atelier/').querySelector('.biblio-vignette')!.getAttribute('data-genre')).toBe('dossier')
+      expect(hote.querySelector('.notak-avis')!.textContent).toContain('« atelier » se montre en dossier')
+      const libelles = menu(tuile('atelier/')).map((b) => b.querySelector('.notak-e-libelle')!.textContent)
+      expect(libelles).toContain('Ouvrir la toile')
+      expect(libelles).toContain('Afficher comme toile')
+      expect(libelles).not.toContain('Parcourir')
+      act(() => void document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+      await act(async () => void document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true })))
+      expect(espace.tableau('atelier')).not.toHaveProperty('dossier')
+    })
   })
 
   it('le clic droit du fond crée, range et choisit tout', async () => {
@@ -414,6 +471,9 @@ describe('les gestes', () => {
     const carte = espace.tableau('racine')!.elements.find((e) => e.contenu.type === 'tableau' && !['voyage', 'atelier'].includes(e.contenu.cible))!
     const dossier = (carte.contenu as { cible: string }).cible
     expect(espace.tableau(dossier)!.titre).toBe('Nouveau dossier')
+    // C'est une toile qui se montre en dossier.
+    expect(espace.tableau(dossier)!.dossier).toBe(true)
+    expect(tuile(`${dossier}/`).querySelector('.biblio-vignette')!.getAttribute('data-genre')).toBe('dossier')
     expect(location.search).toBe('?vue=toiles')
     expect(choisies()).toEqual([`${dossier}/`])
     expect(hote.querySelector<HTMLInputElement>('.biblio-renommer')!.value).toBe('Nouveau dossier')

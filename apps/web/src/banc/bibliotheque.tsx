@@ -50,11 +50,13 @@ function entreesServeur(): EntreeBibliotheque[] {
   return [
     ...TOILES.map((titre, i) => ({
       ...commun,
+      // « Projet maison » et « Clients » se montrent en dossiers ; « Jardin » est rangé dans « Projet maison ».
+      ...(i === 7 ? { ou: 'Projet maison', dans: 't5' } : {}),
       tableau: `t${i}`,
       element: null,
       genre: 'toile' as const,
       titre,
-      resume: { genre: 'toile' as const, element: '' as const, titre, boites: boites(i) },
+      resume: { genre: 'toile' as const, element: '' as const, titre, boites: boites(i), ...(i === 5 || i === 8 ? { dossier: true as const } : {}) },
       vu: i < 6 ? MAINTENANT - i * 5 * HEURE : null,
       favori: i % 4 === 0,
       partage: i === 8,
