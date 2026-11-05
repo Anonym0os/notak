@@ -263,14 +263,31 @@ describe('sur un serveur', () => {
     expect([...hote.querySelectorAll<HTMLAnchorElement>('.biblio-locale-dossier a')].map((a) => a.textContent)).toEqual(['Ouvrir la toile'])
   })
 
-  it('sur un ordinateur, la page du bureau : ni roue ronde, ni carte de bienvenue, ni vedette', async () => {
+  it('sur un ordinateur, la page du bureau : ni roue ronde, ni carte de bienvenue', async () => {
     ecran('ordinateur')
     await ouvrir()
     expect(hote.querySelector('.biblio-telephone')).toBeNull()
     expect(hote.querySelector('.biblio-colonne')).not.toBeNull()
     expect(hote.querySelector('.essai-cloche')).not.toBeNull()
     expect(hote.querySelector('.essai-avatar')).toBeNull()
-    expect(hote.querySelector('.biblio-locale-reglages, .biblio-bienvenue, .biblio-locale-vedette')).toBeNull()
+    expect(hote.querySelector('.biblio-locale-reglages, .biblio-bienvenue')).toBeNull()
+  })
+
+  it('sur un ordinateur comme sur un iPad, la toile d’accueil en tête, qu’un clic ouvre ; pas dans un dossier', async () => {
+    ecran('ordinateur')
+    await ouvrir()
+    const vedette = hote.querySelector<HTMLButtonElement>('.biblio-corps .biblio-locale-vedette')!
+    expect(vedette).not.toBeNull()
+    act(() => vedette.click())
+    expect(location.pathname).toBe('/t/racine')
+  })
+
+  it('dans un dossier, sur un ordinateur, pas de toile d’accueil en tête', async () => {
+    ecran('ordinateur')
+    history.replaceState(null, '', '/?dossier=voyage')
+    await ouvrir()
+    expect(hote.querySelector('.biblio-corps')).not.toBeNull()
+    expect(hote.querySelector('.biblio-locale-vedette')).toBeNull()
   })
 })
 

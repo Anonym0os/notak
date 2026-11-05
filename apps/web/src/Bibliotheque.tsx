@@ -1342,7 +1342,7 @@ function BibliothequeBureau({
   /** Le plan de la toile d'accueil, lu sur elle (la bibliothèque ne la compte pas parmi ses entrées). */
   const [versionAccueil, setVersionAccueil] = useState(0)
   useEffect(() => {
-    if (!espace || !telephone) return
+    if (!espace) return
     let vivant = true
     void quandPretes(espace, [espace.racine]).then(
       () => vivant && setVersionAccueil((v) => v + 1),
@@ -1353,14 +1353,19 @@ function BibliothequeBureau({
       vivant = false
       arreter()
     }
-  }, [espace, telephone])
+  }, [espace])
   const resumeAccueil = useMemo(() => {
-    const tb = telephone && espace ? espace.tableau(espace.racine) : undefined
+    const tb = espace ? espace.tableau(espace.racine) : undefined
     // Pas encore lu (ou lu en partie) : pas de plan.
     const r = tb && Array.isArray(tb.elements) ? resumesDuTableau(tb as never)[0] : undefined
     return r?.genre === 'toile' ? r : undefined
     // `versionAccueil` n'est pas lu : il dit que l'accueil a changé, et qu'il faut le relire.
-  }, [telephone, espace, versionAccueil])
+  }, [espace, versionAccueil])
+  /**
+   * Hors téléphone, la toile d'accueil en tête des récents comme de tout : la colonne ne la montrait que parmi les
+   * dossiers, où elle se parcourt sans s'ouvrir, et la colonne d'un iPad en portrait est un tiroir fermé.
+   */
+  const vedetteEnTete = !telephone && !!espace && !dossier && !cherche && filtre === 'tout' && (portee === 'tout' || portee === 'recents')
   /** Sous une tuile au doigt : la toile qui la porte, sauf l'accueil, qui porte tout ; sinon quand on l'a ouverte. */
   const detailAuDoigt = (e: EntreeBibliotheque) => (e.ou && e.dans !== espace?.racine ? t('biblio.dans', { toile: e.ou }) : quand(e.vu))
   const genreLigne = (e: EntreeBibliotheque): GenreLigne => (estDossier(e) ? 'dossier' : e.genre)
@@ -1522,6 +1527,9 @@ function BibliothequeBureau({
           </div>
         ) : (
           <>
+            {vedetteEnTete && espace && (
+              <VedetteAccueil titre={titreAccueil || t('biblio.accueil')} resume={resumeAccueil} nombres={nombresDeLAccueil} onClick={() => allerA(accueil)} />
+            )}
             {(sections.length > 0 || cherche ? sections : [{ cle: 'vide', titre: '', entrees: [] } as Section]).map((s, i) => (
               <section key={s.cle} className="biblio-section" aria-label={s.titre || undefined} data-rail={(accueilDeLaBibliotheque && s.cle === 'reprendre') || undefined}>
                 {s.titre && (

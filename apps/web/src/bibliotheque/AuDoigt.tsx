@@ -206,7 +206,7 @@ export function ChoixCreation({ creer, dossier, occupe = false }: { creer(genre:
 }
 
 /**
- * La toile d'accueil en vedette, en tête de la bibliothèque au téléphone : son plan sur toute la largeur, son nom et ce
+ * La toile d'accueil en vedette, en tête de la bibliothèque à toutes les largeurs : son plan sur toute la largeur, son nom et ce
  * qu'elle porte ; un toucher l'ouvre.
  */
 export function VedetteAccueil({
