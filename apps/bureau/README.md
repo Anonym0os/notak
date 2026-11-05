@@ -109,6 +109,29 @@ sienne.
 joint un autre serveur, si la fenêtre revient chez elle ou si l'on oublie le serveur ; une file déjà pleine de copies
 ouvertes depuis le système se dit comme telle (`file_pleine`).
 
+### Un lien `notak://`, cliqué ailleurs (macOS)
+
+Un lien cliqué dans un autre outil (l'onglet « Notak » d'une fiche de Silak) ouvre sa page dans l'app plutôt que dans le
+navigateur : c'est l'adresse de la page, `notak:` à la place de `https:`. `Info.plist` déclare le schéma, le système
+remet le lien à la coque (`RunEvent::Opened`), et `src/lien.rs` le relit sans lui faire confiance, puisque n'importe
+quelle page web peut en ouvrir un :
+
+- **cinq formes, et elles seules** : `notak://<serveur>/?dossier=<dossier>`, `…/?dossier=<dossier>&element=<élément>`,
+  `…/t/<toile>`, `…/` et `…/relier?source=…&cle=…&titre=…&retour=…` (le dossier d'une fiche, créé d'un clic) ; des
+  identifiants de Notak (`[A-Za-z0-9_-]`), ceux d'une fiche pour `/relier`, sans paramètre de plus. L'adresse où va la
+  fenêtre est reconstruite par la coque, rien du lien n'y passe tel quel. L'hôte se relit comme une adresse tapée
+  (`acces::normaliser`) : en `https`, sauf `localhost` ;
+- **un serveur auquel Notak est relié** : le serveur retenu, ou celui où est la fenêtre. Pour un autre, une fenêtre le
+  dit, et rien ne s'ouvre ; un lien ne choisit pas de serveur, et ne retient rien ;
+- **la fenêtre y va d'où qu'elle soit** : depuis les toiles d'ici, par une jonction ordinaire (vérification, page vide,
+  guet), qui mène à la page au lieu de la racine ; depuis une page du serveur, directement ; en pleine jonction, c'est
+  le passage en cours qui l'y mène. Un lien qui lance Notak arrive pendant que la page embarquée rejoint le serveur
+  retenu : les deux jonctions n'en font qu'une, et la fenêtre finit sur la page du lien ;
+- **trois liens en dix secondes au plus**.
+
+Chrome demande une fois s'il peut ouvrir Notak, c'est normal. Le schéma ne vaut que pour une app installée : `tauri dev`
+ne le reçoit pas. Sur iPhone et iPad, `notak://` ne sert encore qu'à revenir dans l'app depuis Safari (`Info.ios.plist`).
+
 ## Ce qui est réglé exprès
 
 - **L'application est embarquée, et ne parle qu'à ce que permet sa CSP** (`app.security.csp`, tirée de

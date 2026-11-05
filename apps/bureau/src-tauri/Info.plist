@@ -8,5 +8,20 @@
   <!-- Rien d'autre que le HTTPS du système : TestFlight et l'App Store ne demandent pas le questionnaire d'export à chaque build. -->
   <key>ITSAppUsesNonExemptEncryption</key>
   <false/>
+  <!-- Le schéma notak : un lien notak://<serveur>/<chemin> cliqué ailleurs (une fiche de Silak) ouvre sa page dans
+       Notak, si Notak est relié à ce serveur (src/lien.rs). -->
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key>
+      <string>app.notak.bureau</string>
+      <key>CFBundleTypeRole</key>
+      <string>Viewer</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>notak</string>
+      </array>
+    </dict>
+  </array>
 </dict>
 </plist>

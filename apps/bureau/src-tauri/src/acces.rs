@@ -470,13 +470,16 @@ pub async fn joindre_serveur(
 ) -> Result<Joint, Erreur> {
     exiger(&webview, &garde, LOCALE)?;
     let vu = etat.annulations.load(Ordering::SeqCst);
-    let joint = joindre(&app, &webview, &garde, &etat, &adresse, garder, vu).await;
+    let joint = joindre(&app, &webview, &garde, &etat, &adresse, None, garder, vu).await;
     if joint.is_err() {
         oublier_les_fichiers(&app, false, None);
     }
     joint
 }
 
+/// Joint le serveur `adresse`, à sa racine, ou à `vers` (une page de ce serveur, celle d'un lien `notak://`). La fenêtre
+/// y est déjà, ou en route : elle n'y retourne pas (la page embarquée qui s'ouvre sur le serveur retenu et un lien
+/// arrivé au lancement le demandent ensemble) ; seul `vers` la mène plus loin.
 #[allow(clippy::too_many_arguments)]
 async fn joindre(
     app: &AppHandle,
@@ -484,6 +487,7 @@ async fn joindre(
     garde: &Origines,
     etat: &Acces,
     adresse: &str,
+    vers: Option<Url>,
     garder: bool,
     vu: u64,
 ) -> Result<Joint, Erreur> {
@@ -492,21 +496,31 @@ async fn joindre(
     if garde.est_de_l_app(&origine) {
         return Err(Erreur::AdresseInvalide);
     }
+    let vers = vers.filter(|v| v.origin().ascii_serialization() == origine);
     let version = app.package_info().version.to_string();
     let joint = verifier(&client(true, DELAI, &version)?, &origine).await?;
-    etat.accorder(app, &origine)?;
-    let racine = Url::parse(&format!("{origine}/")).map_err(|_| Erreur::AdresseInvalide)?;
-    let passage = app.state::<Passage>();
-    // La garde d'abord, avec le passage : la navigation qui suit passe par elle. La personne a renoncé entre-temps (les
-    // toiles d'ici, le menu) : la fenêtre reste où elle est.
-    let (numero, jeton) = etat.commencer_visite(&passage, &origine, racine, vu).ok_or(Erreur::Annule)?;
-    // Un autre serveur n'a pas à trouver la copie confiée pour un autre.
-    oublier_les_fichiers(app, true, Some(&origine));
-    if let Err(e) = partir(app, jeton) {
-        etat.abandonner(&passage, |_| None);
-        return Err(e);
+    if garde.serveur.lire().as_deref() == Some(origine.as_str()) {
+        if let Some(vers) = vers {
+            mener(app, vers)?;
+        }
+    } else {
+        etat.accorder(app, &origine)?;
+        let racine = match vers {
+            Some(v) => v,
+            None => Url::parse(&format!("{origine}/")).map_err(|_| Erreur::AdresseInvalide)?,
+        };
+        let passage = app.state::<Passage>();
+        // La garde d'abord, avec le passage : la navigation qui suit passe par elle. La personne a renoncé entre-temps
+        // (les toiles d'ici, le menu) : la fenêtre reste où elle est.
+        let (numero, jeton) = etat.commencer_visite(&passage, &origine, racine, vu).ok_or(Erreur::Annule)?;
+        // Un autre serveur n'a pas à trouver la copie confiée pour un autre.
+        oublier_les_fichiers(app, true, Some(&origine));
+        if let Err(e) = partir(app, jeton) {
+            etat.abandonner(&passage, |_| None);
+            return Err(e);
+        }
+        guetter(app.clone(), numero);
     }
-    guetter(app.clone(), numero);
     // Abandonnée pendant que la fenêtre partait (`annuler_jonction`, le menu) : qui a renoncé l'a ramenée, par un
     // passage posé après le nôtre, et rien n'est retenu.
     if etat.annulations.load(Ordering::SeqCst) != vu {
@@ -527,6 +541,27 @@ async fn joindre(
         }
     }
     Ok(joint)
+}
+
+/// Ouvre la page `vers` du serveur `origine`, demandée par un lien `notak://` (`lien.rs`) : la fenêtre y va, depuis
+/// ses toiles d'ici comme depuis une autre page de ce serveur. Le lien n'est pas un choix de serveur : rien n'est
+/// retenu, et seul un serveur auquel Notak est déjà relié s'ouvre ainsi (`lien::recevoir` le vérifie avant).
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub async fn ouvrir_lien(app: &AppHandle, origine: &str, vers: Url) -> Result<(), Erreur> {
+    let etat = app.state::<Acces>();
+    let garde = app.state::<Origines>();
+    let fenetre = fenetre(app)?;
+    let vu = etat.annulations.load(Ordering::SeqCst);
+    joindre(app, fenetre.as_ref(), &garde, &etat, origine, Some(vers), false, vu).await.map(|_| ())
+}
+
+/// La fenêtre, déjà sur le serveur de `vers`, va à cette page. En plein passage (la page vide d'une jonction), c'est
+/// le passage qui l'y mènera : on ne navigue pas par-dessus lui.
+fn mener(app: &AppHandle, vers: Url) -> Result<(), Erreur> {
+    if app.state::<Passage>().rediriger(&vers) {
+        return Ok(());
+    }
+    fenetre(app).and_then(|f| f.navigate(vers).map_err(Erreur::echec))
 }
 
 /// Combien de pages du serveur s'ouvrent coup sur coup dans le navigateur : la connexion par code en ouvre une ; un
@@ -607,6 +642,18 @@ impl Passage {
         p.jeton += 1;
         p.vers = Some(vers);
         p.jeton
+    }
+
+    /// Un passage en cours vers le serveur de `vers` y mène désormais : vrai s'il y a un passage en cours (il garde son
+    /// but s'il allait ailleurs, chez soi par exemple).
+    fn rediriger(&self, vers: &Url) -> bool {
+        let mut p = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        match &p.vers {
+            Some(v) if v.origin() == vers.origin() => p.vers = Some(vers.clone()),
+            Some(_) => {}
+            None => return false,
+        }
+        true
     }
 
     /// Le jeton du passage en cours, s'il y en a un.
@@ -1200,6 +1247,22 @@ mod essais {
         // Fini une fois : la page vide et le minuteur du même passage n'emmènent pas la fenêtre deux fois.
         assert_eq!(p.finir(deux), None);
         assert_eq!(p.courant(), None);
+    }
+
+    #[test]
+    fn un_lien_arrive_en_plein_passage_le_suit_s_il_va_au_meme_serveur() {
+        let p = Passage::default();
+        let page = Url::parse(&format!("{ICI}/t/abcdefgh")).unwrap();
+        // Pas de passage : la fenêtre ira elle-même à la page.
+        assert!(!p.rediriger(&page));
+        let jeton = p.poser(racine(ICI));
+        assert!(p.rediriger(&page));
+        assert_eq!(p.finir(jeton), Some(page.clone()));
+        // Un passage qui rentre chez soi garde son but : le lien d'un serveur ne l'emmène pas ailleurs.
+        let chez_soi = Url::parse("tauri://localhost/?ici").unwrap();
+        let jeton = p.poser(chez_soi.clone());
+        assert!(p.rediriger(&page));
+        assert_eq!(p.finir(jeton), Some(chez_soi));
     }
 
     #[test]

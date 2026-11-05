@@ -13,6 +13,7 @@
 /// - garder la fenêtre chez elle (`navigation.rs`) : un lien vers un autre site s'ouvre dans le navigateur.
 /// - lire les fichiers choisis par Fichier › Importer… (⌘O, `menu.rs`), un à un, et seulement ceux-là ;
 /// - recopier les toiles dans le dossier Notak d'iCloud Drive (`nuage.rs`), où les retrouvent les autres appareils ;
+/// - ouvrir dans la fenêtre la page d'un lien `notak://` cliqué ailleurs, d'un serveur déjà relié (`lien.rs`, macOS) ;
 /// Et, pour la page d'un serveur, photographier la fenêtre pour un signalement (`capturer_fenetre`).
 ///
 /// Sur un iPhone ou un iPad, la même coque compile (`tauri ios build`) : l'application embarquée, ou un serveur Notak
@@ -28,6 +29,8 @@ mod acces;
 mod appel;
 #[cfg(desktop)]
 mod fichiers;
+#[cfg(target_os = "macos")]
+mod lien;
 #[cfg(desktop)]
 mod menu;
 #[cfg(desktop)]
@@ -389,8 +392,12 @@ pub fn run() {
                 }
                 // Un double clic sur une copie `.notak` dans le Finder, peut-être avant que la fenêtre n'existe : la file
                 // l'attend, et la page la lira en arrivant.
+                // Ou un lien `notak://` cliqué ailleurs (`lien.rs`).
                 #[cfg(target_os = "macos")]
-                RunEvent::Opened { urls } => fichiers::recevoir(_app, fichiers::chemins_des_adresses(&urls)),
+                RunEvent::Opened { urls } => {
+                    fichiers::recevoir(_app, fichiers::chemins_des_adresses(&urls));
+                    lien::recevoir(_app, &urls);
+                }
                 _ => {}
             }
             #[cfg(mobile)]
