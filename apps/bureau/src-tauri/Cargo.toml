@@ -57,4 +57,9 @@ codegen-units = 1
 lto = true
 opt-level = "s"
 panic = "abort"
+# Pas pour les dépendances : avec Xcode 27, `strip` abîme les dylibs des proc-macros (« mis-aligned LINKEDIT string
+# pool »), que rustc ne peut plus charger. Seul le binaire de Notak est dépouillé, juste en dessous.
+strip = false
+
+[profile.release.package.notak-bureau]
 strip = true
