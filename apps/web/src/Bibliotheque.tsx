@@ -467,9 +467,23 @@ function BibliothequeBureau({
   const minuteurs = useRef(new Set<ReturnType<typeof setTimeout>>())
   const titreAccueil = useSyncExternalStore(espace?.ecouter ?? (() => () => {}), () => (espace ? espace.tableau(espace.racine)?.titre : '') ?? '')
 
+  /**
+   * La page est-elle encore là ? Une lecture peut finir après qu'on a ouvert une toile (le catalogue de l'appareil lit
+   * les toiles en tâche de fond) : elle ne touche plus alors à rien.
+   */
+  const montee = useRef(true)
+  useEffect(() => {
+    montee.current = true
+    return () => {
+      montee.current = false
+    }
+  }, [])
   const lire = useCallback(() => {
     setErreur(null)
-    charger().then(setServeur, (x: Error) => setErreur(x.message || t('commun.echec')))
+    charger().then(
+      (l) => montee.current && setServeur(l),
+      (x: Error) => montee.current && setErreur(x.message || t('commun.echec')),
+    )
   }, [charger])
   useEffect(lire, [lire])
   useEffect(() => ecouter?.(lire), [ecouter, lire])
@@ -490,7 +504,11 @@ function BibliothequeBureau({
     if (cs.length === 0) return
     const ns = cs.map((correctif) => ({ n: ++compteur.current, correctif }))
     setCorrectifs((l) => [...l, ...ns])
-    const relire = () => void charger().then(setServeur, () => {})
+    const relire = () =>
+      void charger().then(
+        (l) => montee.current && setServeur(l),
+        () => {},
+      )
     plusTard(relire, 3500)
     plusTard(() => {
       setCorrectifs((l) => l.filter((x) => !ns.includes(x)))
@@ -649,7 +667,8 @@ function BibliothequeBureau({
       void noterVu(neuve)
       allerAEntree(neuve)
     } finally {
-      setCreation(false)
+      // Ce qu'on a créé s'est ouvert : la page a pu partir.
+      if (montee.current) setCreation(false)
     }
   }
   /** Ouvre la toile qui la porte, la vue centrée sur elle, choisie (pour une toile : sa carte). */
@@ -772,7 +791,7 @@ function BibliothequeBureau({
     try {
       const cs = await favoris({ espace: espace!, rangerToile, definirFavori }, es, oui)
       // Le serveur a déjà suivi : on corrige la liste qu'on a, sans attendre.
-      setServeur((l) => l && cs.reduce((x, c) => corriger(x, c), l))
+      if (montee.current) setServeur((l) => l && cs.reduce((x, c) => corriger(x, c), l))
     } catch (x) {
       annoncer({ texte: (x as Error).message || t('commun.echec') })
     }
