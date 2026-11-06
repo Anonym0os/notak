@@ -1325,6 +1325,7 @@ export function creerApp(ctx: Contexte): Hono {
   app.get('/api/bibliotheque', async (c) => {
     const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    await anciensDossiersRanges()
     const demandes = c.req.query('genres')?.split(',')
     const genres = new Set<string>(demandes?.length ? [...demandes, 'toile'] : GENRES_D_AVANT)
     const { ouverts, lignes, dossierDe, cachees } = await rangementPour(u)
@@ -2083,6 +2084,7 @@ export function creerApp(ctx: Contexte): Hono {
   const ficheDemandee = async (c: Context) => {
     const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    await anciensDossiersRanges()
     const source = sourceNommee(c.req.param('source') ?? '')
     if (!source) return c.json({ erreur: 'source inconnue', code: 'source_inconnue' }, 404)
     const cle = c.req.param('cle') ?? ''
@@ -2113,6 +2115,114 @@ export function creerApp(ctx: Contexte): Hono {
     await modifierDocument(id, u, (doc) => ecrireDossierNeuf(doc, titre))
     await modifierDocument(parent, u, (doc) => poserCarteDeToile(doc, id, ctx.maintenant()))
     return id
+  }
+
+  /** Les toiles d'un espace que personne n'y voit plus : jetées, ou rangées dans une toile jetée. */
+  const cacheesDeLEspace = (espace: string): ReadonlySet<string> => {
+    const ids = base.tableauxDeLEspace(espace)
+    const lus = new Map(
+      base.contenus(ids).flatMap((l) => (l.genre === 'toile' ? [[l.tableau, JSON.parse(l.resume) as { cartes?: string[]; jetees?: string[] }] as const] : [])),
+    )
+    return rangerLesToiles(ids.map((id) => ({ id, parent: base.tableau(id)?.parent ?? null, cartes: lus.get(id)?.cartes ?? [], jetees: lus.get(id)?.jetees ?? [] }))).cachees
+  }
+  /**
+   * Le dossier qui range ceux de la source dans cet espace, où ce compte crée le dossier d'une fiche : là, ou sorti de
+   * la corbeille avec ce qu'il rangeait (un second « Clients » à côté du premier n'est jamais ce qu'on attend), ou créé
+   * dans l'accueil de l'espace. `null` : ce compte n'y peut rien écrire, ou ne le voit pas (on n'en fait pas un second).
+   */
+  const dossierDeLaSourcePour = async (u: Utilisateur, source: SourceRattachement, espace: string, racine: string): Promise<string | null> => {
+    if (!auMoins(await roleSur(u.id, racine), 'edition')) return null
+    const range = await etatDuDossier(u, base.rattachement(espace, source.source, ''))
+    if (range.etat === 'cache') return null
+    if (range.etat === 'absent') {
+      const parent = await creerDossierDans(u, racine, source.dossier)
+      base.poserRattachement({ espace, source: source.source, cle: '', tableau: parent, adresse: null, cree: ctx.maintenant() })
+      return parent
+    }
+    if (!auMoins(await roleSur(u.id, range.tableau), 'edition')) return null
+    if (range.etat === 'corbeille') {
+      const porteur = porteurDe(range.tableau)
+      if (!porteur || !auMoins(await roleSur(u.id, porteur), 'edition')) return null
+      base.marquerCorbeille({ espace, source: source.source, cle: '' }, null, null)
+      await remettreLeDossier(range.tableau, u)
+    }
+    return range.tableau
+  }
+  /** Rien sur cette toile que des cartes de toiles elles-mêmes vides ; ce qu'elle a jeté ne compte pas. */
+  const toileVide = (id: string, vues = new Set<string>()): boolean => {
+    if (vues.has(id)) return true
+    vues.add(id)
+    const lignes = base.contenus([id])
+    const toile = lignes.find((l) => l.genre === 'toile')
+    if (!toile || lignes.some((l) => l.genre !== 'toile')) return false
+    const lu = JSON.parse(toile.resume) as { boites?: unknown[][]; cartes?: string[] }
+    return (lu.boites ?? []).every((b) => b[5] === 'tableau') && (lu.cartes ?? []).every((c) => toileVide(c, vues))
+  }
+  /**
+   * Une source qui nomme son espace après coup (celui de l'équipe) laissait, dans l'espace personnel de qui les avait
+   * créés, un « Clients » et les dossiers d'avant : deux « Clients » côte à côte dans la bibliothèque (vu le 05/11/2026).
+   * Chacun de ces dossiers resté vide passe dans l'espace de l'équipe (recréé là, au même titre et par la même
+   * personne, s'il n'y est pas déjà) ; puis l'ancien « Clients », qui ne retient plus rien, part à la corbeille de son
+   * espace, d'où on le remet si l'on veut. Un dossier qui range quelque chose reste où il est, avec son « Clients » :
+   * rien ne passe d'un espace à l'autre sans qu'on l'y range soi-même. Ce qui est déjà jeté y reste, et s'oublie.
+   */
+  const rangerLesAnciensDossiers = async () => {
+    for (const source of ctx.rattachements ?? []) {
+      const equipe = source.espace
+      const racineEquipe = equipe ? base.espace(equipe)?.racine : undefined
+      if (!equipe || !racineEquipe) continue
+      const anciens = base.rattachementsDeLaSource(source.source).filter((r) => r.espace !== equipe)
+      for (const espace of new Set(anciens.map((r) => r.espace))) {
+        const cachees = cacheesDeLEspace(espace)
+        const ici = anciens.filter((r) => r.espace === espace)
+        /** Jette un ancien dossier, s'il se voit encore : sa carte, là où elle est, à la corbeille. */
+        const jeter = async (tableau: string) => {
+          const ligne = base.tableau(tableau)
+          const porteur = ligne && !cachees.has(tableau) ? porteurDe(tableau) : null
+          if (porteur) await modifierDocument(porteur, base.utilisateurParId(ligne!.proprietaire) ?? undefined, (doc) => void marquerCarte(doc, tableau, ctx.maintenant()))
+        }
+        let retenu = false
+        for (const f of ici.filter((r) => r.cle !== '')) {
+          const ligne = base.tableau(f.tableau)
+          const jete = !ligne || f.corbeille !== null || cachees.has(f.tableau)
+          if (!jete && !toileVide(f.tableau)) {
+            retenu = true
+            continue
+          }
+          if (!jete && !base.rattachement(equipe, source.source, f.cle)) {
+            const u = base.utilisateurParId(ligne!.proprietaire)
+            const parent = u ? await dossierDeLaSourcePour(u, source, equipe, racineEquipe) : null
+            if (!u || !parent) {
+              retenu = true
+              continue
+            }
+            const tableau = await creerDossierDans(u, parent, ligne!.titre)
+            const maintenant = ctx.maintenant()
+            base.poserRattachement({ espace: equipe, source: source.source, cle: f.cle, tableau, adresse: f.adresse, cree: maintenant })
+            mettreEnFile(base, ctx.rattachements ?? [], source.source, 'dossier.cree', f.cle, maintenant, u.nom)
+          }
+          // La table d'abord : l'enregistrement qui suit n'y voit plus rien à suivre, et l'outil n'en sait rien.
+          base.oublierRattachement(f)
+          if (!jete) await jeter(f.tableau)
+        }
+        const range = ici.find((r) => r.cle === '')
+        if (retenu || !range) continue
+        base.oublierRattachement(range)
+        await jeter(range.tableau)
+      }
+    }
+  }
+  /** Une fois par réglage des sources (au démarrage, en pratique), avant qu'on lise ou crée un dossier. */
+  let anciensRanges: { pour: string; fait: Promise<void> } | null = null
+  const anciensDossiersRanges = (): Promise<void> => {
+    const pour = JSON.stringify((ctx.rattachements ?? []).map((s) => [s.source, s.espace ?? null]))
+    if (anciensRanges?.pour !== pour) {
+      anciensRanges = {
+        pour,
+        fait: aSonTour(rangerLesAnciensDossiers).catch((e: unknown) => console.warn(`Notak : les anciens dossiers des outils n'ont pas été rangés (${(e as Error).message})`)),
+      }
+    }
+    return anciensRanges.fait
   }
 
   /**
@@ -2206,28 +2316,10 @@ export function creerApp(ctx: Contexte): Hono {
     return aSonTour(async () => {
       const deja = await etatDuDossier(u, base.rattachement(espace, source.source, cle))
       if (deja.etat !== 'absent') return c.json({ ...deja, source: source.nom, dossier: source.dossier }, 200)
-      if (!auMoins(await roleSur(u.id, racine), 'edition')) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
+      // Le dossier de la source d'abord : là, remis s'il était jeté, créé s'il manque.
+      const parent = await dossierDeLaSourcePour(u, source, espace, racine)
+      if (!parent) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
       const maintenant = ctx.maintenant()
-      // Le dossier de la source d'abord, s'il manque ou qu'on ne le lit plus.
-      const range = await etatDuDossier(u, base.rattachement(espace, source.source, ''))
-      // Un dossier de la source qu'il ne voit pas : il n'en fait pas un second à côté.
-      if (range.etat === 'cache') return c.json({ erreur: 'dossier de la source hors d’accès', code: 'interdit' }, 403)
-      let parent: string
-      if (range.etat === 'present' || range.etat === 'corbeille') {
-        if (!auMoins(await roleSur(u.id, range.tableau), 'edition')) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
-        // Jeté, le dossier de la source revient à sa place, avec ce qu'il rangeait : un second « Clients » à côté du
-        // premier, l'un vide et l'autre à la corbeille, n'est jamais ce qu'on attend.
-        if (range.etat === 'corbeille') {
-          const porteur = porteurDe(range.tableau)
-          if (!porteur || !auMoins(await roleSur(u.id, porteur), 'edition')) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
-          base.marquerCorbeille({ espace, source: source.source, cle: '' }, null, null)
-          await remettreLeDossier(range.tableau, u)
-        }
-        parent = range.tableau
-      } else {
-        parent = await creerDossierDans(u, racine, source.dossier)
-        base.poserRattachement({ espace, source: source.source, cle: '', tableau: parent, adresse: null, cree: maintenant })
-      }
       const tableau = await creerDossierDans(u, parent, titre)
       base.poserRattachement({ espace, source: source.source, cle, tableau, adresse: adresse ?? null, cree: maintenant })
       mettreEnFile(base, ctx.rattachements ?? [], source.source, 'dossier.cree', cle, maintenant, u.nom)
@@ -2266,16 +2358,7 @@ export function creerApp(ctx: Contexte): Hono {
   const lirePourLOutil = (source: string, cle: string) => {
     const cacheesDe = new Map<string, ReadonlySet<string>>()
     const cachees = (espace: string) => {
-      if (!cacheesDe.has(espace)) {
-        const ids = base.tableauxDeLEspace(espace)
-        const lus = new Map(
-          base.contenus(ids).flatMap((l) => (l.genre === 'toile' ? [[l.tableau, JSON.parse(l.resume) as { cartes?: string[]; jetees?: string[] }] as const] : [])),
-        )
-        cacheesDe.set(
-          espace,
-          rangerLesToiles(ids.map((id) => ({ id, parent: base.tableau(id)?.parent ?? null, cartes: lus.get(id)?.cartes ?? [], jetees: lus.get(id)?.jetees ?? [] }))).cachees,
-        )
-      }
+      if (!cacheesDe.has(espace)) cacheesDe.set(espace, cacheesDeLEspace(espace))
       return cacheesDe.get(espace)!
     }
     const dossiers = rattachementsDeLaSource(source, cle).flatMap((r) => {
@@ -2334,6 +2417,7 @@ export function creerApp(ctx: Contexte): Hono {
     }
     if (action === 'fusionner') return c.json({ erreur: 'action réservée', code: 'action_reservee' }, 400)
     const json = { 'content-type': 'application/json; charset=utf-8' }
+    await anciensDossiersRanges()
     return aSonTour(async () => {
       const deja = base.demandeOutil(source.source, id)
       if (deja !== null) return c.body(deja, 200, json)

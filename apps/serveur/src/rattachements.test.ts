@@ -291,3 +291,74 @@ describe('les dossiers d’un outil rangés dans un espace donné', () => {
     expect(m.base.tableau((r.corps as { tableau: string }).tableau)!.parent).toBe(clients)
   })
 })
+
+describe('une source qui nomme son espace après coup range les anciens dossiers', () => {
+  let m: Monde
+  let ana: Compte
+  let bob: Compte
+  let carla: Compte
+  // Avec un secret et un webhook : ce que l'outil apprend se voit dans la file d'envoi.
+  const AVEC_ENVOIS = { ...CRM, secret: 's'.repeat(32), webhook: 'https://crm.exemple.fr/hooks/notak' }
+  const sources: SourceRattachement[] = [AVEC_ENVOIS]
+  const relier = async (c: Compte, cle: string, titre: string) =>
+    ((await (await m.appeler(`/api/rattachements/crm/${cle}`, { compte: c, json: { titre } })).json()) as { tableau: string }).tableau
+  const bibliotheque = async (c: Compte) => (await (await m.appeler('/api/bibliotheque', { compte: c })).json()) as Entree[]
+  const dossiersDe = (l: Entree[], titre: string) => l.filter((e) => e.titre === titre && e.element === null)
+  const ecrire = (tableau: string, f: (doc: Y.Doc) => void) => {
+    const doc = new Y.Doc()
+    Y.applyUpdate(doc, m.base.document(nomDuDocument(tableau))!)
+    f(doc)
+    m.base.enregistrerDocument(nomDuDocument(tableau), Y.encodeStateAsUpdate(doc))
+    indexerDocument(m.base, tableau, doc)
+  }
+
+  beforeAll(async () => {
+    m = monde({ rattachements: sources })
+    ana = await m.compte('Ana')
+    bob = await m.compte('Bob')
+    carla = await m.compte('Carla')
+  })
+  afterAll(() => m.fermer())
+
+  it('un dossier resté vide passe dans l’espace de l’équipe ; un « Clients » qui ne retient plus rien part à la corbeille', async () => {
+    // Sans espace nommé, chacun range dans son espace personnel : deux « Clients ».
+    const dupont = await relier(ana, 'societe:1', 'Dupont')
+    const martin = await relier(bob, 'societe:2', 'Martin')
+    const bernard = await relier(bob, 'societe:3', 'Bernard')
+    const clientsAna = m.base.tableau(dupont)!.parent!
+    const clientsBob = m.base.tableau(martin)!.parent!
+    // Martin range une page : il reste où il est.
+    ecrire(martin, (doc) => void poser(doc, { type: 'document', titre: 'Devis', texte: texte('À relire') }))
+    // L'équipe a désormais son espace (celui de Carla), où Ana et Bob écrivent.
+    const equipe = m.base.espacePersonnel(carla.utilisateur.id)!
+    for (const c of [ana, bob]) m.base.definirAcces({ tableau: carla.utilisateur.racine, utilisateur: c.utilisateur.id, role: 'edition' })
+    await m.autorisation.vider()
+    const deja = m.base.envoisAFaire(m.maintenant() + 1, 50).length
+    sources[0] = { ...AVEC_ENVOIS, espace: equipe }
+
+    const deAna = await bibliotheque(ana)
+    // Un seul « Clients » pour Ana : celui de l'équipe, avec Dupont recréé, et Bernard.
+    const [clients] = dossiersDe(deAna, 'Clients')
+    expect(dossiersDe(deAna, 'Clients')).toHaveLength(1)
+    expect(clients!.tableau).not.toBe(clientsAna)
+    expect(m.base.tableau(clients!.tableau)).toMatchObject({ espace: equipe })
+    const neuf = m.base.rattachement(equipe, 'crm', 'societe:1')!
+    expect(neuf.tableau).not.toBe(dupont)
+    expect(m.base.tableau(neuf.tableau)).toMatchObject({ titre: 'Dupont', parent: clients!.tableau, proprietaire: ana.utilisateur.id })
+    expect(m.base.tableau(m.base.rattachement(equipe, 'crm', 'societe:3')!.tableau)).toMatchObject({ titre: 'Bernard', parent: clients!.tableau })
+    expect(deAna.some((e) => e.tableau === dupont || e.tableau === clientsAna)).toBe(false)
+    // Martin range quelque chose : il reste chez Bob, avec son « Clients » ; Bernard, lui, en est parti.
+    const deBob = await bibliotheque(bob)
+    expect(dossiersDe(deBob, 'Clients').map((e) => e.tableau).sort()).toEqual([clients!.tableau, clientsBob].sort())
+    expect(deBob.some((e) => e.tableau === martin)).toBe(true)
+    expect(deBob.some((e) => e.tableau === bernard)).toBe(false)
+    expect(m.base.rattachement(equipe, 'crm', 'societe:2')).toBeNull()
+    // L'outil apprend les dossiers recréés, et seulement eux.
+    const crees = m.base.envoisAFaire(m.maintenant() + 1, 50).slice(deja)
+    expect(crees.map((e) => (JSON.parse(e.charge) as { cle: string }).cle).sort()).toEqual(['societe:1', 'societe:3'])
+    // Une seconde lecture ne refait rien.
+    const avant = m.base.tableauxDeLEspace(equipe).length
+    await bibliotheque(ana)
+    expect(m.base.tableauxDeLEspace(equipe)).toHaveLength(avant)
+  })
+})

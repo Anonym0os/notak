@@ -384,7 +384,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Activité récente du tableau | ✅ |  |
 | Commentaires, mentions, réactions | ✅ | Voir § 10 et § 11. |
 | Mise en valeur de ce qu'un autre vient de modifier | ✅ |  |
-| Le dossier d'une fiche d'un autre outil (un CRM…) | ✅ | Propre à Notak, édition serveur : le bouton d'une fiche ouvre `/relier`, qui mène à son dossier ou propose de le créer, rangé dans celui de l'outil (un seul : jeté, il revient à sa place pour la fiche suivante, au lieu d'un second à côté) ; le dossier rappelle la fiche par un lien, et l'outil en lit le contenu depuis son origine déclarée (`NOTAK_RATTACHEMENTS`, docs/AUTO-HEBERGER.md). |
+| Le dossier d'une fiche d'un autre outil (un CRM…) | ✅ | Propre à Notak, édition serveur : le bouton d'une fiche ouvre `/relier`, qui mène à son dossier ou propose de le créer, rangé dans celui de l'outil (un seul : jeté, il revient à sa place pour la fiche suivante, au lieu d'un second à côté ; et quand l'outil nomme l'espace de l'équipe après coup, les anciens dossiers restés vides y passent, l'ancien « Clients » à la corbeille) ; le dossier rappelle la fiche par un lien, et l'outil en lit le contenu depuis son origine déclarée (`NOTAK_RATTACHEMENTS`, docs/AUTO-HEBERGER.md). |
 
 ## 15. Habillage
 

@@ -324,6 +324,10 @@ export interface Base {
   rattachementsDe(tableaux: readonly string[]): Rattachement[]
   /** Les dossiers d'une fiche, dans chaque espace. */
   rattachementsDeLaFiche(source: string, cle: string): Rattachement[]
+  /** Tous les dossiers d'une source, dans chaque espace, la clé vide comprise. */
+  rattachementsDeLaSource(source: string): Rattachement[]
+  /** Oublie le rattachement d'une fiche : le dossier reste, ordinaire. */
+  oublierRattachement(r: Pick<Rattachement, 'espace' | 'source' | 'cle'>): void
   /** Met le dossier d'une fiche à la corbeille (`corbeille` : depuis quand), ou l'en sort (`null`). */
   marquerCorbeille(r: Pick<Rattachement, 'espace' | 'source' | 'cle'>, corbeille: number | null, jetePar: 'outil' | 'personne' | null): void
   /** La réponse déjà faite à cette demande d'un outil, ou `null`. */
@@ -849,6 +853,8 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
       ),
     rattachementsDeLaFiche: (source, cle) =>
       tous('SELECT * FROM rattachements WHERE source = ? AND cle = ? ORDER BY cree', source, cle) as unknown as Rattachement[],
+    rattachementsDeLaSource: (source) => tous('SELECT * FROM rattachements WHERE source = ? ORDER BY cree', source) as unknown as Rattachement[],
+    oublierRattachement: (r) => void executer('DELETE FROM rattachements WHERE espace = ? AND source = ? AND cle = ?', r.espace, r.source, r.cle),
     marquerCorbeille: (r, corbeille, jetePar) =>
       void executer('UPDATE rattachements SET corbeille = ?, jete_par = ? WHERE espace = ? AND source = ? AND cle = ?', corbeille, jetePar, r.espace, r.source, r.cle),
     demandeOutil: (source, id) => (un('SELECT reponse FROM demandes_outils WHERE source = ? AND id = ?', source, id)?.reponse as string | undefined) ?? null,
