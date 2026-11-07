@@ -149,7 +149,7 @@ Toutes se mettent dans le `.env`, sauf les trois dernières, que l'image règle 
 | `NOTAK_RATTACHEMENTS` | aucun | les autres outils (un CRM, un gestionnaire de projets…) dont chaque fiche peut avoir son dossier ici, en JSON (voir « Rattacher les fiches d'un autre outil ») |
 | `NOTAK_ADMINS` | aucun | les adresses des admins du serveur, séparées par des virgules : ils voient, dans l'app, qu'une nouvelle version existe. Aucun droit de plus sur les tableaux ni les espaces |
 | `NOTAK_VERIFIER_MAJ` | `1` | `0` : le serveur ne regarde plus s'il existe une nouvelle version (voir « Mettre à jour ») |
-| `NOTAK_SIGNALEMENTS` | aucun | le dossier où ranger les signalements de bugs (⇧⌘S dans l'app, par un compte connecté), dans l'image un dossier de `/donnees` (`/donnees/signalements`) ; sans lui, le serveur n'en reçoit pas. `bun run signalements` les lit |
+| `NOTAK_SIGNALEMENTS` | aucun | le dossier où ranger les signalements de bugs (⇧⌘S dans l'app, par un compte connecté), dans l'image un dossier de `/donnees` (`/donnees/signalements`) ; sans lui, le serveur n’en reçoit pas. `bun run signalements` les lit ; un outil rattaché avec `signalements: true` en fait des tickets |
 | `PEXELS_API_KEY` | aucune | la banque d'images du panneau « Image » ; sans elle, seulement ses propres fichiers |
 | `NOTAK_COOKIE_SECURISE` | `1` dans l'image, `0` hors d'elle | des cookies `Secure`, qui ne passent qu'en HTTPS : derrière un relais |
 | `NOTAK_RELAIS` | `1` dans l'image, `0` hors d'elle | le nombre de relais de confiance devant le serveur : l'adresse du client est l'entrée que le dernier ajoute à `X-Forwarded-For`. `0` : aucun, c'est l'adresse de la connexion. `2` seulement si le second croit le premier (voir « Le relais HTTPS ») |
@@ -193,6 +193,7 @@ NOTAK_RATTACHEMENTS=[{"source":"crm","nom":"Mon CRM","dossier":"Clients","origin
 | `espace` | facultatif : l'espace où ranger les dossiers, pour qu'une équipe les partage. Sans lui, chacun a les siens, dans son espace personnel. Nommé après coup, l'outil ne voit plus que les dossiers de cet espace. Ceux rangés avant dans un espace personnel et restés vides y passent au démarrage (recréés au même titre, par la même personne, l'outil prévenu par `dossier.cree`), et l'ancien dossier de la source part à la corbeille de son espace ; ceux qui rangent quelque chose restent à qui les a créés, et l'outil n'en est plus prévenu |
 | `secret` | facultatif, 32 caractères au moins : il signe ce que l'outil demande à Notak et ce que Notak lui envoie (voir « Le catalogue »). Jamais rendu par l'API |
 | `webhook` | facultatif, avec `secret` : l'adresse, en https, où Notak prévient l'outil de ce que les gens font des dossiers |
+| `signalements` | facultatif, `true`, avec `secret` et `webhook` : l'outil reçoit aussi les signalements de bugs (⇧⌘S) pour en faire des tickets (voir « Le catalogue ») |
 
 Le bouton de la fiche ouvre :
 
@@ -236,13 +237,17 @@ coupure.
 | `jeter` | met le dossier de la fiche à la corbeille, dans chaque espace, en notant que l'outil l'y a mis ; rend comme `lire` |
 | `remettre` | le remet, seulement si c'est l'outil qui l'avait jeté : ce qu'une personne a jeté reste jeté ; rend comme `lire` |
 | `fusionner` | réservé : refusé (`action_reservee`) |
+| `lire_signalement` | seulement pour un outil qui reçoit les signalements, avec `cle` = `signalement:<id>` ; ne change rien et rend `{ etat, id, texte, contexte, par, quand, captures }`, `etat` valant `a-traiter`, `traite` ou `absent`, `texte` les mots de la personne tels quels (vide si elle n'a rien écrit), `par` `{ nom, email }`, `captures` `[{ nom, png }]` en base64. Cette réponse ne se garde pas : la même demande se refait |
+| `classer_signalement` | de même, avec en plus `ticket` facultatif (la référence du ticket, lettres, chiffres, `.`, `_`, `:` et `-`) : l'écrit au bas du signalement et le range dans les traités ; rend `{ etat }`, `traite` ou `absent` |
 
 Les refus : 404 si la source n'a pas de secret, 401 (`signature_invalide`) si la signature ne va pas, 400 pour une
 demande hors du catalogue. Un dossier remis après qu'on a vidé la corbeille de sa toile y retrouve une carte neuve.
 
 **Ce que Notak envoie** à `webhook`, signé de même : `{ "id", "type", "cle", "quand", "par" }`, où `type` vaut
 `dossier.cree`, `dossier.jete` ou `dossier.remis`, `quand` est en millisecondes et `par` est le nom de qui a fait le
-geste. Un envoi qui n'obtient pas de réponse 2xx est relancé (une minute, puis le double, une heure au plus) pendant
+geste. Un outil qui reçoit les signalements reçoit aussi `signalement.depose`, où `id` et `cle` valent tous deux
+`signalement:<id>` : le même `id` à chaque essai. Les signalements qui attendaient quand on a réglé `signalements` lui
+sont annoncés au démarrage du serveur, une seule fois chacun. Un envoi qui n'obtient pas de réponse 2xx est relancé (une minute, puis le double, une heure au plus) pendant
 environ une semaine. Un geste que l'outil a lui-même demandé ne lui est pas renvoyé. L'envoi ne fait que prévenir :
 l'outil relit l'état par `lire` avant d'en tirer quoi que ce soit.
 

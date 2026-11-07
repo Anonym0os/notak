@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 /**
@@ -37,7 +37,7 @@ export function horodatage(d: Date): string {
 }
 
 export function markdownDuSignalement(id: string, d: Depot): string {
-  const texte = d.texte.trim() || '(sans commentaire, voir la capture)'
+  const texte = d.texte.trim() || SANS_COMMENTAIRE
   return [
     `# Signalement ${id}`,
     '',
@@ -89,6 +89,76 @@ export async function listerSignalements(dossier: string, file: typeof A_TRAITER
 }
 
 const rang = (nom: string) => Number(nom.match(/-(\d+)\.png$/)?.[1] ?? 1)
+
+/** L'identifiant d'un signalement, le nom de son dossier : `2026-11-07_16h55m06-82f1`. */
+export const ID_SIGNALEMENT = /^\d{4}-\d{2}-\d{2}_\d{2}h\d{2}m\d{2}-[0-9a-f]{4}$/
+/** Ce que le dépôt écrit quand la personne n'a rien dit. */
+const SANS_COMMENTAIRE = '(sans commentaire, voir la capture)'
+
+/** Un signalement relu pour un outil (`lire_signalement`) : les mots à part du contexte, et les captures. */
+export interface SignalementRelu {
+  etat: 'a-traiter' | 'traite' | 'absent'
+  id: string
+  /** Les mots de la personne, tels quels ; vide si elle n'a rien écrit. */
+  texte: string
+  /** Le contexte, en Markdown : qui, quand, l'adresse, le navigateur, la version, les erreurs. */
+  contexte: string
+  par: { nom: string; email: string } | null
+  /** Quand il a été déposé (ms). */
+  quand: number
+  captures: { nom: string; png: string }[]
+}
+
+/**
+ * Sépare ce qu'a écrit `markdownDuSignalement` : le titre, les mots, les captures, puis `## Contexte`. Lit aussi les
+ * signalements déposés avant que les outils ne les relisent : le fichier n'a pas changé de forme.
+ */
+export function decouperSignalement(markdown: string): { texte: string; contexte: string; par: { nom: string; email: string } | null } {
+  const lignes = markdown.split('\n')
+  const debutContexte = lignes.findIndex((l) => l.trim() === '## Contexte')
+  const corps = (debutContexte < 0 ? lignes : lignes.slice(0, debutContexte)).filter(
+    (l) => !/^# Signalement /.test(l) && !/^!\[Capture \d+\]\([^)]*\)$/.test(l.trim()) && l.trim() !== '(pas de capture)',
+  )
+  const texte = corps.join('\n').trim()
+  const contexte = debutContexte < 0 ? '' : lignes.slice(debutContexte + 1).join('\n').trim()
+  const signale = contexte.match(/^- Signalé par : (.*) <([^<>\s]+@[^<>\s]+)>$/m)
+  return { texte: texte === SANS_COMMENTAIRE ? '' : texte, contexte, par: signale ? { nom: signale[1]!.trim(), email: signale[2]! } : null }
+}
+
+/** Relit un signalement, où qu'il soit rangé, pour un outil qui en fait un ticket. */
+export async function relireSignalement(dossier: string, id: string): Promise<SignalementRelu> {
+  const absent: SignalementRelu = { etat: 'absent', id, texte: '', contexte: '', par: null, quand: 0, captures: [] }
+  if (!ID_SIGNALEMENT.test(id)) return absent
+  for (const [file, etat] of [
+    [A_TRAITER, 'a-traiter'],
+    [TRAITES, 'traite'],
+  ] as const) {
+    const ici = join(dossier, file, id)
+    if (!existsSync(join(ici, 'signalement.md'))) continue
+    const markdown = await readFile(join(ici, 'signalement.md'), 'utf8')
+    const noms = (await readdir(ici)).filter((n) => /^capture(-\d+)?\.png$/.test(n)).sort((a, b) => rang(a) - rang(b)).slice(0, CAPTURES_MAX)
+    const captures = await Promise.all(noms.map(async (nom) => ({ nom, png: (await readFile(join(ici, nom))).toString('base64') })))
+    return { etat, id, ...decouperSignalement(markdown), quand: Math.round((await stat(join(ici, 'signalement.md'))).mtimeMs), captures }
+  }
+  return absent
+}
+
+/**
+ * Un outil a fait du signalement un ticket : la référence s'écrit au bas du fichier, et le signalement passe dans les
+ * traités. Renvoyé, il ne réécrit rien. Rend où il est désormais.
+ */
+export async function classerSignalement(dossier: string, id: string, ticket: string | null, outil: string): Promise<'traite' | 'absent'> {
+  if (!ID_SIGNALEMENT.test(id)) return 'absent'
+  const ici = join(dossier, A_TRAITER, id)
+  if (existsSync(join(ici, 'signalement.md'))) {
+    if (ticket) {
+      const markdown = await readFile(join(ici, 'signalement.md'), 'utf8')
+      await writeFile(join(ici, 'signalement.md'), `${markdown.trimEnd()}\n- Ticket ${outil} : ${ticket}\n`)
+    }
+    await marquerTraite(dossier, id)
+  }
+  return existsSync(join(dossier, TRAITES, id)) ? 'traite' : 'absent'
+}
 
 /** Passe un signalement dans `traites/` ; `false` s'il n'est pas (ou plus) à traiter. */
 export async function marquerTraite(dossier: string, id: string): Promise<boolean> {

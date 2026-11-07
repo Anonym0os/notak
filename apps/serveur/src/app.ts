@@ -26,11 +26,13 @@ import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from
 import { rangerLesToiles } from './catalogue.ts'
 import {
   ACTIONS_OUTIL,
+  ACTIONS_SIGNALEMENT,
   type ActionOutil,
   CLE_FICHE,
   ID_DEMANDE,
   type SourceRattachement,
   adresseDeLaFiche,
+  annoncerSignalement,
   dossierDeLaSource,
   ecrireDossierNeuf,
   marquerCarte,
@@ -55,7 +57,18 @@ import { largeurDemandee, nomReduit, reduire, reductible } from './tailles.ts'
 import { INSTANCE_PAR_DEFAUT, type Instance } from './instance.ts'
 import type { Verificateur } from './misesAJour.ts'
 import { VERSION_NOTAK } from '../../../packages/tableau/src/version.ts'
-import { CAPTURES_MAX, CAPTURE_MAX, CONTEXTE_MAX, TEXTE_MAX, deposerSignalement } from './signalements.ts'
+import {
+  A_TRAITER,
+  CAPTURES_MAX,
+  CAPTURE_MAX,
+  CONTEXTE_MAX,
+  ID_SIGNALEMENT,
+  TEXTE_MAX,
+  classerSignalement,
+  deposerSignalement,
+  listerSignalements,
+  relireSignalement,
+} from './signalements.ts'
 import { entetesSecurite } from '@notak/tableau/securite'
 import { verrouPar } from './verrou.ts'
 import { CLE_VISITEUR, auteurVisiteur, ecrireChangements, jugerChangements, nomVisiteur } from './visiteurs.ts'
@@ -1910,8 +1923,20 @@ export function creerApp(ctx: Contexte): Hono {
       auteur: { nom: u.nom, email: u.email },
       quand: new Date(ctx.maintenant()),
     })
+    annoncerSignalement(base, ctx.rattachements ?? [], id, ctx.maintenant(), u.nom)
     return c.json({ id }, 201)
   })
+
+  // Ceux qui attendaient déjà quand un outil s'est mis à recevoir les signalements lui sont annoncés au démarrage ;
+  // l'identifiant de l'envoi, tiré du signalement, ne les met qu'une fois dans la file.
+  if (ctx.dossierSignalements && (ctx.rattachements ?? []).some((s) => s.signalements)) {
+    const dossier = ctx.dossierSignalements
+    void listerSignalements(dossier, A_TRAITER)
+      .then((file) => {
+        for (const s of file) if (ID_SIGNALEMENT.test(s.id)) annoncerSignalement(base, ctx.rattachements ?? [], s.id, ctx.maintenant(), null)
+      })
+      .catch((e: unknown) => console.warn(`Notak : les signalements en attente n'ont pas été annoncés (${(e as Error).message})`))
+  }
 
   // ---- Jetons d'arrivée ----
   // Un jeton personnel ne sert qu'à `POST /api/arrivee` : de quoi poser un élément dans les non triés de l'accueil
@@ -2412,16 +2437,38 @@ export function creerApp(ctx: Contexte): Hono {
     const id = texte(b?.id)
     const action = texte(b?.action) as ActionOutil
     const cle = texte(b?.cle)
-    if (!b || !ID_DEMANDE.test(id) || !ACTIONS_OUTIL.includes(action) || !CLE_FICHE.test(cle) || Object.keys(b).some((k) => !['id', 'action', 'cle'].includes(k))) {
+    // `ticket` : seulement pour classer un signalement, la référence du ticket qu'en a fait l'outil.
+    const champs = action === 'classer_signalement' ? ['id', 'action', 'cle', 'ticket'] : ['id', 'action', 'cle']
+    const ticket = b?.ticket === undefined ? null : texte(b.ticket)
+    if (!b || !ID_DEMANDE.test(id) || !ACTIONS_OUTIL.includes(action) || !CLE_FICHE.test(cle) || Object.keys(b).some((k) => !champs.includes(k))) {
       return c.json({ erreur: 'demande invalide', code: 'corps_invalide' }, 400)
     }
     if (action === 'fusionner') return c.json({ erreur: 'action réservée', code: 'action_reservee' }, 400)
     const json = { 'content-type': 'application/json; charset=utf-8' }
+    if (ACTIONS_SIGNALEMENT.includes(action)) {
+      // Seulement l'outil qui reçoit les signalements, seulement l'un d'eux par son identifiant.
+      const signalement = cle.startsWith('signalement:') ? cle.slice('signalement:'.length) : ''
+      if (!source.signalements || !ctx.dossierSignalements) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+      if (!ID_SIGNALEMENT.test(signalement) || (ticket !== null && !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/.test(ticket))) {
+        return c.json({ erreur: 'demande invalide', code: 'corps_invalide' }, 400)
+      }
+      // Relire ne change rien et rend les captures : la réponse ne se garde pas, elle se refait.
+      if (action === 'lire_signalement') return c.json(await relireSignalement(ctx.dossierSignalements, signalement))
+      const dossier = ctx.dossierSignalements
+      return aSonTour(async () => {
+        const deja = base.demandeOutil(source.source, id)
+        if (deja !== null) return c.body(deja, 200, json)
+        const reponse = JSON.stringify({ etat: await classerSignalement(dossier, signalement, ticket, source.nom) })
+        const maintenant = ctx.maintenant()
+        base.noterDemandeOutil(source.source, id, reponse, maintenant, maintenant - 7 * 24 * 3600_000)
+        return c.body(reponse, 200, json)
+      })
+    }
     await anciensDossiersRanges()
     return aSonTour(async () => {
       const deja = base.demandeOutil(source.source, id)
       if (deja !== null) return c.body(deja, 200, json)
-      const reponse = JSON.stringify(await agirPourLOutil(source.source, action, cle))
+      const reponse = JSON.stringify(await agirPourLOutil(source.source, action as 'lire' | 'jeter' | 'remettre', cle))
       const maintenant = ctx.maintenant()
       base.noterDemandeOutil(source.source, id, reponse, maintenant, maintenant - 7 * 24 * 3600_000)
       return c.body(reponse, 200, json)

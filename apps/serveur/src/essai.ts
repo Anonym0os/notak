@@ -99,7 +99,7 @@ export interface Monde {
  * `autresOrigines` : d’autres pages de Notak (`NOTAK_AUTRES_ORIGINES`), le serveur de Vite en développement.
  */
 export function monde(
-  options: { cle?: Cle; courriels?: Courriel[]; fermetures?: string[]; rattachements?: SourceRattachement[]; autresOrigines?: readonly string[] } = {},
+  options: { cle?: Cle; courriels?: Courriel[]; fermetures?: string[]; rattachements?: SourceRattachement[]; autresOrigines?: readonly string[]; signalements?: boolean } = {},
 ): Monde {
   const dossier = mkdtempSync(join(tmpdir(), 'notak-monde-'))
   const base = ouvrirBase(':memory:', options.cle ?? null)
@@ -123,6 +123,7 @@ export function monde(
     ...(options.autresOrigines ? { autresOrigines: options.autresOrigines } : {}),
     ...(options.courriels ? { courrier: { actif: true, envoyer: async (c: Courriel) => void options.courriels!.push(c) } } : {}),
     ...(options.rattachements ? { rattachements: options.rattachements } : {}),
+    ...(options.signalements ? { dossierSignalements: join(dossier, 'signalements') } : {}),
   })
   return {
     base,
