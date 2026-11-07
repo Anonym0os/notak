@@ -29,12 +29,19 @@ export interface SourceRattachement {
   secret?: string
   /** Où Notak prévient l'outil de ce que les gens font des dossiers (`dossier.cree`, `.jete`, `.remis`) ; avec `secret`. */
   webhook?: string
+  /**
+   * L'outil reçoit aussi les signalements de bugs (⇧⌘S) : chacun lui est annoncé (`signalement.depose`), il le relit
+   * (`lire_signalement`), en fait un ticket, puis le classe (`classer_signalement`). Avec `secret` et `webhook`.
+   */
+  signalements?: true
 }
 
 /** Ce que Notak envoie à un outil, et rien d'autre (docs/AUTO-HEBERGER.md, « Le catalogue »). */
-export type TypeEnvoi = 'dossier.cree' | 'dossier.jete' | 'dossier.remis'
+export type TypeEnvoi = 'dossier.cree' | 'dossier.jete' | 'dossier.remis' | 'signalement.depose'
 /** Ce qu'un outil peut demander à Notak, et rien d'autre. `fusionner` est réservé : refusé tant qu'il n'est pas écrit. */
-export const ACTIONS_OUTIL = ['lire', 'jeter', 'remettre', 'fusionner'] as const
+export const ACTIONS_OUTIL = ['lire', 'jeter', 'remettre', 'fusionner', 'lire_signalement', 'classer_signalement'] as const
+/** Les actions qui portent sur un signalement, et non sur la fiche d'un dossier : `cle` vaut `signalement:<id>`. */
+export const ACTIONS_SIGNALEMENT: readonly ActionOutil[] = ['lire_signalement', 'classer_signalement']
 export type ActionOutil = (typeof ACTIONS_OUTIL)[number]
 /** L'identifiant d'une demande d'un outil : ce qui la rend sûre à renvoyer. */
 export const ID_DEMANDE = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/
@@ -92,6 +99,8 @@ export function sourcesDe(valeur: string | undefined, signaler: (message: string
     const webhook = adresseDeWebhook(champ('webhook'))
     if (champ('webhook') && !webhook) signaler(`Notak : NOTAK_RATTACHEMENTS, « ${source} » : le webhook doit être une adresse en https ; il est ignoré`)
     else if (webhook && !secretLu) signaler(`Notak : NOTAK_RATTACHEMENTS, « ${source} » : un webhook sans secret ne reçoit rien`)
+    const signalements = o.signalements === true && Boolean(webhook && secretLu)
+    if (o.signalements === true && !signalements) signaler(`Notak : NOTAK_RATTACHEMENTS, « ${source} » : les signalements demandent un secret et un webhook ; ils ne lui sont pas envoyés`)
     lues.set(source, {
       source,
       nom: champ('nom').slice(0, 60),
@@ -100,6 +109,7 @@ export function sourcesDe(valeur: string | undefined, signaler: (message: string
       ...(espace ? { espace } : {}),
       ...(secretLu ? { secret: secretLu } : {}),
       ...(webhook && secretLu ? { webhook } : {}),
+      ...(signalements ? { signalements: true as const } : {}),
     })
   }
   return [...lues.values()]
@@ -246,6 +256,20 @@ export function suivreLesDossiers(o: { base: Base; sources: () => readonly Sourc
       o.base.marquerCorbeille(r, jete ? quand : null, jete ? 'personne' : null)
       mettreEnFile(o.base, o.sources(), r.source, jete ? 'dossier.jete' : 'dossier.remis', r.cle, quand, par?.nom ?? null)
     }
+  }
+}
+
+/**
+ * Annonce un signalement à chaque outil qui les reçoit. L'envoi porte un identifiant tiré du signalement : annoncé
+ * deux fois (au dépôt, puis au démarrage tant qu'il attend), il n'entre qu'une fois dans la file, et l'outil reçoit le
+ * même `id` à chaque essai.
+ */
+export function annoncerSignalement(base: Base, sources: readonly SourceRattachement[], signalement: string, quand: number, par: string | null): void {
+  for (const s of sources) {
+    if (!s.signalements || !s.webhook || !s.secret) continue
+    const id = `signalement:${signalement}`
+    const charge = JSON.stringify({ id, type: 'signalement.depose', cle: id, quand, par })
+    base.mettreEnvoiEnFile({ id: `${s.source}:${id}`, source: s.source, type: 'signalement.depose', charge, cree: quand, prochain: quand })
   }
 }
 
