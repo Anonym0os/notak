@@ -107,6 +107,57 @@ describe('le contrôle des mises à jour', () => {
     expect((serveur.getMap('textes').get('n1') as Y.XmlFragment).toString()).toContain('libre')
   })
 
+  describe('ce que le serveur garde en mémoire, et enregistre', () => {
+    const lu = (d: Y.Doc) => new TextDecoder().decode(Y.encodeStateAsUpdate(d))
+    const doc = (texte: string) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: texte }] }] })
+
+    it('un élément parti pour une autre toile n’y laisse rien de son texte, ni dans l’élément ni dans son fragment', () => {
+      const { serveur, envoyer } = paire({ role: 'edition', elements: { n2: { ecrire: false, commenter: true } } })
+      envoyer((d) =>
+        d.transact(() => {
+          elements(d).set('n1', { ...note('n1'), contenu: { type: 'note', texte: doc('Pamplemousses confidentiels') } })
+          const fragment = new Y.XmlFragment()
+          d.getMap('textes').set('n1', fragment)
+          fragment.insert(0, [new Y.XmlText('Mangues confidentielles')])
+        }),
+      )
+      expect(lu(serveur)).toContain('Mangues')
+      // Ce qu'écrit le magasin quand l'élément part (`transferer`) : l'élément, son texte, et la clé scellée.
+      const parti = envoyer((d) =>
+        d.transact(() => {
+          elements(d).delete('n1')
+          d.getMap('textes').delete('n1')
+          elements(d).set('n1', null as never)
+          elements(d).delete('n1')
+        }),
+      )
+      expect(parti).toBe(true)
+      expect(lu(serveur)).not.toContain('Pamplemousses')
+      expect(lu(serveur)).not.toContain('Mangues')
+    })
+
+    it('ce qu’un refus écarte n’y reste pas, ce qu’il rend s’efface ensuite comme le reste, et un refus s’annule toujours', () => {
+      const { serveur, client, envoyer } = paire({ role: 'edition', elements: { n2: { ecrire: false, commenter: false } } })
+      const griffonner = (d: Y.Doc) => {
+        const fragment = new Y.XmlFragment()
+        d.getMap('textes').set('n2', fragment)
+        fragment.insert(0, [new Y.XmlText('Griffonnage interdit')])
+      }
+      expect(envoyer(griffonner)).toBe(false)
+      expect(lu(serveur)).not.toContain('Griffonnage')
+      expect(envoyer((d) => elements(d).set('n1', { ...note('n1'), contenu: { type: 'note', texte: doc('Kiwis') } }))).toBe(true)
+      // Refusé en entier (n2 est figé), et deux fois de suite : n1 revient chaque fois, chez tous.
+      for (let i = 0; i < 2; i++) {
+        expect(envoyer((d) => d.transact(() => [elements(d).delete('n1'), elements(d).delete('n2')]))).toBe(false)
+        for (const d of [serveur, client]) expect([...elements(d).keys()].sort()).toEqual(['fil', 'n1', 'n2'])
+        expect(elements(serveur).get('n1')!.contenu).toEqual({ type: 'note', texte: doc('Kiwis') })
+      }
+      // Ce que le refus a rendu s'efface ensuite comme le reste, même par une connexion qu'on ne contrôle pas.
+      serveur.transact(() => elements(serveur).delete('n1'))
+      expect(lu(serveur)).not.toContain('Kiwis')
+    })
+  })
+
   describe('les dossiers générés par un outil', () => {
     const carte = (id: string, cible: string, en: Record<string, unknown> = {}) => ({ id, x: 0, y: 0, largeur: 10, plan: 'a2', contenu: { type: 'tableau', cible, ...en } })
     /** Un éditeur, sur un dossier généré qui porte la carte d'un autre (« Clients » et celle de « Dupont »). */

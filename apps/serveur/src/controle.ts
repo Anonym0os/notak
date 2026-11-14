@@ -133,6 +133,29 @@ export function gardeRespectee(c: Changements, garde: Garde): boolean {
   return true
 }
 
+/** Des plages d'identifiants d'entrées du document, par poste : ce qu'un pas du suivi a écrit, ou retiré. */
+type Ensemble = Y.UndoManager['undoStack'][number]['deletions']
+
+/**
+ * Rend au ramasse-miettes ce que le suivi lui a retenu, une fois la mise à jour jugée (et annulée s'il le fallait) :
+ * pour pouvoir l'annuler, le suivi garde intact tout ce qu'elle retire, ce qu'un refus retire à son tour, et marque ce
+ * qu'un refus rend (`keep`, sur l'entrée et ce qui la porte). Sans quoi le document garderait, en mémoire, dans ce qu'il
+ * enregistre et dans ce qu'il envoie à qui s'y relie, le texte d'un élément parti (peut-être pour une toile privée) et
+ * ce qu'un refus a écarté, jusqu'à son prochain chargement.
+ */
+function relacher(doc: Y.Doc, ensemble: Ensemble) {
+  ensemble.clients.forEach((plages, poste) => {
+    const structs = doc.store.clients.get(poste)
+    if (!structs) return
+    for (const { clock, len } of plages)
+      for (let i = Y.findIndexSS(structs, clock); i < structs.length && structs[i]!.id.clock < clock + len; i++) {
+        const s = structs[i]!
+        for (let e = s instanceof Y.Item ? s : null; e?.keep; e = e.parent instanceof Y.AbstractType ? e.parent._item : null) e.keep = false
+      }
+  })
+  if (doc.gc) Y.tryGc(ensemble, doc.store, doc.gcFilter)
+}
+
 /**
  * Contrôle une mise à jour reçue d'une connexion : appliquée sous une origine suivie, puis annulée si elle n'est pas
  * permise, ou si elle touche à ce que `garde` protège. Rend vrai si elle a été gardée. `origine` doit être un objet
@@ -143,6 +166,9 @@ export function controler(doc: Y.Doc, miseAJour: Uint8Array, droits: DroitsTable
     [...CARTES, ARBRES].map((nom) => doc.getMap(nom)),
     { trackedOrigins: new Set([origine]), captureTimeout: 0 },
   )
+  // Chaque pas du suivi : la mise à jour, puis son annulation si elle est refusée.
+  const pas: Ensemble[] = []
+  suivi.on('stack-item-added', ({ stackItem }) => void pas.push(stackItem.deletions, stackItem.insertions))
   try {
     const c = appliquerEnRelevant(doc, miseAJour, origine)
     if (changementsPermis(c, droits, auteur) && (!garde || gardeRespectee(c, garde))) return true
@@ -150,5 +176,7 @@ export function controler(doc: Y.Doc, miseAJour: Uint8Array, droits: DroitsTable
     return false
   } finally {
     suivi.destroy()
+    // Après le jugement seulement : un refus a besoin de ce que la mise à jour a retiré pour le rendre.
+    relacher(doc, Y.mergeDeleteSets(pas))
   }
 }
