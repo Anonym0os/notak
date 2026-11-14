@@ -96,6 +96,35 @@ describe('rangement', () => {
     espace.detruire()
   })
 
+  it('« Déplacer vers… » : annuler dans la toile qu’on a quittée n’y fait pas revenir la page en double, ni annuler dans l’autre ne la perd', () => {
+    const reseau: Reseau = {
+      connecter: () => ({ awareness: null, lectureSeule: () => false, refuse: () => false, synchronise: () => true, detruire() {} }),
+      async declarer() {},
+    }
+    const espace = creerEspaceDistant({ racine: 'accueil', utilisateur: { id: 'u1', nom: 'Ana', couleur: '#2f6feb' }, reseau })
+    const [page, note] = [{ ...nouveauDocument(0, 0), id: 'page' }, { ...nouvelleNote(40, 0), id: 'note' }]
+    // Les deux toiles sont ouvertes (leur historique vit) ; dans l'accueil, la page a bougé avant de partir.
+    const [accueil, prive] = [espace.magasin('accueil'), espace.magasin('prive')]
+    accueil.faire([{ type: 'creer', element: page }, { type: 'creer', element: note }])
+    accueil.faire([{ type: 'deplacer', id: 'note', de: [40, 0], vers: [50, 0] }])
+    accueil.faire([{ type: 'deplacer', id: 'page', de: [0, 0], vers: [10, 0] }])
+    const d = deplacer(espace, [{ toile: 'accueil', element: 'page' }], 'prive')
+    // Ce que porte chaque toile (là-bas, la page prend un nouvel identifiant).
+    const genres = () => ['accueil', 'prive'].map((t) => espace.tableau(t)!.elements.map((e) => e.contenu.type).sort())
+    expect(genres()).toEqual([['note'], ['document']])
+    // L'annulation de l'accueil défait le pas d'avant le déplacement, sans rendre la page.
+    expect(accueil.annuler()).toBe(true)
+    expect(espace.tableau('accueil')!.elements).toMatchObject([{ id: 'note', x: 40 }])
+    expect(prive.annuler()).toBe(false)
+    expect(genres()).toEqual([['note'], ['document']])
+    // L'avis « Annuler » du déplacement, lui, la remet là d'où elle vient, et nulle part ailleurs.
+    d.annuler()
+    expect(genres()).toEqual([['document', 'note'], []])
+    expect([accueil.annuler(), prive.annuler()]).toEqual([true, false])
+    expect(genres()).toEqual([['document'], []])
+    espace.detruire()
+  })
+
   it('ne met pas une toile dans elle-même', () => {
     const { espace, vivants } = monde()
     const d = deplacer(espace, [{ toile: 'accueil', element: 'r-projets' }], 'projets')

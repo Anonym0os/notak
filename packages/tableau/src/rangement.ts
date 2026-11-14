@@ -119,8 +119,9 @@ export function jeter(espace: EspaceRangement, places: readonly Place[], mainten
 
 /**
  * Déplace ces éléments dans une autre toile, à la suite de son contenu (avec le contenu des colonnes et les lignes qui
- * les relient). Comme sur la toile, le déplacement n'entre pas dans l'historique : l'annuler là-bas laisserait un
- * double ici. Rend leurs nouvelles places, les toiles dont la carte a bougé, et de quoi tout remettre à l'identique.
+ * les relient). Comme sur la toile, c'est un transfert (`Magasin.transferer`), hors de l'historique des deux toiles :
+ * annuler dans l'une ne le défait pas à moitié, en laissant un double ici ou rien nulle part. Rend leurs nouvelles
+ * places, les toiles dont la carte a bougé, et de quoi tout remettre à l'identique (un transfert en retour).
  */
 export function deplacer(
   espace: EspaceRangement,
@@ -141,22 +142,22 @@ export function deplacer(
     const p = empaqueter(tab, gardes, boiteDe(tab))
     if (!p) continue
     const poses = placerALaSuite(md.lire(), p.elements.map((x) => ({ ...x })))
-    md.appliquerSeulement(poses.map((element): Operation => ({ type: 'creer', element })))
+    md.transferer(poses.map((element): Operation => ({ type: 'creer', element })))
     const partis = new Set(p.elements.map((x) => x.id))
     const lignesOrphelines = avecLiees(
       tab.elements.filter((x) => partis.has(x.id)),
       tab,
     ).filter((x) => !partis.has(x.id))
     const retires = [...tab.elements.filter((x) => partis.has(x.id) || (x.parent && partis.has(x.parent))), ...lignesOrphelines]
-    ms.appliquerSeulement(retires.map((element): Operation => ({ type: 'supprimer', element })))
+    ms.transferer(retires.map((element): Operation => ({ type: 'supprimer', element })))
     const voulus = new Set(gardes)
     p.elements.forEach((x, i) => {
       if (voulus.has(x.id) && poses[i]) neufs.push({ de: { toile, element: x.id }, vers: { toile: vers, element: poses[i]!.id } })
     })
     for (const cible of toilesPortees(tab, gardes)) toiles.push({ toile: cible, de: toile })
     defaire.push(() => {
-      md.appliquerSeulement(poses.map((element): Operation => ({ type: 'supprimer', element })))
-      ms.appliquerSeulement(retires.map((element): Operation => ({ type: 'creer', element })))
+      md.transferer(poses.map((element): Operation => ({ type: 'supprimer', element })))
+      ms.transferer(retires.map((element): Operation => ({ type: 'creer', element })))
     })
   }
   return { neufs, toiles, annuler: () => defaire.reverse().forEach((f) => f()) }
