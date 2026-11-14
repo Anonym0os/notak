@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import * as Y from 'yjs'
 import { creerEspace } from './coeur/espace'
+import { type Reseau, creerEspaceDistant } from './coeur/espaceDistant'
 import { type Element, type Tableau, nouvelleColonne, nouvelleNote, surLeTableau } from './coeur/tableau'
 import { nouvelleCarteMentale } from './elements/arbre'
 import { nouveauDocument } from './elements/document/texte'
@@ -68,6 +70,30 @@ describe('rangement', () => {
     d.annuler()
     expect(vivants('projets')).toHaveLength(0)
     expect(vivants('accueil').map((e) => e.id).sort()).toEqual(['carte', 'doc', 'r-autre', 'r-projets'])
+  })
+
+  it('une page déplacée n’en laisse pas le texte dans le document qu’elle quitte ; annuler la rend, texte compris', () => {
+    const docs = new Map<string, Y.Doc>()
+    const reseau: Reseau = {
+      connecter(id, doc) {
+        docs.set(id, doc)
+        return { awareness: null, lectureSeule: () => false, refuse: () => false, synchronise: () => true, detruire() {} }
+      },
+      async declarer() {},
+    }
+    const espace = creerEspaceDistant({ racine: 'accueil', utilisateur: { id: 'u1', nom: 'Ana', couleur: '#2f6feb' }, reseau })
+    const texte = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Le budget secret' }] }] }
+    const page = { ...nouveauDocument(0, 0), id: 'page', contenu: { type: 'document' as const, titre: 'Budget', texte } }
+    const accueil = espace.magasin('accueil')
+    accueil.faire([{ type: 'creer', element: page }])
+    accueil.texte!('page').insert(0, [new Y.XmlText('Le budget secret')])
+    espace.magasin('prive')
+    const d = deplacer(espace, [{ toile: 'accueil', element: 'page' }], 'prive')
+    expect(docs.get('accueil')!.getMap('textes').has('page')).toBe(false)
+    expect(espace.tableau('prive')!.elements.map((e) => e.contenu)).toEqual([page.contenu])
+    d.annuler()
+    expect(espace.tableau('accueil')!.elements.find((e) => e.id === 'page')?.contenu).toEqual(page.contenu)
+    espace.detruire()
   })
 
   it('ne met pas une toile dans elle-même', () => {

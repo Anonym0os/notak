@@ -3,14 +3,14 @@ import * as Y from 'yjs'
 import { lireTableau } from '../export/contenu'
 import { enLectureSeule } from './magasin'
 import { type ElementStocke, creerMagasinYjs, plansPour } from './magasinYjs'
-import { type Contenu, type Element, type Tableau, annoter, auPremierPlan, nouvelleNote } from './tableau'
+import { type Auteur, type Contenu, type Element, type Tableau, annoter, auPremierPlan, nouvelleNote, placeDe } from './tableau'
 
-/** Deux documents qui s'échangent leurs mises à jour, comme le ferait un serveur. */
-function relies() {
+/** Deux documents qui s'échangent leurs mises à jour, comme le ferait un serveur ; `auteur` : qui fait les gestes de A. */
+function relies(auteur?: Auteur) {
   const [a, b] = [new Y.Doc(), new Y.Doc()]
   a.on('update', (u: Uint8Array, origine: unknown) => origine !== 'distant' && Y.applyUpdate(b, u, 'distant'))
   b.on('update', (u: Uint8Array, origine: unknown) => origine !== 'distant' && Y.applyUpdate(a, u, 'distant'))
-  return { a, b, ma: creerMagasinYjs(a), mb: creerMagasinYjs(b) }
+  return { a, b, ma: creerMagasinYjs(a, undefined, { auteur: () => auteur }), mb: creerMagasinYjs(b) }
 }
 
 const note = (x: number, y = 0): Element => ({ ...nouvelleNote(x, y) })
@@ -115,6 +115,37 @@ describe('magasin Yjs', () => {
     expect(ma.annuler()).toBe(true)
     expect(ma.lire().elements).toEqual([])
     expect(ma.annuler()).toBe(false)
+  })
+
+  it('un élément qui quitte le document emporte son texte, sa ligne et sa trace ; annuler le rend, texte compris', () => {
+    const { a, b, ma, mb } = relies({ id: 'ana', nom: 'Ana' })
+    const n = nouvelleNote(1, 1, 'Le budget secret')
+    ma.faire([{ type: 'creer', element: n }])
+    ma.texte(n.id).insert(0, [new Y.XmlText('Le budget secret')])
+    ma.ligne(n.id).insert(0, 'Budget')
+    expect(mb.texte(n.id).toString()).toContain('Le budget secret')
+    // Il part dans une autre toile, comme le fait la toile (`envoyerDans`) : hors du geste en cours.
+    ma.appliquerSeulement([{ type: 'supprimer', element: ma.lire().elements[0]! }])
+    for (const doc of [a, b]) for (const cle of ['textes', 'lignes', 'traces']) expect(doc.getMap(cle).has(n.id)).toBe(false)
+    // Chez un autre membre, le document ne garde plus rien de ce texte, ni dans l'élément, ni dans le fragment.
+    expect(new TextDecoder().decode(Y.encodeStateAsUpdate(b))).not.toContain('secret')
+    // Annulé, il revient avec son texte : l'éditeur repartira de son contenu, qui en garde la copie.
+    expect(ma.annuler()).toBe(true)
+    expect(mb.lire().elements).toEqual([n])
+    expect(ma.texte(n.id).length).toBe(0)
+  })
+
+  it('la corbeille garde le texte ; la vider, ou remplacer le tableau sans l’élément, l’emporte', () => {
+    const { a, ma } = relies()
+    const [n1, n2] = [nouvelleNote(1, 0, 'Un'), nouvelleNote(2, 0, 'Deux')]
+    ma.faire([{ type: 'creer', element: n1 }, { type: 'creer', element: n2 }])
+    for (const n of [n1, n2]) ma.texte(n.id).insert(0, [new Y.XmlText('texte')])
+    ma.faire([{ type: 'ranger', id: n1.id, de: placeDe(n1), vers: { ...placeDe(n1), corbeille: 5 } }])
+    expect(a.getMap('textes').has(n1.id)).toBe(true)
+    ma.faire([{ type: 'supprimer', element: ma.lire().elements.find((e) => e.id === n1.id)! }])
+    expect(a.getMap('textes').has(n1.id)).toBe(false)
+    ma.remplacer({ ...ma.lire(), elements: [] })
+    expect(a.getMap('textes').size).toBe(0)
   })
 
   it('un glisser inscrit fait un seul pas, qui ramène au début du geste', () => {

@@ -179,6 +179,22 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
 
   const lire = () => (cache ??= construire())
 
+  /**
+   * Ce qu'un élément laisse hors de `elements` (son texte, sa ligne, les sujets de sa carte mentale, sa trace) part avec
+   * lui quand il quitte le document : pour une autre toile, peut-être privée, ou une corbeille qu'on vide. Resté là, tout
+   * membre de cette toile-ci le lirait encore dans son document. Rien ne s'y perd : le contenu de l'élément garde une
+   * copie de son texte, d'où l'éditeur repart quand l'élément revient (`textePartage`) ; ses sujets reviennent avec lui,
+   * l'historique suivant `arbres`. À appeler dans une transaction.
+   */
+  const oublier = (id: Id, contenu?: Element['contenu']) => {
+    textes.delete(id)
+    lignes.delete(id)
+    traces.delete(id)
+    // Les sujets que la carte porte, ceux écrits dans cette transaction compris, puis tous ceux que l'index lui connaît.
+    if (contenu?.type === 'arbre') ecrireDifference(arbres, id, contenu, {})
+    for (const k of index.cles(id)) arbres.delete(k)
+  }
+
   const plusHaut = () => {
     let max: string | undefined
     elements.forEach((s) => {
@@ -210,7 +226,7 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
         } else elements.set(op.element.id, { ...op.element, plan: auDessus() })
       } else if (op.type === 'supprimer') {
         elements.delete(op.element.id)
-        if (op.element.contenu.type === 'arbre') ecrireDifference(arbres, op.element.id, op.element.contenu, {})
+        oublier(op.element.id, op.element.contenu)
       } else if (op.type === 'etiquettes') {
         // Les étiquettes vivent dans `meta`, hors de l'historique de Yjs : annuler un geste ne les rend pas.
         if (op.vers.length > 0) meta.set('etiquettes', op.vers)
@@ -281,11 +297,8 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
     if (!par) return
     const maintenant = Date.now()
     for (const op of pas) {
-      if (op.type === 'etiquettes' || op.type === 'fond') continue
-      if (op.type === 'supprimer') {
-        traces.delete(op.element.id)
-        continue
-      }
+      // Un élément retiré a déjà emporté sa trace (`oublier`).
+      if (op.type === 'etiquettes' || op.type === 'fond' || op.type === 'supprimer') continue
       const id = op.type === 'creer' ? op.element.id : op.id
       if (op.type === 'creer') traces.set(id, { par, cree: maintenant, modifiePar: par, modifie: maintenant })
       else traces.set(id, { ...traces.get(id), modifiePar: par, modifie: maintenant })
@@ -372,8 +385,8 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
         for (const cle of [...elements.keys()]) {
           if (voulus.has(cle) || !lisible(cle)) continue
           elements.delete(cle)
-          // Une carte retirée emporte ses sujets.
-          for (const k of index.cles(cle)) arbres.delete(k)
+          // Un élément retiré emporte son texte, et une carte ses sujets.
+          oublier(cle)
         }
 
         const actuel = [...elements.keys()]

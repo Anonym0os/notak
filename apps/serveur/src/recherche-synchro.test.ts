@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import * as Y from 'yjs'
 import { ouvrirBase } from './base.ts'
 import { authEssai, autorisationEssai, poserUtilisateur } from './essai.ts'
 import { creerHocuspocus, nomDuDocument } from './synchro.ts'
@@ -60,6 +61,37 @@ describe('la synchro tient l’index à jour', () => {
     expect([trouve('mangues'), trouve('papayes')]).toEqual([1, 1])
     await ecrire(note(unFil(), { f1: unFil() }))
     expect([trouve('mangues'), trouve('papayes')]).toEqual([0, 0])
+    base.fermer()
+  })
+
+  it('une page partie pour une autre toile ne s’y cherche plus, ne s’y résume plus, et son texte quitte le document', async () => {
+    const base = ouvrirBase(':memory:')
+    poserUtilisateur(base, { id: 'u1', email: 'a@exemple.fr', nom: 'Ana', couleur: '#000000', racine: 'racine-1' })
+    base.creerTableau({ id: 'tableau-sync-3', titre: 'Équipe', proprietaire: 'u1', parent: null })
+    const serveur = creerHocuspocus(base, authEssai(base), autorisationEssai(base))
+    const texte = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Pamplemousses confidentiels' }] }] }
+    const ecrire = async (f: (doc: Y.Doc) => void) => {
+      const connexion = await serveur.openDirectConnection(nomDuDocument('tableau-sync-3'))
+      await connexion.transact(f)
+      await connexion.disconnect()
+    }
+    await ecrire((doc) => {
+      doc.getMap('elements').set('page', { id: 'page', x: 0, y: 0, largeur: 10, plan: 'a', contenu: { type: 'document', titre: 'Budget', texte } })
+      const fragment = new Y.XmlFragment()
+      doc.getMap('textes').set('page', fragment)
+      fragment.insert(0, [new Y.XmlText('Pamplemousses confidentiels')])
+    })
+    expect(base.chercher('"pamplemousses"*', ['tableau-sync-3'], 5)).toHaveLength(1)
+    expect(base.contenus(['tableau-sync-3']).map((c) => c.element)).toContain('page')
+
+    // Ce que fait le magasin quand elle part (`oublier`) : l'élément et son texte quittent le document d'un même geste.
+    await ecrire((doc) => {
+      doc.getMap('elements').delete('page')
+      doc.getMap('textes').delete('page')
+    })
+    expect(base.chercher('"pamplemousses"*', ['tableau-sync-3'], 5)).toEqual([])
+    expect(base.contenus(['tableau-sync-3']).map((c) => c.element)).not.toContain('page')
+    expect(new TextDecoder().decode(base.document(nomDuDocument('tableau-sync-3'))!)).not.toContain('Pamplemousses')
     base.fermer()
   })
 })

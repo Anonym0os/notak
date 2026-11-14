@@ -105,4 +105,17 @@ describe('ce que lit le serveur', () => {
     a.annuler()
     expect(Object.keys(arbre(a).sujets)).toEqual(['c'])
   })
+
+  it('la carte qui part pour une autre toile emporte aussi les sujets écrits depuis qu’on l’a lue ; annuler les rend', () => {
+    const { a, b, da, db, synchroniser } = deuxAppareils()
+    const lue = a.lire().elements[0]!
+    geste(b, (x) => ({ ...x, sujets: { ...x.sujets, s2: { parent: 'c', ordre: 'W', titre: 'Écrit par B' } } }))
+    synchroniser()
+    // Le départ, calculé sur la carte d'avant l'écriture de B, hors du geste en cours (comme `envoyerDans`).
+    a.appliquerSeulement([{ type: 'supprimer', element: lue }])
+    synchroniser()
+    for (const d of [da, db]) expect(d.getMap(NOM_ARBRES).size).toBe(0)
+    a.annuler()
+    expect(Object.keys(arbre(a).sujets).sort()).toEqual(['c', 's2'])
+  })
 })

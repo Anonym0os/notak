@@ -37,6 +37,11 @@ Un tableau est un document Yjs (`coeur/magasinYjs.ts`) :
 | `lignes` | les lignes de texte simples |
 | `arbres` | les sujets, relations, limites et résumés des cartes mentales, une entrée par objet (`<élément>␟<dictionnaire>␟<id>`, `coeur/arbresYjs.ts`) |
 
+Un élément qui quitte le document (parti pour une autre toile, ou effacé d'une corbeille qu'on vide) emporte son entrée
+de `textes`, de `lignes` et de `traces`, et ses sujets dans `arbres` : sinon chaque membre de la toile qu'il a quittée
+la lirait encore, même partie dans une toile privée. Le contenu de l'élément garde une copie de son texte, d'où l'éditeur
+repart s'il revient (une annulation). Un élément jeté à la corbeille garde tout.
+
 La toile ne voit pas Yjs. Elle parle à un `Magasin` (`coeur/magasin.ts`) : `lire()`, `faire(opérations)`,
 `annuler()`. Les opérations (`coeur/tableau.ts`) sont des données (`creer`, `deplacer`, `contenu`, …), qu'on sait
 inverser, ce qui donne l'historique. Ce qu'on lit d'un document passe par `coeur/valider.ts` : il peut venir d'un
