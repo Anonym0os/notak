@@ -96,6 +96,30 @@ describe('rangement', () => {
     espace.detruire()
   })
 
+  it('une toile copiée sur un serveur : annuler le premier geste qu’on y fait ne défait que lui, la copie garde son contenu', () => {
+    const reseau: Reseau = {
+      connecter: () => ({ awareness: null, lectureSeule: () => false, refuse: () => false, synchronise: () => true, detruire() {} }),
+      async declarer() {},
+    }
+    const espace = creerEspaceDistant({ racine: 'accueil', utilisateur: { id: 'u1', nom: 'Ana', couleur: '#2f6feb' }, reseau })
+    const [a, b] = [{ ...nouvelleNote(0, 0), id: 'a' }, { ...nouvelleNote(20, 0), id: 'b' }]
+    espace.magasin('accueil').faire([{ type: 'creer', element: renvoi('r-projets', 'projets', 60) }])
+    espace.magasin('projets').faire([{ type: 'creer', element: a }, { type: 'creer', element: b }])
+    const copie = dupliquer(espace, { toile: 'projets', element: null }, 'accueil')!
+    const m = espace.magasin(copie.tableau)
+    expect(m.lire().elements).toHaveLength(2)
+    expect(m.peutAnnuler()).toBe(false)
+    // Un premier glisser, comme la toile l'écrit : en chemin, puis inscrit au lâcher.
+    const e = m.lire().elements[0]!
+    m.appliquerSeulement([{ type: 'deplacer', id: e.id, de: [e.x, e.y], vers: [e.x + 4, e.y] }])
+    m.inscrire([{ type: 'deplacer', id: e.id, de: [e.x, e.y], vers: [e.x + 4, e.y] }])
+    expect(m.annuler()).toBe(true)
+    expect(m.lire().elements).toHaveLength(2)
+    expect(m.lire().elements.find((x) => x.id === e.id)).toMatchObject({ x: e.x, y: e.y })
+    expect(m.annuler()).toBe(false)
+    espace.detruire()
+  })
+
   it('« Déplacer vers… » : annuler dans la toile qu’on a quittée n’y fait pas revenir la page en double, ni annuler dans l’autre ne la perd', () => {
     const reseau: Reseau = {
       connecter: () => ({ awareness: null, lectureSeule: () => false, refuse: () => false, synchronise: () => true, detruire() {} }),

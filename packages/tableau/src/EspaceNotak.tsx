@@ -395,7 +395,8 @@ export function EspaceNotak({
         if (!source) return undefined
         const neuf = espace.creerTableau(source.titre, courant)
         const m = espace.magasin(neuf)
-        m.appliquerSeulement(copieDuContenu(source.elements).map((element) => ({ type: 'creer' as const, element })))
+        // Hors de l'historique de la copie, comme pour « Dupliquer » de la bibliothèque (`rangement.ts`).
+        m.transferer(copieDuContenu(source.elements).map((element) => ({ type: 'creer' as const, element })))
         if (source.couleur) m.remplacer({ ...m.lire(), couleur: source.couleur })
         return neuf
       },

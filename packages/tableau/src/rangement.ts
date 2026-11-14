@@ -216,7 +216,9 @@ export function dupliquer(espace: EspaceRangement, chose: { toile: Id; element: 
     if (!source || !ecrivable(espace, ou)) return null
     const neuve = espace.creerTableau(t('rangement.copie', { titre: source.titre || t('commun.sansTitre') }), ou)
     const m = espace.magasin(neuve)
-    m.appliquerSeulement(copieDuContenu(source.elements).map((element) => ({ type: 'creer' as const, element })))
+    // Le contenu copié arrive hors de l'historique de la copie : sinon le premier geste qu'on y fait s'y joindrait, et
+    // l'annuler viderait la toile.
+    m.transferer(copieDuContenu(source.elements).map((element) => ({ type: 'creer' as const, element })))
     if (source.couleur) m.remplacer({ ...m.lire(), couleur: source.couleur })
     poserCarte(espace, ou, neuve, carteDeLaToile(espace, ou, chose.toile))
     return { tableau: neuve, element: null }
