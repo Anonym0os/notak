@@ -71,6 +71,7 @@ import { FichierEnAttente } from '../serveur/FichierEnAttente'
 import { FichiersOuverts } from '../serveur/FichiersOuverts'
 import { EcranPanne } from '../serveur/EcranPanne'
 import { servicesDeLaFenetre } from '../serveur/ouvrirAilleurs'
+import { choisirEmplacement } from '../enregistrer'
 import { type SurveillanceVersion, surveillerVersionDuServeur } from '../serveur/versionServeur'
 import { BoutonSignaler, brancherSignaler } from '../signaler/Signaler'
 import { VerrouTableau } from '../Verrou'
@@ -113,6 +114,8 @@ const services = {
   // Glissée sur une autre toile, une toile y est rangée sans rien demander, tant que personne n'y gagne l'accès ; sinon
   // ses accès restent ceux d'avant (la bibliothèque, elle, demande).
   toileRangee: (toile: string, dans: string) => void rangerToile(toile, dans, { siPersonne: true }).catch(() => {}),
+  // Ce que la toile fabrique (un PDF annoté) s'enregistre comme un export : « Enregistrer sous », ou la feuille de partage.
+  choisirEmplacement,
 } satisfies Services
 
 /** Ce que la page sait de la version du serveur : la synchronisation qui se rétablit l'invite à la relire (`serveur/versionServeur.ts`). */

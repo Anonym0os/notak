@@ -37,9 +37,9 @@ afterEach(() => {
 const pdf: Fichier = { type: 'fichier', fichier: 'f1', nom: 'devis.pdf', typeMime: 'application/pdf', taille: 1000 }
 const attendre = (ms = 0) => act(async () => void (await new Promise((r) => setTimeout(r, ms))))
 
-async function ouvrir(services: Partial<ContexteToile['services']> = {}, fermer = vi.fn()) {
+async function ouvrir(services: Partial<ContexteToile['services']> = {}, fermer = vi.fn(), contenu: Fichier = pdf) {
   const contexte = { services } as unknown as ContexteToile
-  await act(async () => racine.render(<ModaleFichier contenu={pdf} adresse="/api/fichiers/f1" fermer={fermer} contexte={contexte} />))
+  await act(async () => racine.render(<ModaleFichier contenu={contenu} adresse="/api/fichiers/f1" fermer={fermer} contexte={contexte} />))
   await attendre()
   await attendre()
   return fermer
@@ -163,5 +163,48 @@ describe('la visionneuse PDF', () => {
     act(() => void visionneuse().dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })))
     await touche('ArrowDown')
     expect(surCarte).not.toHaveBeenCalled()
+  })
+})
+
+describe('télécharger avec les annotations', () => {
+  const ANNOTE = 'Télécharger avec les annotations : le PDF et, sur ses pages, les traits qu’on y a dessinés'
+  const annote: Fichier = { ...pdf, annotations: { '1': [{ id: 't', couleur: '#ff5757', epaisseur: 0.01, points: [[0.1, 0.1], [0.5, 0.1]] }] } }
+
+  it('ne se propose que pour un PDF qui porte des traits ; « Télécharger » reste le fichier d’origine', async () => {
+    await ouvrir()
+    expect(bouton(ANNOTE)).toBeNull()
+    await ouvrir({}, vi.fn(), annote)
+    expect(bouton(ANNOTE)).not.toBeNull()
+    expect(bouton('Télécharger le PDF d’origine')!.getAttribute('href')).toBe('/api/fichiers/f1')
+  })
+
+  it('demande d’abord où enregistrer, puis y écrit le PDF avec ses traits', async () => {
+    faux.annotations = []
+    const ecrire = vi.fn(async () => {})
+    const choisirEmplacement = vi.fn(async (f: { nom: string }) => ({ nom: f.nom, ecrire }))
+    await ouvrir({ choisirEmplacement }, vi.fn(), annote)
+    await act(async () => bouton(ANNOTE)!.click())
+    await attendre()
+    expect(choisirEmplacement).toHaveBeenCalledExactlyOnceWith({ nom: 'devis (annoté).pdf', extension: 'pdf', type: 'application/pdf', description: 'PDF' })
+    expect(faux.annotations).toHaveLength(1)
+    expect(faux.annotations[0]).toMatchObject({ annotationType: 15, pageIndex: 0, color: [255, 87, 87] })
+    expect(ecrire).toHaveBeenCalledTimes(1)
+    const [fichier] = ecrire.mock.calls[0]! as unknown as [Blob]
+    expect(fichier.type).toBe('application/pdf')
+    const texte = await new Promise((fini) => {
+      const lecture = new FileReader()
+      lecture.onload = () => fini(lecture.result)
+      lecture.readAsText(fichier)
+    })
+    expect(texte).toBe('%PDF-')
+  })
+
+  it('si l’on renonce à choisir l’emplacement, rien ne se fabrique', async () => {
+    faux.annotations = []
+    const choisirEmplacement = vi.fn(async () => null)
+    await ouvrir({ choisirEmplacement }, vi.fn(), annote)
+    await act(async () => bouton(ANNOTE)!.click())
+    await attendre()
+    expect(faux.annotations).toHaveLength(0)
   })
 })

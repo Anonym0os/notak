@@ -13,6 +13,10 @@ import { ouvrirDehors } from '../ouverture'
 import { type MoteurPdf, PagePdf } from './PagePdf'
 import { CalqueTraits, useDessinPdf } from './DessinPdf'
 import { useCommentairesPdf } from './CommentairesPdf'
+import { type MoteurExport, ajouterTraits, nomAnnote } from './exportPdf'
+import { nombreDeTraits } from './annotations'
+import { telechargerOctets } from '../../document/export'
+import { annoncer } from '../../../avis'
 import {
   type Disposition,
   type TaillePage,
@@ -493,6 +497,35 @@ export function VisionneusePdf({
   )
   const ailleurs = !!services?.ouvrirAilleurs
 
+  // « Télécharger avec les annotations » : le PDF d'origine et, sur ses pages, les traits enregistrés (`exportPdf.ts`).
+  const aDesTraits = nombreDeTraits(contenu.annotations) > 0
+  const [preparation, setPreparation] = useState(false)
+  const monte = useRef(true)
+  useEffect(
+    () => () => {
+      monte.current = false
+    },
+    [],
+  )
+  const telechargerAnnote = async () => {
+    if (preparation) return
+    const nom = nomAnnote(contenu.nom, t('pdf.annote'))
+    // L'emplacement se demande d'abord, au clic : la fenêtre du système n'en veut plus après la fabrication.
+    const ou = services?.choisirEmplacement ? await services.choisirEmplacement({ nom, extension: 'pdf', type: 'application/pdf', description: 'PDF' }).catch(() => null) : undefined
+    if (ou === null) return
+    setPreparation(true)
+    try {
+      const [pdfjs, octets] = await Promise.all([moteurPdf(), fetch(adresse).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))])
+      const sortie = await ajouterTraits(pdfjs as unknown as MoteurExport, new Uint8Array(octets), contenu.annotations, optionsDocument())
+      if (ou) await ou.ecrire(new Blob([sortie as BlobPart], { type: 'application/pdf' }))
+      else telechargerOctets(nom, sortie, 'application/pdf')
+    } catch {
+      annoncer({ texte: t('pdf.telechargerAnnote.echec') })
+    } finally {
+      if (monte.current) setPreparation(false)
+    }
+  }
+
   const portail = createPortal(
     <div
       ref={racine}
@@ -591,6 +624,11 @@ export function VisionneusePdf({
             <Icone nom="exporter" taille={18} />
             <span className="notak-pdf-libelle">{t('pdf.telecharger')}</span>
           </a>
+          {aDesTraits &&
+            bouton('telechargerAnnote', t('pdf.telechargerAnnote'), () => void telechargerAnnote(), {
+              court: t('pdf.telechargerAnnote.court'),
+              actif: !!pret && !preparation && !dessin.actif,
+            })}
           {bouton('ouvrir', t(ailleurs ? 'pdf.ouvrirAilleurs' : 'pdf.ouvrirOnglet'), () => ouvrirDehors(services ?? {}, adresse, contenu.nom), {
             court: t(ailleurs ? 'pdf.ouvrirAilleurs.court' : 'pdf.ouvrirOnglet.court'),
           })}

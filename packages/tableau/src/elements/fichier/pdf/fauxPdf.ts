@@ -3,7 +3,7 @@
  * chacune avec une ligne de texte (« Page n hippopotame »), et compte les documents relâchés. À brancher par
  * `vi.mock('../apercuPdf', async () => (await import('./fauxPdf')).moduleFaux)`.
  */
-export const etatFaux = { pages: 3, detruits: 0, options: null as Record<string, unknown> | null }
+export const etatFaux = { pages: 3, detruits: 0, options: null as Record<string, unknown> | null, annotations: [] as unknown[] }
 
 class TextLayer {
   textDivs: HTMLElement[] = []
@@ -21,7 +21,7 @@ class TextLayer {
 }
 
 const page = (n: number) => ({
-  getViewport: ({ scale }: { scale: number }) => ({ width: 595 * scale, height: 842 * scale, scale }),
+  getViewport: ({ scale }: { scale: number }) => ({ width: 595 * scale, height: 842 * scale, scale, convertToPdfPoint: (x: number, y: number) => [x / scale, 842 - y / scale] }),
   render: () => ({ promise: Promise.resolve(), cancel() {} }),
   streamTextContent: () => ({ page: n }),
   getTextContent: async () => ({ items: [{ str: `Page ${n} hippopotame`, hasEOL: false }] }),
@@ -29,11 +29,15 @@ const page = (n: number) => ({
 
 const pdfjs = {
   TextLayer,
+  AnnotationEditorType: { INK: 15 },
   getDocument: ({ data: _, ...options }: Record<string, unknown>) => ((etatFaux.options = options), {
     promise: Promise.resolve({
       numPages: etatFaux.pages,
       getPage: async (n: number) => page(n),
       destroy: async () => void etatFaux.detruits++,
+      // L'enregistrement avec annotations (« Télécharger avec les annotations ») : on retient ce qu'on lui confie.
+      annotationStorage: { setValue: (_cle: string, valeur: unknown) => void etatFaux.annotations.push(valeur) },
+      saveDocument: async () => new Uint8Array([37, 80, 68, 70, 45]),
     }),
     destroy: async () => {},
   }),

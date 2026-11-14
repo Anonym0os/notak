@@ -5,6 +5,7 @@ import { adressePour } from '../adresse'
 import { estMobile, vibrer } from '../appareil'
 import { dansCoque, estBureau } from '../bureau'
 import { ouvrirAilleursAvecAvis } from '../bureau/ailleurs'
+import { choisirEmplacement } from '../enregistrer'
 import { DialogueAcces } from '../bureau/FormulaireAcces'
 import { ouvrirDialogueAcces } from '../bureau/etat'
 import { suivreFichiersOuverts } from '../bureau/ouverts'
@@ -146,6 +147,8 @@ function Espace({ el }: { el: EspaceLocal }) {
       // fichier s'y ouvre dans l'application du système, ou se propose à l'enregistrement.
       // Une toile glissée sur une autre y est rangée : l'index le note (la bibliothèque le lit aussi dans les cartes).
       toileRangee: (toile: Id, dans: Id) => index.declarer(toile, '', dans),
+      // Ce que la toile fabrique (un PDF annoté) s'enregistre comme un export : « Enregistrer sous », ou la feuille de partage.
+      choisirEmplacement,
       ...(estMobile() ? { vibrer: () => vibrer() } : {}),
       ...(estBureau()
         ? { ouvrirAilleurs: (adresse: string, nom?: string) => ouvrirAilleursAvecAvis(adresse, nom, alerter) }

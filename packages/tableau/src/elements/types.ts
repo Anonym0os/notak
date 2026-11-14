@@ -137,6 +137,13 @@ export interface Services {
    * « Enregistrer sous ». `nom` : le nom que le fichier porte. Absent, les éléments gardent leur façon d'ouvrir (un onglet).
    */
   ouvrirAilleurs?: (adresse: string, nom?: string) => void
+  /**
+   * Où enregistrer un fichier que la toile fabrique (le PDF annoté) : « Enregistrer sous » de l'app de bureau ou du
+   * navigateur, la feuille de partage d'un iPhone, sinon un téléchargement. À demander au clic, avant de fabriquer le
+   * fichier : la fenêtre du système n'en veut plus après une longue attente. `null` : la personne a renoncé. Absent, la
+   * toile télécharge elle-même.
+   */
+  choisirEmplacement?(f: { nom: string; extension: string; type: string; description: string }): Promise<{ nom: string; ecrire(fichier: Blob): Promise<void> } | null>
   /** Le tableau d'un renvoi (titre, couleur, contenu), ou `undefined` s'il n'existe pas. */
   tableau?(id: Id): Tableau | undefined
   /** Prévenu à chaque changement de n'importe quel tableau de l'espace. */
