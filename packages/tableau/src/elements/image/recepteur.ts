@@ -2,7 +2,7 @@ import { type Element, type Id, type Image as ContenuImage, type Operation, nouv
 import type { Magasin } from '../../coeur/magasin'
 import { commencerEnvoi, fichierRecu } from '../envois'
 import { COTE_APERCU, aUnApercu, enApercu, lireDimensions, lireReduite, lireTransparence, viderToile } from './lecture'
-import { lirePalette } from './palette'
+import { lirePalette, paletteDe } from './palette'
 import type { ContexteToile, DepotFichiers } from '../types'
 import { annoncer } from '../../avis'
 import { imageARemplacer } from './survolDepot'
@@ -136,19 +136,18 @@ function envoyer(l: Lue, depot: DepotFichiers): { envoi: string; donnerApercu?: 
 }
 
 /**
- * Ce qui se lit d'une photo après sa naissance, une photo après l'autre (chaque lecture décode toute la photo : deux à
- * la fois doubleraient la mémoire) : l'aperçu réduit que sa carte montre le temps de l'envoi, au lieu de l'original qui
+ * Ce qui se lit d'une photo après sa naissance, une photo après l'autre (sa lecture la décode toute : deux à la fois
+ * doubleraient la mémoire) : l'aperçu réduit que sa carte montre le temps de l'envoi, au lieu de l'original qui
  * pèserait 190 Mo une fois décodé pour 48 Mpx ; puis ses couleurs dominantes, qu'elle n'a pas à attendre pour paraître.
  */
 async function lireApresLaPose(posees: Posee[], magasin: Magasin) {
   for (const p of posees) {
-    if (p.donnerApercu) {
-      const reduite = await lireReduite(p.fichier, COTE_APERCU)
-      // Sans aperçu (une photo que le navigateur ne réduit pas), la carte montre le fichier lui-même.
-      p.donnerApercu(reduite && (await enApercu(reduite, p.transparente)))
-      if (reduite) viderToile(reduite)
-    }
-    const couleurs = await lirePalette(p.fichier)
+    const reduite = p.donnerApercu ? await lireReduite(p.fichier, COTE_APERCU) : null
+    // Sans aperçu (une photo que le navigateur ne réduit pas), la carte montre le fichier lui-même.
+    p.donnerApercu?.(reduite && (await enApercu(reduite, p.transparente)))
+    // Les couleurs se lisent sur la même copie réduite : la photo n'est décodée qu'une fois.
+    const couleurs = reduite ? paletteDe(reduite) : await lirePalette(p.fichier)
+    if (reduite) viderToile(reduite)
     if (couleurs.length > 0) poserCouleurs(p, couleurs, magasin)
   }
 }

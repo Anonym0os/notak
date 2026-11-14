@@ -10,7 +10,7 @@ const avis = vi.hoisted(() => ({ annonces: [] as string[] }))
 vi.mock('../../avis', () => ({ annoncer: (a: { texte: string }) => void avis.annonces.push(a.texte) }))
 // Les couleurs demandent un vrai décodage : ici, chaque image en a une, quand `palette.lue` le permet.
 const palette = vi.hoisted(() => ({ lue: Promise.resolve() }))
-vi.mock('./palette', () => ({ lirePalette: vi.fn(async () => (await palette.lue, ['#aa0000'])) }))
+vi.mock('./palette', () => ({ lirePalette: vi.fn(async () => (await palette.lue, ['#aa0000'])), paletteDe: vi.fn(() => ['#aa0000']) }))
 // Réduire une photo demande une vraie toile : ici, la copie réduite est un objet, et son aperçu un petit fichier.
 const reduction = vi.hoisted(() => ({ lues: [] as { taille: number; cote: number }[] }))
 vi.mock('./lecture', async (original) => ({
@@ -23,6 +23,7 @@ vi.mock('./lecture', async (original) => ({
 const { recevoirImages, remplacerImage } = await import('./recepteur')
 const { copieLocale } = await import('../envois')
 const { COTE_APERCU } = await import('./lecture')
+const { lirePalette, paletteDe } = await import('./palette')
 
 /** Les couleurs ne se lisent qu'à l'appel de la fonction rendue. */
 function retenirCouleurs() {
@@ -125,6 +126,19 @@ describe('recevoirImages', () => {
     expect(montrees.get(copieLocale(g!.contenu.fichier)!)!.size).toBe(new Blob(['aperçu']).size)
     expect(reduction.lues).toEqual([{ taille: grande.size, cote: COTE_APERCU }])
     vi.mocked(URL.createObjectURL).mockRestore()
+  })
+
+  it('les couleurs d’une grande photo se lisent sur sa copie réduite : elle n’est décodée qu’une fois', async () => {
+    reduction.lues = []
+    vi.mocked(lirePalette).mockClear()
+    const { ctx, magasin } = contexte()
+    const grande = fichier(jpeg(8064, 6048), 'IMG_0048.jpg', 'image/jpeg', 4000)
+    const ops = (await recevoirImages(recus(grande), { x: 0, y: 0 }, ctx))!
+    magasin.faire(ops)
+    await vi.waitFor(() => expect(couleursDe(magasin, crees(ops)[0]!.id)).toEqual(['#aa0000']))
+    expect(vi.mocked(paletteDe)).toHaveBeenCalledWith({ toile: grande.size })
+    expect(lirePalette).not.toHaveBeenCalled()
+    expect(reduction.lues).toHaveLength(1)
   })
 
   it('laisse les fichiers qui ne sont pas des images au récepteur des fichiers', () => {

@@ -1,3 +1,5 @@
+import { viderToile } from './lecture'
+
 /** Combien de couleurs on garde au plus, et le côté de la copie sur laquelle on les lit. */
 export const COULEURS_MAX = 10
 const COTE_PALETTE = 96
@@ -34,25 +36,46 @@ export function paletteDePixels(pixels: ArrayLike<number>, max = COULEURS_MAX): 
     .map((c) => `#${hex(Math.round(c.r / c.n))}${hex(Math.round(c.v / c.n))}${hex(Math.round(c.b / c.n))}`)
 }
 
-/** Les couleurs dominantes d'une image, lues sur une copie réduite ; vide si elle ne se lit pas. */
-export async function lirePalette(fichier: Blob): Promise<string[]> {
-  const adresse = URL.createObjectURL(fichier)
+/**
+ * Les couleurs dominantes d'une image déjà décodée, lues sur une copie de 96 px de côté au plus. Pour une grande photo,
+ * c'est la copie de 1024 px faite pour la montrer pendant l'envoi : la photo n'est ni décodée une seconde fois (190 Mo
+ * pour 48 Mpx), ni redessinée en entier (240 ms du fil principal), pour 2 ms.
+ */
+export function paletteDe(image: HTMLCanvasElement | HTMLImageElement): string[] {
+  const balise = 'naturalWidth' in image
+  const [l, h] = balise ? [image.naturalWidth || 300, image.naturalHeight || 150] : [image.width, image.height]
+  const k = Math.min(1, COTE_PALETTE / Math.max(l, h))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(l * k))
+  canvas.height = Math.max(1, Math.round(h * k))
   try {
-    const img = new Image()
-    img.src = adresse
-    await img.decode()
-    const [l, h] = [img.naturalWidth || 300, img.naturalHeight || 150]
-    const k = Math.min(1, COTE_PALETTE / Math.max(l, h))
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.max(1, Math.round(l * k))
-    canvas.height = Math.max(1, Math.round(h * k))
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) return []
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+    // Depuis une copie, le lissage fin rend presque les couleurs qu'on lisait sur la photo entière : les plus présentes
+    // à quelques niveaux près sur 256 ; celles de la fin de liste, presque à égalité, peuvent changer de rang ou de
+    // teinte. Une balise `img` (une petite image, lue telle quelle) se lit comme avant.
+    if (!balise) ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
     return paletteDePixels(ctx.getImageData(0, 0, canvas.width, canvas.height).data)
   } catch {
     return []
   } finally {
-    URL.revokeObjectURL(adresse)
+    viderToile(canvas)
+  }
+}
+
+/** Les couleurs dominantes d'un fichier qu'on n'a pas réduit (une petite image, un GIF) ; vide s'il ne se lit pas. */
+export async function lirePalette(fichier: Blob): Promise<string[]> {
+  let adresse: string | null = null
+  try {
+    adresse = URL.createObjectURL(fichier)
+    const img = new Image()
+    img.src = adresse
+    await img.decode()
+    return paletteDe(img)
+  } catch {
+    return []
+  } finally {
+    if (adresse) URL.revokeObjectURL(adresse)
   }
 }
