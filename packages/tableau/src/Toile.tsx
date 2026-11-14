@@ -79,6 +79,7 @@ import type { CibleBord } from './coeur/pointeurs'
 import { lignesDeTrace } from './trace'
 import { personneAJour } from './personne'
 import { usePublierVue } from './vueZoom'
+import { clicEcrit, ouvreMalgreEdition } from './ouvertureAuDoubleClic'
 import { chiffreDe, lettreDe, parAltGr, signeParmi } from './touches'
 
 type Geste =
@@ -549,6 +550,13 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   // Au doigt, deux touchers rapides sur le vide valent un double-clic (`appui`) : le premier, et l'heure du double.
   const toucher = useRef<{ instant: number; x: number; y: number } | null>(null)
   const doubleTouche = useRef(-Infinity)
+  // Les appuis sur la toile, comptés avant que quiconque les arrête (un champ, une légende), et leur nombre quand
+  // l'écriture en cours s'est ouverte : le double-clic qui l'a ouverte lui-même s'en distingue (`ouvertureAuDoubleClic`).
+  // Le dernier appui sert au second toucher d'un double toucher qui tombe dans cette écriture (`compterAppui`).
+  const appuis = useRef(0)
+  const appuisAOuverture = useRef(0)
+  const clicQuiEcrit = useRef<{ id: Id; ou: Point } | null>(null)
+  const appuiDernier = useRef<{ instant: number; x: number; y: number; doigt: boolean } | null>(null)
   const [anime, setAnime] = useState(false)
   const [enGeste, setEnGeste] = useState(false)
   // Un geste qui laisse les barres telles qu'avant l'appui : la toile qu'on déplace (bouton du milieu, Espace) ne
@@ -939,6 +947,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       brouillon.current = null
       pousses.current = []
       pointEdition.current = ou ?? null
+      appuisAOuverture.current = appuis.current
       setSelection(new Set([id]))
       setEdition(id)
     },
@@ -2660,6 +2669,39 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     return { tiree: cam.detendre(cameraVive.current ?? etat.current.camera, mesure, etat.current.vue), contenu: mesure }
   }
 
+  /**
+   * Chaque appui est compté avant d'arriver à sa cible, qui peut l'arrêter (un champ, une légende) : voir `appuis`. Au
+   * doigt, le second toucher d'un double toucher qui tombe dans l'élément qu'on écrit l'ouvre ici, comme le double-clic
+   * quand il l'ouvrirait (la légende que le premier toucher vient d'ouvrir) : le champ touché ne le laisserait pas passer.
+   */
+  const compterAppui = (e: React.PointerEvent) => {
+    clicQuiEcrit.current = null
+    appuis.current++
+    const avant = appuiDernier.current
+    appuiDernier.current = { instant: e.timeStamp, x: e.clientX, y: e.clientY, doigt: e.pointerType === 'touch' }
+    if (e.pointerType !== 'touch' || e.button !== 0 || !avant?.doigt || !dansEdition(racine.current, e.target)) return
+    if (e.timeStamp - avant.instant >= DOUBLE_TOUCHER_MS || Math.hypot(e.clientX - avant.x, e.clientY - avant.y) >= DOUBLE_TOUCHER_PX) return
+    const el = tableau.elements.find((x) => x.id === sous(e.target))
+    if (!el || !ouvreMalgreEdition(definition(el.contenu.type), e.target, appuis.current - appuisAOuverture.current)) return
+    e.stopPropagation()
+    e.preventDefault()
+    toucher.current = null
+    doubleClic(e)
+    doubleTouche.current = e.timeStamp
+  }
+
+  /**
+   * Le clic qui ouvre l'écriture d'une image, d'un fichier ou d'un lien choisis, sur leur légende ou leur nom. Ouverte au
+   * relâchement du second clic d'un double-clic, elle remplaçait le champ sous le pointeur : le navigateur, qui ne
+   * retrouve plus où l'appui a commencé, n'envoyait alors ni ce clic ni le double-clic, et l'élément ne s'ouvrait pas.
+   * Le clic, lui, dit son rang (`detail`) : le second d'un double-clic laisse le double-clic ouvrir l'élément.
+   */
+  const ecrireAuClic = (e: React.MouseEvent) => {
+    const c = clicQuiEcrit.current
+    clicQuiEcrit.current = null
+    if (c && e.detail < 2) commencerEdition(c.id, c.ou)
+  }
+
   const appui = (e: React.PointerEvent) => {
     // Un appui reprend la vue, comme un doigt posé sur une liste d'iOS qui revient de son bord : le retour s'arrête là.
     arreterRetour()
@@ -3466,8 +3508,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (!r) return
       const el = tableau.elements.find((x) => x.id === r.id)
       const surTitre = el?.contenu.type !== 'colonne' || !!document.elementFromPoint(r.ou.x, r.ou.y)?.closest('.notak-colonne-titre')
-      if (r.seul && el && !lectureSeule && surTitre && defEcrite(el, tableau)?.editable && !definition(el.contenu.type)?.ouvreAuDoubleClic && e.type === 'pointerup') commencerEdition(r.id, r.ou)
-      else setSelection(new Set([r.id]))
+      // Une image, un fichier, un lien ne s'écrivent que sur un de leurs champs (leur légende, leur nom) : un clic
+      // ailleurs les laisse choisis, et le double-clic les ouvre sans qu'une écriture ouverte au premier clic le prenne.
+      const def = el ? definition(el.contenu.type) : undefined
+      const surChamp = clicEcrit(def, document.elementFromPoint(r.ou.x, r.ou.y))
+      if (r.seul && el && !lectureSeule && surTitre && surChamp && defEcrite(el, tableau)?.editable && !def?.ouvreAuDoubleClic && e.type === 'pointerup') {
+        // À la souris, leur écriture attend le clic, qui sait s'il est le second d'un double-clic (`ecrireAuClic`).
+        if (def?.ecritSurPlace && e.pointerType !== 'touch') clicQuiEcrit.current = { id: r.id, ou: r.ou }
+        else commencerEdition(r.id, r.ou)
+      } else setSelection(new Set([r.id]))
       return
     }
     // On aimante maintenant : chaque élément tombe sur la case de grille la plus proche du déplacement voulu.
@@ -3529,11 +3578,12 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (e.type === 'dblclick' && e.timeStamp - doubleTouche.current < 600) return
     // DESSIN-LIBRE : sous la couche de dessin, la toile ne fait rien (pas de note, pas d'ouverture).
     if (toileSuspendue(racine.current)) return
-    if (dansEdition(racine.current, e.target)) return
-    // Une partie de l'élément qui a son double-clic à elle (l'aperçu d'un lien en « média seul »).
-    const touche = document.elementFromPoint(e.clientX, e.clientY)
-    const porteur = tableau.elements.find((x) => x.id === sous(touche))
-    if (porteur && definition(porteur.contenu.type)?.surDoubleClic?.(porteur as never, touche as HTMLElement | null, contexte)) return
+    // Dans l'élément qu'on écrit, le double-clic choisit un mot ; sauf pour un élément qui s'écrit sur place (une image,
+    // un fichier) : il l'ouvre, à moins de tomber dans le champ où le curseur était déjà (`ouvertureAuDoubleClic`).
+    if (dansEdition(racine.current, e.target)) {
+      const ecrit = tableau.elements.find((x) => x.id === sous(e.target))
+      if (!ecrit || !ouvreMalgreEdition(definition(ecrit.contenu.type), e.target, appuis.current - appuisAOuverture.current)) return
+    }
     if (lectureSeule) {
       const el = tableau.elements.find((x) => x.id === sous(document.elementFromPoint(e.clientX, e.clientY)))
       const ouvrir = el && definition(el.contenu.type)?.ouvrir
@@ -3577,9 +3627,13 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         }
         return
       }
-      const ouvrir = el && definition(el.contenu.type)?.ouvrir
+      const def = el && definition(el.contenu.type)
+      const ouvrir = def?.ouvrir
       if (el?.contenu.type === 'colonne' && !document.elementFromPoint(e.clientX, e.clientY)?.closest('.notak-colonne-tete')) return noteDansColonne(el, e.clientY)
-      return ouvrir ? ouvrir(el, contexte) : commencerEdition(id, point(e.clientX, e.clientY))
+      // L'écriture ouverte sur lui (par le premier clic de ce double-clic, sur la légende d'un fichier choisi, ou bien
+      // avant) se referme : c'est l'élément qu'on ouvre, et rien ne reste à écrire dessous.
+      if (el && ouvrir && def.ecritSurPlace && etat.current.edition === el.id) finirEdition()
+      return el && ouvrir ? ouvrir(el, contexte) : commencerEdition(id, point(e.clientX, e.clientY))
     }
     if (services.doubleClicCreeNote === false) return
     const [x, y] = aimanter(cam.versTableau(camera, local(e)))
@@ -3726,8 +3780,12 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       style={styleRacine}
       onKeyDown={clavier}
       onKeyUp={relacherEspace}
-      onClickCapture={rendreLeClavier}
+      onClickCapture={(e) => {
+        rendreLeClavier()
+        ecrireAuClic(e)
+      }}
       onBlur={() => setEspace(false)}
+      onPointerDownCapture={compterAppui}
       onPointerDown={appui}
       onPointerMove={mouvement}
       onPointerUp={relache}

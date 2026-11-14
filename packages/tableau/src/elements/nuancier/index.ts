@@ -20,6 +20,8 @@ registre.type<Nuancier>({
   // Comme Milanote : le double-clic ouvre le sélecteur de couleur du système (Entrée écrit le code, un clic sur le code d'un nuancier choisi aussi).
   ouvreAuDoubleClic: true,
   ouvrir: (element, contexte) => ouvrirSelecteur(element, contexte),
+  // Son code et sa légende s'écrivent d'un clic ; le double-clic, même sur eux, ouvre le sélecteur.
+  ecritSurPlace: true,
   aLaCreation: 'rien',
   // Sans légende, l'aplat seul ; avec, un cadre blanc dont l'aplat est la partie haute.
   sansFond: (c) => !c.avecLegende,

@@ -12,6 +12,7 @@ import { t } from '../../langue'
 import { ico } from '../../icones'
 import { couleurDuContenu } from '../couleur'
 import { OutilCouleurCarte } from '../couleur/OutilCouleurCarte'
+import type { ContexteToile } from '../types'
 
 /** Le fantôme des outils d'envoi : une carte de fichier sans fichier. */
 const fantome = (nom: string, typeMime: string) => ({
@@ -40,8 +41,10 @@ registre.type<Fichier>({
   largeurMin: 4,
   sansFond: (c) => !!c.icone,
   sansPoignee: (c) => !!c.icone || !!c.sansApercu || (apercuDe(c.nom, c.typeMime, false) === null && lisible(c.typeMime) === null),
-  // Le double-clic montre le fichier dans sa fenêtre : un PDF ou un texte se lit, le reste s'agrandit.
+  // Le double-clic montre le fichier dans sa fenêtre : un PDF ou un texte se lit, le reste s'agrandit. Où qu'il tombe,
+  // son nom et sa légende compris : on les écrit d'un clic sur eux, le fichier déjà choisi.
   ouvrir: (e) => ouvrirFenetreFichier(e.id),
+  ecritSurPlace: true,
   surFrappe: (e, caractere, contexte) => {
     if (contexte.services.lectureSeule || e.contenu.icone || e.contenu.sansInfos) return false
     viserEdition('legende')
@@ -129,4 +132,28 @@ registre.entreeMenu({
   },
   visible: (els) => els.length === 1 && els[0]!.contenu.type === 'fichier',
   faire: ([e], contexte) => e?.contenu.type === 'fichier' && void copierLienFichier(e.contenu, contexte),
+})
+
+/** Le fichier seul choisi, en carte avec ses infos, dont on peut écrire la légende. */
+const legendable = (els: Element[], contexte: ContexteToile) => {
+  const c = els.length === 1 && els[0]!.contenu.type === 'fichier' ? els[0]!.contenu : null
+  return !!c && !contexte.services.lectureSeule && !c.icone && !c.sansInfos
+}
+
+// « Légende » au clic droit, comme la tuile de la barre : on l'écrit là, ou d'un clic sur elle (le fichier choisi),
+// puisque le double-clic, lui, ouvre le fichier. Le registre fond deux entrées du même nom en une : celles de l'image
+// (« Ajouter une légende », « Modifier la légende ») gardent les leurs.
+registre.entreeMenu({
+  icone: 'legende',
+  get libelle() {
+    return t('note.legende')
+  },
+  tuile: true,
+  faitParSaTuile: true,
+  visible: legendable,
+  faire: ([e], contexte) => {
+    if (!e) return
+    viserEdition('legende')
+    contexte.commencerEdition(e.id)
+  },
 })

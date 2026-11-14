@@ -9,7 +9,7 @@ import { Icone } from '../../icones'
 import { BoutonOutil } from '../../BoutonOutil'
 import { LecteurSon, LecteurVideo } from './lecteur'
 import { ModaleFichier } from './ModaleFichier'
-import { ouvrirDehors, ouvrirFenetreFichier, prendreAmorce, prendreCible, useFichierOuvert, viserEdition } from './ouverture'
+import { type CibleEdition, ouvrirDehors, ouvrirFenetreFichier, prendreAmorce, prendreCible, useFichierOuvert, viserEdition } from './ouverture'
 import { useApercuPdf } from './apercuPdf'
 
 /** La largeur d'un fichier en icône (une feuille et son nom) et d'une carte détaillée, en UG. */
@@ -17,6 +17,11 @@ export const LARGEUR_ICONE = 10
 export const LARGEUR_CARTE = 34
 
 const sansTitre = ({ titre: _, ...reste }: Fichier): Fichier => reste
+/** Le champ de la carte (le nom, la légende) sous le point du clic qui a ouvert l'édition. */
+function champSousPoint(ou: { x: number; y: number } | null): CibleEdition | null {
+  const champ = ou && document.elementFromPoint(ou.x, ou.y)?.closest<HTMLElement>('[data-ecrire]')?.dataset.ecrire
+  return champ === 'nom' || champ === 'legende' ? champ : null
+}
 /** Les liens et les lecteurs de la carte ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
 
@@ -50,8 +55,9 @@ export function RenduFichier({ element, enEdition, contexte, brouillon }: PropsR
   const sansApercuDispo =
     !c.icone && !c.sansApercu && !lecteur && ((!apercu && aApercuAbsent(c.nom, c.typeMime)) || (apercu === 'pdf' && adresse !== undefined && pdf.etat === 'manque'))
   const ouvrable = seLitEnLigne(c.nom, c.typeMime)
-  // « Renommer » et « Légende » ouvrent la même édition ; la cible dit où poser le curseur.
-  const cible = useMemo(() => (enEdition ? prendreCible() : 'nom'), [enEdition])
+  // « Renommer » et « Légende » ouvrent la même édition ; la cible dit où poser le curseur. Ouverte d'un clic sur le
+  // fichier choisi, elle suit le champ cliqué : le nom, ou la légende.
+  const cible = useMemo(() => (enEdition ? (prendreCible() ?? champSousPoint(contexte.prendrePointEdition()) ?? 'nom') : 'nom'), [enEdition, contexte])
 
   const tailleEtat = (
     <>
@@ -68,7 +74,7 @@ export function RenduFichier({ element, enEdition, contexte, brouillon }: PropsR
   const titre = enEdition ? (
     <Nom contenu={c} ecrire={brouillon} finir={contexte.finirEdition} focus={cible === 'nom'} />
   ) : (
-    <span className="notak-fichier-nom" title={c.titre && c.titre !== c.nom ? `${c.titre}\n${c.nom}` : c.nom}>
+    <span className="notak-fichier-nom" data-ecrire="nom" title={c.titre && c.titre !== c.nom ? `${c.titre}\n${c.nom}` : c.nom}>
       {c.titre ?? c.nom}
     </span>
   )
@@ -148,7 +154,11 @@ export function RenduFichier({ element, enEdition, contexte, brouillon }: PropsR
             (enEdition ? (
               <Legende contenu={c} ecrire={brouillon} finir={contexte.finirEdition} focus={cible === 'legende'} />
             ) : (
-              c.legende && <div className="notak-fichier-legende">{c.legende}</div>
+              c.legende && (
+                <div className="notak-fichier-legende" data-ecrire="legende">
+                  {c.legende}
+                </div>
+              )
             ))}
         </>
       )}

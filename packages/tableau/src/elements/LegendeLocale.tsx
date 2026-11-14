@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { t } from '../langue'
 import { BoutonOutil } from '../BoutonOutil'
 import type { Contenu } from '../coeur/tableau'
@@ -7,16 +7,27 @@ import type { PropsOutils } from './types'
 /**
  * La légende d'une carte (croquis, document en vue carte) : un texte sous la carte. Choisie, un clic sur la légende
  * l'écrit sur place ; Entrée ou un appui ailleurs valide, Échap laisse. Le texte part d'un seul pas à la validation.
+ *
+ * Le double-clic, lui, ouvre la carte, légende comprise : le second clic d'un double-clic n'écrit rien, et le double-clic
+ * dont le premier clic vient d'ouvrir le champ le referme et passe à la toile. Seul le champ où l'on écrivait déjà le
+ * garde, pour y choisir un mot.
  */
 export function LegendeLocale({ texte, choisie, modifiable, valider, classe }: { texte: string; choisie: boolean; modifiable: boolean; valider(texte: string): void; classe: string }) {
   const [edition, setEdition] = useState(false)
+  // Les appuis dans le champ depuis qu'il s'est ouvert : au plus un, le double-clic est celui qui l'a ouvert.
+  const appuis = useRef(0)
   if (!edition) {
     return (
       <p
         className={classe}
         data-vide={texte ? undefined : ''}
+        data-ecrire="legende"
         onPointerDown={(e) => choisie && modifiable && e.stopPropagation()}
-        onClick={() => choisie && modifiable && setEdition(true)}
+        onClick={(e) => {
+          if (!choisie || !modifiable || e.detail > 1) return
+          appuis.current = 0
+          setEdition(true)
+        }}
       >
         {texte || t('note.legende')}
       </p>
@@ -36,8 +47,15 @@ export function LegendeLocale({ texte, choisie, modifiable, valider, classe }: {
         c.style.height = `${c.scrollHeight}px`
       }}
       onFocus={(e) => e.currentTarget.setSelectionRange(e.currentTarget.value.length, e.currentTarget.value.length)}
-      onPointerDown={(e) => e.stopPropagation()}
-      onDoubleClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => {
+        appuis.current++
+        e.stopPropagation()
+      }}
+      onDoubleClick={(e) => {
+        if (appuis.current > 1) return e.stopPropagation()
+        // Le premier clic de ce double-clic a ouvert le champ : il se referme, et la toile ouvre la carte.
+        e.currentTarget.blur()
+      }}
       onInput={(e) => {
         e.currentTarget.style.height = 'auto'
         e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`

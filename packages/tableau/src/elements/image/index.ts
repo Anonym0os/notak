@@ -28,8 +28,10 @@ registre.type<Image>({
   OutilsApres: OutilsImage,
   OutilsFin: OutilsFinImage,
   editable: true,
-  // Le double-clic, Entrée et Espace la montrent en grand ; taper dessus commence sa légende.
+  // Le double-clic, Entrée et Espace la montrent en grand, légende comprise ; taper dessus commence sa légende, un
+  // clic sur sa légende (l'image choisie) l'écrit.
   ouvrir: (e) => ouvrirImage(e.id),
+  ecritSurPlace: true,
   entreeOuvre: true,
   surFrappe: (_e, caractere, contexte) => {
     if (contexte.services.lectureSeule) return false

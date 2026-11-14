@@ -328,6 +328,13 @@ export interface TypeElement<C extends Contenu = Contenu> {
    * dans son menu. Entrée appelle `surEntree` s'il existe (renommer un document), sinon elle ouvre.
    */
   ouvreAuDoubleClic?: boolean
+  /**
+   * L'édition n'écrit que des champs posés sur la carte (le nom d'un fichier, la légende d'une image, le titre d'un
+   * lien, le code d'un nuancier) ; ouvrir l'élément est autre chose (`ouvrir`). Le double-clic l'ouvre alors où qu'il
+   * tombe, légende comprise, et même pendant qu'on l'écrit : seul le champ où le curseur était déjà garde le
+   * double-clic, qui y choisit un mot. Choisi, un clic ne l'écrit que sur un de ses champs (`data-ecrire`), pas ailleurs.
+   */
+  ecritSurPlace?: boolean
   surEntree?(element: Element<C>, contexte: ContexteToile): void
   /* `surFrappe` (plus haut) peut aussi tout faire lui-même et ne rien rendre : un document s'ouvre avec ce caractère. */
   /** L'élément dont l'édition de celui-ci écrit le texte (un clone : son original) ; `null` si rien ne s'écrit. Absent : lui-même. */
@@ -366,11 +373,6 @@ export interface TypeElement<C extends Contenu = Contenu> {
   tirerPoignee?(element: Element<C>, largeurTiree: number, dHauteurUG: number): { largeur: number; contenu: C }
   /** Largeur maximale quand on redimensionne, en UG (une image d'aperçu ne s'étire pas au-delà de sa taille d'origine) ; `undefined` : aucune. */
   largeurMax?(c: C): number | undefined
-  /**
-   * Le double-clic touche une partie précise de l'élément (`cible` : le nœud sous le pointeur) qui a son geste à elle
-   * (l'aperçu d'un lien en « média seul » ouvre l'adresse). Rend vrai s'il l'a pris : la toile n'édite alors rien.
-   */
-  surDoubleClic?(element: Element<C>, cible: HTMLElement | null, contexte: ContexteToile): boolean
   /** Largeur sur hauteur d'un média : la poignée garde ces proportions (Cmd les libère). */
   proportion?(c: C): number
   /**

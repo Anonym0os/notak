@@ -29,18 +29,18 @@ export const useFichierOuvert = () => useSyncExternalStore(ecouter, () => ouvert
 
 /**
  * Ce que « Renommer » et « Légende » visent en ouvrant l'édition de la carte : le nom ou la légende. La carte lit
- * la cible une fois, à l'ouverture de l'édition.
+ * la cible une fois, à l'ouverture de l'édition ; sans cible visée (`null`), elle prend le champ cliqué, sinon le nom.
  */
 export type CibleEdition = 'nom' | 'legende'
-let cible: CibleEdition = 'nom'
+let cible: CibleEdition | null = null
 
 export const viserEdition = (c: CibleEdition) => {
   cible = c
 }
 
-export function prendreCible(): CibleEdition {
+export function prendreCible(): CibleEdition | null {
   const c = cible
-  cible = 'nom'
+  cible = null
   return c
 }
 

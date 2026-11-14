@@ -5,7 +5,7 @@ import { type Element, nouvelId } from '../../coeur/tableau'
 import { estUnDepotToile, registre } from '../registre'
 import { TYPES_ACCEPTES } from '../image/geometrie'
 import { adresseSure, lireAdresse } from './adresse'
-import { LARGEUR_MEDIA_SEUL, largeurMaxLien, largeurOrigineLien, largeurMinLien, mediaSeul, proportionLien } from './affichage'
+import { LARGEUR_MEDIA_SEUL, largeurMaxLien, largeurOrigineLien, largeurMinLien, proportionLien } from './affichage'
 import { choisirImageApercu, estVideo, imageMontree, lienSous, poserImageApercu } from './imageApercu'
 import { lireRaccourci } from './raccourciUrl'
 import { RenduLien, amorcerLegendeLien, legendeAEditer, titreDuLien } from './Lien'
@@ -62,14 +62,15 @@ registre.type<Lien>({
     amorcerLegendeLien(caractere)
     return true
   },
-  // En « média seul », le double-clic sur l'aperçu ouvre l'adresse dans un nouvel onglet (pas en présentation).
-  surDoubleClic(e, cible, contexte) {
-    if (contexte.services.presentation || !e.contenu.url || !cible?.closest('.notak-lien-media')) return false
-    if (!mediaSeul(e.contenu, e.parent ? undefined : e.largeur)) return false
-    const url = adresseSure(e.contenu.url)
-    if (url) window.open(url, '_blank', 'noopener,noreferrer')
-    return true
+  // Le double-clic ouvre la page dans un nouvel onglet (pas en présentation), où qu'il tombe : l'aperçu, le titre, la
+  // légende. On écrit le titre ou la légende d'un clic sur eux, le lien déjà choisi. Un lien sans aperçu (l'adresse à
+  // taper, ou manquée) n'a pas de page à ouvrir : il s'écrit.
+  ouvrir(e, contexte) {
+    const url = e.contenu.statut === 'pret' ? adresseSure(e.contenu.url) : undefined
+    if (!url) return contexte.commencerEdition(e.id)
+    if (!contexte.services.presentation) window.open(url, '_blank', 'noopener,noreferrer')
   },
+  ecritSurPlace: true,
   Outils: OutilCouleurCarte,
   // La couleur est une barre de 5 px en haut de la carte (le fond reste blanc), pas une teinte.
   couleur: couleurDuContenu<Lien>(),

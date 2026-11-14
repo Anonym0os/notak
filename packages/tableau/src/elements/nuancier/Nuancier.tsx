@@ -8,7 +8,10 @@ import { langue, t } from '../../langue'
 import { BoutonOutil, OutilAvecMenu } from '../../BoutonOutil'
 import { useMenu } from '../../menuUnique'
 
-/** Les champs de la carte ne lancent pas de glisser. */
+/**
+ * Les champs de la carte ne lancent pas de glisser. Leur double-clic va à la toile : il y choisit un mot si le curseur
+ * y était déjà, il ouvre le sélecteur sinon (`ouvertureAuDoubleClic`).
+ */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
 
 /** Ce que l'édition doit viser en premier : le code (par défaut) ou la légende, quand on a cliqué dessus. */
@@ -29,9 +32,11 @@ export function RenduNuancier({ element, choisie, seule, enEdition, contexte, br
         {montrer && (enEdition ? <CodeEnPlace contenu={c} ecrire={brouillon} finir={contexte.finirEdition} focus={but === 'code'} /> : <span
             className="notak-nuancier-code"
             // Le code d'un nuancier choisi seul s'écrit d'un clic ; ailleurs un appui le glisse comme le reste.
+            data-ecrire="code"
             onPointerDown={(e) => seule && modifiable && e.stopPropagation()}
-            onClick={() => {
-              if (!seule || !modifiable) return
+            onClick={(e) => {
+              // Le second clic d'un double-clic n'écrit rien : le double-clic ouvre le sélecteur, sur le code aussi.
+              if (!seule || !modifiable || e.detail > 1) return
               viser = 'code'
               contexte.commencerEdition(element.id)
             }}
@@ -46,9 +51,10 @@ export function RenduNuancier({ element, choisie, seule, enEdition, contexte, br
           <p
             className="notak-nuancier-legende"
             data-vide={c.legende ? undefined : ''}
+            data-ecrire="legende"
             onPointerDown={(e) => choisie && modifiable && e.stopPropagation()}
-            onClick={() => {
-              if (!choisie || !modifiable) return
+            onClick={(e) => {
+              if (!choisie || !modifiable || e.detail > 1) return
               viser = 'legende'
               contexte.commencerEdition(element.id)
             }}
@@ -83,7 +89,6 @@ function LegendeEnPlace({ contenu, ecrire, finir, focus }: { contenu: Nuancier; 
       value={valeur}
       placeholder={t('note.legende')}
       onPointerDown={garder}
-      onDoubleClick={(e) => e.stopPropagation()}
       onChange={(e) => {
         const v = e.target.value.replace(/\n/g, ' ')
         setValeur(v)
@@ -135,7 +140,6 @@ function CodeEnPlace({ contenu, ecrire, finir, focus }: { contenu: Nuancier; ecr
       value={texte}
       data-invalide={analyserCode(texte) ? undefined : ''}
       onPointerDown={garder}
-      onDoubleClick={(e) => e.stopPropagation()}
       onChange={(e) => {
         setTexte(e.target.value)
         const hex = analyserCode(e.target.value)

@@ -119,13 +119,15 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
           valider={contexte.finirEdition}
         />
       ) : (
-        // Une image choisie s'écrit sous le doigt : un clic sur sa légende, ou sur l'invite quand elle n'en a pas.
+        // Une image choisie s'écrit sous le doigt : un clic sur sa légende, ou sur l'invite quand elle n'en a pas. Le
+        // second clic d'un double-clic n'écrit rien : le double-clic ouvre l'image, légende comprise.
         legendeVisible && (
           <p
             className="notak-legende"
             data-vide={contenu.legende ? undefined : ''}
+            data-ecrire="legende"
             onPointerDown={(e) => choisie && e.stopPropagation()}
-            onClick={() => choisie && !contexte.services.lectureSeule && contexte.commencerEdition(element.id)}
+            onClick={(e) => e.detail < 2 && choisie && !contexte.services.lectureSeule && contexte.commencerEdition(element.id)}
           >
             {contenu.legende || t('note.legende')}
           </p>

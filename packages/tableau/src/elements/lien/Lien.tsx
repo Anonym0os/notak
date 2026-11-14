@@ -157,7 +157,8 @@ function Saisie({ element, enEdition, contexte }: PropsRendu<Lien>) {
   }
 
   return (
-    <div className="notak-lien notak-lien-saisie" data-etat={etat}>
+    // Toute la ligne est un champ : le lien choisi, un clic dessus reprend l'adresse.
+    <div className="notak-lien notak-lien-saisie" data-etat={etat} data-ecrire="adresse">
       <span className="notak-lien-icone" aria-hidden="true">
         {etat === 'chargement' ? (
           <span className="notak-lien-chargement" role="status" aria-label={t('lien.chargement')} />
@@ -292,6 +293,8 @@ function Carte({ element, choisie, seule, enEdition, contexte, brouillon }: Prop
       className={classe}
       href={adresseSure(url)}
       title={bulle}
+      // Le titre est un champ : la carte choisie seule, un clic dessus le renomme (le domaine, lui, ouvre la page).
+      data-ecrire={toujours ? undefined : 'titre'}
       target="_blank"
       rel={REL}
       draggable={false}
@@ -349,7 +352,12 @@ function Carte({ element, choisie, seule, enEdition, contexte, brouillon }: Prop
           {partie === 'legende' ? (
             <Champ classe="notak-lien-description" valeur={legende ?? ''} debut={debut} ecrire={(v) => ecrire('legende', v)} finir={contexte.finirEdition} />
           ) : (
-            aff.legende && legende && <div className="notak-lien-description">{legende}</div>
+            aff.legende &&
+            legende && (
+              <div className="notak-lien-description" data-ecrire="legende">
+                {legende}
+              </div>
+            )
           )}
         </div>
       )}
