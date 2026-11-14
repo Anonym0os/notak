@@ -109,7 +109,7 @@ describe('sur un serveur', () => {
     )
   }
 
-  it('prend la forme au doigt : grand titre, réglages, compte et « + », l’accueil en vedette, puis l’accueil en rubriques', async () => {
+  it('prend la forme au doigt : grand titre, réglages, compte et « + », puis l’accueil en rubriques, sans toile d’accueil en vedette', async () => {
     await ouvrir()
     expect(hote.querySelector('.biblio-colonne')).toBeNull()
     expect(hote.querySelector('.biblio-telephone h1')!.textContent).toBe('Bibliothèque')
@@ -118,7 +118,7 @@ describe('sur un serveur', () => {
     expect(actions.querySelector('.essai-avatar')).not.toBeNull()
     // Ni cloche, ni insecte : la barre du bureau reste au bureau.
     expect(hote.querySelector('.essai-cloche')).toBeNull()
-    expect(hote.querySelector('.biblio-locale-vedette')!.textContent).toContain('Silak')
+    expect(hote.querySelector('.biblio-locale-vedette')).toBeNull()
     // « Reprendre », ce qu'on a ouvert, glisse ; sous chaque tuile, la toile qui la porte, sinon quand on l'a ouverte.
     expect(titres('[data-rail]')).toEqual(['Budget', 'Voyage', 'Plan'])
     expect([...hote.querySelectorAll('[data-rail] .biblio-tuile-ou')].map((n) => n.textContent)).toEqual(['Aujourd’hui', 'Aujourd’hui', 'dans Voyage'])
@@ -143,8 +143,6 @@ describe('sur un serveur', () => {
     expect(titres('.biblio-corps')).toEqual(['Plan'])
     act(() => filtre('Tout').click())
     expect([filtre('Tout').getAttribute('aria-pressed'), filtre('Cartes mentales').getAttribute('aria-pressed')]).toEqual(['true', 'false'])
-    act(() => hote.querySelector<HTMLButtonElement>('.biblio-locale-vedette')!.click())
-    expect(location.pathname).toBe('/t/racine')
   })
 
   it('« + » ouvre la feuille de ce qu’on crée, crée sur l’accueil, puis ouvre', async () => {
@@ -200,13 +198,15 @@ describe('sur un serveur', () => {
     expect(fenetres.reglages).toHaveBeenCalledOnce()
   })
 
-  it('au premier passage, une carte de bienvenue ; « C’est parti » ouvre l’accueil, et elle ne revient plus', async () => {
+  it('au premier passage, une carte de bienvenue ; « C’est parti » la referme, sans ouvrir de toile, et elle ne revient plus', async () => {
     await ouvrir()
     const carte = hote.querySelector('.biblio-bienvenue')!
     expect(carte.querySelector('h2')!.textContent).toBe('Vos toiles sur ce serveur')
     expect(carte.querySelectorAll('li')).toHaveLength(3)
+    expect(carte.querySelector('li')!.textContent).toBe('Vos toiles, pages et cartes mentales, juste en dessous : touchez-en une pour l’ouvrir.')
     act(() => carte.querySelector<HTMLButtonElement>('.biblio-bienvenue-partir')!.click())
-    expect(location.pathname).toBe('/t/racine')
+    expect(location.pathname).toBe('/')
+    expect(hote.querySelector('.biblio-bienvenue')).toBeNull()
     expect(localStorage.getItem(CLE_BIENVENUE_SERVEUR)).toBe('1')
     act(() => racine.unmount())
     racine = createRoot(hote)
@@ -273,21 +273,12 @@ describe('sur un serveur', () => {
     expect(hote.querySelector('.biblio-locale-reglages, .biblio-bienvenue')).toBeNull()
   })
 
-  it('sur un ordinateur comme sur un iPad, la toile d’accueil en tête, qu’un clic ouvre ; pas dans un dossier', async () => {
+  it('sur un ordinateur comme sur un iPad, pas de toile d’accueil en tête : la colonne nomme l’espace', async () => {
     ecran('ordinateur')
-    await ouvrir()
-    const vedette = hote.querySelector<HTMLButtonElement>('.biblio-corps .biblio-locale-vedette')!
-    expect(vedette).not.toBeNull()
-    act(() => vedette.click())
-    expect(location.pathname).toBe('/t/racine')
-  })
-
-  it('dans un dossier, sur un ordinateur, pas de toile d’accueil en tête', async () => {
-    ecran('ordinateur')
-    history.replaceState(null, '', '/?dossier=voyage')
     await ouvrir()
     expect(hote.querySelector('.biblio-corps')).not.toBeNull()
     expect(hote.querySelector('.biblio-locale-vedette')).toBeNull()
+    expect(hote.querySelector('.biblio-colonne [data-depot="racine"]')!.textContent).toBe('Mon espace')
   })
 })
 
@@ -307,13 +298,12 @@ describe('dans l’app, sur les toiles de l’appareil', () => {
     return { el, id }
   }
 
-  it('l’accueil en vedette, en tête, s’ouvre au toucher ; ni pastille du stockage ni barre du bureau', async () => {
-    const { el } = await avecUneToile()
+  it('ni toile d’accueil en vedette, ni pastille du stockage, ni barre du bureau : les toiles, tout de suite', async () => {
+    const { id } = await avecUneToile()
     await montrer()
-    await vi.waitFor(() => expect(hote.querySelector('.biblio-locale-vedette')).not.toBeNull())
+    await vi.waitFor(() => expect(hote.querySelector(`[data-cle="${id}/"]`)).not.toBeNull())
+    expect(hote.querySelector('.biblio-locale-vedette')).toBeNull()
     expect(hote.querySelector('.essai-rangement')).toBeNull()
-    act(() => hote.querySelector<HTMLButtonElement>('.biblio-locale-vedette')!.click())
-    expect(location.pathname).toBe(`/t/${el.index.racine()}`)
   })
 
   it('montre les toiles de l’appareil et ouvre celle qu’on touche', async () => {
@@ -356,7 +346,7 @@ describe('dans l’app, sur les toiles de l’appareil', () => {
       const carte = await vi.waitFor(() => hote.querySelector('.biblio-bienvenue')!)
       expect(carte.querySelector('h2')!.textContent).toBe('Bienvenue dans Notak')
       expect(carte.querySelectorAll('li')).toHaveLength(3)
-      expect(carte.textContent).toContain('touchez-la pour l’ouvrir')
+      expect(carte.textContent).toContain('touchez-en une pour l’ouvrir')
       act(() => carte.querySelector<HTMLButtonElement>('.biblio-bienvenue-fermer')!.click())
       expect(hote.querySelector('.biblio-bienvenue')).toBeNull()
       expect(localStorage.getItem(CLE_BIENVENUE)).toBe('1')
@@ -366,11 +356,12 @@ describe('dans l’app, sur les toiles de l’appareil', () => {
       expect(hote.querySelector('.biblio-bienvenue')).toBeNull()
     })
 
-    it('« C’est parti » ouvre la toile d’accueil', async () => {
-      const { el } = await avecUneToile()
+    it('« C’est parti » la referme, sans ouvrir de toile', async () => {
+      await avecUneToile()
       await montrer()
       act(() => hote.querySelector<HTMLButtonElement>('.biblio-bienvenue-partir')!.click())
-      expect(location.pathname).toBe(`/t/${el.index.racine()}`)
+      expect(location.pathname).toBe('/')
+      expect(hote.querySelector('.biblio-bienvenue')).toBeNull()
     })
 
     it('sur une tablette, pas de carte : la page du bureau', async () => {
@@ -402,19 +393,19 @@ describe('dans l’app, sur les toiles de l’appareil', () => {
   })
 
   it('la recherche replie la page et répond sur les titres à chaque lettre', async () => {
-    await avecUneToile('Recettes de saison')
+    const { id } = await avecUneToile('Recettes de saison')
     await montrer()
-    await vi.waitFor(() => expect(hote.querySelector('.biblio-locale-vedette')).not.toBeNull())
+    await vi.waitFor(() => expect(hote.querySelector(`[data-cle="${id}/"]`)).not.toBeNull())
     act(() => champ().focus())
     expect(hote.querySelector('.biblio-locale')!.hasAttribute('data-cherche')).toBe(true)
-    expect(hote.querySelector('.biblio-locale-vedette')).toBeNull()
+    expect(hote.querySelector('.biblio-corps')).toBeNull()
     ecrire('recet')
     expect([...hote.querySelectorAll('.biblio-locale-ligne .biblio-locale-titre')].map((n) => n.textContent)).toContain('Recettes de saison')
     expect(hote.querySelector('.biblio-locale-ligne mark')?.textContent).toBe('Recet')
     ecrire('introuvable')
     expect(hote.querySelector('.biblio-locale-vide')?.textContent).toContain('introuvable')
     act(() => hote.querySelector<HTMLButtonElement>('.biblio-locale-annuler')!.click())
-    expect(hote.querySelector('.biblio-locale-vedette')).not.toBeNull()
+    expect(hote.querySelector('.biblio-corps')).not.toBeNull()
   })
 })
 

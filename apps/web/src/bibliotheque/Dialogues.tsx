@@ -6,8 +6,9 @@ import { filtrer } from '../Bibliotheque'
 import { horsDAtteinte, porteuseDe } from './selection'
 
 /**
- * Choisir où ranger : l'accueil, puis chaque toile par son nom, avec ce qui la porte. Celles où l'on ne peut pas
- * ranger (les toiles déplacées, et ce qu'elles contiennent) n'y sont pas ; celle où tout est déjà est grisée.
+ * Choisir où ranger : la racine (`accueil`, sous le nom de l'espace), puis chaque toile par son nom, avec ce qui la
+ * porte, sauf la racine, qui porte tout. Celles où l'on ne peut pas ranger (les toiles déplacées, et ce qu'elles
+ * contiennent) n'y sont pas ; celle où tout est déjà est grisée.
  */
 export function DeplacerVers({
   entrees,
@@ -32,7 +33,7 @@ export function DeplacerVers({
   )
   const cibles = [
     ...(requete.trim() === '' ? [{ id: accueil.id, titre: accueil.titre, ou: null as string | null, maison: true }] : []),
-    ...filtrer(toiles, requete).map((e) => ({ id: e.tableau, titre: e.titre || t('commun.sansTitre'), ou: e.ou, maison: false })),
+    ...filtrer(toiles, requete).map((e) => ({ id: e.tableau, titre: e.titre || t('commun.sansTitre'), ou: e.dans === accueil.id ? null : e.ou, maison: false })),
   ]
   const ici = (id: string) => entrees.every((e) => porteuseDe(e) === id)
   // On part de la première toile où l'on peut ranger : celle où tout est déjà ne se choisit pas.

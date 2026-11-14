@@ -1,13 +1,12 @@
-import { type GenreNeuf, Icone, type NomIcone, type ResultatRecherche, type ResumeContenu, normaliser } from '@notak/tableau'
+import { type GenreNeuf, Icone, type NomIcone, type ResultatRecherche, normaliser } from '@notak/tableau'
 import { Fragment, type ReactNode, useCallback, useRef, useState, useSyncExternalStore } from 'react'
 import type { EntreeBibliotheque } from '../api'
 import { t, tn } from '../langue'
-import { Vignette, texteSansPlan } from './Vignettes'
 
 /**
  * Les pièces de la bibliothèque au doigt, celle d'un téléphone : le grand titre qui se replie quand on cherche, la
- * ligne d'un résultat, les passages trouvés dans le contenu, le choix de ce qu'on crée, la vedette de l'accueil, la roue
- * des réglages et la carte de bienvenue du premier passage. La bibliothèque (`Bibliotheque.tsx`) les pose autour de ses
+ * ligne d'un résultat, les passages trouvés dans le contenu, le choix de ce qu'on crée, la roue des réglages et la
+ * carte de bienvenue du premier passage. La bibliothèque (`Bibliotheque.tsx`) les pose autour de ses
  * sections et de ses tuiles quand elle est au téléphone. Leur style est celui des classes `biblio-locale-*` (app.css).
  */
 
@@ -173,8 +172,8 @@ export function LigneDoigt({ genre, titre, detail, requete, onClick }: { genre: 
 }
 
 /**
- * Les trois choses qu'on crée : une toile s'ouvre, une carte ou un document se pose sur l'accueil et s'ouvre en grand ;
- * avec `dossier`, un dossier vide, rangé là, son nom prêt à changer.
+ * Les trois choses qu'on crée : une toile s'ouvre, une carte ou un document se pose à la racine (ou dans le dossier
+ * qu'on parcourt) et s'ouvre en grand ; avec `dossier`, un dossier vide, rangé là, son nom prêt à changer.
  */
 export function ChoixCreation({ creer, dossier, occupe = false }: { creer(genre: GenreNeuf): void; dossier?: () => void; occupe?: boolean }) {
   return (
@@ -202,51 +201,6 @@ export function ChoixCreation({ creer, dossier, occupe = false }: { creer(genre:
         </button>
       )}
     </div>
-  )
-}
-
-/**
- * La toile d'accueil en vedette, en tête de la bibliothèque à toutes les largeurs : son plan sur toute la largeur, son nom et ce
- * qu'elle porte ; un toucher l'ouvre.
- */
-export function VedetteAccueil({
-  titre,
-  resume,
-  nombres,
-  onClick,
-}: {
-  titre: string
-  /** Son résumé, une fois l'accueil lu ; sans, un plan vide. */
-  resume: Extract<ResumeContenu, { genre: 'toile' }> | undefined
-  /** Combien elle porte de toiles, pages et cartes mentales (la bibliothèque les compte). */
-  nombres: { toiles: number; documents: number; cartes: number }
-  onClick(): void
-}) {
-  const vide = resume !== undefined && resume.boites.length === 0
-  const detail = (['toiles', 'documents', 'cartes'] as const)
-    .filter((g) => nombres[g] > 0)
-    .map((g) => tn(`biblio.compte.${g}`, nombres[g]))
-    .join(' · ')
-  return (
-    <button type="button" className="biblio-locale-vedette" onClick={onClick}>
-      <span className="biblio-locale-vedette-plan">
-        {vide ? (
-          // Ce qu'on partage depuis un téléphone attend dans ses non triés : l'accueil n'est pas vide pour autant.
-          <span className="biblio-locale-vedette-vide">{resume.nonTries ? texteSansPlan(resume) : t('biblio.accueilVide')}</span>
-        ) : resume ? (
-          <Vignette resume={resume} />
-        ) : (
-          <span className="biblio-vignette" aria-hidden />
-        )}
-      </span>
-      <span className="biblio-locale-vedette-texte">
-        <span className="biblio-locale-vedette-titre">
-          <Icone nom="maison" taille={17} />
-          {titre}
-        </span>
-        {detail && <span className="biblio-locale-detail">{detail}</span>}
-      </span>
-    </button>
   )
 }
 
@@ -323,7 +277,7 @@ export function useBienvenue(cle: string): [visible: boolean, fermer: () => void
 
 /**
  * La carte du premier passage, en tête de la bibliothèque, à la façon des astuces d'iOS : un titre, trois lignes et
- * leurs icônes, de quoi la fermer, et un bouton qui fait le premier pas. Pas de visite en plusieurs écrans.
+ * leurs icônes, de quoi la fermer, et un bouton qui la referme d'un « C'est parti ». Pas de visite en plusieurs écrans.
  */
 export function CarteBienvenue({
   titre,
@@ -333,8 +287,8 @@ export function CarteBienvenue({
 }: {
   titre: string
   lignes: readonly { icone: NomIcone; texte: string }[]
-  /** « C'est parti » : la carte se ferme, et ce premier pas se fait (ouvrir la toile d'accueil). */
-  partir(): void
+  /** « C'est parti » : la carte se ferme, et ce premier pas se fait, s'il y en a un. */
+  partir?(): void
   fermer(): void
 }) {
   return (
@@ -355,7 +309,7 @@ export function CarteBienvenue({
           </li>
         ))}
       </ul>
-      <button type="button" className="biblio-bienvenue-partir" onClick={() => (fermer(), partir())}>
+      <button type="button" className="biblio-bienvenue-partir" onClick={() => (fermer(), partir?.())}>
         {t('biblio.bienvenue.partir')}
       </button>
     </section>
