@@ -202,10 +202,19 @@ https://notak.exemple.fr/relier?source=crm&cle=societe:42&titre=Dupont%20SARL&re
 ```
 
 `cle` est l'identifiant de la fiche dans l'outil (lettres, chiffres, `:`, `.`, `_` et `-`, 128 au plus) : une fiche n'a
-qu'un dossier par espace. `titre` nomme le dossier à sa création ; on le renomme ensuite dans Notak comme une autre
-toile. `retour` est l'adresse de la fiche, que le dossier rappelle par un lien. Quelqu'un qui n'est pas connecté passe
-d'abord par l'écran de connexion, puis revient à la même adresse. Un dossier jeté à la corbeille y reste : le bouton
-propose de le remettre, jamais d'en faire un second.
+qu'un dossier par espace. `titre` nomme le dossier à sa création, et il le garde. `retour` est l'adresse de la fiche,
+que le dossier rappelle par un lien. Quelqu'un qui n'est pas connecté passe d'abord par l'écran de connexion, puis
+revient à la même adresse. Un dossier jeté à la corbeille y reste : le bouton propose de le remettre, jamais d'en faire
+un second.
+
+Ces dossiers, celui de chaque fiche et celui qui les range, sont générés par l'outil, et Notak le dit à la suite de leur
+titre. Personne ne les renomme, ne les déplace, ne les jette ni ne les modifie plus : ni leur nom, ni leur couleur, ni
+leur mot de passe, ni leur carte, qui ne fait que changer de place sur la toile qui la porte : elle n'en part pas, et ne
+se pose nulle part une seconde fois (un raccourci, si). Seul l'outil le peut : il les crée, et il les jette ou les
+remet par son catalogue (plus bas). Le serveur refuse ces gestes, avec le code `dossier_genere`, et la synchro annule
+ceux qui lui arriveraient d'une app plus ancienne. On range dedans ce qu'on veut ; on les partage, on les met en
+favori, on copie leur lien, on les duplique (la copie, elle, n'est plus générée). Un ancien dossier que l'outil ne lit
+plus (une source qui a nommé son `espace` après coup, ou qu'on ne déclare plus) redevient un dossier comme un autre.
 
 L'outil peut aussi montrer, sur la fiche, ce que range son dossier. Ses pages lisent, avec la session de la personne :
 
