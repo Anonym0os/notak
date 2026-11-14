@@ -9,6 +9,7 @@ import { commencerEnvoi } from '../envois'
 import type { ContexteToile, DepotFichiers } from '../types'
 import { DELAI_VISIBLE, type IndicesChargement, etatChargement, voileDe } from './chargement'
 import { RenduImage } from './Image'
+import { Visionneuse } from './visionneuse'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -96,7 +97,7 @@ afterEach(() => {
 
 const attendre = (ms: number) => act(() => void vi.advanceTimersByTime(ms))
 const img = () => hote.querySelector<HTMLImageElement>('img.notak-image')
-const anneau = () => hote.querySelector('.notak-image-charge')
+const anneau = () => document.querySelector('.notak-image-charge')
 /** Le navigateur a l'image entière (jsdom ne charge rien : on le dit pour lui). */
 const chargee = (balise: HTMLImageElement) => act(() => void balise.dispatchEvent(new Event('load')))
 
@@ -240,5 +241,47 @@ describe('la carte d’une image qui charge', () => {
     act(() => void img()!.dispatchEvent(new Event('error')))
     expect(anneau()).toBeNull()
     expect(img()!.dataset.chargement).toBeUndefined()
+  })
+})
+
+describe('la visionneuse d’une image dont la grande copie n’est pas encore là', () => {
+  const photo: Element<Image> = { id: 'i1', x: 0, y: 0, largeur: 20, contenu: { type: 'image', fichier: 'f1', largeurOrigine: 8064, hauteurOrigine: 6048, typeMime: 'image/jpeg' } }
+  async function ouvrir(apercu?: string) {
+    // Une fenêtre de 1200 × 900 px sur un écran Retina : la copie de 2400 px.
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('notak-visionneuse-zone') ? 1200 : 0
+    })
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('notak-visionneuse-zone') ? 900 : 0
+    })
+    vi.spyOn(window, 'devicePixelRatio', 'get').mockReturnValue(2)
+    const contexte = { magasin: creerMagasin({ titre: '', etiquettes: [], elements: [photo] }), services: { lectureSeule: true }, choisir: () => {} } as unknown as ContexteToile
+    await act(async () => racine.render(<Visionneuse element={photo} adresse="/api/fichiers/f1" apercu={apercu} contexte={contexte} />))
+  }
+  const peinte = () => document.querySelector<HTMLImageElement>('.notak-visionneuse-image img')!
+
+  it('s’ouvre sur la copie de sa carte, avec l’anneau, jusqu’à ce que la grande soit décodée', async () => {
+    await ouvrir('/api/fichiers/f1?l=400')
+    expect(peinte().getAttribute('src')).toBe('/api/fichiers/f1?l=400')
+    expect(peinte().dataset.chargement).toBeUndefined()
+    expect(decodages.map((d) => d.src)).toEqual([expect.stringMatching(/\/api\/fichiers\/f1\?l=2400$/)])
+    await attendre(DELAI_VISIBLE)
+    expect(anneau()!.getAttribute('aria-label')).toBe('Chargement de l’image')
+    await act(async () => decodages[0]!.finir())
+    expect(peinte().getAttribute('src')).toBe('/api/fichiers/f1?l=2400')
+    expect(anneau()).toBeNull()
+  })
+
+  it('sans copie à montrer d’abord, la grande reste cachée tant qu’elle n’est pas entière, puis paraît en fondu', async () => {
+    await ouvrir()
+    expect(peinte().getAttribute('src')).toBe('/api/fichiers/f1?l=2400')
+    expect(peinte().dataset.chargement).toBe('cachee')
+    await attendre(DELAI_VISIBLE)
+    expect(anneau()).not.toBeNull()
+    chargee(peinte())
+    await act(async () => decodages.at(-1)!.finir())
+    expect(peinte().dataset.chargement).toBeUndefined()
+    expect(peinte().hasAttribute('data-fondu')).toBe(true)
+    expect(anneau()).toBeNull()
   })
 })

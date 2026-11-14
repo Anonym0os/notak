@@ -70,7 +70,7 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
   if (enDetourage && adresseOrigine) return <Detoureur id={element.id} contenu={contenu} adresse={adresseOrigine} contexte={contexte} />
   return (
     <>
-      {enGrand && adresseOrigine && <Visionneuse element={element} adresse={adresseOrigine} contexte={contexte} />}
+      {enGrand && adresseOrigine && <Visionneuse element={element} adresse={adresseOrigine} apercu={adresse ?? undefined} contexte={contexte} />}
       <div ref={suivre} className="notak-image-cadre" style={forme} data-chargement={chargement.voile}>
         {adresse ? (
           <div className="notak-image-plan" style={page.plan}>

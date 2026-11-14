@@ -13,6 +13,7 @@ import { annoter } from './modeAnnotation'
 import { type Taille, borneDecalage, borneZoom, carteEnGrand, ordreImages, tailleMontree, voisine } from './navigation'
 import { adresseALargeur, finesse, largeurEntiereAffichee, palierVisionneuse } from './tailles'
 import { useAdressePrete } from './copies'
+import { AnneauChargement, useBalise, useLent } from './chargement'
 import { recadrer } from './Recadreur'
 import { detourerImage } from './Detoureur'
 import { Traits } from './Annotateur'
@@ -129,7 +130,7 @@ function useCarteEnGrand(zone: React.RefObject<HTMLDivElement | null>, legende: 
  * on déplace l'image zoomée à la main ; ← ↑ et → ↓ passent d'une image à l'autre, Échap ferme. Un clic sur le fond
  * ferme, pas sur l'image, la légende ni la barre.
  */
-export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { element: Element<Image>; adresse: string; contexte: ContexteToile }) {
+export function Visionneuse({ element, adresse: adresseOuverte, apercu, contexte }: { element: Element<Image>; adresse: string; apercu?: string | undefined; contexte: ContexteToile }) {
   const [courantId, setCourantId] = useState(element.id)
   const liste = ordreImages(contexte.magasin.lire().elements)
   const courant = (liste.find((e) => e.id === courantId) ?? element) as Element<Image>
@@ -147,7 +148,17 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
   const taille = useCarteEnGrand(zone, legende, tailleMontree(c), c.legende)
   // L'image se peint depuis une copie à la taille de l'écran ; « Ouvrir » et « Télécharger » gardent l'original.
   const cle = `${courant.id}:${c.fichier}`
-  const peinte = useAdressePrete(useCopieACharger(adresse, c, taille, zoom, cle), cle).adresse
+  // En attendant sa grande copie, l'image ouverte montre celle de sa carte (`apercu`, déjà chargée), et un anneau ;
+  // une autre, rien, plutôt qu'un JPEG progressif peint pavé par pavé.
+  const voulue = useCopieACharger(adresse, c, taille, zoom, cle)
+  const depart = courant.id === element.id ? apercu : undefined
+  const { adresse: peinte, decodee } = useAdressePrete(voulue, cle, depart)
+  const lente = useRef(false)
+  const { balise, props: chargement } = useBalise(peinte, lente)
+  const cachee = !decodee && balise === 'charge'
+  const attend = cachee || (!!depart && peinte === depart && voulue !== undefined && voulue !== peinte)
+  const lent = useLent(attend)
+  lente.current = lent
   const page = miseEnPage(c)
   const geste = useRef<{ x: number; y: number; depart: { x: number; y: number } } | null>(null)
   /** Le dernier appui dans la visionneuse : le bouton qui la ferme garde cette place le temps du geste (`sortir`). */
@@ -300,9 +311,10 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
             >
               {/* Le même cadrage que sur la toile : la part recadrée, le quart de tour, les miroirs, puis le dessin. */}
               <div className="notak-image-plan" style={page.plan}>
-                <img className="notak-image" src={peinte} alt="" draggable={false} style={page.image} />
+                <img {...chargement} className="notak-image" src={peinte} alt="" draggable={false} style={page.image} data-chargement={cachee ? 'cachee' : undefined} data-fondu={lent || undefined} />
                 {traits && <Traits contenu={c} traits={traits} style={page.image} />}
               </div>
+              {attend && lent && envoi === null && <AnneauChargement etat={{ etape: 'conversion' }} />}
             </div>
           ) : (
             <span data-garder className="notak-visionneuse-vide" role="img" aria-label={t('image.introuvable')}>

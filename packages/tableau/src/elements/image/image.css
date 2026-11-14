@@ -198,6 +198,11 @@
   cursor: grabbing;
 }
 
+/* La grande copie qui se charge sans rien à montrer d'abord : sa place, à peine marquée, et l'anneau au centre. */
+.notak-visionneuse-image:has(.notak-image[data-chargement='cachee']) {
+  background: rgb(255 255 255 / 0.08);
+}
+
 /* Une image transparente se montre sur un damier de 32 px. */
 .notak-visionneuse-image[data-damier] {
   background: repeating-conic-gradient(#d9d9d9 0% 25%, #fff 0% 50%) 0 0 / 32px 32px;
