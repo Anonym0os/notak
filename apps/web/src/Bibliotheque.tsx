@@ -857,6 +857,20 @@ function BibliothequeBureau({
       setRenommage({ cle })
     })
   }
+  /**
+   * Renomme dans sa tuile. Le menu peut venir de l'arbre de la colonne, la tuile n'étant pas à l'écran : on va d'abord
+   * dans le dossier qui la range, où elle se montre, choisie.
+   */
+  const renommerSurPlace = (e: EntreeBibliotheque) => {
+    preparerClavier()
+    const cle = cleDe(e)
+    if (!tuileDe(cle) && e.dans) {
+      parcourir(e.dans)
+      setSel({ choisies: new Set([cle]), ancre: cle })
+      setCourante(cle)
+    }
+    setRenommage({ cle })
+  }
   const renommerCe = async (cible: Pick<EntreeBibliotheque, 'tableau' | 'element' | 'titre'>, titre: string) => {
     setRenommage(null)
     if (!outils || !titre.trim()) return
@@ -916,10 +930,7 @@ function BibliothequeBureau({
         icone: 'renommer',
         raccourci: 'F2',
         desactive: fige,
-        faire: () => {
-          preparerClavier()
-          setRenommage({ cle: cleDe(une) })
-        },
+        faire: () => renommerSurPlace(une),
       })
     if (ecrit) l.push({ libelle: t('biblio.menu.dupliquer'), icone: 'menuDupliquer', raccourci: '⌘D', faire: () => dupliquerCes(es) })
     if (es.length > 0)
@@ -1939,6 +1950,8 @@ function BibliothequeBureau({
             survol={survolDepot}
             parcourir={parcourir}
             basculer={(id) => setDeplies((d) => (d.has(id) ? new Set([...d].filter((x) => x !== id)) : new Set([...d, id])))}
+            // Le menu de sa tuile, comme dans la grille, sans toucher à ce qu'on y a choisi.
+            menu={(id, x, y) => parCle.has(`${id}/`) && setMenu({ x, y, type: 'tuiles', cles: [`${id}/`] })}
           />
         )}
         <div className="biblio-bas">
@@ -2228,7 +2241,9 @@ function MarqueOutil({ outil }: { outil: string }) {
 
 /**
  * L'arbre des dossiers de la colonne, sous l'accueil : chaque dossier se parcourt d'un toucher, prend ce qu'on lui
- * lâche, et se déplie s'il en contient d'autres. Les parents du dossier qu'on parcourt sont dépliés.
+ * lâche, se déplie s'il en contient d'autres, et ouvre au clic droit le menu de sa tuile (celui de la webview, ses
+ * « Recherche » et « Traduire » sur le nom qu'il choisit, n'a rien à faire ici). Les parents du dossier qu'on parcourt
+ * sont dépliés.
  */
 function ArbreDossiers({
   noeuds,
@@ -2237,6 +2252,7 @@ function ArbreDossiers({
   survol,
   parcourir,
   basculer,
+  menu,
   profondeur = 1,
 }: {
   noeuds: NoeudDossier[]
@@ -2245,6 +2261,7 @@ function ArbreDossiers({
   survol: string | null
   parcourir(id: string): void
   basculer(id: string): void
+  menu(id: string, x: number, y: number): void
   profondeur?: number
 }) {
   return (
@@ -2268,13 +2285,19 @@ function ArbreDossiers({
                 data-survol-depot={survol === n.id || undefined}
                 aria-current={courant === n.id ? 'page' : undefined}
                 onClick={() => parcourir(n.id)}
+                onContextMenu={(ev) => {
+                  ev.preventDefault()
+                  menu(n.id, ev.clientX, ev.clientY)
+                }}
               >
                 <Icone nom="dossier" taille={18} />
                 <span>{n.titre || t('commun.sansTitre')}</span>
                 {n.outil && <MarqueOutil outil={n.outil} />}
               </button>
             </div>
-            {ouvert && n.enfants.length > 0 && <ArbreDossiers noeuds={n.enfants} courant={courant} deplies={deplies} survol={survol} parcourir={parcourir} basculer={basculer} profondeur={profondeur + 1} />}
+            {ouvert && n.enfants.length > 0 && (
+              <ArbreDossiers noeuds={n.enfants} courant={courant} deplies={deplies} survol={survol} parcourir={parcourir} basculer={basculer} menu={menu} profondeur={profondeur + 1} />
+            )}
           </li>
         )
       })}

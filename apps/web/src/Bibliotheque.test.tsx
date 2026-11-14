@@ -493,6 +493,33 @@ describe('les gestes', () => {
       expect([...hote.querySelectorAll('.biblio-ouvrir-toile-lien')].map((a) => a.textContent)).toEqual(['Ouvrir la toile'])
     })
 
+    it('le clic droit d’un dossier de l’arbre ouvre le menu de sa tuile ; « Renommer » va la montrer, prête', async () => {
+      history.replaceState(null, '', '/?vue=partages')
+      await act(async () => racine.render(<PageBibliotheque charger={async () => AVEC_DOSSIER} espace={monde()} definirFavori={async () => {}} />))
+      expect(hote.querySelector('[data-cle="voyage/"]')).toBeNull()
+      const ligne = [...hote.querySelectorAll<HTMLElement>('.biblio-arbre .biblio-rubrique')].find((b) => b.textContent === 'Voyage')!
+      const clic = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 30, clientY: 200 })
+      act(() => void ligne.dispatchEvent(clic))
+      // Pas le menu de la webview : celui de Notak, le même que celui de la tuile.
+      expect(clic.defaultPrevented).toBe(true)
+      expect([...hote.querySelectorAll('.notak-menu .notak-e-libelle')].map((x) => x.textContent)).toEqual([
+        'Ouvrir',
+        'Afficher dans sa toile',
+        'Renommer',
+        'Dupliquer',
+        'Retirer des favoris',
+        'Afficher comme toile',
+        'Déplacer vers…',
+        'Copier le lien',
+        'Mettre à la corbeille',
+      ])
+      // Sa tuile n'est pas à l'écran : on va dans le dossier qui la range, où elle se renomme.
+      act(() => entree('Renommer').click())
+      expect(location.search).toBe('?dossier=racine')
+      expect(tuile('voyage/').querySelector<HTMLInputElement>('.biblio-renommer')!.value).toBe('Voyage')
+      expect(tuile('voyage/').getAttribute('aria-selected')).toBe('true')
+    })
+
     it('le fil d’Ariane et l’accueil de la colonne y mènent ; une portée en sort', async () => {
       history.replaceState(null, '', '/?dossier=voyage')
       await act(async () => racine.render(<PageBibliotheque charger={async () => AVEC_DOSSIER} espace={monde()} />))
@@ -639,6 +666,18 @@ describe('les gestes', () => {
       const retenus = [...hote.querySelectorAll<HTMLButtonElement>('.biblio-barre-choix button[aria-disabled="true"]')].map((b) => b.getAttribute('aria-label'))
       expect(retenus).toEqual(['Généré par Mon CRM', 'Généré par Mon CRM'])
       expect(appels).toEqual([])
+    })
+
+    it('le clic droit de l’arbre de la colonne montre les mêmes gestes éteints', async () => {
+      await monter()
+      const ligne = [...hote.querySelectorAll<HTMLElement>('.biblio-arbre .biblio-rubrique')].find((b) => b.querySelector('span')!.textContent === 'atelier')!
+      act(() => void ligne.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 30, clientY: 200 })))
+      expect([...hote.querySelectorAll<HTMLButtonElement>('.notak-menu button')].filter((b) => b.disabled).map((b) => b.querySelector('.notak-e-libelle')!.textContent)).toEqual([
+        'Renommer',
+        'Afficher comme toile',
+        'Déplacer vers…',
+        'Mettre à la corbeille',
+      ])
     })
 
     it('choisis avec d’autres, ils restent tels quels et l’avis le dit ; on range dedans ce qu’on veut', async () => {

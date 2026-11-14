@@ -4219,6 +4219,9 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   margin: 0;
   padding: 0;
   list-style: none;
+  /* Un clic droit ouvre le menu du dossier : il ne choisit pas son nom comme un mot du texte. */
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .biblio-arbre-ligne {
