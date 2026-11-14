@@ -4082,62 +4082,27 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   }
 }
 
-/* Dans un dossier : son chemin depuis l'accueil, en petit au-dessus de son nom ; chaque maillon s'y rend, et prend ce qu'on y lâche. */
+/*
+ * Dans un dossier : le fil d'une toile (FilDAriane), son chemin depuis l'accueil sur une ligne, puis le dossier qu'on
+ * parcourt en titre dessous ; chaque niveau s'y rend, et prend ce qu'on y lâche. Le fil a la place que laissent les
+ * îlots de droite, sans jamais la leur prendre : ce qui ne tient pas passe dans « … ». Les icônes s'alignent sur la
+ * page, comme le titre d'une rubrique.
+ */
 .biblio-titre {
   display: flex;
-  flex: 0 1 auto;
-  flex-direction: column;
-  min-width: 0;
+  flex: 1 1 0;
+  align-items: center;
+  min-width: min(240px, 100%);
+  margin-left: -6px;
 }
 
 .biblio-fil {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--biblio-pale);
-  font-size: 12.5px;
-  white-space: nowrap;
-}
-
-.biblio-fil-maillon {
-  display: flex;
-  flex: 0 1 auto;
-  align-items: center;
-  gap: 2px;
   min-width: 0;
 }
 
-.biblio-fil-maillon button {
-  min-width: 0;
-  padding: 2px 4px;
-  overflow: hidden;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-overflow: ellipsis;
-  cursor: pointer;
-}
-
-.biblio-fil-maillon:first-child button {
-  margin-left: -4px;
-}
-
-.biblio-fil-maillon button:hover {
-  color: var(--notak-texte, #323b4a);
-  text-decoration: underline;
-}
-
-.biblio-fil-maillon button[data-survol-depot] {
+.biblio-fil .notak-fil-segment[data-survol-depot] {
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   color: var(--notak-texte, #323b4a);
-}
-
-.biblio-fil-maillon svg {
-  flex: none;
-  opacity: 0.7;
 }
 
 /* « Ouvrir la toile » : le dossier qu'on parcourt s'ouvre aussi en toile, d'un toucher. */

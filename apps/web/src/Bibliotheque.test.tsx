@@ -493,6 +493,24 @@ describe('les gestes', () => {
       expect([...hote.querySelectorAll('.biblio-ouvrir-toile-lien')].map((a) => a.textContent)).toEqual(['Ouvrir la toile'])
     })
 
+    it('le fil d’un dossier est celui d’une toile : l’icône de chaque niveau, le dossier au bout en titre, chaque niveau prêt à recevoir', async () => {
+      history.replaceState(null, '', '/?dossier=voyage')
+      await act(async () => racine.render(<PageBibliotheque charger={async () => AVEC_DOSSIER} espace={monde()} />))
+      const fil = hote.querySelector('nav.biblio-fil.notak-fil.notak-fil-dessous')!
+      expect(fil.getAttribute('aria-label')).toBe('Chemin du dossier')
+      expect([...fil.querySelectorAll<HTMLElement>('.notak-fil-segment')].map((b) => [b.textContent, b.dataset.genre, b.dataset.depot])).toEqual([['Accueil', 'accueil', 'racine']])
+      const ici = fil.querySelector<HTMLElement>('[aria-current="page"]')!
+      expect(ici.dataset.genre).toBe('dossier')
+      expect(ici.querySelector('svg')).not.toBeNull()
+      expect(ici.querySelector('h1')!.textContent).toBe('Voyage')
+      // À l'accueil, le fil n'a que lui, avec sa tuile.
+      act(() => fil.querySelector<HTMLButtonElement>('.notak-fil-segment')!.click())
+      const accueil = hote.querySelector<HTMLElement>('.biblio-fil [aria-current="page"]')!
+      expect(accueil.dataset.genre).toBe('accueil')
+      expect(accueil.querySelector('.notak-fil-accueil')).not.toBeNull()
+      expect(hote.querySelectorAll('.biblio-fil .notak-fil-segment')).toHaveLength(0)
+    })
+
     it('le fil d’Ariane et l’accueil de la colonne y mènent ; une portée en sort', async () => {
       history.replaceState(null, '', '/?dossier=voyage')
       await act(async () => racine.render(<PageBibliotheque charger={async () => AVEC_DOSSIER} espace={monde()} />))

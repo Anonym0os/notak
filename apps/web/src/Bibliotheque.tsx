@@ -19,6 +19,7 @@ import {
   type ResultatRecherche,
   resumesDuTableau,
 } from '@notak/tableau'
+import { FilDAriane, type GenreNiveau, usePlaceDuFil } from '@notak/tableau'
 import {
   type DragEvent,
   type KeyboardEvent,
@@ -1402,6 +1403,10 @@ function BibliothequeBureau({
     ) : null
   /** Le chemin du dossier qu'on parcourt, depuis l'accueil, sans lui. */
   const fil = dossier && toutes ? filDAriane(dossier, toutes, espace?.racine ?? null).slice(0, -1) : []
+  /** Ce qu'est un niveau du chemin, pour son icône : l'accueil, un dossier, ou une toile qu'on parcourt comme un dossier. */
+  const genreDuNiveau = (id: string): GenreNiveau => (id === espace?.racine ? 'accueil' : sousDossier(id) ? 'dossier' : 'toile')
+  // Le fil prend la place que lui laissent les îlots de droite : ce qui ne tient pas passe dans « … ».
+  const [placeDuFil, filDuDossier] = usePlaceDuFil('parent')
   const glissees = new Set(glisse?.cles)
   const premiereFocalisable = courante && ordre.includes(courante) ? courante : (choisies[0] ?? ordre[0])
 
@@ -1956,20 +1961,20 @@ function BibliothequeBureau({
         {enChoix ? (
           barreChoix
         ) : dossier && !cherche ? (
+          // Le fil d'une toile (FilDAriane) : le chemin sur sa ligne, le dossier qu'on parcourt en titre dessous ; chaque
+          // dossier du chemin y mène, et prend ce qu'on y lâche (`data-depot`).
           <div className="biblio-titre">
-            {fil.length > 0 && (
-              <nav className="biblio-fil" aria-label={t('biblio.fil')}>
-                {fil.map((id) => (
-                  <span key={id} className="biblio-fil-maillon">
-                    <button type="button" data-depot={id} data-survol-depot={survolDepot === id || undefined} onClick={() => parcourir(id)}>
-                      {titreToile(id)}
-                    </button>
-                    <Icone nom="chevronDroite" taille={12} trait={2} />
-                  </span>
-                ))}
-              </nav>
-            )}
-            <h1>{titreToile(dossier)}</h1>
+            <FilDAriane
+              ref={filDuDossier}
+              titreDessous
+              className="biblio-fil"
+              etiquette={t('biblio.fil')}
+              niveaux={fil.map((id) => ({ id, titre: titreToile(id), genre: genreDuNiveau(id) }))}
+              ici={{ genre: genreDuNiveau(dossier), titre: titreToile(dossier), contenu: <h1>{titreToile(dossier)}</h1> }}
+              aller={parcourir}
+              place={placeDuFil}
+              attributs={(n) => ({ 'data-depot': n.id, 'data-survol-depot': survolDepot === n.id || undefined })}
+            />
           </div>
         ) : (
           <h1>{cherche ? t('biblio.resultats') : titreDeLaVue(vue)}</h1>
