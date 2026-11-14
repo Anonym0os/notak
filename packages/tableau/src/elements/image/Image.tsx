@@ -65,6 +65,11 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
   useEffect(() => {
     if (dessine && (!choisie || enRecadrage || enDetourage || enEdition)) annoter(null)
   }, [dessine, choisie, enRecadrage, enDetourage, enEdition])
+  // Ouverte en grand pendant qu'on écrit sa légende, l'image referme l'écriture : le champ resterait sous le voile, à
+  // prendre les touches, et la visionneuse montrerait la légende d'avant.
+  useEffect(() => {
+    if (enGrand && enEdition) contexte.finirEdition()
+  }, [enGrand, enEdition, contexte])
   // Et pour le détourage.
   useEffect(() => {
     if (enDetourage && (!choisie || enRecadrage || contexte.services.lectureSeule)) detourerImage(null)

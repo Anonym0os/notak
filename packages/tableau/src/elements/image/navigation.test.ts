@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import type { Element, Image } from '../../coeur/tableau'
-import { borneDecalage, borneZoom, ordreImages, voisine } from './navigation'
+import { borneDecalage, borneZoom, carteEnGrand, ordreImages, tailleMontree, voisine } from './navigation'
 
 const image = (id: string, x: number, y: number, plus: Partial<Element<Image>> = {}): Element<Image> => ({
   id,
@@ -47,5 +47,35 @@ describe('le zoom', () => {
     expect(borneDecalage(500, 400, 2)).toBe(200)
     expect(borneDecalage(-500, 400, 2)).toBe(-200)
     expect(borneDecalage(50, 400, 1)).toBe(0)
+  })
+})
+
+describe('l’image en grand et sa légende', () => {
+  const contenu = (plus: Partial<Image> = {}): Image => ({ type: 'image', fichier: 'f', largeurOrigine: 600, hauteurOrigine: 900, ...plus })
+
+  test('la taille montrée suit le recadrage et le quart de tour, comme sur la toile', () => {
+    expect(tailleMontree(contenu())).toEqual({ largeur: 600, hauteur: 900 })
+    expect(tailleMontree(contenu({ recadrage: { x: 0, y: 0, largeur: 0.5, hauteur: 1 } }))).toEqual({ largeur: 300, hauteur: 900 })
+    expect(tailleMontree(contenu({ rotation: 90 }))).toEqual({ largeur: 900, hauteur: 600 })
+  })
+
+  test('jamais agrandie : sans légende, l’image garde sa taille quand la zone la contient', () => {
+    expect(carteEnGrand({ largeur: 600, hauteur: 900 }, { largeur: 1600, hauteur: 1000 }, () => 0)).toEqual({ largeur: 600, hauteur: 900, legende: 0 })
+  })
+
+  test('l’image rétrécit pour laisser sa place à la légende, qui prend sa largeur', () => {
+    // 56 px de légende (une ligne) : l'image tient dans 952 − 56 px de haut.
+    const posee = carteEnGrand({ largeur: 1200, hauteur: 1800 }, { largeur: 1600, hauteur: 952 }, () => 56)
+    expect(posee.legende).toBe(56)
+    expect(posee.hauteur + posee.legende).toBeLessThanOrEqual(952)
+    expect(posee.largeur).toBeCloseTo((952 - 56) * (2 / 3))
+  })
+
+  test('une légende qui s’allonge quand l’image rétrécit : on recommence jusqu’à ce que tout tienne', () => {
+    // Une ligne de 20 px par tranche de texte, plus 36 px de marges : plus étroite, la légende est plus haute.
+    const mesurer = (largeur: number) => 36 + 20 * Math.ceil((300 * 6.5) / Math.max(1, largeur - 48))
+    const posee = carteEnGrand({ largeur: 3000, hauteur: 4500 }, { largeur: 1600, hauteur: 952 }, mesurer)
+    expect(posee.legende).toBe(mesurer(posee.largeur))
+    expect(posee.hauteur + posee.legende).toBeLessThanOrEqual(952.5)
   })
 })

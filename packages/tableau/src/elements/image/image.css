@@ -170,24 +170,31 @@
   padding: 48px 60px;
 }
 
+/*
+ * L'image et sa légende, comme une carte agrandie : leurs tailles sont calculées (`carteEnGrand`) pour tenir dans la
+ * zone, légende comprise ; la barre garde pour elle la marge du bas.
+ */
 .notak-visionneuse-figure {
   margin: 0;
   max-width: 100%;
-  max-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 0;
 }
 
+/* Le cadre de l'image, au cadrage de la toile (le plan et l'image se posent comme dans la carte, en unités du cadre). */
 .notak-visionneuse-image {
-  display: block;
-  min-height: 0;
-  max-width: 100%;
-  max-height: calc(100vh - 96px);
-  object-fit: contain;
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  container-type: size;
+  border-radius: var(--notak-rayon-carte, 0);
   will-change: transform;
   transition: transform 0.12s ease-out;
+}
+
+.notak-visionneuse-figure[data-legende] > .notak-visionneuse-image {
+  border-radius: var(--notak-rayon-carte, 0) var(--notak-rayon-carte, 0) 0 0;
 }
 
 .notak-visionneuse-image[data-zoom] {
@@ -204,16 +211,24 @@
   background: repeating-conic-gradient(#d9d9d9 0% 25%, #fff 0% 50%) 0 0 / 32px 32px;
 }
 
+/*
+ * La légende, sous l'image et de sa largeur, sur le fond des cartes de la toile (blanc en clair, sombre en sombre) :
+ * un texte long passe à la ligne, et ne défile qu'au-delà de la moitié de la fenêtre, comme chez Milanote.
+ */
 .notak-visionneuse-legende {
   box-sizing: border-box;
+  flex: none;
   max-width: 100%;
   max-height: calc(50vh - 48px);
   overflow: auto;
+  margin: 0;
   padding: 16px 24px 20px;
-  background: #fff;
-  color: #323b4a;
+  border-radius: 0 0 var(--notak-rayon-carte, 0) var(--notak-rayon-carte, 0);
+  background: var(--notak-carte, #fff);
+  color: var(--notak-texte, #323b4a);
   font-size: 12px;
   line-height: 20px;
+  text-align: left;
   overflow-wrap: anywhere;
 }
 

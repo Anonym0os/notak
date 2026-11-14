@@ -1,17 +1,19 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { type SyntheticEvent, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import type { Element, Id, Image } from '../../coeur/tableau'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
 import type { ContexteToile } from '../types'
+import { variablesDe } from '../surcouche'
 import { ouvrirDehors } from '../fichier/ouverture'
 import { nomTelecharge } from '../fichier/telechargement'
 import { copieLocale, useProgressionEnvoi } from '../envois'
-import { aUneCarte } from './geometrie'
+import { aUneCarte, miseEnPage } from './geometrie'
 import { annoter } from './modeAnnotation'
-import { borneDecalage, borneZoom, ordreImages, voisine } from './navigation'
+import { type Taille, borneDecalage, borneZoom, carteEnGrand, ordreImages, tailleMontree, voisine } from './navigation'
 import { recadrer } from './Recadreur'
 import { detourerImage } from './Detoureur'
+import { Traits } from './Annotateur'
 
 /** L'image montrée en grand, une seule à la fois : la carte qui la porte l'affiche par-dessus la page. */
 let ouverte: Id | null = null
@@ -51,11 +53,60 @@ function useAdresse(contexte: ContexteToile, fichier: string, connue?: string): 
   return adresse
 }
 
+/** Un événement de la visionneuse ne remonte pas à la toile : un portail renvoie les siens à ses parents React. */
+const clos = (e: SyntheticEvent) => e.stopPropagation()
+
 /**
- * L'image en grand (la fenêtre V2 de Milanote) : un voile à 70 %, l'image à sa taille au plus avec sa légende,
- * une barre sombre en bas (dessiner, modifier, fond, précédent, suivant, ouvrir, télécharger). La molette, = + − 0
- * zooment de 1 à 4 et on déplace l'image zoomée à la main ; ← ↑ et → ↓ passent d'une image à l'autre, Échap ferme.
- * Un clic sur le fond ferme, pas sur l'image, la légende ni la barre.
+ * Les couleurs de la toile (thème clair ou sombre, habillage), recopiées sur la visionneuse : elle vit sous
+ * `document.body`, hors de la toile qui les définit, et sa légende se pose sur le fond des cartes.
+ */
+function useCouleursToile(ancre: React.RefObject<HTMLElement | null>) {
+  const [couleurs, setCouleurs] = useState<Record<string, string>>({})
+  useLayoutEffect(() => {
+    const toile = ancre.current?.closest('.notak-toile')
+    if (toile) setCouleurs(variablesDe(toile))
+  }, [ancre])
+  return couleurs
+}
+
+/**
+ * L'image en grand et sa légende, posées comme une carte agrandie : l'image tient dans la zone, légende comprise,
+ * et la légende prend sa largeur. Recalculé quand la fenêtre, l'image ou la légende changent.
+ */
+function useCarteEnGrand(zone: React.RefObject<HTMLDivElement | null>, legende: React.RefObject<HTMLElement | null>, image: Taille, texte: string | undefined) {
+  const [taille, setTaille] = useState<Taille | null>(null)
+  const [fenetre, setFenetre] = useState(0)
+  useEffect(() => {
+    const changer = () => setFenetre((n) => n + 1)
+    window.addEventListener('resize', changer)
+    return () => window.removeEventListener('resize', changer)
+  }, [])
+  useLayoutEffect(() => {
+    const z = zone.current
+    if (!z) return
+    const style = getComputedStyle(z)
+    const dispo = {
+      largeur: z.clientWidth - parseFloat(style.paddingLeft || '0') - parseFloat(style.paddingRight || '0'),
+      hauteur: z.clientHeight - parseFloat(style.paddingTop || '0') - parseFloat(style.paddingBottom || '0'),
+    }
+    const mesurer = (largeur: number) => {
+      const l = legende.current
+      if (!l) return 0
+      l.style.width = `${largeur}px`
+      return l.offsetHeight
+    }
+    const posee = carteEnGrand(image, dispo, mesurer)
+    setTaille((avant) => (avant && avant.largeur === posee.largeur && avant.hauteur === posee.hauteur ? avant : { largeur: posee.largeur, hauteur: posee.hauteur }))
+  }, [zone, legende, image.largeur, image.hauteur, texte, fenetre])
+  return taille
+}
+
+/**
+ * L'image en grand (la fenêtre V2 de Milanote) : un voile à 70 %, l'image telle que la toile la montre (recadrée,
+ * tournée, son dessin par-dessus), à sa taille au plus, et sa légende dessous comme dans sa carte ; une barre sombre
+ * en bas (dessiner, modifier, fond, précédent, suivant, ouvrir, télécharger). La molette, = + − 0 zooment de 1 à 4 et
+ * on déplace l'image zoomée à la main ; ← ↑ et → ↓ passent d'une image à l'autre, Échap ferme. Un clic sur le fond
+ * ferme, pas sur l'image, la légende ni la barre.
  */
 export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { element: Element<Image>; adresse: string; contexte: ContexteToile }) {
   const [courantId, setCourantId] = useState(element.id)
@@ -67,7 +118,13 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
   const [decalage, setDecalage] = useState({ x: 0, y: 0 })
   const [bouge, setBouge] = useState(false)
   const fond = useRef<HTMLDivElement>(null)
-  const figure = useRef<HTMLImageElement>(null)
+  const figure = useRef<HTMLDivElement>(null)
+  const ancre = useRef<HTMLSpanElement>(null)
+  const zone = useRef<HTMLDivElement>(null)
+  const legende = useRef<HTMLElement>(null)
+  const couleurs = useCouleursToile(ancre)
+  const taille = useCarteEnGrand(zone, legende, tailleMontree(c), c.legende)
+  const page = miseEnPage(c)
   const geste = useRef<{ x: number; y: number; depart: { x: number; y: number } } | null>(null)
   const pret = useRef<ReturnType<typeof setTimeout>>(undefined)
   const modifiable = !contexte.services.lectureSeule && !contexte.services.presentation
@@ -152,30 +209,37 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
     </button>
   )
 
-  return createPortal(
+  const traits = c.traits && c.traits.length > 0 ? c.traits : null
+  const portail = createPortal(
     <div
       ref={fond}
       className="notak-visionneuse"
       role="dialog"
       aria-label={c.legende || t('type.image')}
+      style={couleurs}
       onPointerDown={(e) => {
+        clos(e)
         // Le fond ferme ; l'image, la légende et la barre gardent le clic.
         if (!(e.target instanceof HTMLElement && e.target.closest('[data-garder]'))) ouvrirImage(null)
       }}
+      onPointerUp={clos}
+      onPointerMove={clos}
+      onClick={clos}
+      onDoubleClick={clos}
+      onContextMenu={clos}
     >
-      <div className="notak-visionneuse-zone">
-        <figure className="notak-visionneuse-figure">
+      <div ref={zone} className="notak-visionneuse-zone">
+        <figure className="notak-visionneuse-figure" data-legende={c.legende ? '' : undefined}>
           {adresse ? (
-            <img
+            <div
               ref={figure}
               data-garder
               className="notak-visionneuse-image"
+              role="img"
+              aria-label={c.legende || t('type.image')}
               data-damier={!aUneCarte(c) || undefined}
               data-zoom={zoom > 1 || undefined}
-              src={adresse}
-              alt={c.legende ?? ''}
-              draggable={false}
-              style={{ transform: `translate(${decalage.x}px, ${decalage.y}px) scale(${zoom})`, maxWidth: `min(100%, ${c.largeurOrigine}px)` }}
+              style={{ width: taille?.largeur ?? 0, height: taille?.hauteur ?? 0, transform: `translate(${decalage.x}px, ${decalage.y}px) scale(${zoom})` }}
               onPointerDown={(e) => {
                 if (zoom <= 1) return
                 e.preventDefault()
@@ -193,7 +257,13 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
               }}
               onPointerUp={lacher}
               onPointerCancel={lacher}
-            />
+            >
+              {/* Le même cadrage que sur la toile : la part recadrée, le quart de tour, les miroirs, puis le dessin. */}
+              <div className="notak-image-plan" style={page.plan}>
+                <img className="notak-image" src={adresse} alt="" draggable={false} style={page.image} />
+                {traits && <Traits contenu={c} traits={traits} style={page.image} />}
+              </div>
+            </div>
           ) : (
             <span data-garder className="notak-visionneuse-vide" role="img" aria-label={t('image.introuvable')}>
               <Icone nom="imageCassee" taille={32} trait={1.5} />
@@ -205,7 +275,8 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
             </div>
           )}
           {c.legende && (
-            <figcaption data-garder className="notak-visionneuse-legende">
+            // De la largeur de l'image, dessous : jamais sur la barre, qui garde la marge du bas.
+            <figcaption ref={legende} data-garder className="notak-visionneuse-legende" style={adresse ? { width: taille?.largeur ?? 0 } : undefined}>
               {c.legende}
             </figcaption>
           )}
@@ -236,5 +307,12 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
       </div>
     </div>,
     document.body,
+  )
+  // L'ancre reste dans la carte : elle seule sait sous quelle toile (et donc quelles couleurs) l'image est posée.
+  return (
+    <>
+      <span ref={ancre} hidden />
+      {portail}
+    </>
   )
 }

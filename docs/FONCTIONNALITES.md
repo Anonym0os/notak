@@ -203,7 +203,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Fonctionnalité | État | Reste |
 |---|---|---|
 | Largeur de départ tirée de l'image, 4 UG au minimum | ✅ | |
-| Visionneuse plein écran (double-clic, Espace, Entrée) | ✅ | Voile à 70 %, barre sombre (Dessiner, Modifier, Fond, précédente, suivante, ouvrir, télécharger), zoom de 1 à 4, flèches ; tant que l'image part, barre de 4 px et « Envoi de l'image… » dans la fenêtre. |
+| Visionneuse plein écran (double-clic, Espace, Entrée) | ✅ | Voile à 70 %, barre sombre (Dessiner, Modifier, Fond, précédente, suivante, ouvrir, télécharger), zoom de 1 à 4, flèches ; tant que l'image part, barre de 4 px et « Envoi de l'image… » dans la fenêtre. L'image telle que la toile la montre (recadrée, tournée, son dessin), la légende dessous comme dans sa carte : de sa largeur, sur le fond des cartes du thème, jamais sur la barre, défilante au-delà de la moitié de la fenêtre. |
 | Carte blanche, légende dedans (12 px, retrait de 24 px), masquée sous 8 UG | ✅ | Légende en texte brut, sans mise en forme. |
 | Image rognée sur la grille (jamais étirée), carte 2 px plus petite que la grille | ✅ | « Rogner l'image sur la grille de points » décoche pour garder les proportions exactes. |
 | Frappe directe sur une image choisie = début de sa légende ; Entrée l'ouvre | ✅ | |
