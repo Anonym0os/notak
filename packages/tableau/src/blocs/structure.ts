@@ -109,6 +109,11 @@ const MARQUEURS = '.notak-b-tache, .notak-b-depliant, [data-depliant]'
 const CLE_ANIME = new PluginKey<DecorationSet>('animeCases')
 type GesteCase = { pos: number; genre: 'coche' | 'decoche'; jeton: number } | { fin: number }
 let jetonCase = 0
+/**
+ * Les fins d'animation en attente, par vue : la vue détruite les emporte. Sinon une animation partie juste avant la
+ * fermeture d'une note écrirait dans une vue morte, ou, dans les essais, dans un document que jsdom a déjà démonté.
+ */
+const finsEnAttente = new WeakMap<EditorView, Set<ReturnType<typeof setTimeout>>>()
 
 /**
  * Joue l'animation de la case d'une tâche qu'on vient de cocher ou de décocher, au geste. L'attribut `data-anime` est
@@ -118,13 +123,23 @@ export function animerCaseDuBloc(view: EditorView, pos: number, coche: boolean) 
   const genre = coche ? 'coche' : 'decoche'
   const jeton = ++jetonCase
   view.dispatch(view.state.tr.setMeta(CLE_ANIME, { pos, genre, jeton } satisfies GesteCase).setMeta('addToHistory', false))
-  setTimeout(() => {
+  const enAttente = finsEnAttente.get(view) ?? new Set()
+  finsEnAttente.set(view, enAttente)
+  const fin = setTimeout(() => {
+    enAttente.delete(fin)
     if (!view.isDestroyed) view.dispatch(view.state.tr.setMeta(CLE_ANIME, { fin: jeton } satisfies GesteCase).setMeta('addToHistory', false))
   }, DUREE_CASE[genre])
+  enAttente.add(fin)
 }
 
 const AnimeCases = new Plugin<DecorationSet>({
   key: CLE_ANIME,
+  view: (vue) => ({
+    destroy() {
+      for (const fin of finsEnAttente.get(vue) ?? []) clearTimeout(fin)
+      finsEnAttente.delete(vue)
+    },
+  }),
   state: {
     init: () => DecorationSet.empty,
     apply: (tr, avant) => {

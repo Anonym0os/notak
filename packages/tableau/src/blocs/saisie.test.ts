@@ -1,21 +1,25 @@
 // @vitest-environment jsdom
 import { TextSelection } from '@tiptap/pm/state'
 import { Editor } from '@tiptap/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { NoeudTexte } from '../coeur/tableau'
 import { definirLangue } from '../langue'
 import { poserIds } from './ids'
 import { apprendre, oublierDisposition } from '../touches'
 import { basculerDepliants, effacerFormat, numeroAccepte, raccourcisBlocs, valeursDeNumero } from './saisie'
 import { EXTENSIONS_BLOCS } from './schema'
+import { animerCaseDuBloc } from './structure'
 import { guillemet } from './typographie'
 import { colorer, dupliquerBloc, inserer, supprimerBloc, transformer, versActuel } from './transformer'
 
 definirLangue('fr')
 
 let editeur: Editor | null = null
+// Tous ceux qu'un essai ouvre, pas seulement le dernier : un éditeur laissé vivant garde ses minuteurs (l'animation d'une
+// case), qui partiraient après le démontage de jsdom.
+const ouverts: Editor[] = []
 afterEach(() => {
-  editeur?.destroy()
+  for (const e of ouverts.splice(0)) if (!e.isDestroyed) e.destroy()
   editeur = null
 })
 
@@ -24,6 +28,7 @@ const p = (text: string): NoeudTexte => ({ type: 'paragraph', content: text ? [{
 /** Un éditeur du moteur, le curseur à la fin du premier bloc de texte. */
 function ouvrir(...content: NoeudTexte[]): Editor {
   editeur = new Editor({ extensions: EXTENSIONS_BLOCS, content: { type: 'doc', content: content.length ? content : [p('')] } })
+  ouverts.push(editeur)
   const ids = poserIds(editeur.state)
   if (ids) editeur.view.dispatch(ids)
   editeur.commands.setTextSelection(1)
@@ -370,6 +375,7 @@ describe('NOTION.md § 5 : les raccourcis du moteur', () => {
     let ouvert = 0
     const gestes = { current: { transformerEn: () => void ouvert++, derniereCouleur() {} } }
     editeur = new Editor({ extensions: [...EXTENSIONS_BLOCS, raccourcisBlocs(gestes)], content: { type: 'doc', content: [p('x')] } })
+    ouverts.push(editeur)
     const touche = (init: KeyboardEventInit) => editeur!.view.dom.dispatchEvent(new KeyboardEvent('keydown', { metaKey: true, shiftKey: true, bubbles: true, ...init }))
     touche({ key: '/', code: 'Period', keyCode: 191 })
     expect(ouvert).toBe(1)
@@ -520,5 +526,22 @@ describe('les gestes du menu', () => {
     ed.view.dispatch(ed.state.tr.setSelection(TextSelection.create(ed.state.doc, 1, 3)))
     colorer(ed, { nom: 'bleu', fond: false })
     expect(ed.getJSON().content?.[0]?.content?.[0]?.marks?.[0]).toMatchObject({ type: 'textStyle', attrs: { color: 'var(--notak-bloc-bleu)' } })
+  })
+})
+
+describe('l’animation d’une case', () => {
+  it('ne survit pas à son éditeur : détruit, il emporte la fin qu’elle attendait', () => {
+    const ed = ouvrir(p('a'))
+    const poses = vi.spyOn(globalThis, 'setTimeout')
+    const effaces = vi.spyOn(globalThis, 'clearTimeout')
+    try {
+      animerCaseDuBloc(ed.view, 0, true)
+      const fin = poses.mock.results.at(-1)!.value as ReturnType<typeof setTimeout>
+      ed.destroy()
+      expect(effaces).toHaveBeenCalledWith(fin)
+    } finally {
+      poses.mockRestore()
+      effaces.mockRestore()
+    }
   })
 })
