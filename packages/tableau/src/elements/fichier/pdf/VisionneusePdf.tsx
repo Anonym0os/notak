@@ -10,6 +10,7 @@ import { moteurPdf } from '../apercuPdf'
 import { ouvrirDehors } from '../ouverture'
 import { type MoteurPdf, PagePdf } from './PagePdf'
 import { CalqueTraits, useDessinPdf } from './DessinPdf'
+import { useCommentairesPdf } from './CommentairesPdf'
 import {
   type Disposition,
   type TaillePage,
@@ -102,10 +103,11 @@ const RECHERCHE_VIDE: Recherche = { texte: '', enCours: false, resultats: [], co
  * les pages, Échap ferme ; au doigt, on pince pour zoomer. Le texte reste sélectionnable et copiable.
  *
  * « Dessiner » (⇧D) trace sur les pages au crayon, au surligneur, et gomme (`DessinPdf`) ; les traits se rangent dans
- * l'élément, page par page, et se montrent à tous, même en lecture seule.
+ * l'élément, page par page, et se montrent à tous, même en lecture seule. « Commenter » (⌥⌘M) épingle un fil à un
+ * endroit d'une page (`CommentairesPdf`), le même fil que sur la toile.
  *
  * `element` et `contexte` (absents dans la bibliothèque, hors de toute toile) servent à ce que la toile prête : ouvrir
- * avec l'app de bureau, dessiner, l'historique.
+ * avec l'app de bureau, dessiner, commenter, l'historique.
  */
 export function VisionneusePdf({
   contenu,
@@ -176,6 +178,29 @@ export function VisionneusePdf({
     const i = Math.max(0, Math.min(n - 1, page))
     s.scrollTop = etat.current.d.hauts[i]! - MARGE_PAGES / 2
     mesurer()
+  }
+  const commentaires = useCommentairesPdf({
+    element,
+    contexte,
+    contenu,
+    pret: !!pret && zoom !== null,
+    // Le point d'un fil (page à partir de 1, hauteur en fraction de la page) vient au tiers haut de la vue.
+    montrer: (page, y) => {
+      const s = defile.current
+      const { d: disp } = etat.current
+      const i = page - 1
+      if (!s || disp.hauts[i] === undefined) return
+      s.scrollTop = Math.max(0, disp.hauts[i]! + y * disp.hauteurs[i]! - s.clientHeight / 3)
+      mesurer()
+    },
+  })
+  const commencerDessin = () => {
+    commentaires.quitter()
+    dessin.commencer()
+  }
+  const basculerCommentaire = () => {
+    if (dessin.actif) dessin.enregistrer()
+    commentaires.basculer()
   }
 
   // Le zoom d'ouverture, dès que la première page et la largeur de la vue sont connues.
@@ -404,11 +429,13 @@ export function VisionneusePdf({
     if (cmd && k === '0') return faire(ajuster)
     if (cmd && k.toLowerCase() === 'f') return faire(ouvrirRecherche)
     if (!estSaisie(e.target) && dessin.clavier(e)) return
+    if (!estSaisie(e.target) && cmd && e.altKey && e.code === 'KeyM' && commentaires.autorise) return faire(basculerCommentaire)
+    if (!estSaisie(e.target) && commentaires.clavier(e)) return
     if (k === 'Escape') return faire(() => (recherche ? fermerRecherche() : fermer()))
     if (estSaisie(e.target)) return
     // ⌘Z et ⌘⇧Z défont et refont ici comme sur la toile : un dessin enregistré, par exemple.
     if (cmd && k.toLowerCase() === 'z' && contexte && dessin.autorise) return faire(() => void (e.shiftKey ? contexte.magasin.retablir() : contexte.magasin.annuler()))
-    if (e.shiftKey && !cmd && !e.altKey && k.toLowerCase() === 'd' && dessin.autorise && pret) return faire(dessin.commencer)
+    if (e.shiftKey && !cmd && !e.altKey && k.toLowerCase() === 'd' && dessin.autorise && pret) return faire(commencerDessin)
     if (cmd || e.altKey) return
     const s = defile.current
     if (!s) return
@@ -425,6 +452,20 @@ export function VisionneusePdf({
     if (k === 'Home') return faire(() => allerA(0))
     if (k === 'End') return faire(() => allerA(etat.current.d.hauts.length - 1))
   }
+
+  // Une bulle de commentaire refermée rend le focus à la page : la visionneuse le reprend, et la touche avec lui, avant
+  // que la toile dessous ne la lise (Espace, Échap).
+  const clavierActuel = useRef(clavier)
+  clavierActuel.current = clavier
+  useEffect(() => {
+    const repli = (e: KeyboardEvent) => {
+      if (e.target !== document.body && e.target !== document.documentElement) return
+      racine.current?.focus({ preventScroll: true })
+      clavierActuel.current(e as unknown as ToucheReact)
+    }
+    document.addEventListener('keydown', repli, true)
+    return () => document.removeEventListener('keydown', repli, true)
+  }, [])
 
   const n = tailles.length
   const bouton = (icone: NomIcone, libelle: string, onClick: () => void, plus: { court?: string; actif?: boolean; presse?: boolean } = {}) => (
@@ -452,6 +493,7 @@ export function VisionneusePdf({
       aria-label={titre}
       tabIndex={-1}
       data-sombre={theme?.colorScheme === 'dark' || undefined}
+      data-dessin={dessin.actif || undefined}
       style={theme ?? undefined}
       onKeyDown={clavier}
       onKeyUp={clos}
@@ -515,10 +557,16 @@ export function VisionneusePdf({
         <div className="notak-pdf-groupe notak-pdf-actions">
           {bouton('recherche', t('pdf.rechercher'), () => (recherche ? fermerRecherche() : ouvrirRecherche()), { actif: !!pret, presse: !!recherche })}
           {dessin.autorise &&
-            bouton('croquis', t('pdf.dessiner.titre'), () => (dessin.actif ? dessin.enregistrer() : dessin.commencer()), {
+            bouton('croquis', t('pdf.dessiner.titre'), () => (dessin.actif ? dessin.enregistrer() : commencerDessin()), {
               court: t('pdf.dessiner'),
               actif: !!pret,
               presse: dessin.actif,
+            })}
+          {commentaires.autorise &&
+            bouton('commentaire', t('pdf.commenter.titre'), basculerCommentaire, {
+              court: t('pdf.commenter'),
+              actif: !!pret,
+              presse: commentaires.actif,
             })}
           <span className="notak-pdf-sep" role="separator" />
           <a className="notak-pdf-bouton" href={adresse} download={contenu.nom} rel="noopener" aria-label={t('pdf.telecharger.titre')} title={t('pdf.telecharger.titre')}>
@@ -577,7 +625,7 @@ export function VisionneusePdf({
           // Un clic à côté des pages ferme, comme sur le voile de l'image en grand ; pas la fin d'une sélection de texte.
           const presse = fondPresse.current
           fondPresse.current = false
-          if (presse && !dessin.actif && estFond(e.target, e.currentTarget) && !window.getSelection()?.toString()) fermer()
+          if (presse && !dessin.actif && !commentaires.actif && estFond(e.target, e.currentTarget) && !window.getSelection()?.toString()) fermer()
         }}
       >
         {document_.etat === 'charge' && (
@@ -607,12 +655,19 @@ export function VisionneusePdf({
                   dessous={<CalqueTraits traits={dessin.traitsDe(i + 1)} taille={tailles[i]!} vise={dessin.viseDe(i + 1)} contour={dessin.contour / Math.max(1, d.largeurs[i]!)} />}
                 >
                   {dessin.saisie(i + 1, tailles[i]!)}
+                  {commentaires.saisie(i + 1)}
+                  {commentaires.epingles(i + 1)}
                 </PagePdf>
               ))}
           </div>
         )}
       </div>
       {dessin.barre}
+      {commentaires.actif && (
+        <div className="notak-pdf-consigne" role="status">
+          {t('pdf.commenter.consigne')}
+        </div>
+      )}
     </div>,
     document.body,
   )

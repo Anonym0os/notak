@@ -252,6 +252,12 @@ export interface Fichier {
   lectureAuto?: boolean
   /** Ce qu'on a dessiné sur les pages d'un PDF, par numéro de page (« 1 » pour la première), du plus ancien au plus récent. */
   annotations?: Record<string, TraitPage[]>
+  /**
+   * Les fils de discussion épinglés sur les pages d'un PDF, par leur identifiant (le même fil que sur la toile ; sa
+   * page et son point dans `surPage`). Un fil sans message n'est pas gardé. Y écrire ne modifie pas le fichier : un
+   * commentateur le peut.
+   */
+  fils?: Record<Id, Commentaire>
 }
 
 /** Une colonne : ses éléments portent `parent` = l'id de la colonne, et un `ordre`. */
@@ -367,6 +373,11 @@ export interface Commentaire {
    * Absent : à 20 px du bord droit et du haut.
    */
   epingle?: { x: number; y: number }
+  /**
+   * Épinglé sur une page d'un PDF (`Fichier.fils`) : la page (1 pour la première), et la pointe de l'épingle en
+   * fractions de la page telle qu'elle se montre (0 à 1).
+   */
+  surPage?: { page: number; x: number; y: number }
 }
 
 /** Le type d'une cellule ; absent : « auto », déduit de ce qu'on tape. */

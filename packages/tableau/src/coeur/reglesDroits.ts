@@ -113,7 +113,10 @@ export function gesteSurFil(avant: unknown, apres: unknown, auteur: string): Ges
   return filDeSoi(avant, apres, auteur) ? 'commentaire' : 'ecriture'
 }
 
-/** Les fils des sujets d'une carte (`Arbre.fils`, par sujet) n'ont changé qu'en ce qu'un commentateur peut y faire. */
+/**
+ * Les fils d'un dictionnaire de fils (`Arbre.fils` par sujet, `Fichier.fils` sur les pages d'un PDF) n'ont changé qu'en
+ * ce qu'un commentateur peut y faire.
+ */
 function filsDeSoi(avant: unknown, apres: unknown, auteur: string): boolean {
   const a = objet(avant) ?? {}
   const b = objet(apres) ?? {}
@@ -121,11 +124,17 @@ function filsDeSoi(avant: unknown, apres: unknown, auteur: string): boolean {
   return true
 }
 
-/** Une carte mentale dont seuls les fils des sujets ont changé, et en ce qu'un commentateur peut y faire. */
+/** Les contenus dont les fils vivent à part de ce qu'ils montrent : y commenter n'écrit pas le reste. */
+const FILS_A_PART = new Set(['arbre', 'fichier'])
+
+/**
+ * Une carte mentale, ou un fichier (les fils épinglés sur les pages d'un PDF), dont seuls les fils ont changé, et en ce
+ * qu'un commentateur peut y faire.
+ */
 function carteDeSoi(avant: unknown, apres: unknown, auteur: string): boolean {
   const a = objet(avant)
   const b = objet(apres)
-  if (a?.type !== 'arbre' || b?.type !== 'arbre') return false
+  if (typeof a?.type !== 'string' || !FILS_A_PART.has(a.type) || b?.type !== a.type) return false
   for (const cle of new Set([...Object.keys(a), ...Object.keys(b)])) {
     if (egal(a[cle], b[cle])) continue
     if (cle === 'fils' && filsDeSoi(a[cle], b[cle], auteur)) continue
@@ -160,8 +169,8 @@ export function carteIntacte(avant: unknown, apres: unknown, genere: (toile: Id)
 /**
  * Ce que demande le passage d'un élément de `avant` à `apres` (des éléments stockés, `undefined` s'il n'existe pas),
  * fait par `auteur` : commenter suffit pour un fil (le créer, y répondre, le déplacer, le résoudre, le supprimer s'il
- * n'a que ses messages), pour le fil ou les réactions accrochés à un autre élément et pour les fils des sujets d'une
- * carte mentale ; tout le reste est écrire.
+ * n'a que ses messages), pour le fil ou les réactions accrochés à un autre élément, pour les fils des sujets d'une
+ * carte mentale et pour ceux épinglés sur les pages d'un PDF ; tout le reste est écrire.
  */
 export function gesteSurElement(avant: unknown, apres: unknown, auteur: string): Geste {
   const a = objet(avant)

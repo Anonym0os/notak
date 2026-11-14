@@ -128,6 +128,24 @@ describe('comparer deux états d’un élément', () => {
       { genre: 'fil', fil: 'f1', perimes: [{ id: 'm2' }] },
     ])
   })
+
+  it('un fil épinglé sur une page d’un PDF se suit comme les autres ; dessiner sur le PDF, c’est le modifier', () => {
+    const m1 = { id: 'm1', texte: 'Ce total ?', auteur: { id: 'ana' } }
+    const m2 = { id: 'm2', texte: 'Vu @Ana', auteur: { id: 'bob' } }
+    const fil = (...messages: Record<string, unknown>[]) => ({ type: 'commentaire', messages, surPage: { page: 3, x: 0.4, y: 0.2 } })
+    const pdf = (plus: Record<string, unknown> = {}) => ({
+      id: 'p',
+      x: 0,
+      y: 0,
+      largeur: 34,
+      plan: 'a',
+      contenu: { type: 'fichier', fichier: 'f', nom: 'devis.pdf', typeMime: 'application/pdf', taille: 1, ...plus },
+    })
+    expect(changementsDe('p', pdf(), pdf({ fils: { f1: fil(m1) } }))).toMatchObject([{ genre: 'commente', element: 'p', fil: 'f1', typeElement: 'fichier', participants: [] }])
+    expect(changementsDe('p', pdf({ fils: { f1: fil(m1) } }), pdf({ fils: { f1: fil(m1, m2) } }))).toMatchObject([{ genre: 'commente', fil: 'f1', participants: ['ana'] }])
+    const trait = { id: 't', couleur: '#ff5757', epaisseur: 0.01, points: [[0.1, 0.1]] }
+    expect(changementsDe('p', pdf(), pdf({ annotations: { '1': [trait] } })).map((c) => c.genre)).toEqual(['modifie'])
+  })
 })
 
 describe('observer un document', () => {

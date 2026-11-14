@@ -44,6 +44,18 @@ describe('gesteSurElement', () => {
     expect(gesteSurElement(carte(), { ...carte(), contenu: { type: 'arbre', sujets: { s1: { titre: 'Renommé' } } } }, 'bob')).toBe('ecriture')
   })
 
+  it('sur un PDF, épingler un fil sur une page ou y répondre relève du commentaire ; dessiner ou renommer, de l’écriture', () => {
+    const pdf = (extra: object = {}) => ({ id: 'p', x: 0, y: 0, largeur: 340, contenu: { type: 'fichier', fichier: 'f', nom: 'a.pdf', typeMime: 'application/pdf', taille: 1, ...extra } })
+    const fils = (messages: unknown[]) => ({ fils: { f1: { type: 'commentaire', messages, surPage: { page: 2, x: 0.4, y: 0.3 } } } })
+    expect(gesteSurElement(pdf(), pdf(fils([message('m1', 'bob', 'Ce chiffre ?')])), 'bob')).toBe('commentaire')
+    expect(gesteSurElement(pdf(fils([message('m1', 'ana', 'Q')])), pdf(fils([message('m1', 'ana', 'Q'), message('m2', 'bob', 'R')])), 'bob')).toBe('commentaire')
+    expect(gesteSurElement(pdf(fils([message('m1', 'ana', 'Q')])), pdf(fils([message('m1', 'ana', 'Volé')])), 'bob')).toBe('ecriture')
+    expect(gesteSurElement(pdf(), pdf({ annotations: { '1': [] } }), 'bob')).toBe('ecriture')
+    expect(gesteSurElement(pdf(), pdf({ titre: 'Autre' }), 'bob')).toBe('ecriture')
+    // Un fil qui change de type de contenu n'est pas un commentaire.
+    expect(gesteSurElement(pdf(), { ...pdf(), contenu: { type: 'arbre', sujets: {}, ...fils([message('m1', 'bob', 'Q')]) } }, 'bob')).toBe('ecriture')
+  })
+
   it('sur un autre élément, seuls son fil et ses réactions relèvent du commentaire', () => {
     const avant = note('n')
     expect(gesteSurElement(avant, note('n', { commentaire: { type: 'commentaire', messages: [message('m1', 'bob', 'Ici ?')] } }), 'bob')).toBe('commentaire')
