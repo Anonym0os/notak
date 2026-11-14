@@ -23,7 +23,18 @@ export interface Niveau {
   id: Id
   titre: string
   genre: GenreNiveau
+  /** Une toile privée (par elle ou par une toile au-dessus) : un cadenas suit son nom, comme sur sa tuile. */
+  prive?: boolean
 }
+
+/** Le cadenas d'un niveau privé, après son nom : discret, et dit au lecteur d'écran. */
+const Cadenas = ({ grand = false }: { grand?: boolean }) => (
+  <span className="notak-fil-prive" role="img" aria-label={t('espace.privee')} title={t('espace.privee')}>
+    <Icone nom="verrou" taille={grand ? 15 : 12} trait={2} />
+  </span>
+)
+/** Ce que le cadenas ajoute à la largeur d'un niveau. */
+const CADENAS = 16
 
 /** Des attributs posés sur un niveau : la cible d'un dépôt (`data-depot-tableau`), son survol, son chargement. */
 export type AttributsNiveau = Record<`data-${string}`, string | true | undefined>
@@ -83,7 +94,7 @@ export function FilDAriane({
   ref,
 }: {
   niveaux: readonly Niveau[]
-  ici: { genre: GenreNiveau; titre: string; contenu?: ReactNode; infobulle?: string; attributs?: AttributsNiveau }
+  ici: { genre: GenreNiveau; titre: string; prive?: boolean; contenu?: ReactNode; infobulle?: string; attributs?: AttributsNiveau }
   aller(id: Id): void
   place?: number
   seulIci?: boolean
@@ -105,12 +116,12 @@ export function FilDAriane({
     const tous = niveaux.length + 1
     if (seulIci) return { visibles: [niveaux.length], caches: [] as number[] }
     if (!Number.isFinite(place)) return { visibles: [...Array(tous).keys()], caches: [] as number[] }
-    const largeurs = niveaux.map((n) => Math.min(NOM, largeurTexte(n.titre || sansTitre, POLICE)) + AUTOUR)
+    const largeurs = niveaux.map((n) => Math.min(NOM, largeurTexte(n.titre || sansTitre, POLICE)) + AUTOUR + (n.prive ? CADENAS : 0))
     if (titreDessous) {
       const chemin = tronquerFil(largeurs, place, SUSPENSION)
       return { visibles: [...chemin.visibles, niveaux.length], caches: chemin.caches }
     }
-    largeurs.push(Math.min(NOM_ICI, largeurTexte(ici.titre || sansTitre, POLICE_ICI)) + AUTOUR)
+    largeurs.push(Math.min(NOM_ICI, largeurTexte(ici.titre || sansTitre, POLICE_ICI)) + AUTOUR + (ici.prive ? CADENAS : 0))
     return tronquerFil(largeurs, place, SUSPENSION)
     // `cle` dit les niveaux et les titres : les tableaux eux-mêmes changent d'identité à chaque rendu.
   }, [cle, place, seulIci, titreDessous])
@@ -131,6 +142,7 @@ export function FilDAriane({
               <button type="button" className="notak-fil-segment" data-genre={n.genre} title={n.titre || sansTitre} onClick={() => aller(n.id)} {...attributs?.(n)}>
                 <IconeNiveau genre={n.genre} />
                 <span className="notak-fil-nom">{n.titre || sansTitre}</span>
+                {n.prive && <Cadenas />}
               </button>
               {chevron}
             </span>
@@ -142,6 +154,7 @@ export function FilDAriane({
       <div className="notak-fil-titre" aria-current="page" data-genre={ici.genre} title={ici.infobulle ?? (ici.titre || sansTitre)} {...ici.attributs}>
         <IconeNiveau genre={ici.genre} grand={titreDessous} />
         {ici.contenu ?? <span className="notak-fil-nom">{ici.titre || sansTitre}</span>}
+        {ici.prive && <Cadenas grand={titreDessous} />}
       </div>
       {apres}
     </nav>

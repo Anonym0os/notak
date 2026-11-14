@@ -814,6 +814,13 @@
   flex: none;
 }
 
+/* Le cadenas d'une toile privée, après son nom : discret, comme sur sa tuile de la bibliothèque. */
+.notak-fil-prive {
+  display: inline-flex;
+  flex: none;
+  opacity: 0.7;
+}
+
 /* L'accueil : la tuile bleue à la maison, comme dans la colonne de la bibliothèque. */
 .notak-fil-accueil {
   display: grid;

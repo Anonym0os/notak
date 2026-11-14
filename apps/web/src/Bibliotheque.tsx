@@ -1474,6 +1474,8 @@ function BibliothequeBureau({
   const fil = dossier && toutes ? filDAriane(dossier, toutes, espace?.racine ?? null).slice(0, -1) : []
   /** Ce qu'est un niveau du chemin, pour son icône : l'accueil, un dossier, ou une toile qu'on parcourt comme un dossier. */
   const genreDuNiveau = (id: string): GenreNiveau => (id === espace?.racine ? 'accueil' : enDossier(id) ? 'dossier' : 'toile')
+  /** Une toile privée du chemin : son cadenas la suit dans le fil, comme sur sa tuile. */
+  const estPrivee = (id: string) => parCle.get(`${id}/`)?.prive === true
   // Le fil prend la place que lui laissent les îlots de droite : ce qui ne tient pas passe dans « … ».
   const [placeDuFil, filDuDossier] = usePlaceDuFil('parent')
   /** Pendant qu'on glisse dans un dossier, son parent : la tuile qui crée devient celle qui y remonte. */
@@ -2062,8 +2064,8 @@ function BibliothequeBureau({
               titreDessous
               className="biblio-fil"
               etiquette={t('biblio.fil')}
-              niveaux={fil.map((id) => ({ id, titre: titreToile(id), genre: genreDuNiveau(id) }))}
-              ici={{ genre: genreDuNiveau(dossier), titre: titreToile(dossier), contenu: <h1>{titreToile(dossier)}</h1> }}
+              niveaux={fil.map((id) => ({ id, titre: titreToile(id), genre: genreDuNiveau(id), prive: estPrivee(id) }))}
+              ici={{ genre: genreDuNiveau(dossier), titre: titreToile(dossier), prive: estPrivee(dossier), contenu: <h1>{titreToile(dossier)}</h1> }}
               aller={parcourir}
               place={placeDuFil}
               attributs={(n) => ({ 'data-depot': n.id, 'data-survol-depot': survolDepot === n.id || undefined })}

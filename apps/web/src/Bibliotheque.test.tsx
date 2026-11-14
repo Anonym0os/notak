@@ -560,6 +560,14 @@ describe('les gestes', () => {
       expect(hote.querySelectorAll('.biblio-fil .notak-fil-segment')).toHaveLength(0)
     })
 
+    it('un dossier privé a son cadenas dans le fil, comme sur sa tuile', async () => {
+      history.replaceState(null, '', '/?dossier=voyage')
+      const prive = AVEC_DOSSIER.map((e) => (e.tableau === 'voyage' && e.element === null ? { ...e, prive: true } : e))
+      await act(async () => racine.render(<PageBibliotheque charger={async () => prive} espace={monde()} />))
+      expect(hote.querySelector('.biblio-fil [aria-current="page"] .notak-fil-prive')).not.toBeNull()
+      expect(hote.querySelector('.biblio-fil .notak-fil-segment .notak-fil-prive')).toBeNull()
+    })
+
     it('le clic droit d’un dossier de l’arbre ouvre le menu de sa tuile ; « Renommer » va la montrer, prête', async () => {
       history.replaceState(null, '', '/?vue=partages')
       await act(async () => racine.render(<PageBibliotheque charger={async () => AVEC_DOSSIER} espace={monde()} definirFavori={async () => {}} />))

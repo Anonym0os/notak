@@ -132,6 +132,18 @@ describe('le fil d’Ariane', () => {
     expect(noms()).toEqual(['Accueil', '', 'Projet'])
   })
 
+  it('une toile privée garde son cadenas dans le fil, après son nom, et le lecteur d’écran l’entend', () => {
+    rendre({ niveaux: CHEMIN.map((n) => (n.id === 'C' ? { ...n, prive: true } : n)), ici: { ...ICI, prive: true } })
+    const cadenas = [...hote.querySelectorAll('.notak-fil-prive')]
+    expect(cadenas).toHaveLength(2)
+    expect(cadenas[0]!.closest('.notak-fil-segment')!.textContent).toBe('Clients')
+    expect(cadenas[0]!.previousElementSibling!.className).toBe('notak-fil-nom')
+    expect(cadenas[0]!.getAttribute('aria-label')).toBe('Privée : seules les personnes invitées l’ouvrent')
+    expect(cadenas[1]!.closest('.notak-fil-titre')).not.toBeNull()
+    // Les autres niveaux n'en ont pas.
+    expect(segments()[1]!.querySelector('.notak-fil-prive')).toBeNull()
+  })
+
   it('un niveau sans titre se dit « Sans titre »', () => {
     rendre({ niveaux: [{ id: 'R', titre: '', genre: 'toile' }], ici: { genre: 'toile', titre: '' } })
     expect(noms()).toEqual(['Sans titre'])
