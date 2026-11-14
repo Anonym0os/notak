@@ -82,7 +82,10 @@ const TEXTES: Record<string, string> = {
 
 /** Pourquoi la connexion n'a pas eu lieu, en une phrase qui dit quoi faire. `hote` : le serveur dont on parle. */
 export function texteErreur(e: Echec, hote = ''): string {
-  const cle = TEXTES[e.code] ?? TEXTES.echec!
+  // Le seul refus qui nomme le lieu des toiles : sur un iPhone ou un iPad, c'est « cet appareil » (voir `surAppareil`).
+  // Hors d'une page (le serveur, les essais), pas de fenêtre à interroger : c'est le texte de l'ordinateur.
+  const mobile = typeof window !== 'undefined' && surAppareil()
+  const cle = e.code === 'muette' && mobile ? 'bureau.erreur.muette.appareil' : (TEXTES[e.code] ?? TEXTES.echec!)
   return t(cle, { hote, vers: e.code === 'redirige' ? e.vers : '' })
 }
 

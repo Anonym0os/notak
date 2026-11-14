@@ -146,6 +146,7 @@ describe('le lieu, dans les mots', () => {
       'bureau.acces.localAide',
       'bureau.acces.oublierConfirme',
       'bureau.porte.ouvrirLocal',
+      'bureau.erreur.muette',
       'serveur.connexion.local',
       'serveur.compte.toilesLocales',
     ]
@@ -155,6 +156,19 @@ describe('le lieu, dans les mots', () => {
       expect(textesEn[variante], cle).toBeTruthy()
       expect(textesFr[variante], cle).not.toMatch(/ordinateur/)
       expect(textesEn[variante], cle).not.toMatch(/computer/)
+    }
+  })
+
+  it('un serveur muet, sur un iPhone : le refus propose les toiles de cet appareil, pas de cet ordinateur', () => {
+    definirLangue('fr')
+    expect(texteErreur({ code: 'muette' }, 'notak.exemple.fr')).toMatch(/ordinateur/)
+    // Une fenêtre de l'app iPhone, telle que la coque la marque.
+    const global = globalThis as { window?: unknown }
+    global.window = { __NOTAK_PLATEFORME__: 'ios' }
+    try {
+      expect(texteErreur({ code: 'muette' }, 'notak.exemple.fr')).toMatch(/cet appareil/)
+    } finally {
+      delete global.window
     }
   })
 })

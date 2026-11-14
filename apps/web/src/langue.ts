@@ -1101,6 +1101,7 @@ export const fr: Textes = {
   'bureau.acces.oublierConfirme.appareil':
     'Oublier {hote} ? La session ouverte sur ce serveur sera fermée sur cet appareil. Les copies de ses toiles que Notak garde pour travailler hors ligne restent sur cet appareil. Vos toiles de cet appareil ne sont pas touchées.',
   'bureau.porte.ouvrirLocal.appareil': 'Ouvrir les toiles de cet appareil',
+  'bureau.erreur.muette.appareil': '{hote} n’a pas répondu. Il est peut-être arrêté, ou sa page ne s’est pas ouverte : réessayez, ou ouvrez les toiles de cet appareil.',
   'serveur.connexion.local.appareil': 'Ouvrir les toiles de cet appareil',
   'serveur.compte.toilesLocales.appareil': 'Toiles de cet appareil',
   'telephone.serveur.connecter': 'Se connecter à un serveur Notak',
@@ -2185,6 +2186,7 @@ export const en: Textes = {
   'bureau.acces.oublierConfirme.appareil':
     'Forget {hote}? The session open on that server will be closed on this device. The copies of its canvases that Notak keeps for offline work stay on this device. The canvases on this device are untouched.',
   'bureau.porte.ouvrirLocal.appareil': 'Open the canvases on this device',
+  'bureau.erreur.muette.appareil': '{hote} did not answer. It may be down, or its page did not open: try again, or open the canvases on this device.',
   'serveur.connexion.local.appareil': 'Open the canvases on this device',
   'serveur.compte.toilesLocales.appareil': 'Canvases on this device',
   'telephone.serveur.connecter': 'Connect to a Notak server',
