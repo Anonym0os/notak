@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import type { Id } from '../../coeur/tableau'
-import { TYPES_ACCEPTES } from './geometrie'
+import { prisEnImage } from './conversion'
 
 /**
  * Le dépôt d'une image sur une image : à peine au-dessus, un filet de 2 px ; après 500 ms de survol sans bouger de
@@ -21,12 +21,12 @@ const ecouter = (f: () => void) => {
 }
 const prevenir = () => ecouteurs.forEach((f) => f())
 
-/** Ce qu'on glisse est une seule image du bureau (ou on ne sait pas encore : certains navigateurs cachent le type). */
+/** Ce qu'on glisse est une seule image du bureau, une photo HEIC comprise (ou on ne sait pas encore : certains navigateurs cachent le type). */
 export function glisseUneImage(d: Pick<DataTransfer, 'types' | 'items'>): boolean {
   if (![...d.types].includes('Files')) return false
   const items = [...d.items].filter((i) => i.kind === 'file')
   if (items.length > 1) return false
-  return items.length === 0 || items[0]!.type === '' || TYPES_ACCEPTES.includes(items[0]!.type)
+  return items.length === 0 || items[0]!.type === '' || prisEnImage(items[0]!)
 }
 
 /** L'image survolée par un dépôt (`null` : aucune). Le voile apparaît quand 500 ms ont passé sur la même. */

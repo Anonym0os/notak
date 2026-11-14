@@ -16,6 +16,9 @@ describe('ce qu’on glisse', () => {
     expect(glisseUneImage(glisse(['Files'], [{ kind: 'file', type: '' }]))).toBe(true)
     expect(glisseUneImage(glisse(['Files'], []))).toBe(true)
   })
+  test('une photo HEIC d’iPhone est une image : elle sera convertie', () => {
+    expect(glisseUneImage(glisse(['Files'], [{ kind: 'file', type: 'image/heic' }]))).toBe(true)
+  })
   test('ni du texte, ni un fichier d’un autre genre, ni plusieurs', () => {
     expect(glisseUneImage(glisse(['text/plain'], [{ kind: 'string', type: 'text/plain' }]))).toBe(false)
     expect(glisseUneImage(glisse(['Files'], [{ kind: 'file', type: 'application/pdf' }]))).toBe(false)

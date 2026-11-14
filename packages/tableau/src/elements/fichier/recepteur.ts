@@ -1,6 +1,7 @@
 import type { Element, Fichier, Operation } from '../../coeur/tableau'
 import { nouvelId } from '../../coeur/tableau'
-import { TYPES_ACCEPTES, nombreColonnes, placerImages } from '../image/geometrie'
+import { nombreColonnes, placerImages } from '../image/geometrie'
+import { prisEnImage } from '../image/conversion'
 import { commencerEnvoi } from '../envois'
 import type { ContexteToile } from '../types'
 import { t } from '../../langue'
@@ -34,7 +35,8 @@ export function messageDeRefus(nom: string, refus: NonNullable<ReturnType<typeof
 export function recevoirFichiers(donnees: DataTransfer, ou: { x: number; y: number }, contexte: ContexteToile) {
   const tous = [...donnees.files]
   const depot = contexte.services.fichiers
-  const autres = tous.filter((f) => !TYPES_ACCEPTES.includes(f.type))
+  // Une photo HEIC est une image (convertie, ou refusée en le disant), jamais un fichier joint qui la montrerait cassée.
+  const autres = tous.filter((f) => !prisEnImage(f))
   if (!depot || autres.length === 0) return null
   // Un fichier refusé le dit (taille, extension, nom) : un filtre muet laisse croire que le dépôt n'a pas pris.
   const fichiers: File[] = []
@@ -45,7 +47,7 @@ export function recevoirFichiers(donnees: DataTransfer, ou: { x: number; y: numb
   }
   if (fichiers.length === 0) return null
   // Les images du même dépôt se posent à `ou` : les fichiers se rangent à leur droite.
-  const decalage = tous.some((f) => TYPES_ACCEPTES.includes(f.type)) ? LARGEUR_FICHIER + 2 : 0
+  const decalage = tous.some(prisEnImage) ? LARGEUR_FICHIER + 2 : 0
   // Comme les images : seul, au point de dépôt ; plusieurs, en colonnes de 36 UG. Une icône mesure 10 UG de large, une carte 34.
   const icones = fichiers.map((f) => naitEnIcone(f.name, f.type))
   const places = placerImages(
