@@ -736,17 +736,33 @@ export function creerApp(ctx: Contexte): Hono {
     return m.length < MOT_DE_PASSE_MIN || m.length > MOT_DE_PASSE_MAX ? c.json({ erreur: 'mot de passe invalide', code: 'mot_de_passe_invalide' }, 400) : m
   }
 
-  // Où en est ce tableau pour ce compte : protégé lui-même, et barré (par lui ou par un tableau au-dessus).
+  /**
+   * L'outil rattaché qui a généré ce tableau (le dossier d'une fiche, ou celui qui les range), s'il l'a fait : il
+   * l'ouvre, et un mot de passe l'en empêcherait. Ni posé, ni retiré : il reste tel quel, comme le reste du dossier.
+   */
+  const outilQuiAGenere = (id: string): string | undefined => dossiersGeneres(ctx.rattachements ?? [], base.rattachementsDe([id])).get(id)
+  const refusGenere = (c: Context) => c.json({ erreur: 'généré par un outil', code: 'dossier_genere' }, 400)
+
+  // Où en est ce tableau pour ce compte : protégé lui-même, et barré (par lui ou par un tableau au-dessus). Son
+  // propriétaire, qui seul règle le mot de passe, apprend aussi quel outil l'a généré (`genere`), comme la bibliothèque
+  // le lui nomme.
   app.get('/api/tableaux/:id/verrou', async (c) => {
     const g = await garde(c, 'lecture', true)
     if (g instanceof Response) return g
     const par = verrouPar(base, g.u.id, g.id)
-    return c.json({ protege: base.motDePasse(g.id, 'tableau') !== null, verrouille: par !== null, par })
+    const outil = g.role === 'proprietaire' ? outilQuiAGenere(g.id) : undefined
+    return c.json({
+      protege: base.motDePasse(g.id, 'tableau') !== null,
+      verrouille: par !== null,
+      par,
+      ...(outil ? { genere: { outil, titre: base.tableau(g.id)?.titre ?? '' } } : {}),
+    })
   })
 
   app.put('/api/tableaux/:id/mot-de-passe', async (c) => {
     const g = await garde(c, 'proprietaire', true)
     if (g instanceof Response) return g
+    if (outilQuiAGenere(g.id)) return refusGenere(c)
     const m = await motDePasseDemande(c)
     if (m instanceof Response) return m
     const empreinte = await hacher(m)
@@ -763,6 +779,7 @@ export function creerApp(ctx: Contexte): Hono {
   app.delete('/api/tableaux/:id/mot-de-passe', async (c) => {
     const g = await garde(c, 'proprietaire', true)
     if (g instanceof Response) return g
+    if (outilQuiAGenere(g.id)) return refusGenere(c)
     if (!base.retirerMotDePasse(g.id, 'tableau')) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     return c.body(null, 204)
   })

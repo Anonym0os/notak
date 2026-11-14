@@ -4,6 +4,7 @@ import {
   type Blocage,
   type Cible,
   type EquipeEspace,
+  type EtatVerrou,
   type LienVisiteur,
   type Moi,
   type NiveauVisiteur,
@@ -744,15 +745,23 @@ function ReglagesLien({
 
 /**
  * « Protéger par mot de passe » : le tableau (et ce qu'il contient) ne s'ouvre plus, pour les autres comptes, qu'avec
- * ce mot de passe. Celui qui le pose n'a pas à le redonner sur cet appareil.
+ * ce mot de passe. Celui qui le pose n'a pas à le redonner sur cet appareil. Un dossier qu'un outil rattaché a généré
+ * garde le sien tel quel (l'outil l'ouvre) : ses gestes restent là, éteints, sous l'avis qui dit pourquoi.
  */
 function MotDePasse({ tableau }: { tableau: string }) {
   const [protege, setProtege] = useState<boolean | undefined>(undefined)
+  const [genere, setGenere] = useState<EtatVerrou['genere']>(undefined)
   const [saisie, setSaisie] = useState('')
   const [erreur, setErreur] = useState<string | null>(null)
   const [occupe, setOccupe] = useState(false)
   useEffect(() => {
-    etatVerrou(tableau).then((e) => setProtege(e.protege), (x: Error) => setErreur(x.message))
+    etatVerrou(tableau).then(
+      (e) => {
+        setProtege(e.protege)
+        setGenere(e.genere)
+      },
+      (x: Error) => setErreur(x.message),
+    )
   }, [tableau])
 
   const agir = async (f: () => Promise<boolean>) => {
@@ -769,6 +778,7 @@ function MotDePasse({ tableau }: { tableau: string }) {
   }
   const poser = (e: FormEvent) => {
     e.preventDefault()
+    if (genere) return
     if (saisie.length < 6) return setErreur(t('partage.mdp6'))
     void agir(async () => (await poserMotDePasse(tableau, saisie), true))
   }
@@ -782,6 +792,7 @@ function MotDePasse({ tableau }: { tableau: string }) {
       ) : (
         <>
           <span className="partage-note">{protege ? t('partage.mdpActif') : t('partage.mdpInactif')}</span>
+          {genere && <span className="partage-note">{tn('biblio.genere.reste', 1, { titre: genere.titre || t('commun.sansTitre'), outil: genere.outil })}</span>}
           <form className="partage-lien-ligne" onSubmit={poser} noValidate>
             <input
               type="password"
@@ -789,14 +800,15 @@ function MotDePasse({ tableau }: { tableau: string }) {
               aria-label={protege ? t('partage.nouveauMdpTableau') : t('partage.mdpTableau')}
               placeholder={protege ? t('partage.nouveauMdp') : t('connexion.mdp')}
               value={saisie}
+              disabled={!!genere}
               onChange={(e) => setSaisie(e.target.value)}
             />
-            <button type="submit" className="bouton" disabled={occupe || !saisie}>
+            <button type="submit" className="bouton" disabled={occupe || !!genere || !saisie}>
               {protege ? t('partage.changer') : t('partage.proteger')}
             </button>
           </form>
           {protege && (
-            <button type="button" className="bouton-lien" disabled={occupe} onClick={() => agir(async () => (await retirerMotDePasse(tableau), false))}>
+            <button type="button" className="bouton-lien" disabled={occupe || !!genere} onClick={() => agir(async () => (await retirerMotDePasse(tableau), false))}>
               {t('partage.retirerMdp')}
             </button>
           )}

@@ -844,6 +844,8 @@ export interface EtatVerrou {
   verrouille: boolean
   /** Le tableau dont il faut le mot de passe. */
   par: string | null
+  /** Un outil rattaché l'a généré (son propriétaire seul l'apprend) : son mot de passe ne se pose ni ne se retire. */
+  genere?: { outil: string; titre: string }
 }
 
 const verrouDe = (tableau: string) => `/api/tableaux/${encodeURIComponent(tableau)}`

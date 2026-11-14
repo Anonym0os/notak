@@ -2,7 +2,7 @@
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Moi } from './api'
+import { type Moi, etatVerrou, poserMotDePasse } from './api'
 import { PartageEnFenetre } from './Partage'
 
 vi.mock('./api', async (origine) => ({
@@ -11,7 +11,8 @@ vi.mock('./api', async (origine) => ({
   listerLiens: async () => [],
   listerBlocages: async () => [],
   listerEspaces: async () => [],
-  etatVerrou: async () => ({ protege: false }),
+  etatVerrou: vi.fn(async () => ({ protege: false })),
+  poserMotDePasse: vi.fn(async () => {}),
 }))
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -76,5 +77,26 @@ describe('PartageEnFenetre', () => {
     expect(hote.querySelectorAll('[role="dialog"]')).toHaveLength(0)
     act(() => racine.render(<></>))
     expect(boite.open).toBe(false)
+  })
+
+  it('le mot de passe d’un dossier généré par un outil reste tel quel : ses gestes éteints, l’avis dit pourquoi', async () => {
+    vi.mocked(etatVerrou).mockResolvedValueOnce({ protege: true, verrouille: false, par: null, genere: { outil: 'Silak', titre: 'Clients' } })
+    await act(async () => racine.render(<PartageEnFenetre tableau="t" moi={MOI} fermer={() => {}} protection />))
+    const bloc = [...hote.querySelectorAll('.partage-lien')].find((b) => b.querySelector('input[type="password"]'))!
+    expect(bloc.textContent).toContain('« Clients » est généré par Silak : il reste tel quel.')
+    const champ = bloc.querySelector<HTMLInputElement>('input[type="password"]')!
+    const boutons = [...bloc.querySelectorAll('button')]
+    expect(champ.disabled).toBe(true)
+    expect(boutons.length).toBeGreaterThan(1)
+    expect(boutons.every((b) => b.disabled)).toBe(true)
+    act(() => void bloc.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+    expect(poserMotDePasse).not.toHaveBeenCalled()
+  })
+
+  it('une autre toile se protège comme avant', async () => {
+    await act(async () => racine.render(<PartageEnFenetre tableau="t" moi={MOI} fermer={() => {}} protection />))
+    const bloc = [...hote.querySelectorAll('.partage-lien')].find((b) => b.querySelector('input[type="password"]'))!
+    expect(bloc.textContent).not.toContain('généré')
+    expect(bloc.querySelector<HTMLInputElement>('input[type="password"]')!.disabled).toBe(false)
   })
 })

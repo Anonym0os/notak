@@ -160,6 +160,32 @@ describe('les dossiers des fiches d’un autre outil', () => {
     expect(m.base.tableau('brouillon')!.parent).toBe(dupont)
   })
 
+  it('un dossier généré ne prend ni ne perd de mot de passe ; son propriétaire apprend quel outil l’a fait', async () => {
+    const dupont = ((await lire(ana, 'societe:1')).corps as { tableau: string }).tableau
+    const clients = m.base.tableau(dupont)!.parent!
+    const motDePasse = (id: string, methode: 'PUT' | 'DELETE') => m.appeler(`/api/tableaux/${id}/mot-de-passe`, { methode, compte: ana, ...(methode === 'PUT' ? { json: { motDePasse: 'secret-du-dossier' } } : {}) })
+    for (const id of [dupont, clients]) {
+      for (const methode of ['PUT', 'DELETE'] as const) {
+        const r = await motDePasse(id, methode)
+        expect([r.status, ((await r.json()) as { code: string }).code]).toEqual([400, 'dossier_genere'])
+      }
+      expect(m.base.motDePasse(id, 'tableau')).toBeNull()
+    }
+    const verrou = async (id: string, c = ana) => (await m.appeler(`/api/tableaux/${id}/verrou`, { compte: c })).json()
+    expect(await verrou(dupont)).toEqual({ protege: false, verrouille: false, par: null, genere: { outil: 'Mon CRM', titre: 'Dupont SARL' } })
+    expect(await verrou(clients)).toMatchObject({ genere: { outil: 'Mon CRM', titre: 'Clients' } })
+    // Une autre toile se protège comme avant, et ne dit rien d'un outil.
+    m.tableau(ana, 'carnet', 'Carnet')
+    expect((await motDePasse('carnet', 'PUT')).status).toBe(204)
+    expect(await verrou('carnet')).toEqual({ protege: true, verrouille: false, par: null })
+    expect((await motDePasse('carnet', 'DELETE')).status).toBe(204)
+    // Qui n'en est pas propriétaire ne l'apprend pas d'ici.
+    const cleo = await m.compte('Cleo')
+    m.base.definirAcces({ tableau: dupont, utilisateur: cleo.utilisateur.id, role: 'edition' })
+    await m.autorisation.vider()
+    expect(await verrou(dupont, cleo)).toEqual({ protege: false, verrouille: false, par: null })
+  })
+
   it('la création n’accepte que du JSON : un formulaire d’un autre site ne la déclenche pas', async () => {
     const r = await m.appeler('/api/rattachements/crm/societe:9', { compte: ana, methode: 'POST', corps: new TextEncoder().encode('{"titre":"X"}'), type: 'text/plain' })
     expect(r.status).toBe(415)
