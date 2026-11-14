@@ -1,3 +1,4 @@
+import { lettreDe } from '@notak/tableau'
 import type { ErreurNotee } from './journal'
 
 /**
@@ -28,12 +29,15 @@ export interface Contexte {
 }
 
 /**
- * ⇧⌘S (Ctrl+Maj+S hors Mac), le raccourci de Silak, lu sur `code` : avec Maj, `key` vaut « S » ou « s » selon la
- * disposition. Le barré du texte, qui le prenait aussi, reste sur ⇧⌘X.
+ * ⇧⌘S (Ctrl+Maj+S hors Mac), le raccourci de Silak, lu sur la lettre que porte la touche (`lettreDe`), capitale ou non,
+ * sur toute disposition. Le barré du texte, qui le prenait aussi, reste sur ⇧⌘X.
  */
-export function estLeRaccourci(e: Pick<KeyboardEvent, 'code' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey'>, surMac: boolean): boolean {
+export function estLeRaccourci(
+  e: Pick<KeyboardEvent, 'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey'> & Partial<Pick<KeyboardEvent, 'key' | 'code' | 'keyCode'>>,
+  surMac: boolean,
+): boolean {
   const commande = surMac ? e.metaKey : e.ctrlKey
-  return commande && e.shiftKey && !e.altKey && e.code === 'KeyS'
+  return commande && e.shiftKey && !e.altKey && lettreDe(e) === 's'
 }
 
 const decrire = (el: ElementDecrit) => `\`${el.type}\` ${el.id}${el.extrait ? ` « ${el.extrait} »` : ''}`

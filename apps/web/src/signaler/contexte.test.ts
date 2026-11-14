@@ -13,6 +13,11 @@ describe('le raccourci de signalement', () => {
     expect(estLeRaccourci(touche({ ctrlKey: true, shiftKey: true }), true)).toBe(false)
     expect(estLeRaccourci(touche({ metaKey: true, shiftKey: true, code: 'KeyX' }), true)).toBe(false)
   })
+
+  it('lit la lettre marquée, sur toute disposition : en Dvorak, S est à la place QWERTY du point-virgule', () => {
+    expect(estLeRaccourci(touche({ key: 'S', code: 'Semicolon', keyCode: 83, metaKey: true, shiftKey: true }), true)).toBe(true)
+    expect(estLeRaccourci(touche({ key: 'O', code: 'KeyS', keyCode: 79, metaKey: true, shiftKey: true }), true)).toBe(false)
+  })
 })
 
 describe('le contexte en Markdown', () => {
