@@ -31,6 +31,18 @@ export function palierPour(c: Image, largeurEntierePx: number, densite: number):
   return palier
 }
 
+/**
+ * La copie que charge la visionneuse : celle qui couvre l'écran (la place de l'image entière, son zoom, la densité),
+ * ou la plus grande que le serveur fabrique quand l'écran en voudrait plus, tant qu'on ne zoome pas ; l'original
+ * (`null`) quand on zoome au-delà de ce qu'elle couvre, ou qu'aucune copie n'y gagnerait (petite image, GIF, SVG).
+ * Une photo de 48 Mpx s'ouvre ainsi sur 300 Ko au lieu de 20 Mo.
+ */
+export function palierVisionneuse(c: Image, largeurEntierePx: number, zoom: number, densite: number): number | null {
+  const palier = palierPour(c, largeurEntierePx * zoom, densite)
+  if (palier !== null || zoom > 1) return palier
+  return palierPour(c, PALIERS[PALIERS.length - 1]!, 1)
+}
+
 /** Les paliers se comparent par leur finesse : l'original (`null`) est le plus fin. */
 export const finesse = (palier: number | null) => palier ?? Infinity
 

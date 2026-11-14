@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { creerMagasin } from '../../coeur/magasin'
 import type { Element, Image } from '../../coeur/tableau'
 import type { ContexteToile } from '../types'
@@ -125,6 +125,73 @@ describe('les outils de la barre', () => {
     appel!.depuis?.retour?.()
     expect(imageOuverte()).toBe(photo.id)
     ouvrirImage(null)
+  })
+})
+
+describe('ce que la visionneuse charge', () => {
+  /** Une fenêtre de `l` × `h` px à cette densité, et des décodages qu'on termine à la main. */
+  function ecran(l: number, h: number, densite: number) {
+    const tailles = (cote: 'clientWidth' | 'clientHeight', v: number) =>
+      vi.spyOn(HTMLElement.prototype, cote, 'get').mockImplementation(function (this: HTMLElement) {
+        return this.classList.contains('notak-visionneuse-zone') ? v : 0
+      })
+    tailles('clientWidth', l)
+    tailles('clientHeight', h)
+    vi.spyOn(window, 'devicePixelRatio', 'get').mockReturnValue(densite)
+    const decodages: { src: string; finir(): void }[] = []
+    const avant = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'decode')
+    HTMLImageElement.prototype.decode = function (this: HTMLImageElement) {
+      return new Promise<void>((finir) => void decodages.push({ src: this.src, finir }))
+    }
+    onTestFinished(() => {
+      if (avant) Object.defineProperty(HTMLImageElement.prototype, 'decode', avant)
+      else delete (HTMLImageElement.prototype as { decode?: unknown }).decode
+    })
+    return decodages
+  }
+  const ouvrir = async (contenu: Partial<Image>, adresse = '/api/fichiers/ab') => {
+    const photo: Element<Image> = { ...element, contenu: { ...element.contenu, ...contenu } }
+    const contexte = { magasin: creerMagasin({ titre: '', etiquettes: [], elements: [photo] }), services: { lectureSeule: true }, choisir: () => {} } as unknown as ContexteToile
+    await act(async () => {
+      racine.render(<Visionneuse element={photo} adresse={adresse} contexte={contexte} />)
+    })
+  }
+  const peinte = () => document.querySelector<HTMLImageElement>('.notak-visionneuse-image img')!.getAttribute('src')
+  const zoomer = (touche: string) => act(() => void document.dispatchEvent(new KeyboardEvent('keydown', { key: touche, bubbles: true })))
+  const grande = { largeurOrigine: 8064, hauteurOrigine: 6048, typeMime: 'image/jpeg' }
+
+  it('une photo de 48 Mpx s’ouvre sur la copie à la taille de l’écran ; « Ouvrir » et « Télécharger » donnent l’original', async () => {
+    ecran(700, 600, 1)
+    await ouvrir(grande)
+    expect(peinte()).toBe('/api/fichiers/ab?l=800')
+    expect(document.querySelector('.notak-visionneuse-barre a[download]')!.getAttribute('href')).toBe('/api/fichiers/ab')
+    act(() => boutonOuvrir()!.click())
+    expect(onglet).toHaveBeenCalledWith('/api/fichiers/ab', '_blank', 'noopener,noreferrer')
+  })
+
+  it('sur un écran Retina, la plus grande copie ; l’original seulement quand on zoome, et une fois prêt, sans revenir en arrière', async () => {
+    const decodages = ecran(1200, 900, 2)
+    await ouvrir(grande)
+    expect(peinte()).toBe('/api/fichiers/ab?l=1600')
+    zoomer('=')
+    // L'original se charge à part ; la copie reste peinte jusqu'à ce qu'il soit décodé.
+    expect(decodages.map((d) => d.src)).toEqual([expect.stringMatching(/\/api\/fichiers\/ab$/)])
+    expect(peinte()).toBe('/api/fichiers/ab?l=1600')
+    await act(async () => decodages[0]!.finir())
+    expect(peinte()).toBe('/api/fichiers/ab')
+    zoomer('0')
+    expect(peinte()).toBe('/api/fichiers/ab')
+  })
+
+  it('une petite image, ou une copie locale (l’édition sans serveur, un envoi en route), se montre telle quelle', async () => {
+    ecran(1200, 900, 2)
+    await ouvrir({ largeurOrigine: 1000, hauteurOrigine: 800, typeMime: 'image/png' })
+    expect(peinte()).toBe('/api/fichiers/ab')
+    act(() => racine.unmount())
+    racine = createRoot(hote)
+    await ouvrir(grande, 'blob:http://localhost/photo')
+    zoomer('=')
+    expect(peinte()).toBe('blob:http://localhost/photo')
   })
 })
 
