@@ -11,8 +11,9 @@ import { cleVu, lireVus, noterVu } from './vus'
 /**
  * La bibliothèque de l'app, celle du bureau (`PageBibliotheque`), sur les toiles de l'appareil : l'index dit quelles
  * toiles existent, le catalogue ce qu'elles contiennent, la règle commune (`rangerLesToiles`) où chacune est rangée et
- * lesquelles sont à la corbeille ; les favoris voyagent avec l'index, les récents restent à l'appareil. Ranger, c'est
- * changer les toiles elles-mêmes (comme sur le serveur) : personne d'autre ne les voit, il n'y a pas d'accès à peser.
+ * lesquelles sont à la corbeille ; les favoris voyagent avec l'index. Les récents sont ce qu'on a ouvert sur l'appareil,
+ * et ce qu'on a ajouté, changé ou déplacé, que les toiles retiennent (le catalogue le lit). Ranger, c'est changer les
+ * toiles elles-mêmes (comme sur le serveur) : personne d'autre ne les voit, il n'y a pas d'accès à peser.
  */
 
 /** Rien ne change pour personne : l'app n'a pas d'autres comptes. */
@@ -27,16 +28,25 @@ type ResumeToile = Extract<ResumeContenu, { genre: 'toile' }>
 /**
  * Les entrées de l'appareil, comme celles qu'un serveur rend (`GET /api/bibliotheque`) : chaque toile hors l'accueil
  * et la corbeille, avec la toile qui la range ; chaque page, carte mentale, photo, lien et fichier qu'elles portent,
- * l'accueil compris.
+ * l'accueil compris. `vu` : la dernière fois qu'on l'a ouverte ici (`vus`), ajoutée, changée ou déplacée (les gestes
+ * des fiches), ce qui range les récents.
  */
 export function entreesDeLAppareil(
   toiles: readonly EntreeIndex[],
   racine: Id,
-  fiches: ReadonlyMap<Id, Pick<FicheToile, 'resumes'>>,
+  fiches: ReadonlyMap<Id, Pick<FicheToile, 'resumes' | 'gestes'>>,
   favoris: ReadonlyMap<string, number>,
   vus: Readonly<Record<string, number>>,
 ): EntreeBibliotheque[] {
   const titres = new Map(toiles.map((e) => [e.id, e.titre || (e.id === racine ? t('biblio.accueil') : '')]))
+  // Ce qu'on a ajouté, changé ou déplacé compte comme ce qu'on a ouvert, comme sur un serveur. Un geste d'avant
+  // l'arrivée de la toile dans l'espace n'est pas le sien : une copie reçue porte les traces de qui l'a faite, et
+  // l'édition locale y signe, chez chacun, du même nom.
+  const recent = (toile: EntreeIndex, element: Id | null): number | null => {
+    const geste = fiches.get(toile.id)?.gestes?.[element ?? '']
+    const quand = [vus[cleVu(toile.id, element)], geste !== undefined && geste >= toile.cree ? geste : undefined].filter((v): v is number => typeof v === 'number')
+    return quand.length ? Math.max(...quand) : null
+  }
   const resumeDe = (id: Id) => fiches.get(id)?.resumes.find((r): r is ResumeToile => r.genre === 'toile')
   const { dossierDe, cachees } = rangerLesToiles(
     toiles.map((e) => {
@@ -58,7 +68,7 @@ export function entreesDeLAppareil(
         resume: { ...resume, titre: e.titre },
         ou: dans ? (titres.get(dans) ?? null) : null,
         dans,
-        vu: vus[cleVu(e.id, null)] ?? null,
+        vu: recent(e, null),
         favori: favoris.has(`${e.id}/`),
         partage: false,
       })
@@ -73,7 +83,7 @@ export function entreesDeLAppareil(
         resume: r,
         ou: titres.get(e.id) ?? null,
         dans: e.id,
-        vu: vus[cleVu(e.id, r.element)] ?? null,
+        vu: recent(e, r.element),
         favori: favoris.has(`${e.id}/${r.element}`),
         partage: false,
       })

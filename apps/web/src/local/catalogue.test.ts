@@ -20,10 +20,30 @@ function toile() {
 
 describe('le catalogue de l’app', () => {
   it('lit d’une toile ce que montre la bibliothèque et ce qu’on y cherche, hors corbeille', () => {
-    const { fiche, textes } = lireFiche('voyage', toile(), (id) => (id === 'japon' ? 'Japon' : undefined), 42)
+    const { fiche, textes } = lireFiche('voyage', toile(), (id) => (id === 'japon' ? 'Japon' : undefined), { maintenant: 42 })
     expect(fiche).toMatchObject({ id: 'voyage', version: VERSION_FICHE, lue: 42 })
     expect(fiche.resumes[0]).toMatchObject({ genre: 'toile', titre: 'Voyage', cartes: ['japon'] })
     expect(textes).toEqual({ id: 'voyage', titre: 'Voyage', elements: [['c1', 'Japon'], ['n1', 'Le temple de Kyoto']] })
+  })
+
+  it('retient le dernier geste de la personne sur ce que porte la toile, hors corbeille et cartes d’autres toiles', () => {
+    const doc = toile()
+    const elements = doc.getMap<unknown>('elements')
+    const photo = { type: 'image', fichier: 'f', largeurOrigine: 4, hauteurOrigine: 3 }
+    elements.set('p1', { x: 0, y: 40, largeur: 20, contenu: photo })
+    elements.set('p2', { x: 30, y: 40, largeur: 20, contenu: photo })
+    const [moi, autre] = [{ id: 'local', nom: 'Vous', couleur: '#2f6feb' }, { id: 'u2', nom: 'Bob', couleur: '#e03131' }]
+    const traces = doc.getMap<unknown>('traces')
+    traces.set('n1', { par: moi, cree: 10, modifiePar: moi, modifie: 60 })
+    // Changée depuis par quelqu'un d'autre : de la personne, on sait qu'elle l'a posée.
+    traces.set('p1', { par: moi, cree: 30, modifiePar: autre, modifie: 80 })
+    traces.set('p2', { par: autre, cree: 50, modifiePar: autre, modifie: 50 })
+    // La carte d'une autre toile, qu'on vient de ranger là, et le document jeté : la toile n'en est pas plus récente.
+    traces.set('c1', { par: moi, cree: 90, modifiePar: moi, modifie: 90 })
+    traces.set('d1', { par: moi, cree: 95, modifiePar: moi, modifie: 95 })
+    expect(lireFiche('voyage', doc, () => undefined, { moi: 'local' }).fiche.gestes).toEqual({ '': 60, p1: 30 })
+    // Sans personne, la fiche ne dit rien de ses gestes.
+    expect(lireFiche('voyage', doc, () => undefined).fiche).not.toHaveProperty('gestes')
   })
 
   it('garde la fiche d’une toile relue, et ce qui manque se dit : jamais lue, ou changée sans être relue', async () => {

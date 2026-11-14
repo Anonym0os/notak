@@ -53,6 +53,19 @@ describe('les entrées de l’appareil', () => {
     expect(e.find((x) => x.element === 'plan')!.vu).toBe(70)
   })
 
+  it('les récents prennent aussi ce qu’on a ajouté, changé ou déplacé, mais pas ce qu’avait fait qui a envoyé la toile', () => {
+    const photo = (element: string) => ({ genre: 'image' as const, element, titre: '', fichier: element, largeur: 1, hauteur: 1 })
+    // « Voyage » est arrivée dans l'espace à 100 (une copie reçue) : ses gestes d'avant sont ceux de l'expéditeur.
+    const toiles = [toile('accueil', ''), { ...toile('voyage', 'Voyage', 'accueil'), cree: 100 }]
+    const fiches = new Map([
+      ['accueil', { resumes: [resumeToile('', ['voyage'])] }],
+      ['voyage', { resumes: [resumeToile('Voyage'), photo('posee'), photo('recue'), photo('ouverte'), photo('rien')], gestes: { '': 300, posee: 300, recue: 50, ouverte: 150 } }],
+    ])
+    const e = entreesDeLAppareil(toiles, 'accueil', fiches, new Map(), { voyage: 200, 'voyage/e/recue': 120, 'voyage/e/ouverte': 400 })
+    const vu = (element: string | null) => e.find((x) => x.tableau === 'voyage' && x.element === element)!.vu
+    expect([vu(null), vu('posee'), vu('recue'), vu('ouverte'), vu('rien')]).toEqual([300, 300, 120, 400, null])
+  })
+
   it('les photos, les liens et les fichiers des toiles, et leurs favoris', () => {
     const fiches = new Map([
       ['accueil', { resumes: [resumeToile(''), { genre: 'image' as const, element: 'port', titre: '', fichier: 'f', largeur: 1, hauteur: 1 }] }],
@@ -91,6 +104,8 @@ describe('la source de l’appareil', () => {
     expect(de(voyage)).toMatchObject({ titre: 'Voyage au Japon', dans: espace.racine, partage: false })
     expect(de(voyage)!.vu).not.toBeNull()
     expect(entrees.find((x) => x.element === carte.element)).toMatchObject({ genre: 'arbre', titre: 'Itinéraire', dans: voyage, ou: 'Voyage au Japon' })
+    // La carte mentale qu'on vient d'y créer est parmi les récents, sans qu'on l'ait ouverte.
+    expect(entrees.find((x) => x.element === carte.element)!.vu).not.toBeNull()
 
     // Ranger « Atelier » dans « Voyage » : sa carte passe d'une toile à l'autre, l'index suit.
     const carteAtelier = espace.magasin(espace.racine).lire().elements.find((x) => x.contenu.type === 'tableau' && x.contenu.cible === atelier)!

@@ -45,7 +45,7 @@ let ouvert: Promise<EspaceLocal> | null = null
 /** L'espace local, ouvert une fois : React peut monter l'application deux fois, pas IndexedDB. */
 export function espaceLocal(): Promise<EspaceLocal> {
   ouvert ??= ouvrirIndexLocal().then(async ({ index }) => {
-    const catalogue = creerCatalogue({ titreDe: (id) => index.entree(id)?.titre || undefined })
+    const catalogue = creerCatalogue({ titreDe: (id) => index.entree(id)?.titre || undefined, moi: UTILISATEUR_LOCAL.id })
     const reseau = creerReseauLocal({ index, suivi: catalogue })
     await poserAccueil({ index, reseau })
     const espace = creerEspaceDistant({ racine: index.racine(), utilisateur: { ...UTILISATEUR_LOCAL, nom: t('local.vous') }, reseau })
