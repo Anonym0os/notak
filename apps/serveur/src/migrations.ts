@@ -536,14 +536,15 @@ CREATE INDEX envois_a_faire ON envois(prochain) WHERE livre IS NULL AND prochain
     version: 15,
     nom: 'tous les fils de discussion : la notification sait le sien, la recherche les lit',
     appliquer(db) {
-      db.exec(`
--- Le fil d'un commentaire, dans l'élément qui le porte : vide pour une épingle ou le fil accroché à l'élément, la clé
--- du passage commenté dans la marge d'une note ou d'un document, le sujet d'une carte mentale. La notification y mène.
-ALTER TABLE notifications ADD COLUMN fil TEXT NOT NULL DEFAULT '';
--- La recherche lit maintenant les messages de tous les fils, pas seulement des épingles : tout se réindexe au prochain
--- démarrage.
-DELETE FROM recherche_etat;
-`)
+      // Le fil d'un commentaire, dans l'élément qui le porte : vide pour une épingle ou le fil accroché à l'élément, la
+      // clé du passage commenté dans la marge d'une note ou d'un document, le sujet d'une carte mentale. La notification y
+      // mène. La colonne n'est ajoutée qu'une fois : rejouer les migrations d'après une version plus ancienne (comme le
+      // font les essais des réindexations) ne doit pas échouer sur elle.
+      const colonnes = db.prepare('PRAGMA table_info(notifications)').all() as { name: string }[]
+      if (!colonnes.some((c) => c.name === 'fil')) db.exec(`ALTER TABLE notifications ADD COLUMN fil TEXT NOT NULL DEFAULT '';`)
+      // La recherche lit maintenant les messages de tous les fils, pas seulement des épingles : tout se réindexe au
+      // prochain démarrage.
+      db.exec('DELETE FROM recherche_etat;')
     },
   },
 ]
