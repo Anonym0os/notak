@@ -25,6 +25,13 @@ export function lettreDe(e: ToucheLue): string | null {
 }
 
 /**
+ * Le signe vient-il d'AltGr ? Sous Windows, AltGr se dit Ctrl+Alt, et c'est ainsi qu'on y tape « \\ », « [ » ou « | »
+ * en AZERTY : une frappe, pas un raccourci. Le Mac met ces signes sous ⌥, et le raccourci y ajoute ⌘.
+ */
+export const parAltGr = (e: { ctrlKey?: boolean; altKey?: boolean; metaKey?: boolean; getModifierState?(cle: string): boolean }) =>
+  (!!e.ctrlKey && !!e.altKey && !e.metaKey) || !!e.getModifierState?.('AltGraph')
+
+/**
  * Le chiffre de la touche, la rangée du haut ou le pavé, même changé par Maj ou Alt (« ¡ » pour ⌥1 en QWERTY) : en
  * AZERTY, ⌘1 se tape ⌘& sans Maj, comme dans les menus du Mac.
  */

@@ -76,7 +76,7 @@ import type { CibleBord } from './coeur/pointeurs'
 import { lignesDeTrace } from './trace'
 import { personneAJour } from './personne'
 import { usePublierVue } from './vueZoom'
-import { chiffreDe, lettreDe, signeParmi } from './touches'
+import { chiffreDe, lettreDe, parAltGr, signeParmi } from './touches'
 
 type Geste =
   | {
@@ -2118,7 +2118,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const min = cam.echelleMin(contenu(), vue)
     // Le zoom au signe tapé, pas à la place QWERTY de la touche : en AZERTY, « - » est là où QWERTY met « = », et
     // ⌘− zoomait. ⌘0 sur la touche du zéro, que le Mac français tape ⌘à.
-    const zoom = cmd ? signeParmi(e, ['=', '+', '-']) : null
+    const zoom = cmd && !parAltGr(e) ? signeParmi(e, ['=', '+', '-']) : null
     if (zoom === '=' || zoom === '+') {
       e.preventDefault()
       return zoomerVers(cam.cranDessus(camera.echelle, min))
@@ -2183,7 +2183,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     // Les non triés : Cmd+\ ouvre le panneau (la barre telle qu'on la tape, ⌘⌥⇧: sur un Mac en AZERTY, ou à sa place
     // QWERTY), Alt+` y met la sélection (`code`, car Alt change `key` sur Mac, et l'accent grave d'un Mac français est
     // une touche morte qui ne dit pas son signe).
-    if (cmd && signeParmi(e, ['\\'])) {
+    if (cmd && ((!parAltGr(e) && signeParmi(e, ['\\'])) || e.code === 'Backslash')) {
       e.preventDefault()
       return setNonTriesOuvert((o) => !o)
     }

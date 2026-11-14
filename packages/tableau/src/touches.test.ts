@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { apprendre, chiffreDe, lettreDe, oublierDisposition, signeAppris, signeParmi } from './touches'
+import { apprendre, chiffreDe, lettreDe, oublierDisposition, parAltGr, signeAppris, signeParmi } from './touches'
 
 afterEach(() => {
   oublierDisposition()
@@ -41,6 +41,15 @@ describe('la lettre d’une touche, telle qu’elle est marquée', () => {
   it('ni lettre ni place de lettre : rien', () => {
     expect(lettreDe({ key: 'ArrowUp', code: 'ArrowUp', keyCode: 38 })).toBeNull()
     expect(lettreDe({ key: 'é', code: 'Digit2', keyCode: 50 })).toBeNull()
+  })
+})
+
+describe('AltGr', () => {
+  it('Ctrl+Alt sous Windows, ou AltGraph, tape un signe ; ⌘⌥ sur Mac est un raccourci', () => {
+    expect(parAltGr({ ctrlKey: true, altKey: true })).toBe(true)
+    expect(parAltGr(new KeyboardEvent('keydown', { key: '\\', modifierAltGraph: true } as KeyboardEventInit))).toBe(true)
+    expect(parAltGr({ metaKey: true, altKey: true, shiftKey: true } as { metaKey: boolean; altKey: boolean })).toBe(false)
+    expect(parAltGr({ ctrlKey: true })).toBe(false)
   })
 })
 

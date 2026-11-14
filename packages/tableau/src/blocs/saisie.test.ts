@@ -355,6 +355,13 @@ describe('NOTION.md § 5 : les raccourcis du moteur', () => {
     expect((ed.getJSON().content ?? []).map((n) => n.attrs?.ouvert)).toEqual([false, false])
     const ed2 = ouvrir({ type: 'paragraph', content: [{ type: 'text', text: 'abc', marks: [{ type: 'bold' }] }] })
     ed2.commands.selectAll()
+    // Sous Windows, AltGr+8 tape « \\ » en AZERTY (et AltGr+0 « @ ») : ni effacer, ni transformer en code ou en texte.
+    const ed3 = ouvrir({ type: 'paragraph', content: [{ type: 'text', text: 'abc', marks: [{ type: 'bold' }] }] })
+    ed3.commands.selectAll()
+    ed3.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: '\\', code: 'Digit8', ctrlKey: true, altKey: true, bubbles: true }))
+    ed3.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: '@', code: 'Digit0', ctrlKey: true, altKey: true, bubbles: true }))
+    expect(types(ed3)).toEqual(['paragraph'])
+    expect(ed3.getJSON().content?.[0]?.content?.[0]?.marks?.map((m) => m.type)).toEqual(['bold'])
     ed2.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: '\\', code: 'Period', metaKey: true, altKey: true, shiftKey: true, bubbles: true }))
     expect(ed2.getJSON().content?.[0]?.content?.[0]?.marks ?? []).toEqual([])
   })

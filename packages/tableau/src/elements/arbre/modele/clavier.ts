@@ -1,5 +1,5 @@
 import type { Id } from '../../../coeur/tableau'
-import { chiffreDe, lettreDe, signeParmi } from '../../../touches'
+import { chiffreDe, lettreDe, parAltGr, signeParmi } from '../../../touches'
 import type { Disposition } from '../disposition'
 import type { Geste } from './gestes'
 import type { Lecture } from './sujets'
@@ -9,7 +9,7 @@ import type { Lecture } from './sujets'
  * sur sa touche (`chiffreDe`), un signe tel qu'on le tape (`key`, ou `signeParmi` sous Alt, qui le change sur Mac) :
  * tout tombe juste en AZERTY comme en QWERTY.
  */
-type Touche = Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'> & Partial<Pick<KeyboardEvent, 'code' | 'keyCode'>>
+type Touche = Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'> & Partial<Pick<KeyboardEvent, 'code' | 'keyCode' | 'getModifierState'>>
 
 const DIRECTIONS: Record<string, [number, number]> = {
   ArrowRight: [1, 0],
@@ -49,8 +49,9 @@ export function gesteDe(e: Touche, choisis: readonly Id[], l: Lecture, d: Dispos
     if (!e.altKey && !e.shiftKey && lettre === 'f') return { type: 'mode', mode: 'recherche' }
     if (lettre === 'k' && !e.shiftKey && !e.altKey) return { type: 'panneau', section: 'lien' }
     if (k === ']') return { type: 'panneau' }
-    // Le crochet tel qu'on le tape : en AZERTY, il demande ⌥⇧( ; Maj+Cmd+[ sans Alt reste aux onglets.
-    if (k === '[' && (!e.shiftKey || e.altKey)) return { type: 'mode', mode: 'navigation' }
+    // Le crochet tel qu'on le tape : en AZERTY, il demande ⌥⇧( ; Maj+Cmd+[ sans Alt reste aux onglets, et celui que
+    // Windows tape avec AltGr (Ctrl+Alt) n'est pas un raccourci.
+    if (k === '[' && (!e.shiftKey || e.altKey) && !parAltGr(e)) return { type: 'mode', mode: 'navigation' }
     // Cmd+Alt+C, V, 0, U : copier, coller, réinitialiser le style, l'appliquer au même rang.
     if (e.altKey && !e.shiftKey && lettre === 'c') return { type: 'copierStyle', id: courant }
     if (e.altKey && !e.shiftKey && lettre === 'v') return { type: 'collerStyleCopie', ids }

@@ -88,6 +88,9 @@ describe('les raccourcis de l’espace, sur toute disposition', () => {
     expect(ecrits.at(-1)).toBe('u')
     taper({ key: 'Dead', code: 'BracketLeft', keyCode: 219, metaKey: true })
     expect(ecrits.at(-1)).toBe('t')
+    // Sous Windows, AltGr (Ctrl+Alt) et 5 tapent « [ » en AZERTY : une frappe, pas un retour.
+    taper({ key: '[', code: 'Digit5', keyCode: 219, ctrlKey: true, altKey: true })
+    expect(ecrits.at(-1)).toBe('t')
   })
 
   it('⇧⌘, resserre la grille et ⇧⌘. l’élargit : en AZERTY, la virgule à la place QWERTY de M, le point sous Maj', () => {

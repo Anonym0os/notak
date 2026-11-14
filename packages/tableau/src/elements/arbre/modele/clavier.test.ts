@@ -58,6 +58,8 @@ describe('le clavier d’une carte (docs/XMIND.md § 4)', () => {
     expect(touche('0', { metaKey: true, shiftKey: true, code: 'Digit0', keyCode: 48 })).toEqual({ type: 'zoom', facteur: 0 })
     expect(touche('[', { metaKey: true, altKey: true, shiftKey: true, code: 'Digit5', keyCode: 53 })).toEqual({ type: 'mode', mode: 'navigation' })
     expect(touche('', { metaKey: true, altKey: true, code: 'Digit1', keyCode: 49 })).toEqual({ type: 'deplierNiveau', n: 1 })
+    // Le crochet que Windows tape avec AltGr (Ctrl+Alt+5 en AZERTY) n'ouvre pas le panneau.
+    expect(touche('[', { ctrlKey: true, altKey: true, code: 'Digit5', keyCode: 219 })).not.toEqual({ type: 'mode', mode: 'navigation' })
     // Maj+Cmd+0 en QWERTY (« ) ») n'est pas le zoom.
     expect(touche(')', { metaKey: true, shiftKey: true, code: 'Digit0', keyCode: 48 })).toBeNull()
   })

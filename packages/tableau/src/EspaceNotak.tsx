@@ -48,7 +48,7 @@ import { auDoigt } from './doigt'
 import { enFeuille } from './communs/Feuille'
 import { GardeToile } from './garde'
 import { useApercuOutils, useBarreRetenue } from './apercuOutils'
-import { lettreDe, signeParmi } from './touches'
+import { lettreDe, parAltGr, signeParmi } from './touches'
 
 const CLE_VUES = 'notak:vues'
 /**
@@ -513,8 +513,9 @@ export function EspaceNotak({
       if (!(e.metaKey || e.ctrlKey) || saisissable(e.target)) return
       const { courant: ici, ouvrir: aller, espace: esp, parcours: p } = etat.current
       // ⌘[ et ⌘] : le crochet tel qu'on le tape, avec l'Alt que demande la disposition (⌥⇧( en AZERTY, ⌥5 en QWERTZ),
-      // ou à sa place QWERTY sans rien d'autre ; Maj+Cmd+[ sans Alt reste aux onglets du navigateur.
-      const crochet = (c: string, place: string) => (e.key === c && (!e.shiftKey || e.altKey)) || (e.code === place && !e.shiftKey && !e.altKey)
+      // ou à sa place QWERTY sans rien d'autre ; Maj+Cmd+[ sans Alt reste aux onglets du navigateur, et le crochet que
+      // Windows tape avec AltGr (Ctrl+Alt) reste une frappe.
+      const crochet = (c: string, place: string) => (e.key === c && (!e.shiftKey || e.altKey) && !parAltGr(e)) || (e.code === place && !e.shiftKey && !e.altKey)
       // ⇧⌘, et ⇧⌘. : Maj et la touche de la virgule ou du point, sur toute disposition ; en AZERTY, la virgule est à la
       // place QWERTY de M, et le point demande Maj sur celle du point-virgule.
       const grille = e.shiftKey && !e.altKey ? signeParmi(e, [',', '.']) : null

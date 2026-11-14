@@ -10,7 +10,7 @@ import { FlechesBlocs } from './fleches'
 import { CONTENEURS } from './ids'
 import { blocsDe } from './modele'
 import { animerCaseDuBloc } from './structure'
-import { lettreDe, signeAppris } from '../touches'
+import { lettreDe, parAltGr, signeAppris } from '../touches'
 import { transformer } from './transformer'
 import { DELIMITEURS, REMPLACEMENTS, chercherMarque, dansCodeOuvert, guillemet } from './typographie'
 
@@ -306,8 +306,9 @@ export const SaisieBlocs = Extension.create({
             const mod = e.metaKey || e.ctrlKey
             // ⌘⌥\ efface la mise en forme, ⌘⌥T ouvre ou ferme tous les dépliants (NOTION.md § 5). Alt change le
             // caractère sur Mac : la lettre se lit telle qu'elle est marquée (`lettreDe`), la barre oblique inverse à sa
-            // place QWERTY ou telle qu'on la tape (⌥⇧: en AZERTY, ⌥⇧7 en QWERTZ).
-            if (mod && e.altKey && ((e.code === 'Backslash' && !e.shiftKey) || e.key === '\\')) {
+            // place QWERTY ou telle qu'on la tape (⌥⇧: en AZERTY, ⌥⇧7 en QWERTZ) ; celle que Windows tape avec AltGr
+            // (Ctrl+Alt, AltGr+8 en AZERTY) reste une frappe.
+            if (mod && e.altKey && ((e.code === 'Backslash' && !e.shiftKey) || (e.key === '\\' && !parAltGr(e)))) {
               e.preventDefault()
               return effacerFormat(editor)
             }
@@ -315,8 +316,9 @@ export const SaisieBlocs = Extension.create({
               e.preventDefault()
               return basculerDepliants(editor)
             }
-            // ⌘⌥chiffre (macOS) ou Ctrl+Maj+chiffre (Windows, Linux) : « Transformer en ».
-            const touche = (mod && e.altKey && !e.shiftKey) || (e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey)
+            // ⌘⌥chiffre (macOS) ou Ctrl+Maj+chiffre (Windows, Linux) : « Transformer en ». Ctrl+Alt+chiffre n'en est
+            // pas : sous Windows, c'est AltGr, qui tape « @ », « # », « { », « [ », « | » ou « \\ » en AZERTY.
+            const touche = (mod && e.altKey && !e.shiftKey && !parAltGr(e)) || (e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey)
             if (!touche) return false
             const vers = TYPES_CHIFFRES[e.code]
             if (!vers) return false
