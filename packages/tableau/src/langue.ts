@@ -1389,6 +1389,8 @@ export const fr: Textes = {
   'barre.style.encadre': 'Encadré',
   'barre.rubriqueCouleur': 'Couleur',
   'barre.styleTexte': 'Style de texte',
+  // Le mot sous l'icône, dans la barre de gauche : le nom entier n'y tient pas.
+  'barre.styleTexte.court': 'Style',
   'barre.retourEdition': 'Terminer l’écriture',
   'barre.retourTexte': 'Replier la sélection',
   'barre.gras': 'Gras',
@@ -3525,6 +3527,7 @@ export const en: Textes = {
   'barre.style.encadre': 'Callout',
   'barre.rubriqueCouleur': 'Color',
   'barre.styleTexte': 'Text style',
+  'barre.styleTexte.court': 'Style',
   'barre.retourEdition': 'Finish writing',
   'barre.retourTexte': 'Collapse the selection',
   'barre.gras': 'Bold',
