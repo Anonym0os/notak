@@ -85,6 +85,10 @@ type Geste =
   | {
       type: 'attraper'
       dernier: Point
+      /** Jusqu'où le geste a tiré la vue ; l'écran la montre retenue au-delà de sa zone (`cam.tendre`). */
+      tiree: cam.Camera
+      /** Le contenu, mesuré au départ du geste : la zone de la vue en dépend. */
+      contenu: Rect | null
       /** Au doigt : ce que le doigt a touché en premier (un élément, ou le vide), et s'il a bougé depuis. Relâché sans
           bouger, c'est un toucher : il choisit l'élément, ou vide le choix. */
       toucher?: { id: Id | null; ecran: Point; bouge: boolean }
@@ -696,12 +700,50 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     },
     [rendreVive],
   )
-  /** Le geste est fini : React reprend la caméra, et le rendu redevient la seule source. */
+  /**
+   * Le geste est fini : React reprend la caméra, et le rendu redevient la seule source. L'état lu par les gestionnaires
+   * la reçoit tout de suite : ce qui suit dans le même évènement (mesurer le contenu, repartir de la vue) part de ce que
+   * l'écran montre, pas de la dernière caméra que React avait reçue.
+   */
   const finirVive = useCallback(() => {
+    if (cameraVive.current) etat.current = { ...etat.current, camera: cameraVive.current }
     rendreVive()
     cameraVive.current = null
   }, [rendreVive])
   useEffect(() => () => clearTimeout(minuteurVive.current), [])
+
+  /*
+   * La vue lâchée hors de sa zone y revient en ressort (`cam.revenir`), image par image sur le calque comme un geste au
+   * doigt. Tout ce qui reprend la vue l'arrête là où il en est : un doigt, la souris, la molette, une commande.
+   */
+  const retour = useRef<{ image: number } | null>(null)
+  const arreterRetour = useCallback(() => {
+    const r = retour.current
+    if (!r) return
+    cancelAnimationFrame(r.image)
+    retour.current = null
+    finirVive()
+  }, [finirVive])
+  const lancerRetour = (cible: cam.Camera) => {
+    arreterRetour()
+    const depart = etat.current.camera
+    const debut = performance.now()
+    const r = { image: 0 }
+    retour.current = r
+    const pas = (t: number) => {
+      if (retour.current !== r) return
+      const { camera: c, fini } = cam.revenir(depart, cible, t - debut)
+      poserVite(c)
+      if (!fini) {
+        r.image = requestAnimationFrame(pas)
+        return
+      }
+      retour.current = null
+      finirVive()
+    }
+    r.image = requestAnimationFrame(pas)
+  }
+  useEffect(() => () => cancelAnimationFrame(retour.current?.image ?? 0), [])
 
   const limiteur = useMemo(
     () => (presence ? creerLimiteur((curseur: Point | null) => presence.signaler({ curseur }), DELAI_CURSEUR) : null),
@@ -798,21 +840,31 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   )
   // L'hôte (l'export du tableau entier) déplace la caméra par là, le temps d'une capture.
   useEffect(() => brancherPilote({ camera: () => etat.current.camera, vue: () => etat.current.vue, contenu, poser: setCamera }), [contenu])
-  // Le document borné : après chaque mouvement de vue, la caméra revient dans ses bornes. Pas pendant un geste ni
-  // une animation : la vue ne doit pas bouger sous le pointeur pendant qu'on tire un élément.
+  // La vue garde le contenu à portée (`cam.zoneLibre`) : après chaque mouvement de vue, la caméra revient dans sa zone.
+  // Pas pendant un geste, une animation ou un zoom à la molette : la vue ne doit pas bouger sous le pointeur pendant
+  // qu'on tire un élément, et le geste qui la pousse au-delà la retient lui-même (`cam.tendre`).
   // Seul ce que la personne fait de la vue la recale : déplacer un élément ne la fait jamais bouger. Le recentrage
-  // (tout tient à l'écran) attend un changement de zoom ou de fenêtre.
+  // (tout tient à l'écran) attend un changement de zoom ou de fenêtre. Après un geste, la vue revient en ressort, comme
+  // une liste d'iOS lâchée au-delà de son bord ; une fenêtre qui change de taille, ou la première pose, l'y mettent d'un
+  // coup.
   const derniereBorne = useRef<{ camera: cam.Camera | null; vue: cam.Vue }>({ camera: null, vue })
+  /** Un zoom à la molette ou au pincement du pavé tactile rejoint encore son échelle, image par image. */
+  const zoomMolette = useRef(false)
   useLayoutEffect(() => {
     // Un pincement en cours non plus : la toile ne glisse pas sous les doigts (il rend la main en relâchant).
-    if (enGeste || anime || edition || cameraVive.current) return
+    if (enGeste || anime || edition || cameraVive.current || retour.current || zoomMolette.current) return
+    // La vue pas encore mesurée (1 px, au premier rendu) : une zone calculée sur elle tiendrait la vue dans le contenu
+    // et défairait la vue mémorisée de la toile.
+    if (vue.largeur <= 1) return
     const avant = derniereBorne.current
     const memeVue = avant.vue.largeur === vue.largeur && avant.vue.hauteur === vue.hauteur
     derniereBorne.current = { camera, vue }
     if (avant.camera === camera && memeVue) return
     const recentrer = !avant.camera || avant.camera.echelle !== camera.echelle || !memeVue
     const bornee = cam.bornerVue(camera, contenu(), vue, recentrer)
-    if (bornee !== camera) setCamera(bornee)
+    if (bornee === camera) return
+    if (!avant.camera || !memeVue) setCamera(bornee)
+    else lancerRetour(bornee)
   }, [camera, enGeste, anime, edition, vue, tableau, contenu])
 
   const sous = (cible: EventTarget | null): Id | null => {
@@ -1174,17 +1226,22 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const c = etat.current.camera
       const ecart = vise.echelle - c.echelle
       const fini = Math.abs(ecart) / vise.echelle < 0.002
+      // L'échelle atteinte, la vue peut revenir dans sa zone : au rendu de cette dernière image.
+      if (fini) zoomMolette.current = false
       setCamera(cam.echelleAutour(c, fini ? vise.echelle : c.echelle + ecart * 0.25, vise.fixe))
       if (!fini) vise.image = requestAnimationFrame(rejoindre)
     }
     const viser = (echelle: number, fixe: Point) => {
       vise.echelle = echelle
       vise.fixe = fixe
+      zoomMolette.current = true
       if (!vise.image) vise.image = requestAnimationFrame(rejoindre)
     }
     // L'inertie d'un défilement ne devient jamais un zoom, ni l'inverse : le mode tient 150 ms après le dernier pas.
     let mode: 'zoom' | 'defiler' | null = null
     let finMode: ReturnType<typeof setTimeout> | undefined
+    // Le contenu, mesuré une fois par défilement (le mesurer coûte une lecture par élément), et l'instant du dernier pas.
+    let course: { contenu: Rect | null; dernier: number } | null = null
     const molette = (e: WheelEvent) => {
       if (etat.current.edition && dansEdition(div, e.target) && !(e.ctrlKey || e.metaKey)) return
       // Une table plus large que sa colonne défile en largeur sous un geste horizontal, comme chez Milanote.
@@ -1196,12 +1253,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       }
       e.preventDefault()
       animation.current = null
+      arreterRetour()
       const { camera: c, vue: v } = etat.current
       mode ??= e.ctrlKey || e.metaKey ? 'zoom' : 'defiler'
       // Un zoom qui démarre pendant un redimensionnement l'annule : les mesures d'avant sont rendues.
       if (mode === 'zoom') annulerRedimRef.current()
       clearTimeout(finMode)
-      finMode = setTimeout(() => (mode = null), 150)
+      finMode = setTimeout(() => {
+        mode = null
+        course = null
+      }, 150)
       if (mode === 'zoom') {
         // Le pincement du trackpad arrive en Ctrl+molette sur Mac, à petits pas : on le rend trois fois plus vif.
         const pas = e.deltaY * (mac && e.ctrlKey && !e.metaKey ? 3 : 1)
@@ -1219,17 +1280,25 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           vise.correction = 0
         }, 100)
       } else {
-        setCamera(cam.defiler(c, -e.deltaX, -e.deltaY))
+        // Au-delà de sa zone, chaque pas porte moins loin (`defilerTendu`), et la vue revient aussi entre deux pas
+        // rapprochés (`rappeler`) : l'élan d'un pavé tactile, qui envoie encore des pas une seconde après qu'on a levé
+        // les doigts, la fait rebondir sur son bord au lieu de l'y étirer. Les pas finis, le ressort la ramène.
+        const dt = course && e.timeStamp - course.dernier < 50 ? e.timeStamp - course.dernier : 0
+        course ??= { contenu: contenu(), dernier: e.timeStamp }
+        course.dernier = e.timeStamp
+        const z = course.contenu
+        setCamera((avant) => cam.defilerTendu(cam.rappeler(avant, z, v, dt), -e.deltaX, -e.deltaY, z, v))
       }
     }
     div.addEventListener('wheel', molette, { passive: false })
     return () => {
       div.removeEventListener('wheel', molette)
       cancelAnimationFrame(vise.image)
+      zoomMolette.current = false
       clearTimeout(finMode)
       clearTimeout(vise.correction || undefined)
     }
-  }, [contenu])
+  }, [contenu, arreterRetour])
 
   // Au doigt : pincer zoome autour du milieu des deux doigts et les suit ; un appui long décolle l'élément touché pour le
   // déplacer, ou ouvre le menu du clic droit (`appuiLongRef`).
@@ -1237,7 +1306,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const div = racine.current
     if (!div) return
     const doigts = new Map<number, Point>()
-    let pince: { ecart: number; milieu: Point; camera: cam.Camera } | null = null
+    // `camera` : la caméra tirée au départ (`cam.detendre`), d'où le pincement part ; `contenu`, mesuré une fois.
+    let pince: { ecart: number; milieu: Point; camera: cam.Camera; contenu: Rect | null } | null = null
     let appuiLong: { minuteur: ReturnType<typeof setTimeout>; depart: Point; carte: HTMLElement | null } | null = null
     const ici = (e: PointerEvent) => {
       const r = div.getBoundingClientRect()
@@ -1286,7 +1356,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         setEnGeste(false)
         setZoneLasso(null)
         animation.current = null
-        pince = { ...mesure(), camera: cameraVive.current ?? etat.current.camera }
+        arreterRetour()
+        // Pris pendant qu'elle revient de son bord, la toile part d'où elle est, sans sauter.
+        const mesuree = contenu()
+        pince = { ...mesure(), contenu: mesuree, camera: cam.detendre(cameraVive.current ?? etat.current.camera, mesuree, etat.current.vue) }
         e.stopPropagation()
       }
     }
@@ -1300,7 +1373,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const { vue: v } = etat.current
       const echelle = Math.min(cam.ECHELLE_MAX, Math.max(cam.echelleMin(contenu(), v), (pince.camera.echelle * ecart) / Math.max(1, pince.ecart)))
       const zoomee = cam.echelleAutour(pince.camera, echelle, pince.milieu)
-      poserVite(cam.defiler(zoomee, milieu.x - pince.milieu.x, milieu.y - pince.milieu.y))
+      // Au-delà de sa zone, la toile résiste sous les doigts, et revient en ressort quand on les lève.
+      poserVite(cam.tendre(cam.defiler(zoomee, milieu.x - pince.milieu.x, milieu.y - pince.milieu.y), pince.contenu, v))
     }
     const fin = (e: PointerEvent) => {
       if (e.pointerType !== 'touch') return
@@ -1323,7 +1397,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       window.removeEventListener('pointerup', fin, true)
       window.removeEventListener('pointercancel', fin, true)
     }
-  }, [contenu])
+  }, [contenu, arreterRetour])
 
   // L'Apple Pencil dessine sur la toile sans passer par l'outil (réglage « Apple Pencil », par défaut) : posé sur le fond
   // ou sur un élément, il ouvre la couche de dessin sous lui et le trait commence. Sur ce qui se manie (un bouton, une
@@ -2086,7 +2160,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   })
 
   const lancerAnimation = (cible: cam.Camera) => {
-    animation.current = { depart: camera, cible, debut: performance.now() }
+    // Un retour en cours s'arrête où il en est : l'animation part de ce que l'écran montre.
+    arreterRetour()
+    animation.current = { depart: etat.current.camera, cible, debut: performance.now() }
     setAnime(true)
     const pas = (t: number) => {
       const a = animation.current
@@ -2137,7 +2213,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
 
   const zoomerVers = (echelle: number) => {
     animation.current = null
-    setCamera(cam.echelleAutour(camera, echelle, point(vue.largeur / 2, vue.hauteur / 2)))
+    arreterRetour()
+    setCamera(cam.echelleAutour(etat.current.camera, echelle, point(vue.largeur / 2, vue.hauteur / 2)))
   }
 
   const choisis = () => tableau.elements.filter((e) => selection.has(e.id))
@@ -2546,7 +2623,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     ouvrirMenuRef.current({ preventDefault() {}, ...o } as unknown as React.MouseEvent)
   }
 
+  /** La vue qu'on attrape : d'où le geste la tire (la vue montrée, détendue si elle revenait de son bord), et le contenu. */
+  const prendreLaVue = () => {
+    const mesure = contenu()
+    return { tiree: cam.detendre(cameraVive.current ?? etat.current.camera, mesure, etat.current.vue), contenu: mesure }
+  }
+
   const appui = (e: React.PointerEvent) => {
+    // Un appui reprend la vue, comme un doigt posé sur une liste d'iOS qui revient de son bord : le retour s'arrête là.
+    arreterRetour()
     // DESSIN-LIBRE : la couche de dessin tient le pointeur ; la toile ne capture rien dessous.
     if (toileSuspendue(racine.current)) return
     // En présentation, un clic sur un élément le montre en grand ; le reste de la toile se parcourt.
@@ -2592,7 +2677,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const doigtSurLeFond = e.pointerType === 'touch' && e.button === 0 && !surPoignee && (!id || !selection.has(id))
     if (doigtSurLeFond && !espace) {
       espaceBref.current = false
-      geste.current = { type: 'attraper', dernier: p, toucher: { id: id ?? null, ecran: p, bouge: false } }
+      geste.current = { type: 'attraper', dernier: p, ...prendreLaVue(), toucher: { id: id ?? null, ecran: p, bouge: false } }
       setAttrape(true)
       setEnGeste(true)
       setBarresGardees(true)
@@ -2602,7 +2687,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (e.button === 1 || (e.button === 0 && espace)) {
       e.preventDefault()
       espaceBref.current = false
-      geste.current = { type: 'attraper', dernier: p }
+      geste.current = { type: 'attraper', dernier: p, ...prendreLaVue() }
       setAttrape(true)
     } else if (e.button === 2) {
       // Le clic droit choisit ce qu'il touche, s'il ne l'était pas ; sur le vide, il désélectionne.
@@ -2610,7 +2695,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       else if (!selection.has(id)) setSelection(new Set([id]))
       return
     } else if (e.button === 0) {
-      const ici = cam.versTableau(camera, p)
+      // L'état plutôt que le rendu : un retour arrêté à l'instant a laissé la vue ailleurs que le dernier rendu.
+      const ici = cam.versTableau(etat.current.camera, p)
       const el = id && tableau.elements.find((x) => x.id === id)
       if (el && !lectureSeule && !el.verrou && surPoignee && selection.size > 1 && selection.has(el.id)) {
         // Une poignée dans une sélection de plusieurs : chacune lance le redimensionnement du groupe.
@@ -2761,8 +2847,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const d = soustraire(p, g.dernier)
       g.dernier = p
       animation.current = null
-      if (e.pointerType === 'touch') return poserVite(cam.defiler(cameraVive.current ?? etat.current.camera, d.x, d.y))
-      return setCamera((c) => cam.defiler(c, d.x, d.y))
+      // Au-delà de sa zone, la toile suit de moins en moins, et revient en ressort au relâchement.
+      g.tiree = cam.defiler(g.tiree, d.x, d.y)
+      const montree = cam.tendre(g.tiree, g.contenu, etat.current.vue)
+      if (e.pointerType === 'touch') return poserVite(montree)
+      return setCamera(montree)
     }
     const k = cam.PX_PAR_UG * camera.echelle
     if (g.type === 'outil') {
@@ -3810,7 +3899,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           fenetre={{ l: vue.largeur, h: vue.hauteur }}
           aller={(ou) => {
             animation.current = null
-            setCamera((c) => cam.centree(point(ou.x, ou.y), c.echelle, etat.current.vue))
+            arreterRetour()
+            // La mini-carte ne mène pas hors de la zone de la vue : son cadre s'arrête au bord, comme la vue.
+            const mesure = contenu()
+            setCamera((c) => cam.bornerVue(cam.centree(point(ou.x, ou.y), c.echelle, etat.current.vue), mesure, etat.current.vue, false))
           }}
         />
       )}

@@ -4,6 +4,7 @@
  * À l'échelle 1, une UG fait `PX_PAR_UG` pixels.
  */
 import { type Point, type Rect, centre as centreRect, hauteur, largeur, point } from './geometrie'
+import { type ReglageRessort, ecartRessort } from './ressort'
 
 /**
  * La taille d'une UG à l'échelle 1 : 8, 9 ou 10 pixels, le réglage « Grille » de chacun. Une grille plus serrée
@@ -73,28 +74,136 @@ export function echelleAutour(c: Camera, echelle: number, fixe: Point): Camera {
 
 export const centreCamera = (c: Camera, v: Vue) => versTableau(c, centreVue(v))
 
-/** La marge laissée autour du contenu, en UG : la vue ne remonte pas au-delà, à gauche ni en haut. */
+/** La marge autour du contenu, en UG, pour dire qu'il tient dans la vue (on a dézoomé) et qu'il s'y recentre. */
 export const MARGE_DOCUMENT = point(50, 40)
 
 /**
- * Le tableau est un document borné en haut et à gauche : la vue n'y remonte pas plus loin que le contenu, marge
- * comprise. Sur un axe où tout le contenu tient avec ses marges (on a dézoomé), il se recentre, mais seulement si
- * `recentrer` : quand le zoom ou la fenêtre change, jamais parce qu'un élément a bougé (la vue le suivrait).
+ * Ce que la vue garde du contenu, au plus loin qu'on l'en écarte : un tiers d'elle-même sur chaque axe, ou tout le
+ * contenu s'il est plus petit que ce tiers. Le bord du contenu va ainsi jusqu'aux deux tiers de l'écran, dans les
+ * quatre sens et à tout zoom : de quoi voir largement au-dessus de la première carte (le haut de l'écran d'un
+ * téléphone est sous l'en-tête), sans perdre le contenu de vue.
+ */
+export const PART_GARDEE = 1 / 3
+
+/** Une vue d'au moins un pixel de côté : en dessous, elle n'est pas affichée ou pas encore mesurée. */
+const mesuree = (v: Vue) => v.largeur > 1 && v.hauteur > 1
+
+/** Les origines permises sur un axe, en UG : le contenu va de `min` à `max`, la vue mesure `taille`. */
+function zoneAxe(min: number, max: number, taille: number): [number, number] {
+  const garde = Math.min(max - min, PART_GARDEE * taille)
+  return [min - (taille - garde), max - garde]
+}
+
+/**
+ * La zone où l'origine de la caméra se promène librement, à son échelle (voir `PART_GARDEE`) ; `null` sur un tableau
+ * vide, que rien ne borne.
+ */
+export function zoneLibre(contenu: Rect | null, v: Vue, echelle: number): Rect | null {
+  // Une vue qui n'est pas encore mesurée (cachée, ou au premier rendu) ne borne rien : sa zone serait le contenu même.
+  if (!contenu || !mesuree(v)) return null
+  const k = PX_PAR_UG * echelle
+  const [x0, x1] = zoneAxe(contenu.min.x, contenu.max.x, v.largeur / k)
+  const [y0, y1] = zoneAxe(contenu.min.y, contenu.max.y, v.hauteur / k)
+  return { min: point(x0, y0), max: point(x1, y1) }
+}
+
+/**
+ * Où la vue doit revenir. Sur un axe où tout le contenu tient avec ses marges (on a dézoomé), il se recentre, mais
+ * seulement si `recentrer` : quand le zoom ou la fenêtre change, jamais parce qu'un élément a bougé (la vue le
+ * suivrait). Sinon la vue reste où elle est tant qu'elle est dans sa zone (`zoneLibre`), et revient à son bord au-delà.
  */
 export function bornerVue(c: Camera, contenu: Rect | null, v: Vue, recentrer = true): Camera {
-  if (!contenu) return c
+  const zone = zoneLibre(contenu, v, c.echelle)
+  if (!contenu || !zone) return c
   const k = pxParUg(c)
   const vue = point(v.largeur / k, v.hauteur / k)
-  const axe = (o: number, min: number, max: number, marge: number, taille: number) => {
-    if (max - min + 2 * marge <= taille) return recentrer ? (min + max) / 2 - taille / 2 : o
-    return Math.max(o, min - marge)
+  const axe = (o: number, min: number, max: number, marge: number, taille: number, bas: number, haut: number) => {
+    if (recentrer && max - min + 2 * marge <= taille) return (min + max) / 2 - taille / 2
+    return Math.min(haut, Math.max(bas, o))
   }
-  const x = axe(c.origine.x, contenu.min.x, contenu.max.x, MARGE_DOCUMENT.x, vue.x)
-  const y = axe(c.origine.y, contenu.min.y, contenu.max.y, MARGE_DOCUMENT.y, vue.y)
+  const x = axe(c.origine.x, contenu.min.x, contenu.max.x, MARGE_DOCUMENT.x, vue.x, zone.min.x, zone.max.x)
+  const y = axe(c.origine.y, contenu.min.y, contenu.max.y, MARGE_DOCUMENT.y, vue.y, zone.min.y, zone.max.y)
   // Moins d'un demi-pixel à l'écran ne compte pas. Le contenu est mesuré à l'écran : très dézoomé, ses arrondis
   // bougent avec la caméra, et chaque correction en appelait une autre, sans fin.
   const pareil = (a: number, b: number) => Math.abs(a - b) * k < 0.5
   return pareil(x, c.origine.x) && pareil(y, c.origine.y) ? c : { ...c, origine: point(x, y) }
+}
+
+/**
+ * Au-delà de sa zone, la toile résiste comme une liste d'iOS tirée au-delà de son bord. Pour `x` pixels tirés, elle en
+ * suit `(1 − 1 / (x·c/d + 1))·d`, où `d` est la taille de la vue sur cet axe et `c` vaut 0,55 : la formule et la
+ * constante relevées sur UIScrollView. Elle suit presque le doigt au début, de moins en moins ensuite, et ne s'écarte
+ * jamais d'une vue entière.
+ */
+const ELASTICITE = 0.55
+export const tension = (x: number, d: number): number => (1 - 1 / ((x * ELASTICITE) / d + 1)) * d
+/**
+ * L'inverse : ce qu'il a fallu tirer pour que la toile soit à `y` pixels au-delà. Un écart d'une vue ou plus (posé
+ * d'ailleurs que par la résistance) se lit comme un peu moins, pour rester fini.
+ */
+export const traction = (y: number, d: number): number => {
+  const e = Math.min(y, d * 0.99)
+  return (d * e) / (ELASTICITE * (d - e))
+}
+
+const tendreAxe = (o: number, bas: number, haut: number, k: number, d: number) =>
+  o < bas ? bas - tension((bas - o) * k, d) / k : o > haut ? haut + tension((o - haut) * k, d) / k : o
+const detendreAxe = (o: number, bas: number, haut: number, k: number, d: number) =>
+  o < bas ? bas - traction((bas - o) * k, d) / k : o > haut ? haut + traction((o - haut) * k, d) / k : o
+
+function parAxe(c: Camera, contenu: Rect | null, v: Vue, f: typeof tendreAxe): Camera {
+  const z = zoneLibre(contenu, v, c.echelle)
+  if (!z) return c
+  const k = pxParUg(c)
+  const x = f(c.origine.x, z.min.x, z.max.x, k, v.largeur)
+  const y = f(c.origine.y, z.min.y, z.max.y, k, v.hauteur)
+  return x === c.origine.x && y === c.origine.y ? c : { ...c, origine: point(x, y) }
+}
+
+/** La caméra montrée quand un geste la tire jusqu'à `tiree` : telle quelle dans sa zone, retenue au-delà. */
+export const tendre = (tiree: Camera, contenu: Rect | null, v: Vue): Camera => parAxe(tiree, contenu, v, tendreAxe)
+
+/** L'inverse de `tendre` : jusqu'où il faudrait avoir tiré pour que la toile se montre en `montree`. */
+export const detendre = (montree: Camera, contenu: Rect | null, v: Vue): Camera => parAxe(montree, contenu, v, detendreAxe)
+
+/**
+ * Défile d'un pas de molette ou de pavé tactile, en résistant au-delà de la zone : chaque pas qui s'en éloigne porte
+ * moins loin que le précédent, et un pas qui y revient retrouve la même courbe.
+ */
+export const defilerTendu = (c: Camera, dx: number, dy: number, contenu: Rect | null, v: Vue): Camera =>
+  tendre(defiler(detendre(c, contenu, v), dx, dy), contenu, v)
+
+/** L'écart au bord de la zone fond de moitié en 85 ms environ, entre deux pas de molette rapprochés. */
+const RAPPEL_MS = 120
+
+/**
+ * Pendant qu'une molette ou un pavé tactile pousse la toile au-delà de sa zone, elle y revient aussi entre deux pas
+ * (`dt` millisecondes après le précédent). La molette ne dit pas quand les doigts quittent le pavé : son élan envoie
+ * encore des pas, de plus en plus petits, pendant une seconde. Sans ce rappel, il étirerait la toile loin au-delà de
+ * son bord ; avec lui, elle y rebondit, d'autant plus loin qu'on l'a lancée vite.
+ */
+export function rappeler(c: Camera, contenu: Rect | null, v: Vue, dt: number): Camera {
+  if (dt <= 0) return c
+  const bord = bornerVue(c, contenu, v, false)
+  if (bord === c) return c
+  const k = Math.exp(-dt / RAPPEL_MS)
+  const vers = (a: number, b: number) => b + (a - b) * k
+  return { ...c, origine: point(vers(c.origine.x, bord.origine.x), vers(c.origine.y, bord.origine.y)) }
+}
+
+/**
+ * Le retour dans la zone, une fois la toile lâchée au-delà : un ressort amorti juste ce qu'il faut, qui part en douceur
+ * et se pose sans rebondir, en une demi-seconde environ, comme une liste d'iOS qu'on lâche (raideur 196, amortissement
+ * critique). Il s'arrête à moins d'un demi-pixel.
+ */
+export const RESSORT_RETOUR: ReglageRessort = { raideur: 196, amortissement: 28, masse: 1, precision: 0.5 }
+
+/** La caméra du retour de `depart` vers `cible` (même échelle), `t` millisecondes après le lâcher. */
+export function revenir(depart: Camera, cible: Camera, t: number): { camera: Camera; fini: boolean } {
+  const reste = ecartRessort(RESSORT_RETOUR, 1, Math.max(0, t) / 1000)
+  const [dx, dy] = [depart.origine.x - cible.origine.x, depart.origine.y - cible.origine.y]
+  if (Math.hypot(dx, dy) * pxParUg(cible) * Math.abs(reste) < RESSORT_RETOUR.precision) return { camera: cible, fini: true }
+  return { camera: { echelle: cible.echelle, origine: point(cible.origine.x + dx * reste, cible.origine.y + dy * reste) }, fini: false }
 }
 
 export function centree(centre: Point, echelle: number, v: Vue): Camera {

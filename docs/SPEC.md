@@ -190,7 +190,11 @@ même liste ou le même document sans conflit. Milanote envoie des diffs et reje
     appuyé une seconde fois, revient à 100 %.
 - **Défilement** : molette ou trackpad ; espace maintenue + glisser, ou bouton du milieu, pour attraper la toile.
 - **Taille** : la toile s'étend jusqu'aux éléments les plus lointains plus une marge (50 × 40 UG), jamais plus petite
-  que la fenêtre ; elle ne rétrécit pas pendant qu'on est dézoomé.
+  que la fenêtre ; elle ne rétrécit pas pendant qu'on est dézoomé. → Notak : la vue ne bute pas au coin haut-gauche
+  (au téléphone, l'en-tête couvrait cette marge et la toile semblait bloquée). Elle va au-delà du contenu dans les
+  quatre sens et à tout zoom, tant qu'elle en garde un tiers d'elle-même (ou tout le contenu, s'il est plus petit) :
+  son bord va jusqu'aux deux tiers de l'écran. Au-delà, elle résiste comme une liste d'iOS (la formule d'UIScrollView,
+  c = 0,55) et revient en ressort, sans rebond, quand on la lâche ; l'élan de la molette rebondit sur ce bord.
 - **Grille de points** visible à 100 %, masquée à toute autre échelle et en présentation.
 - **Aimantation** : à l'UG seulement, pas de guides d'alignement. Maj pendant un glisser verrouille l'axe. À la
   redimension, la largeur s'aimante à 34 UG à moins de 2 UG près. → Notak : des guides d'alignement viendront

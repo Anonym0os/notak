@@ -233,19 +233,139 @@ describe('caméra', () => {
     expect(cam.revenirA100(0.7, 0.4)).toBe(false)
   })
 
-  test('le document est borné en haut à gauche, et se recentre quand tout tient', () => {
+  test('la vue va au-delà du contenu dans les quatre sens, jusqu’à n’en garder qu’un tiers, à tout zoom', () => {
     const grand = depuisTaille(point(0, 0), 400, 300)
-    // Trop à gauche et trop haut : la vue revient à la marge (50 × 40 UG).
-    const c = cam.bornerVue({ origine: point(-200, -100), echelle: 1 }, grand, VUE)
-    expect([c.origine.x, c.origine.y]).toEqual([-50, -40])
-    // Plus loin à droite ou en bas : rien n'arrête la vue.
-    expect(cam.bornerVue({ origine: point(120, 90), echelle: 1 }, grand, VUE).origine).toEqual(point(120, 90))
-    // Dézoomé au point que tout tient : le contenu se centre.
+    for (const echelle of [0.5, 1, 3]) {
+      const k = cam.PX_PAR_UG * echelle
+      const z = cam.zoneLibre(grand, VUE, echelle)!
+      // Au plus haut : le haut du contenu descend aux deux tiers de l'écran, bien au-delà du milieu.
+      proche(cam.versEcran({ origine: point(0, z.min.y), echelle }, grand.min).y, (2 / 3) * VUE.hauteur)
+      // Au plus bas : son bas remonte au tiers ; à gauche et à droite, de même.
+      proche(cam.versEcran({ origine: point(0, z.max.y), echelle }, grand.max).y, VUE.hauteur / 3)
+      proche(cam.versEcran({ origine: point(z.min.x, 0), echelle }, grand.min).x, (2 / 3) * VUE.largeur)
+      proche(cam.versEcran({ origine: point(z.max.x, 0), echelle }, grand.max).x, VUE.largeur / 3)
+      // Dans la zone, la vue reste où on l'a mise ; au-delà, elle revient à son bord.
+      const dedans = { origine: point(z.min.x + 1, z.min.y + 1), echelle }
+      expect(cam.bornerVue(dedans, grand, VUE, false)).toBe(dedans)
+      const loin = cam.bornerVue({ origine: point(z.min.x - 500 / k, z.max.y + 500 / k), echelle }, grand, VUE, false)
+      proche(loin.origine.x, z.min.x)
+      proche(loin.origine.y, z.max.y)
+    }
+    expect(cam.bornerVue(cam.CAMERA_DEPART, null, VUE)).toBe(cam.CAMERA_DEPART)
+    expect(cam.zoneLibre(null, VUE, 1)).toBeNull()
+  })
+
+  test('une vue pas encore mesurée (cachée, ou au premier rendu) ne borne rien et ne retient rien', () => {
+    const grand = depuisTaille(point(0, 0), 400, 300)
+    const loin: cam.Camera = { origine: point(-900, -900), echelle: 1 }
+    for (const v of [{ largeur: 0, hauteur: 0 }, { largeur: 1, hauteur: 1 }]) {
+      expect(cam.zoneLibre(grand, v, 1)).toBeNull()
+      expect(cam.bornerVue(loin, grand, v)).toBe(loin)
+      expect(cam.tendre(loin, grand, v)).toBe(loin)
+      expect(cam.detendre(loin, grand, v)).toBe(loin)
+      expect(cam.rappeler(loin, grand, v, 16)).toBe(loin)
+      const pas = cam.defilerTendu(loin, 30, 40, grand, v)
+      expect([pas.origine.x, pas.origine.y]).toEqual([-903, -904])
+    }
+  })
+
+  test('un contenu plus petit qu’un tiers de la vue s’y promène partout, sans jamais en sortir', () => {
+    const petit = depuisTaille(point(0, 0), 20, 10)
+    const z = cam.zoneLibre(petit, VUE, 1)!
+    // Son coin peut toucher chaque bord de l'écran, pas davantage.
+    proche(cam.versEcran({ origine: z.min, echelle: 1 }, petit.max).x, VUE.largeur)
+    proche(cam.versEcran({ origine: z.min, echelle: 1 }, petit.max).y, VUE.hauteur)
+    proche(cam.versEcran({ origine: z.max, echelle: 1 }, petit.min).x, 0)
+    proche(cam.versEcran({ origine: z.max, echelle: 1 }, petit.min).y, 0)
+  })
+
+  test('dézoomé au point que tout tient, le contenu se recentre quand le zoom change', () => {
     const petit = depuisTaille(point(0, 0), 20, 10)
     const centre = cam.centreCamera(cam.bornerVue({ origine: point(300, 300), echelle: 0.25 }, petit, VUE), VUE)
     proche(centre.x, 10)
     proche(centre.y, 5)
-    expect(cam.bornerVue(cam.CAMERA_DEPART, null, VUE)).toBe(cam.CAMERA_DEPART)
+  })
+
+  test('au-delà de sa zone, la toile résiste de plus en plus, comme une liste d’iOS, sans jamais s’écarter d’une vue', () => {
+    const d = 800
+    // Au début, elle suit à peu près la moitié du geste (0,55, la constante d'UIScrollView) ; ensuite de moins en moins.
+    proche(cam.tension(1, d), 0.55)
+    let avant = 0
+    let pente = Infinity
+    for (let x = 50; x <= 5000; x += 50) {
+      const y = cam.tension(x, d)
+      expect(y).toBeGreaterThan(avant)
+      expect(y - avant).toBeLessThan(pente)
+      expect(y).toBeLessThan(d)
+      pente = y - avant
+      avant = y
+    }
+    // Tiré d'une demi-vue, elle n'en fait qu'un cinquième environ.
+    expect(cam.tension(400, d)).toBeCloseTo(172.5, 0)
+    for (const x of [0, 3, 120, 900]) proche(cam.traction(cam.tension(x, d), d), x)
+  })
+
+  test('un geste qui tire la vue au-delà la montre retenue, et la retrouve telle quelle en revenant', () => {
+    const grand = depuisTaille(point(0, 0), 400, 300)
+    const z = cam.zoneLibre(grand, VUE, 1)!
+    const bord: cam.Camera = { origine: point(100, z.min.y), echelle: 1 }
+    // Tirée vers le bas de 300 px au-delà du bord, elle n'en descend que 128.
+    const tiree = cam.defiler(bord, 0, 300)
+    const montree = cam.tendre(tiree, grand, VUE)
+    proche(montree.origine.x, 100)
+    proche((z.min.y - montree.origine.y) * cam.PX_PAR_UG, cam.tension(300, VUE.hauteur))
+    proche(cam.detendre(montree, grand, VUE).origine.y, tiree.origine.y)
+    // Dans la zone, rien ne la retient.
+    expect(cam.tendre(bord, grand, VUE)).toBe(bord)
+    // À la molette : des pas qui s'éloignent portent de moins en moins loin ; les mêmes pas en sens inverse la ramènent
+    // exactement au bord.
+    let c = bord
+    const ecarts: number[] = []
+    for (let i = 0; i < 5; i++) {
+      c = cam.defilerTendu(c, 0, 60, grand, VUE)
+      ecarts.push((z.min.y - c.origine.y) * cam.PX_PAR_UG)
+    }
+    for (let i = 1; i < 5; i++) expect(ecarts[i]! - ecarts[i - 1]!).toBeLessThan(i === 1 ? ecarts[0]! : ecarts[i - 1]! - ecarts[i - 2]!)
+    for (let i = 0; i < 5; i++) c = cam.defilerTendu(c, 0, -60, grand, VUE)
+    proche(c.origine.y, z.min.y)
+  })
+
+  test('lâchée au-delà, elle revient à son bord en ressort : sans rebond, en une demi-seconde environ', () => {
+    const depart: cam.Camera = { origine: point(-80, -60), echelle: 1 }
+    const cible: cam.Camera = { origine: point(-66, -53), echelle: 1 }
+    expect(cam.revenir(depart, cible, 0).camera.origine).toEqual(depart.origine)
+    let avant = depart.origine.y
+    let fin = -1
+    for (let t = 0; t <= 1000; t += 8) {
+      const { camera: c, fini } = cam.revenir(depart, cible, t)
+      // Toujours entre le départ et le bord, et toujours plus près : elle ne le dépasse jamais.
+      expect(c.origine.y).toBeGreaterThanOrEqual(avant)
+      expect(c.origine.y).toBeLessThanOrEqual(cible.origine.y)
+      avant = c.origine.y
+      if (fini && fin < 0) fin = t
+    }
+    expect(fin).toBeGreaterThan(350)
+    expect(fin).toBeLessThan(650)
+    expect(cam.revenir(depart, cible, fin).camera).toBe(cible)
+  })
+
+  test('l’élan d’un pavé tactile la fait rebondir sur son bord au lieu de l’y étirer', () => {
+    const grand = depuisTaille(point(0, 0), 400, 300)
+    const z = cam.zoneLibre(grand, VUE, 1)!
+    // Lancée vers le haut à 3 600 px/s, au bord : l'élan envoie un pas toutes les 16 ms, chacun 5 % plus petit.
+    let c: cam.Camera = { origine: point(100, z.min.y), echelle: 1 }
+    let pas = 60
+    let plusLoin = 0
+    for (let i = 0; i < 120; i++, pas *= 0.95) {
+      c = cam.defilerTendu(cam.rappeler(c, grand, VUE, 16), 0, pas, grand, VUE)
+      plusLoin = Math.max(plusLoin, (z.min.y - c.origine.y) * cam.PX_PAR_UG)
+    }
+    // Elle s'écarte d'un peu plus d'un huitième de vue au plus, et l'élan éteint, elle est presque revenue.
+    expect(plusLoin).toBeGreaterThan(40)
+    expect(plusLoin).toBeLessThan(VUE.hauteur / 6)
+    expect((z.min.y - c.origine.y) * cam.PX_PAR_UG).toBeLessThan(5)
+    // Le premier pas d'un geste ne rappelle rien : il n'y a pas eu d'intervalle.
+    expect(cam.rappeler(c, grand, VUE, 0)).toBe(c)
   })
 
   test('l’arrivée sur une toile jamais vue : à 100 %, au milieu de la place libre, ou son coin après les barres', () => {
@@ -270,8 +390,8 @@ describe('caméra', () => {
     expect(cam.bornerVue(c, grand, VUE, false)).toBe(c)
   })
 
-  test('sans recentrage (un élément a bougé), la vue dézoomée reste où elle est', () => {
-    const c = { origine: point(300, 300), echelle: 0.25 }
+  test('sans recentrage (un élément a bougé), la vue dézoomée reste où elle est tant qu’elle garde le contenu', () => {
+    const c = { origine: point(-300, -250), echelle: 0.25 }
     expect(cam.bornerVue(c, depuisTaille(point(0, 0), 20, 10), VUE, false)).toBe(c)
   })
 
