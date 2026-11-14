@@ -73,13 +73,16 @@ const PORTES: EntreeBibliotheque[] = [
 describe('les photos, les liens et les fichiers', () => {
   beforeEach(() => definirLangue('fr'))
 
-  it('ont chacun leur rubrique, et les fichiers ouverts entrent dans les récents', () => {
+  it('ont chacun leur puce, et les fichiers ouverts entrent dans les récents, sous la leur ; « Tout » ne les mêle pas aux toiles', () => {
     const toutes = [...TOUTES, ...PORTES]
     expect(entreesDe({ portee: 'tout', filtre: 'image' }, toutes).map((e) => e.element)).toEqual(['port'])
     expect(entreesDe({ portee: 'tout', filtre: 'lien' }, toutes).map((e) => e.element)).toEqual(['site'])
     expect(entreesDe({ portee: 'tout', filtre: 'fichier' }, toutes).map((e) => e.element)).toEqual(['billets'])
-    expect(entreesDe({ portee: 'recents', filtre: 'tout' }, toutes)[0]!.element).toBe('billets')
+    expect(entreesDe({ portee: 'recents', filtre: 'fichier' }, toutes).map((e) => e.element)).toEqual(['billets'])
     expect(entreesDe({ portee: 'tout', filtre: 'toile' }, toutes).every((e) => e.genre === 'toile')).toBe(true)
+    for (const portee of ['tout', 'recents'] as const) expect(entreesDe({ portee, filtre: 'tout' }, toutes).map((e) => e.genre)).not.toContain('fichier')
+    // Le dossier qui les porte les montre, lui, sous « Tout ».
+    expect(entreesDe({ portee: 'tout', filtre: 'tout', dossier: 'voyage' }, toutes).map((e) => e.element).sort()).toEqual(['billets', 'notes', 'plan', 'port', 'site'])
   })
 
   it('se nomment même sans titre : « Photo », le site du lien', () => {
@@ -100,15 +103,16 @@ describe('les photos, les liens et les fichiers', () => {
 describe('les sections', () => {
   beforeEach(() => definirLangue('fr'))
 
-  it('l’accueil de la bibliothèque : reprendre, favoris, puis un genre par rubrique, chaque entrée une seule fois', () => {
+  it('l’accueil de la bibliothèque : reprendre, favoris, puis un genre qui s’ouvre par rubrique, chaque entrée une seule fois', () => {
     const beaucoup = Array.from({ length: 10 }, (_, i) => entree({ tableau: `t${i}`, titre: `Toile ${i}` }))
-    const s = sectionsDeLAccueil([...TOUTES, ...PORTES, ...beaucoup])
+    const s = sectionsDeLAccueil(entreesDe({ portee: 'tout', filtre: 'tout' }, [...TOUTES, ...PORTES, ...beaucoup]))
+    // Ni photos, ni liens, ni fichiers : le PDF ouvert n'entre pas dans « Reprendre », et ils n'ont pas de rubrique.
     expect(s.map((x) => [x.titre, x.entrees.length, x.voir ?? null])).toEqual([
-      ['Reprendre', 5, null],
+      ['Reprendre', 4, null],
       ['Toiles', 8, { portee: 'tout', filtre: 'toile' }],
-      ['Photos', 1, null],
-      ['Liens', 1, null],
     ])
+    // Même si on les lui donnait, il ne leur fait pas de rubrique : leur puce les montre.
+    expect(sectionsDeLAccueil(PORTES).map((x) => x.cle)).toEqual(['reprendre'])
     const cles = s.flatMap((x) => x.entrees.map((e) => `${e.tableau}/${e.element ?? ''}`))
     expect(new Set(cles).size).toBe(cles.length)
     // « Voyage », favori et ouvert, est dans « Reprendre » : « Favoris » n'a plus rien à montrer.
@@ -234,6 +238,41 @@ describe('la page', () => {
     expect(localStorage.getItem('notak:bibliotheque-tri')).toBe('dossier')
     // Rangée par dossier, une tuile ne répète pas sa toile : elle dit son genre.
     expect(hote.querySelector('[data-cle] .biblio-tuile-ou')!.textContent).toBe('Toile')
+  })
+
+  it('« Tout » montre ce qui s’ouvre ; les photos, liens et fichiers restent sous leur puce, qui les compte', async () => {
+    await ouvrir(async () => [...TOUTES, ...PORTES])
+    act(() => rubrique('Bibliothèque').click())
+    // La colonne compte ce que la rubrique montre : cinq toiles, pages et cartes mentales.
+    expect(rubrique('Bibliothèque').textContent).toBe('Bibliothèque5')
+    expect(titres()).toEqual(['Reprendre', 'ToilesTout voir'])
+    expect(tuiles().map(([, cle]) => cle).filter((c) => /port|site|billets/.test(c!))).toEqual([])
+    expect(['Photos', 'Liens', 'Fichiers'].map((p) => puce(p).textContent)).toEqual(['Photos1', 'Liens1', 'Fichiers1'])
+    act(() => puce('Photos').click())
+    expect(tuiles()).toEqual([['Photo', 'voyage/port']])
+    // Les récents gardent la puce ; sous « Tout », le PDF qu'on vient d'ouvrir reste sous la sienne.
+    act(() => rubrique('Récents').click())
+    act(() => puce('Tout').click())
+    expect(tuiles().map(([, cle]) => cle)).toEqual(['budget/', 'voyage/plan', 'voyage/', 'voyage/notes'])
+    act(() => puce('Fichiers').click())
+    expect(tuiles()).toEqual([['Billets', 'voyage/billets']])
+    // La recherche, elle, trouve tout : un PDF par son nom.
+    const champ = hote.querySelector<HTMLInputElement>('input[type="search"]')!
+    act(() => puce('Tout').click())
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ, 'tap.pdf')
+      champ.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    expect(tuiles()).toEqual([['Billets', 'voyage/billets']])
+  })
+
+  it('dans un dossier comme parmi les favoris, « Tout » montre aussi ce qu’on y a rangé ou choisi', async () => {
+    history.replaceState(null, '', '/?dossier=voyage')
+    await ouvrir(async () => [...TOUTES, ...PORTES.map((e) => (e.element === 'port' ? { ...e, favori: true } : e))])
+    expect(tuiles().map(([, cle]) => cle).sort()).toEqual(['voyage/billets', 'voyage/notes', 'voyage/plan', 'voyage/port', 'voyage/site'])
+    act(() => rubrique('Favoris').click())
+    expect(tuiles().map(([, cle]) => cle).sort()).toEqual(['voyage/', 'voyage/port'])
+    expect(rubrique('Favoris').textContent).toBe('Favoris2')
   })
 
   it('la recherche filtre tout, d’où qu’on soit, et dit quand rien ne répond', async () => {

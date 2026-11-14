@@ -86,6 +86,7 @@ import {
   type NoeudDossier,
   type Portee,
   type Vue,
+  PIECES,
   PLURIEL,
   RECENTS_MAX,
   TYPES,
@@ -95,6 +96,7 @@ import {
   contenuDuDossier,
   dansLaPortee,
   duFiltre,
+  parLesPuces,
   estDossier,
   filDAriane,
   ecrireAffichage,
@@ -102,6 +104,7 @@ import {
   elementDeLAdresse,
   lireAffichage,
   lireVue,
+  vueDeLArrivee,
 } from './bibliotheque/modele'
 import { BarreChoix } from './bibliotheque/BarreChoix'
 import { PremierPas } from './bibliotheque/PremierPas'
@@ -180,7 +183,7 @@ const baseDe = (vue: Vue, toutes: readonly EntreeBibliotheque[]) => (vue.dossier
 
 /** Ce que montre une vue (où, et quoi), le plus récemment ouvert d'abord, puis par titre. */
 export function entreesDe(vue: Vue, toutes: readonly EntreeBibliotheque[]): EntreeBibliotheque[] {
-  const l = duFiltre(vue.filtre, baseDe(vue, toutes)).sort(parOuverture)
+  const l = parLesPuces(vue, baseDe(vue, toutes)).sort(parOuverture)
   return !vue.dossier && vue.portee === 'recents' ? l.slice(0, RECENTS_MAX) : l
 }
 
@@ -207,8 +210,10 @@ const RECENTS_AU_DOIGT = 8
 
 /**
  * L'accueil de la bibliothèque, comme celui de Freeform ou de Google Drive : reprendre ce qu'on a ouvert, les favoris,
- * les dossiers, puis une rubrique par genre, chacune avec « Tout voir ». Chaque entrée n'y paraît qu'une fois, dans la
- * première rubrique qui la prend : la sélection et le clavier ne connaissent qu'une tuile par entrée.
+ * les dossiers, puis une rubrique par genre qui s'ouvre (toiles, pages, cartes mentales), chacune avec « Tout voir ».
+ * Il reçoit ce que montre « Tout » : les photos, liens et fichiers n'y ont pas de rubrique, leur puce les montre.
+ * Chaque entrée n'y paraît qu'une fois, dans la première rubrique qui la prend : la sélection et le clavier ne
+ * connaissent qu'une tuile par entrée.
  */
 export function sectionsDeLAccueil(entrees: readonly EntreeBibliotheque[], parRubrique = PAR_RUBRIQUE): Section[] {
   const montrees = new Set<string>()
@@ -224,7 +229,7 @@ export function sectionsDeLAccueil(entrees: readonly EntreeBibliotheque[], parRu
   ajouter('reprendre', t('biblio.accueil.reprendre'), entrees.filter((e) => e.vu !== null), { portee: 'recents', filtre: 'tout' })
   ajouter('favoris', t('biblio.rubrique.favoris'), entrees.filter((e) => e.favori), { portee: 'favoris', filtre: 'tout' })
   ajouter('dossiers', t('biblio.dossiers'), entrees.filter(estDossier), undefined, Infinity)
-  for (const g of TYPES)
+  for (const g of TYPES.filter((x) => !PIECES.has(x)))
     ajouter(`genre:${g}`, t(`biblio.rubrique.${PLURIEL[g]}`), entrees.filter((e) => e.genre === g && !estDossier(e)), { portee: 'tout', filtre: g })
   return sections
 }
@@ -1293,9 +1298,10 @@ function BibliothequeBureau({
       .finally(() => setImportEnCours(0))
   }
   /**
-   * Ce qu'on vient d'importer se voit là où l'on est, s'il y a sa place ; sinon dans les récents, qui prennent tous les
-   * genres. Une recherche qui le cacherait se vide. Les tuiles sont choisies, la première vient à l'écran, et leur
-   * anneau bat une fois. Rien de neuf à montrer (des fichiers joints seuls) : c'est la toile qui les a pris qui bat.
+   * Ce qu'on vient d'importer se voit là où l'on est, s'il y a sa place ; sinon dans les récents, sous la puce qui le
+   * montre, ou dans la toile qui l'a pris (`vueDeLArrivee`). Une recherche qui le cacherait se vide. Les tuiles sont
+   * choisies, la première vient à l'écran, et leur anneau bat une fois. Rien de neuf à montrer (des fichiers joints
+   * seuls) : c'est la toile qui les a pris qui bat.
    */
   const montrerArrivee = (entrees: readonly EntreeBibliotheque[], dans: string) => {
     // Importer, c'est toucher : ce qui arrive entre dans les récents. Le serveur ne le note qu'une fois l'élément lu,
@@ -1314,7 +1320,10 @@ function BibliothequeBureau({
     const icite = entrees.every((e) => entreesDe(vue, [e]).length > 0)
     if (cherche || !icite) {
       setRequete('')
-      if (!icite) choisirVue({ portee: 'recents', filtre: 'tout' })
+      if (!icite) {
+        const ou = vueDeLArrivee(entrees, dans)
+        choisirVue({ ...ou, dossier: ou.dossier ?? null })
+      }
     }
     setSel({ choisies: new Set(cles), ancre: cles[0]! })
     setCourante(cles[0]!)
@@ -1365,7 +1374,8 @@ function BibliothequeBureau({
   /** La toile qui prendrait ce qu'on glisse : des tuiles, ou des fichiers de la machine. */
   const survolDepot = glisse?.cible ?? apport?.cible ?? null
 
-  const combien = (r: Portee) => (toutes && r !== 'recents' ? dansLaPortee(r, toutes).length : 0)
+  /** Ce que la rubrique montre sous « Tout » : les récents ne se comptent pas. */
+  const combien = (r: Portee) => (toutes && r !== 'recents' ? parLesPuces({ portee: r, filtre: 'tout' }, dansLaPortee(r, toutes)).length : 0)
   const bouton = (r: Portee) => (
     <button key={r} type="button" className="biblio-rubrique" data-rubrique={r} aria-current={!cherche && !dossier && portee === r ? 'page' : undefined} onClick={() => choisir(r)}>
       <Icone nom={ICONE_PORTEE[r]} taille={18} />
