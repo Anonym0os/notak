@@ -15,8 +15,10 @@ export interface Magasin {
   appliquerSeulement(pas: Operation[]): void
   inscrire(pas: Operation[]): void
   /**
-   * Écrit sans que l'historique le voie jamais : la suite d'un geste déjà inscrit, qui ne doit pas devenir un
-   * pas à part (un fichier qui finit d'arriver). Annuler le geste emporte aussi la correction.
+   * Écrit la suite d'un geste déjà inscrit, qui ne doit pas devenir un pas à part (un fichier qui finit d'arriver,
+   * les couleurs d'une photo) : elle rejoint le pas qui a écrit ce qu'elle corrige, et annuler ce pas l'emporte
+   * aussi, le rétablir la rend. Jamais un pas de plus ni de moins, ce qu'on peut rétablir reste là, et un geste en
+   * cours (un glisser, une saisie) reste un seul pas, qui commence où il commençait.
    */
   corriger(pas: Operation[]): void
   /** Remplace le tableau sans passer par l'historique (premier plan, chargement). */
@@ -66,7 +68,9 @@ export function creerMagasin(initial: Tableau): Magasin {
       for (const f of ecouteurs) f()
     },
     corriger(pas) {
-      if (pas.length > 0) poser(pas.reduce(appliquer, tableau))
+      if (pas.length === 0) return
+      historique.joindre(pas)
+      poser(pas.reduce(appliquer, tableau))
     },
     remplacer: poser,
     annuler() {

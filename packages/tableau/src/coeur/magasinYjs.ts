@@ -14,7 +14,7 @@ export type ElementStocke = Element & { plan: string }
 export const ORIGINE_GESTE = 'notak:geste'
 /** Ce qui s'applique sans historique : un glisser en cours, un retour au point de départ, l'ordre d'empilement. */
 export const ORIGINE_LIBRE = 'notak:libre'
-/** Ce que l'historique ne voit pas du tout : une correction qui n'a pas trouvé son pas (`corriger`). */
+/** Ce que l'historique ne voit pas du tout : une correction (`corriger`), un texte ou une ligne créés au besoin. */
 const ORIGINE_HORS = 'notak:hors-historique'
 
 export type MagasinYjs = Magasin & { detruire(): void; texte(id: Id): Y.XmlFragment; ligne(id: Id): Y.Text; trace(id: Id): Trace | undefined }
@@ -243,6 +243,38 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
 
   const transaction = (f: () => void, origine: string) => doc.transact(f, origine)
 
+  /** Les entrées du document que ces opérations vont remplacer : celle de chaque élément, et celles de ses sujets. */
+  const entreesDe = (pas: readonly Operation[]) => {
+    const entrees = new Map<Y.Item, { carte: Y.Map<unknown>; cle: string }>()
+    const retenir = (carte: Y.Map<unknown>, cle: string) => {
+      const entree = carte._map.get(cle)
+      if (entree && !entree.deleted) entrees.set(entree, { carte, cle })
+    }
+    for (const op of pas) {
+      if (op.type === 'etiquettes' || op.type === 'fond') continue
+      const id = op.type === 'creer' || op.type === 'supprimer' ? op.element.id : op.id
+      retenir(elements as Y.Map<unknown>, id)
+      for (const cle of index.cles(id)) retenir(arbres, cle)
+    }
+    return entrees
+  }
+
+  /**
+   * Chaque entrée écrite d'ici que la correction vient de remplacer lui passe la main, comme Yjs le fait d'une entrée
+   * à celle qui la rétablit (`redone`) : le pas qui l'avait écrite (la pose, le geste en cours, un pas défait qu'on
+   * peut refaire) retrouve la correction à sa place, l'emporte quand on l'annule et la rend quand on le refait.
+   * Annuler un geste commencé avant elle rend donc l'élément d'avant le geste, sans elle : Yjs garde des états
+   * entiers, pas des opérations. Une entrée venue d'un autre poste reste à lui : Annuler n'écrase jamais ce qu'un
+   * autre a écrit.
+   */
+  const passerLaMain = (remplacees: Map<Y.Item, { carte: Y.Map<unknown>; cle: string }>) => {
+    for (const [ancienne, { carte, cle }] of remplacees) {
+      const nouvelle = carte._map.get(cle)
+      if (!nouvelle || nouvelle === ancienne || nouvelle.deleted || !ancienne.deleted || ancienne.id.client !== doc.clientID) continue
+      ancienne.redone = nouvelle.id
+    }
+  }
+
   /** Note, pour chaque élément qu'un geste touche, qui l'a fait et quand (sans nom connu, rien n'est noté). */
   const marquer = (pas: Operation[]) => {
     const par = options.auteur?.()
@@ -306,22 +338,14 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
     },
     corriger(pas) {
       if (pas.length === 0) return
-      // Un geste est en train de s'écrire (un glisser) : la correction ne doit pas s'y mêler ni le couper.
-      if (historique.lastChange > 0) return transaction(() => ecrire(pas), ORIGINE_HORS)
-      // Les entrées que la correction va remplacer : le pas qui les a écrites la reçoit, comme si elle en était.
-      const stockees = (elements as unknown as { _map: Map<string, { id: Y.ID }> })._map
-      const touchees = pas.flatMap((op) =>
-        op.type === 'etiquettes' || op.type === 'fond' ? [] : [stockees.get(op.type === 'creer' || op.type === 'supprimer' ? op.element.id : op.id)?.id],
-      )
-      const avant = historique.undoStack.length
-      transaction(() => ecrire(pas), ORIGINE_LIBRE)
-      historique.stopCapturing()
-      if (historique.undoStack.length === avant) return
-      const correction = historique.undoStack.pop()!
-      const pasDOrigine = historique.undoStack.findLast((p) => touchees.some((id) => id && Y.isDeleted(p.insertions, id)))
-      if (!pasDOrigine) return
-      pasDOrigine.insertions = Y.mergeDeleteSets([pasDOrigine.insertions, correction.insertions])
-      pasDOrigine.deletions = Y.mergeDeleteSets([pasDOrigine.deletions, correction.deletions])
+      // Toujours hors de l'historique, qui n'en voit rien : ni un pas de plus, ni de quoi vider ce qu'on peut rétablir,
+      // ni la fin du geste en cours (un glisser, une saisie), qui continue de s'écrire dans son pas. La passation se
+      // fait dans la transaction même : Yjs ne fusionne pas une entrée qui a passé la main.
+      transaction(() => {
+        const remplacees = entreesDe(pas)
+        ecrire(pas)
+        passerLaMain(remplacees)
+      }, ORIGINE_HORS)
     },
     remplacer(t) {
       transaction(() => {

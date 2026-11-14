@@ -3,7 +3,7 @@ import * as Y from 'yjs'
 import { lireTableau } from '../export/contenu'
 import { enLectureSeule } from './magasin'
 import { type ElementStocke, creerMagasinYjs, plansPour } from './magasinYjs'
-import { type Element, type Tableau, annoter, auPremierPlan, nouvelleNote } from './tableau'
+import { type Contenu, type Element, type Tableau, annoter, auPremierPlan, nouvelleNote } from './tableau'
 
 /** Deux documents qui s'échangent leurs mises à jour, comme le ferait un serveur. */
 function relies() {
@@ -68,31 +68,39 @@ describe('magasin Yjs', () => {
     expect(ids(mb.lire())).toEqual([n.id])
   })
 
-  it('une correction n’est pas un pas : annuler la création l’emporte, rétablir la garde', () => {
-    const { ma } = relies()
-    const n = note(1)
+  // Le reste de ce que garantit `corriger`, commun aux deux magasins, est dans `magasin.test.ts`.
+  it('pendant que l’autre écrit, une correction en plein glisser laisse Annuler défaire le glisser, la pose, puis le pas d’avant', () => {
+    const { ma, mb } = relies()
+    const [n, autre] = [note(1), note(40)]
+    const photo: Element = { id: 'p', x: 20, y: 0, largeur: 10, contenu: { type: 'image', fichier: 'f', largeurOrigine: 10, hauteurOrigine: 10 } }
     ma.faire([{ type: 'creer', element: n }])
-    const corrige = { ...n, x: 9 }
-    ma.corriger([{ type: 'deplacer', id: n.id, de: [1, 0], vers: [9, 0] }])
+    ma.faire([{ type: 'creer', element: photo }])
+    ma.appliquerSeulement([{ type: 'deplacer', id: n.id, de: [1, 0], vers: [5, 5] }])
+    mb.faire([{ type: 'creer', element: autre }])
+    ma.corriger([{ type: 'contenu', id: 'p', avant: photo.contenu, apres: { ...photo.contenu, couleurs: ['#aa0000'] } as Contenu }])
+    ma.inscrire([{ type: 'deplacer', id: n.id, de: [1, 0], vers: [5, 5] }])
     expect(ma.annuler()).toBe(true)
-    expect(ma.lire().elements).toEqual([])
+    expect(mb.lire().elements.find((e) => e.id === n.id)).toMatchObject({ x: 1, y: 0 })
+    expect(ma.annuler()).toBe(true)
+    expect(ids(mb.lire())).toEqual([n.id, autre.id])
+    expect(ma.annuler()).toBe(true)
+    expect(ids(mb.lire())).toEqual([autre.id])
     expect(ma.annuler()).toBe(false)
-    expect(ma.retablir()).toBe(true)
-    expect(ma.lire().elements).toEqual([corrige])
   })
 
-  it('une correction rejoint le pas qui a créé l’élément, même si d’autres l’ont suivi', () => {
-    const { ma } = relies()
-    const [n, m] = [note(1), note(2)]
+  it('corriger ce qu’un autre a posé ne le fait pas entrer dans mon historique, ni ne vide ce que je peux rétablir', () => {
+    const { ma, mb } = relies()
+    const [n, o] = [note(1), note(2)]
+    mb.faire([{ type: 'creer', element: o }])
     ma.faire([{ type: 'creer', element: n }])
-    ma.faire([{ type: 'creer', element: m }])
-    ma.corriger([{ type: 'deplacer', id: n.id, de: [1, 0], vers: [9, 0] }])
     ma.annuler()
-    expect(ma.lire().elements).toEqual([{ ...n, x: 9 }])
-    ma.annuler()
-    expect(ma.lire().elements).toEqual([])
-    ma.retablir()
-    expect(ma.lire().elements).toEqual([{ ...n, x: 9 }])
+    ma.corriger([{ type: 'deplacer', id: o.id, de: [2, 0], vers: [9, 0] }])
+    expect(mb.lire().elements).toEqual([{ ...o, x: 9 }])
+    expect(ma.peutAnnuler()).toBe(false)
+    expect(ma.retablir()).toBe(true)
+    expect(ma.annuler()).toBe(true)
+    expect(ma.annuler()).toBe(false)
+    expect(mb.lire().elements).toEqual([{ ...o, x: 9 }])
   })
 
   it('le texte d’une note se partage, hors de l’historique du tableau', () => {
