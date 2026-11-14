@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -65,6 +66,29 @@ describe('la carte d’une image', () => {
   it('sous 8 UG de large, la légende est masquée', async () => {
     await rendre({ legende: 'Un port' }, { largeur: 6 })
     expect(hote.querySelector('.notak-legende')).toBeNull()
+  })
+
+  it('la photo prend l’arrondi de sa carte, que suit le filet de sélection, et la légende le texte du thème', () => {
+    // Le chemin passe par une variable : écrit en dur dans `new URL`, Vite le changerait en adresse d'asset.
+    const fichier = './image.css'
+    const css = readFileSync(new URL(fichier, import.meta.url), 'utf8')
+    const regle = (selecteur: string) => {
+      const debut = css.indexOf(`${selecteur} {`)
+      expect(debut, selecteur).toBeGreaterThanOrEqual(0)
+      return css.slice(debut, css.indexOf('}', debut))
+    }
+    // Le haut de la photo suit l'arrondi de la carte (un habillage en donne un) ; tout le tour quand rien ne la suit.
+    expect(regle(".notak-carte[data-type='image'] > .notak-image-cadre")).toMatch(/border-top-left-radius: inherit;[\s\S]*border-top-right-radius: inherit;/)
+    expect(regle(".notak-carte[data-type='image']:not(:has(> .notak-legende)) > .notak-image-cadre")).toMatch(/border-radius: inherit;/)
+    // En édition, le filet passe dedans : son arrondi perd les 2 px dont il rentre.
+    expect(regle(".notak-carte[data-type='image'][data-edition]:not([data-sans-fond])::before")).toMatch(/calc\(var\(--notak-rayon-carte, 0px\) - 2px\)/)
+    // Sans carte (une image transparente), ni arrondi ni rognure.
+    expect(regle(".notak-carte[data-type='image'][data-sans-fond]")).toMatch(/border-radius: 0;/)
+    // La barre de couleur vit dans le cadre, rognée avec lui, et laisse le `::after` de la carte à l'ombre du glisser.
+    expect(regle(".notak-carte[data-type='image'][data-teinte] > .notak-image-cadre::after")).toMatch(/height: 5px;/)
+    expect(css).not.toContain(".notak-carte[data-type='image'][data-teinte]::after")
+    // La légende prend le texte des cartes : lisible sur la carte sombre du thème sombre.
+    expect(regle(".notak-carte[data-type='image'] .notak-legende")).toMatch(/color: var\(--notak-texte\);/)
   })
 
   it('le type dit sa carte : blanche, sauf une image transparente qui n’a pas rendu son fond', () => {
