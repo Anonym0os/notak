@@ -155,6 +155,18 @@ describe('commenter un sujet de la carte', () => {
     expect(epingles()).toHaveLength(1)
   })
 
+  it('mon message se supprime de son menu « ⋯ » ; le dernier parti, le fil et son épingle s’en vont, la bulle se ferme', () => {
+    const { a, idees, recette } = carte()
+    const c = ouvrir(poserFil(poserFil(a, idees, fil({ auteur: ana, texte: 'Pastèque' })), recette, fil({ auteur: bob, texte: 'Deux' })))
+    clic(epingles()[0]!.querySelector('.notak-epingle-bouton')!)
+    act(() => document.querySelector<HTMLButtonElement>('.notak-fil-attache .notak-commentaire-plus')!.click())
+    act(() => [...document.querySelectorAll<HTMLButtonElement>('.notak-commentaire-menu .notak-e')].find((b) => b.textContent === 'Supprimer')!.click())
+    act(() => [...document.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button')].find((b) => b.textContent === 'Supprimer')!.click())
+    expect(Object.keys(c.courant().fils ?? {})).toEqual([recette])
+    expect(epingles()).toHaveLength(1)
+    expect(document.querySelector('.notak-fil-attache')).toBeNull()
+  })
+
   it('en lecture seule le fil se lit, sans champ ni menu pour l’écrire', () => {
     const { a, idees } = carte()
     const c = ouvrir(poserFil(a, idees, fil({ auteur: bob, texte: 'À lire' })), { lectureSeule: true })

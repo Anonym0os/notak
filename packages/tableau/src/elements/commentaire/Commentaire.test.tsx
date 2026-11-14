@@ -117,6 +117,117 @@ describe('un fil sur la toile', () => {
   })
 })
 
+describe('supprimer un message', () => {
+  const ana = { id: 'ana', nom: 'Ana Dupont', couleur: '#e33' }
+  /** Le monde d'un fil, avec ces droits et ces services en plus ; `jetes` reçoit ce que la toile met à la corbeille. */
+  function fil(messages: Commentaire['messages'], services: Record<string, unknown> = {}, replie = false) {
+    const base = nouveauCommentaire(0, 0)
+    const element: Element<Commentaire> = { ...base, contenu: { ...messages.reduce((c, m) => ajouterMessage(c, m), base.contenu as Commentaire), ...(replie ? { replie: true } : {}) } }
+    const magasin = creerMagasin({ titre: '', etiquettes: [], elements: [element] })
+    const jetes: string[][] = []
+    const contexte = {
+      magasin,
+      jeter: (ids: Iterable<string>) => jetes.push([...ids]),
+      commencerEdition() {},
+      finirEdition() {},
+      services: { presence: { moi: () => ana, autres: () => [], ecouter: () => () => {}, signaler() {} }, ...services },
+    } as unknown as ContexteToile
+    const courant = () => magasin.lire().elements[0] as Element<Commentaire> | undefined
+    const rendre = () =>
+      act(() =>
+        racine.render(
+          <RenduCommentaire element={courant()!} choisie enEdition={false} contexte={contexte} brouillon={() => {}} changer={(c) => magasin.faire([{ type: 'contenu', id: element.id, avant: courant()!.contenu, apres: c }])} />,
+        ),
+      )
+    return { courant, rendre, magasin, jetes }
+  }
+  const menus = () => [...hote.querySelectorAll<HTMLButtonElement>('.notak-commentaire-plus')]
+  const lignes = () => [...document.querySelectorAll<HTMLButtonElement>('.notak-commentaire-menu .notak-e')].map((b) => b.textContent)
+  const choisir = (libelle: string) => act(() => [...document.querySelectorAll<HTMLButtonElement>('.notak-commentaire-menu .notak-e')].find((b) => b.textContent === libelle)!.click())
+  const confirmation = () => document.querySelector<HTMLElement>('[role="alertdialog"]')
+  const repondre = (libelle: string) => act(() => [...confirmation()!.querySelectorAll('button')].find((b) => b.textContent === libelle)!.click())
+  const deux = [
+    { id: 'm1', auteur: ana, date: Date.now(), texte: 'Pastèque' },
+    { id: 'm2', auteur: bob, date: Date.now(), texte: 'Melon' },
+  ]
+
+  it('mon message, le premier compris, a son menu « ⋯ » : Modifier, Supprimer, qui demande confirmation', () => {
+    const { rendre, courant } = fil(deux)
+    rendre()
+    act(() => menus()[0]!.click())
+    expect(lignes()).toEqual(['Modifier', 'Supprimer'])
+    choisir('Supprimer')
+    expect(confirmation()?.textContent).toContain('Supprimer ce message ?')
+    // Annuler ne touche à rien.
+    repondre('Annuler')
+    expect(courant()!.contenu.messages.map((m) => m.id)).toEqual(['m1', 'm2'])
+    act(() => menus()[0]!.click())
+    choisir('Supprimer')
+    repondre('Supprimer')
+    // Le premier parti, la réponse de Bob reste, et devient le premier.
+    expect(courant()!.contenu.messages.map((m) => m.id)).toEqual(['m2'])
+  })
+
+  it('celui d’un autre ne se supprime pas, sauf pour le propriétaire du tableau', () => {
+    const editeur = fil(deux, { droits: { role: 'edition', elements: {} } })
+    editeur.rendre()
+    // Le message de Bob n'a ni Modifier ni Supprimer : pas de menu.
+    expect(menus()).toHaveLength(1)
+    act(() => racine.render(<></>))
+    const proprietaire = fil(deux, { droits: { role: 'proprietaire', elements: {} } })
+    proprietaire.rendre()
+    act(() => menus()[1]!.click())
+    expect(lignes()).toEqual(['Supprimer'])
+    choisir('Supprimer')
+    repondre('Supprimer')
+    expect(proprietaire.courant()!.contenu.messages.map((m) => m.id)).toEqual(['m1'])
+  })
+
+  it('un commentateur supprime les siens, jamais ceux des autres', () => {
+    const { rendre } = fil(deux, { lectureSeule: true, droits: { role: 'commentaire', elements: {} } })
+    rendre()
+    expect(menus()).toHaveLength(1)
+    act(() => menus()[0]!.click())
+    // Le sien : Modifier et Supprimer.
+    expect(lignes()).toEqual(['Modifier', 'Supprimer'])
+  })
+
+  it('le dernier message supprimé, le fil part à la corbeille d’un seul pas ; la confirmation le dit', () => {
+    const { rendre, jetes, courant } = fil([deux[0]!])
+    rendre()
+    act(() => menus()[0]!.click())
+    choisir('Supprimer')
+    expect(confirmation()?.textContent).toContain('le fil disparaît avec lui')
+    repondre('Supprimer')
+    expect(jetes).toEqual([[courant()!.id]])
+    // Il part entier : le remettre rend son message.
+    expect(courant()!.contenu.messages).toHaveLength(1)
+  })
+
+  it('pour un commentateur, le fil vidé est retiré tout de suite, et Annuler le rend', () => {
+    const { rendre, jetes, courant, magasin } = fil([deux[0]!], { lectureSeule: true, droits: { role: 'commentaire', elements: {} } })
+    rendre()
+    act(() => menus()[0]!.click())
+    choisir('Supprimer')
+    repondre('Supprimer')
+    expect(jetes).toEqual([])
+    expect(courant()).toBeUndefined()
+    act(() => void magasin.annuler())
+    expect(courant()!.contenu.messages.map((m) => m.texte)).toEqual(['Pastèque'])
+  })
+
+  it('réduit en épingle, son dernier message supprimé, la bulle se ferme et l’épingle s’en va', () => {
+    const { rendre, jetes, courant } = fil([deux[0]!], {}, true)
+    rendre()
+    act(() => hote.querySelector<HTMLButtonElement>('.notak-epingle-libre')!.click())
+    act(() => menus()[0]!.click())
+    choisir('Supprimer')
+    repondre('Supprimer')
+    expect(jetes).toEqual([[courant()!.id]])
+    expect(hote.querySelector('.notak-fil-attache')).toBeNull()
+  })
+})
+
 describe('écrire dans un fil', () => {
   type Champ = HTMLElement & { editor: { commands: { insertContent(t: string): boolean } } }
   it('le champ est l’éditeur de la note : ce qu’on tape part en brouillon, « Publier » le poste', () => {

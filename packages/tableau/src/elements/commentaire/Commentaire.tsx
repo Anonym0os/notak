@@ -23,12 +23,27 @@ const garder = (e: React.PointerEvent) => e.stopPropagation()
 
 const moi = (contexte: ContexteToile): Auteur => contexte.services.presence?.moi?.() ?? AUTEUR_INCONNU
 
+/**
+ * Un fil de la toile qui n'a plus rien à dire s'en va, d'un seul pas qu'Annuler rend : à la corbeille, comme tout élément
+ * qu'on supprime, pour qui écrit le tableau ; retiré tout de suite pour un commentateur, qui n'a pas de corbeille (le
+ * serveur le laisse faire : un fil qu'on vide n'avait que ses messages). Le fil part tel qu'il est rangé, son dernier
+ * message compris : le remettre le rend entier.
+ */
+export function effacerFil(contexte: ContexteToile, id: string) {
+  const e = contexte.magasin.lire().elements.find((x) => x.id === id)
+  if (!e) return
+  if (!contexte.services.lectureSeule) contexte.jeter([id])
+  else contexte.magasin.faire([{ type: 'supprimer', element: e }])
+}
+
 export function RenduCommentaire({ element, choisie, enEdition, contexte, brouillon, changer }: PropsRendu<Commentaire>) {
   const c = element.contenu
   const n = c.messages.length
-  if (c.replie && n > 0) return <EpingleLibre element={element} enEdition={enEdition} contexte={contexte} changer={changer} />
+  // Son dernier message supprimé, le fil quitte la toile : pas de fiche vide ni d'épingle sans compte.
+  const maj = (apres: Commentaire) => (apres.messages.length === 0 && n > 0 ? effacerFil(contexte, element.id) : changer(apres))
+  if (c.replie && n > 0) return <EpingleLibre element={element} enEdition={enEdition} contexte={contexte} changer={maj} />
   if (enEdition) return <Fil id={element.id} contenu={c} contexte={contexte} ecrire={brouillon} />
-  return <FilLu element={element} choisie={choisie} contexte={contexte} changer={changer} />
+  return <FilLu element={element} choisie={choisie} contexte={contexte} changer={maj} />
 }
 
 /** Le fil hors édition : les messages (les longs fils se replient sur le premier et le dernier), le lien « Répondre ». */
@@ -44,6 +59,7 @@ function FilLu({ element, choisie, contexte, changer }: { element: PropsRendu<Co
         messages={montres}
         caches={caches}
         contexte={contexte}
+        element={element.id}
         cle={element.id}
         cles={[element.id]}
         vu={choisie}
@@ -88,7 +104,7 @@ function Fil({ id, contenu, contexte, ecrire }: { id: string; contenu: Commentai
       queueMicrotask(() => {
         if (monte.current) return
         const e = contexte.magasin.lire().elements.find((x) => x.id === id)
-        if (e?.contenu.type === 'commentaire' && filVide(e.contenu)) contexte.jeter([id])
+        if (e?.contenu.type === 'commentaire' && filVide(e.contenu)) effacerFil(contexte, id)
       })
     }
   }, [id, contexte])
@@ -108,6 +124,11 @@ function Fil({ id, contenu, contexte, ecrire }: { id: string; contenu: Commentai
     champ.current?.vider()
   }
   const maj = (apres: Commentaire) => {
+    // Le dernier message supprimé, sans rien d'écrit dans le champ : l'édition se ferme et le fil s'en va.
+    if (apres.messages.length === 0 && base.current.messages.length > 0 && !courant.current.texte.trim()) {
+      contexte.finirEdition()
+      return effacerFil(contexte, id)
+    }
     poser(apres)
     ecrire(brouillonDe(apres, courant.current.texte, courant.current.riche))
   }
@@ -133,9 +154,10 @@ function Fil({ id, contenu, contexte, ecrire }: { id: string; contenu: Commentai
           // Retour arrière dans le champ d'un fil neuf resté vide : le fil est jeté.
           retourVide: () => {
             if (base.current.messages.length > 0) return
-            contexte.jeter([id])
+            effacerFil(contexte, id)
           },
         }}
+        element={id}
       />
       <p className="notak-commentaire-aide">{t('commentaire.aide')}</p>
     </div>

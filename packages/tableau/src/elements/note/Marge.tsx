@@ -6,12 +6,18 @@ import { Ligne } from '../commentaire/Commentaire'
 import { Compositeur, type PoigneeCompositeur } from '../commentaire/Compositeur'
 import { filDuBlocChoisi, placeDuFil } from '../../blocs/commentaires'
 import { AUTEUR_INCONNU, ajouterMessage, epinglerEn, initiales, modifierMessage, reagirAuMessage, retirerMessage } from '../commentaire/fil'
+import { CLASSE_MENU_MESSAGE } from '../commentaire/MenuMessage'
+import { peutSupprimerMessage } from '../../coeur/droitsElements'
+import type { Entree } from '../../communs'
 import type { ContexteToile } from '../types'
 import { type Fils, MARQUE_FIL, filsDuTexte, placerEnMarge } from './fils'
 import { t, tn } from '../../langue'
 import { Icone } from '../../icones'
 
 const garder = (e: React.SyntheticEvent) => e.stopPropagation()
+
+/** Ce qu'une fiche ouvre hors d'elle (le menu d'un message, sa feuille au téléphone, la confirmation) : pas « dehors ». */
+const HORS_FICHE = `.${CLASSE_MENU_MESSAGE}, .notak-tiroir-bas-calque, .notak-dialogue-hote, .notak-fenetre-emojis`
 
 /** Ôte la marque de ce fil de tout le texte : le passage redevient du texte, le fil n'a plus de passage. */
 function retirerMarque(editeur: Editor, id: Id) {
@@ -214,7 +220,7 @@ export function Marge({ editeur, fils, ouvert, surOuvert, ecrire, contexte, enPa
   useEffect(() => {
     if (!enPage || !etroit || !actif) return
     const hors = (e: PointerEvent) => {
-      if (!(e.target as Element).closest?.('.notak-note-marge, .notak-fil-texte')) surOuvert(null)
+      if (!(e.target as Element).closest?.(`.notak-note-marge, .notak-fil-texte, ${HORS_FICHE}`)) surOuvert(null)
     }
     document.addEventListener('pointerdown', hors, true)
     return () => document.removeEventListener('pointerdown', hors, true)
@@ -331,22 +337,20 @@ function Fiche({
     setVide(true)
   }
   const n = fil.messages.length
-  // Les gestes du fil (NOTION.md § 9) : sur son premier message, à côté de ceux du message ; plus de pied « Fermer » :
-  // Échap, ou le curseur hors du passage, ferment la fiche.
-  const gestesFil = peutEcrire && (
-    <>
-      {detacher && n > 0 && (
-        <button type="button" className="notak-commentaire-geste" aria-label={t('commentaire.detacher')} title={t('commentaire.detacher')} onClick={detacher}>
-          <Icone nom="detacher" taille={16} />
-        </button>
-      )}
-      {retirer && (
-        <button type="button" className="notak-commentaire-geste" aria-label={t('commentaire.retirerFil')} title={t('commentaire.retirerFil')} onClick={retirer}>
-          <Icone nom="resoudre" taille={16} />
-        </button>
-      )}
-    </>
+  // Les gestes du fil (NOTION.md § 9) : sur son premier message, « Retirer » dans la barre (à la place de « Résoudre »),
+  // « Détacher » dans son menu « ⋯ » ; plus de pied « Fermer » : Échap, ou le curseur hors du passage, ferment la fiche.
+  const gestesFil = peutEcrire && retirer && (
+    <button type="button" className="notak-commentaire-geste" aria-label={t('commentaire.retirerFil')} title={t('commentaire.retirerFil')} onClick={retirer}>
+      <Icone nom="resoudre" taille={16} />
+    </button>
   )
+  const entreesFil: Entree[] = peutEcrire && detacher && n > 0 ? [{ libelle: t('commentaire.detacher'), icone: 'detacher', faire: detacher }] : []
+  // Un message supprimé ; le dernier parti, le fil n'a plus rien à dire : sa fiche se ferme et son passage n'est plus commenté.
+  const supprimer = (id: Id) => {
+    const apres = retirerMessage(fil, id)
+    ecrire(apres)
+    if (apres.messages.length === 0) (retirer ?? fermer)()
+  }
   return (
     <section
       ref={ref}
@@ -367,11 +371,11 @@ function Fiche({
           contexte={contexte}
           enMarge
           {...(i === 0 && citation ? { citation } : {})}
-          {...(i === 0 && actif ? { actionsFil: gestesFil } : {})}
+          {...(i === 0 && actif ? { actionsFil: gestesFil, entreesFil } : {})}
           {...(peutEcrire ? { reagir: (emoji: string) => ecrire(reagirAuMessage(fil, m.id, emoji, auteur.id)) } : {})}
-          {...(peutEcrire && m.auteur.id === auteur.id
-            ? { modifier: (texte: string, riche?: NoeudTexte) => ecrire(modifierMessage(fil, m.id, texte, riche)), ...(i > 0 ? { retirer: () => ecrire(retirerMessage(fil, m.id)) } : {}) }
-            : {})}
+          {...(peutEcrire && m.auteur.id === auteur.id ? { modifier: (texte: string, riche?: NoeudTexte) => ecrire(modifierMessage(fil, m.id, texte, riche)) } : {})}
+          // Le premier message comme les autres : le sien, ou celui d'un autre pour le propriétaire (`reglesDroits.ts`).
+          {...(peutEcrire && peutSupprimerMessage(contexte.services, undefined, m.auteur.id, auteur.id) ? { retirer: () => supprimer(m.id), dernier: n === 1 } : {})}
         />
       ))}
       {actif && peutEcrire && (
@@ -450,7 +454,7 @@ export function FilOuvert({
   useEffect(() => {
     const hors = (e: PointerEvent) => {
       const cible = e.target as HTMLElement | null
-      if (!cible?.closest?.('.notak-note-marge, [data-fil]')) fermer()
+      if (!cible?.closest?.(`.notak-note-marge, [data-fil], ${HORS_FICHE}`)) fermer()
     }
     const touche = (e: KeyboardEvent) => e.key === 'Escape' && fermer()
     document.addEventListener('pointerdown', hors, true)

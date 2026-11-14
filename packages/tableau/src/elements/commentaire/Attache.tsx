@@ -19,5 +19,5 @@ export function FilAttache({ element, contexte, fermer }: { element: Element; co
     const op = poser(element, apres)
     if (op) contexte.magasin.faire([op])
   }
-  return <BulleFil fil={fil} maj={maj} contexte={contexte} cle={cle} cles={[cle]} signal={cle} fermer={fermer} />
+  return <BulleFil fil={fil} maj={maj} contexte={contexte} element={element.id} cle={cle} cles={[cle]} signal={cle} fermer={fermer} />
 }

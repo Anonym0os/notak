@@ -39,6 +39,23 @@ export function peutCommenter(s: { lectureSeule?: boolean; droits?: DroitsTablea
   return !s.lectureSeule
 }
 
+/**
+ * Supprimer un message d'un fil, comme Notion : son auteur le peut partout où il commente ; le message d'un autre, seul
+ * le propriétaire du tableau le retire (chez Notion, qui a tous les droits sur la page). Un éditeur ne retire que les
+ * siens, un commentateur ou un visiteur jamais ceux des autres (`filDeSoi` le refuse au serveur). Sans droits du serveur
+ * (l'édition locale), le tableau est à qui l'ouvre, hors lecture seule.
+ */
+export function peutSupprimerMessage(
+  s: { lectureSeule?: boolean; droits?: DroitsTableau; presentation?: boolean; apercuModele?: boolean },
+  element: Id | undefined,
+  auteur: string,
+  moi: string,
+): boolean {
+  if (!peutCommenter(s, element)) return false
+  if (auteur === moi) return true
+  return s.droits ? s.droits.role === 'proprietaire' : !s.lectureSeule
+}
+
 /** La toile doit filtrer les gestes : commentateur, ou des éléments qui ont leurs propres droits. */
 export function aFiltrer(droits: DroitsTableau | undefined): droits is DroitsTableau {
   return !!droits && (droits.role === 'commentaire' || Object.keys(droits.elements).length > 0)

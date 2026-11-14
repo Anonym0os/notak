@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type DroitsTableau, gesteSurElement, pasPermis, permis } from './droitsElements'
+import { type DroitsTableau, gesteSurElement, pasPermis, permis, peutSupprimerMessage } from './droitsElements'
 import type { Element, Tableau } from './tableau'
 
 const message = (id: string, auteur: string, texte: string, reactions?: Record<string, string[]>) => ({
@@ -65,6 +65,26 @@ describe('permis', () => {
   it('un élément qui a ses droits les impose', () => {
     expect(permis(droits('edition', { x: { ecrire: false, commenter: true } }), 'x', 'ecriture')).toBe(false)
     expect(permis(droits('commentaire', { x: { ecrire: true, commenter: true } }), 'x', 'ecriture')).toBe(true)
+  })
+})
+
+describe('peutSupprimerMessage', () => {
+  const droits = (role: DroitsTableau['role'], elements: DroitsTableau['elements'] = {}): DroitsTableau => ({ role, elements })
+  it('chacun supprime les siens, partout où il commente', () => {
+    for (const role of ['commentaire', 'edition', 'proprietaire'] as const) expect(peutSupprimerMessage({ droits: droits(role) }, 'x', 'ana', 'ana')).toBe(true)
+    expect(peutSupprimerMessage({ lectureSeule: true, droits: droits('commentaire') }, 'x', 'ana', 'ana')).toBe(true)
+    expect(peutSupprimerMessage({ droits: droits('lecture') }, 'x', 'ana', 'ana')).toBe(false)
+    expect(peutSupprimerMessage({ droits: droits('edition', { x: { ecrire: false, commenter: false } }) }, 'x', 'ana', 'ana')).toBe(false)
+    expect(peutSupprimerMessage({ presentation: true }, 'x', 'ana', 'ana')).toBe(false)
+  })
+  it('celui d’un autre : le propriétaire seul, comme chez Notion ; ni l’éditeur, ni le commentateur', () => {
+    expect(peutSupprimerMessage({ droits: droits('proprietaire') }, 'x', 'bob', 'ana')).toBe(true)
+    expect(peutSupprimerMessage({ droits: droits('edition') }, 'x', 'bob', 'ana')).toBe(false)
+    expect(peutSupprimerMessage({ lectureSeule: true, droits: droits('commentaire') }, 'x', 'bob', 'ana')).toBe(false)
+  })
+  it('sans droits du serveur, le tableau est à qui l’ouvre, hors lecture seule', () => {
+    expect(peutSupprimerMessage({}, undefined, 'bob', 'ana')).toBe(true)
+    expect(peutSupprimerMessage({ lectureSeule: true }, undefined, 'bob', 'ana')).toBe(false)
   })
 })
 

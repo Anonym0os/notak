@@ -1,6 +1,6 @@
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { Auteur, Commentaire, Message, NoeudTexte } from '../../coeur/tableau'
+import type { Auteur, Commentaire, Id, Message, NoeudTexte } from '../../coeur/tableau'
 import type { ContexteToile } from '../types'
 import { AUTEUR_INCONNU, dateLisible, initiales, modifierMessage, morceauxDeTexte, prenom, reagirAuMessage, retirerMessage } from './fil'
 import { langue, t, tn } from '../../langue'
@@ -11,8 +11,10 @@ import { PastilleReaction } from '../decor/PastilleReaction'
 import { compterReactions } from '../decor/annotations'
 import { Compositeur, EXTENSIONS_MESSAGE, type PoigneeCompositeur } from './Compositeur'
 import { useNonLus, useQuiEcrit } from './suivi'
-import { estVisiteur, peutCommenter } from '../../coeur/droitsElements'
+import { estVisiteur, peutCommenter, peutSupprimerMessage } from '../../coeur/droitsElements'
 import { personneAJour } from '../../personne'
+import { Confirmation, type Entree } from '../../communs'
+import { MenuMessage } from './MenuMessage'
 
 /** Les boutons et le champ de la carte ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
@@ -75,7 +77,10 @@ export function Avatar({ auteur: note, ecrit, contexte }: { auteur: Auteur; ecri
 
 interface PropsLigne {
   message: Message
+  /** Supprime le message, sans plus rien demander : la ligne demande d'abord confirmation. Absent : pas d'ici. */
   retirer?: () => void
+  /** Le dernier message du fil : le supprimer emporte le fil, la confirmation le dit. */
+  dernier?: boolean
   modifier?: (texte: string, riche?: NoeudTexte) => void
   /** Pour lire les réactions et modifier le message sur place ; sans lui, le message se lit seulement. */
   contexte?: ContexteToile
@@ -93,6 +98,8 @@ interface PropsLigne {
   enMarge?: boolean
   /** Des gestes en plus dans la barre au survol (ceux du fil, sur son premier message). */
   actionsFil?: React.ReactNode
+  /** Des lignes en plus dans le menu « ⋯ » du message, avant Supprimer (Détacher, sur le premier message d'un passage). */
+  entreesFil?: Entree[]
   /** Le passage commenté, cité sous l'en-tête (le fil ouvert sous son passage, NOTION.md § 9). */
   citation?: string
 }
@@ -100,17 +107,23 @@ interface PropsLigne {
 /**
  * Un message : l'avatar, le prénom, la date, le texte et les réactions. `modifier` (mes messages seulement) montre
  * « Modifier » au survol, qui ouvre le message dans le champ, « Enregistrer » le remplace ; `reagir` montre le « + »
- * au survol d'un message d'un autre, puis les pastilles. Hors marge, `retirer` n'a pas de bouton : comme chez Milanote,
- * on vide le message en le modifiant, puis Retour arrière le supprime.
+ * au survol d'un message d'un autre, puis les pastilles. Comme chez Notion, chaque message a son menu « ⋯ » (au survol,
+ * toujours là au doigt) : Modifier, et Supprimer quand `retirer` est donné, après une confirmation. Vider le message en
+ * le modifiant, puis Retour arrière ou Enregistrer, demande aussi de le supprimer.
  */
-export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecrit, enMarge, actionsFil, citation }: PropsLigne) {
+export function Ligne({ message, retirer, dernier, modifier, contexte, reagir, nonLu, ecrit, enMarge, actionsFil, entreesFil, citation }: PropsLigne) {
   const { auteur } = message
   const maintenant = useMinute()
   const [edition, setEdition] = useState(false)
+  const racine = useRef<HTMLDivElement>(null)
+  // La suppression attend qu'on la confirme : le message part pour tout le monde.
+  const [confirmer, setConfirmer] = useState(false)
   const brouillon = useRef<{ texte: string; riche?: NoeudTexte }>({ texte: message.texte, ...(message.riche ? { riche: message.riche } : {}) })
   const enregistrer = () => {
     const { texte, riche } = brouillon.current
     if (texte.trim() && (texte.trim() !== message.texte || riche)) modifier?.(texte, riche)
+    // Un message vidé qu'on enregistre, c'est un message qu'on veut retirer.
+    else if (!texte.trim() && retirer) setConfirmer(true)
     setEdition(false)
   }
   const date = new Date(message.date)
@@ -123,24 +136,21 @@ export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecr
     brouillon.current = { texte: message.texte, ...(message.riche ? { riche: message.riche } : {}) }
     setEdition(true)
   }
+  const entrees: Entree[] = [
+    ...(contexte && modifier ? [{ libelle: t('commentaire.modifier'), icone: 'modifier' as const, faire: ouvrirEdition }] : []),
+    ...(entreesFil ?? []),
+    ...(retirer ? [null, { libelle: t('commentaire.supprimer'), icone: 'corbeille' as const, danger: true, faire: () => setConfirmer(true) }] : []),
+  ]
+  // La barre de Notion, en marge : réagir, les gestes du fil, puis « ⋯ ».
   const barre = enMarge && !edition && (
     <div className="notak-commentaire-survol" onPointerDown={garder}>
       {ecrire && reagir && <BoutonAjoutReaction className="notak-commentaire-geste" choisir={reagir} posees={miennes} />}
-      {contexte && modifier && (
-        <button type="button" className="notak-commentaire-geste" aria-label={t('commentaire.modifier')} title={t('commentaire.modifier')} onClick={ouvrirEdition}>
-          <Icone nom="modifier" taille={16} />
-        </button>
-      )}
-      {retirer && (
-        <button type="button" className="notak-commentaire-geste" aria-label={t('commentaire.supprimerMessage')} title={t('commentaire.supprimerMessage')} onClick={retirer}>
-          <Icone nom="corbeille" taille={16} />
-        </button>
-      )}
       {actionsFil}
+      <MenuMessage entrees={entrees} className="notak-commentaire-geste" />
     </div>
   )
   return (
-    <div className="notak-commentaire-message" data-edition={edition || undefined}>
+    <div ref={racine} className="notak-commentaire-message" data-edition={edition || undefined}>
       <Avatar auteur={auteur} ecrit={ecrit} contexte={contexte} />
       <div className="notak-commentaire-corps">
         {barre}
@@ -173,6 +183,7 @@ export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecr
             </button>
           )}
           {!enMarge && ecrire && reagir && reactions.length === 0 && auteur.id !== jeSuis && <BoutonAjoutReaction className="notak-commentaire-reagir" choisir={reagir} />}
+          {!enMarge && !edition && <MenuMessage entrees={entrees} className="notak-commentaire-plus" />}
         </div>
         {citation && <blockquote className="notak-commentaire-citation">{citation}</blockquote>}
         {edition && contexte && modifier ? (
@@ -192,7 +203,7 @@ export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecr
               ? {
                   retourVide: () => {
                     setEdition(false)
-                    retirer()
+                    setConfirmer(true)
                   },
                 }
               : {})}
@@ -220,9 +231,31 @@ export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecr
           </div>
         )}
       </div>
+      {confirmer && retirer && (
+        <Confirmation
+          titre={t('commentaire.supprimerTitre')}
+          texte={dernier ? t('commentaire.supprimerDernier') : t('commentaire.supprimerTexte')}
+          oui={t('commentaire.supprimer')}
+          // Posée dans l'espace, pour son thème : dans le fil, ses boutons prendraient le style des boutons du fil.
+          hote={hoteDialogue(racine.current)}
+          repondre={(oui) => {
+            // Le message (et le menu qui a ouvert la confirmation) partis, le clavier revient à la toile : ⌘Z y rend le message.
+            const toile = racine.current?.closest<HTMLElement>('.notak-toile')
+            setConfirmer(false)
+            if (oui) retirer()
+            requestAnimationFrame(() => {
+              const actif = document.activeElement
+              if (!actif || actif === document.body) toile?.focus({ preventScroll: true })
+            })
+          }}
+        />
+      )}
     </div>
   )
 }
+
+/** Où poser la confirmation : l'espace qui porte le fil (son thème), sinon la page. */
+const hoteDialogue = (n: HTMLElement | null) => n?.closest<HTMLElement>('.notak-espace') ?? document.body
 
 /** Ce qu'il faut pour écrire dans un fil : le champ et ses gestes. */
 export interface SaisieFil {
@@ -251,6 +284,7 @@ export function CorpsFil({
   messages = fil.messages,
   caches = 0,
   contexte,
+  element,
   cle,
   cles,
   vu,
@@ -264,13 +298,15 @@ export function CorpsFil({
   messages?: Message[]
   caches?: number
   contexte: ContexteToile
+  /** L'élément qui porte le fil, pour ses droits propres ; absent : ceux du tableau. */
+  element?: Id
   /** Où le « lu » de ce fil est retenu. */
   cle: string
   /** Les clés de présence où l'on dit écrire dans ce fil. */
   cles: string[]
   /** Le fil est sous mes yeux : ce qu'il a de nouveau est repéré, puis lu. */
   vu: boolean
-  /** Un changement qui prend tout de suite (une réaction, un message corrigé ou retiré). */
+  /** Un changement qui prend tout de suite (une réaction, un message corrigé ou retiré) ; un fil vidé, l'hôte le retire. */
   maj(apres: Commentaire): void
   saisie?: SaisieFil
   vide?: string
@@ -305,6 +341,8 @@ export function CorpsFil({
       {vide && fil.messages.length === 0 && <p className="notak-commentaire-vide">{vide}</p>}
       {messages.map((m, i) => {
         const mien = ecrire && m.auteur.id === auteur.id
+        // Le sien, partout où l'on commente ; celui d'un autre, seul le propriétaire du tableau (`reglesDroits.ts`).
+        const supprimable = peutSupprimerMessage(contexte.services, element, m.auteur.id, auteur.id)
         return (
           <div key={m.id} className="notak-commentaire-rang">
             <Ligne
@@ -314,7 +352,7 @@ export function CorpsFil({
               ecrit={lesEcrivent.has(m.auteur.id)}
               reagir={ecrire ? (emoji) => maj(reagirAuMessage(fil, m.id, emoji, auteur.id)) : undefined}
               {...(mien ? { modifier: (texte: string, riche?: NoeudTexte) => maj(modifierMessage(fil, m.id, texte, riche)) } : {})}
-              {...(mien && saisie ? { retirer: () => maj(retirerMessage(fil, m.id)) } : {})}
+              {...(supprimable ? { retirer: () => maj(retirerMessage(fil, m.id)), dernier: fil.messages.length === 1 } : {})}
             />
             {i === 0 && caches > 0 && <p className="notak-commentaire-caches">{tn('commentaire.autresReponses', caches)}</p>}
           </div>

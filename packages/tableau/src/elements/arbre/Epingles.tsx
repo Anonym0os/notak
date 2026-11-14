@@ -64,6 +64,7 @@ export function EpinglesCarte({ carte, arbre, lecture, disposition, camera, ouve
         return (
           <EpingleSujet
             key={id}
+            carte={carte}
             id={id}
             cle={cleFil(carte, id)}
             fil={arbre.fils?.[id] ?? { type: 'commentaire', messages: [] }}
@@ -80,7 +81,8 @@ export function EpinglesCarte({ carte, arbre, lecture, disposition, camera, ouve
   )
 }
 
-function EpingleSujet({ id, cle, fil, x, y, ouvert, ouvrir, contexte, poser }: {
+function EpingleSujet({ carte, id, cle, fil, x, y, ouvert, ouvrir, contexte, poser }: {
+  carte: Id
   id: Id
   cle: string
   fil: Commentaire
@@ -109,7 +111,7 @@ function EpingleSujet({ id, cle, fil, x, y, ouvert, ouvrir, contexte, poser }: {
       >
         <GlypheEpingle n={n} hex={couleurEpingle(fil)} nonLu={!ouvert && aDuNouveau(cle, fil, jeSuis)} />
       </button>
-      {ouvert && <BulleFil fil={fil} maj={(apres) => poser(id, apres)} contexte={contexte} cle={cle} cles={[cle]} signal={cle} fermer={() => ouvrir(null)} />}
+      {ouvert && <BulleFil fil={fil} maj={(apres) => poser(id, apres)} contexte={contexte} element={carte} cle={cle} cles={[cle]} signal={cle} fermer={() => ouvrir(null)} />}
     </div>
   )
 }

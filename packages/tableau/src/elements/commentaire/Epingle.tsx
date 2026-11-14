@@ -10,6 +10,7 @@ import { type PoigneeCompositeur } from './Compositeur'
 import { marquerLu, nonLus, useSignalerFrappe } from './suivi'
 import { peutCommenter } from '../../coeur/droitsElements'
 import { Feuille, enFeuille } from '../../communs/Feuille'
+import { CLASSE_MENU_MESSAGE } from './MenuMessage'
 
 /** La couleur d'une épingle sans couleur de fil : le bleu des liens de Milanote. */
 export const BLEU_EPINGLE = '#2f63f7'
@@ -48,7 +49,8 @@ export function useFermerAuClicDehors(actif: boolean, racine: React.RefObject<HT
     const dehors = (e: PointerEvent) => {
       const cible = e.target as HTMLElement | null
       if (!cible || racine.current?.contains(cible)) return
-      if (cible.closest?.('.notak-fenetre-emojis, .notak-propositions, .notak-barre-outils, .notak-barre-selection, .notak-tiroir-bas-calque')) return
+      // Ce que le fil ouvre hors de lui : émojis, mentions, le menu d'un message et la confirmation qui supprime.
+      if (cible.closest?.(`.notak-fenetre-emojis, .notak-propositions, .notak-barre-outils, .notak-barre-selection, .notak-tiroir-bas-calque, .${CLASSE_MENU_MESSAGE}, .notak-dialogue-hote`)) return
       dernier.current()
     }
     document.addEventListener('pointerdown', dehors, true)
@@ -63,8 +65,9 @@ export function useFermerAuClicDehors(actif: boolean, racine: React.RefObject<HT
  */
 export function BulleFil({
   fil,
-  maj,
+  maj: poser,
   contexte,
+  element,
   cle,
   cles,
   signal,
@@ -73,6 +76,8 @@ export function BulleFil({
   fil: Commentaire
   maj(apres: Commentaire): void
   contexte: ContexteToile
+  /** L'élément qui porte le fil, pour ses droits propres. */
+  element?: string
   /** Où le « lu » du fil est retenu. */
   cle: string
   /** Les clés de présence où l'on écrit dans ce fil. */
@@ -83,6 +88,11 @@ export function BulleFil({
 }) {
   const auteur = contexte.services.presence?.moi?.() ?? AUTEUR_INCONNU
   const ecrire = peutCommenter(contexte.services)
+  // Son dernier message supprimé, le fil n'a plus rien à montrer : la bulle se ferme avec lui.
+  const maj = (apres: Commentaire) => {
+    poser(apres)
+    if (apres.messages.length === 0 && fil.messages.length > 0) fermer()
+  }
   const champ = useRef<PoigneeCompositeur>(null)
   const frappe = useSignalerFrappe(contexte, signal)
   const [vide, setVide] = useState(true)
@@ -110,6 +120,7 @@ export function BulleFil({
         <CorpsFil
           fil={fil}
           contexte={contexte}
+          {...(element ? { element } : {})}
           cle={cle}
           cles={cles}
           vu
@@ -159,15 +170,16 @@ export function aDuNouveau(cle: string, fil: Commentaire | undefined, moi: strin
  */
 export function EpingleLibre({ element, enEdition, contexte, changer }: { element: Element<Commentaire>; enEdition: boolean; contexte: ContexteToile; changer(c: Commentaire): void }) {
   const fil = element.contenu
-  const ouvert = useFilOuvert() === element.id
+  const cle = element.id
+  const ouvert = useFilOuvert() === cle
   const racine = useRef<HTMLDivElement>(null)
   const jeSuis = (contexte.services.presence?.moi?.() ?? AUTEUR_INCONNU).id
   // Éditer une épingle, c'est l'ouvrir.
   useEffect(() => {
     if (!enEdition) return
-    ouvrirFil(element.id)
+    ouvrirFil(cle)
     contexte.finirEdition()
-  }, [enEdition, element.id, contexte])
+  }, [enEdition, cle, contexte])
   useEffect(() => {
     if (ouvert) marquerLu(element.id, fil.messages.reduce((d, m) => Math.max(d, m.date), 0))
   }, [ouvert, element.id, fil.messages])
@@ -179,13 +191,13 @@ export function EpingleLibre({ element, enEdition, contexte, changer }: { elemen
         className="notak-epingle-bouton notak-epingle-libre"
         aria-expanded={ouvert}
         aria-label={`${t('decor.ouvrirCommentaires')} (${fil.messages.length})`}
-        onClick={() => !ouvert && ouvrirFil(element.id)}
+        onClick={() => !ouvert && ouvrirFil(cle)}
       >
         <GlypheEpingle n={fil.messages.length} hex={couleurEpingle(fil)} nonLu={!ouvert && aDuNouveau(element.id, fil, jeSuis)} />
       </button>
       {ouvert && (
         <div className="notak-epingle-bulle">
-          <BulleFil fil={fil} maj={changer} contexte={contexte} cle={element.id} cles={[element.id, `fil:${element.id}`]} signal={`fil:${element.id}`} fermer={() => ouvrirFil(null)} />
+          <BulleFil fil={fil} maj={changer} contexte={contexte} element={element.id} cle={element.id} cles={[element.id, `fil:${element.id}`]} signal={`fil:${element.id}`} fermer={() => ouvrirFil(null)} />
         </div>
       )}
     </div>
