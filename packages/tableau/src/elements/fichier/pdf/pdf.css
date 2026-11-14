@@ -1,0 +1,403 @@
+/*
+ * La visionneuse PDF : toute la fenêtre, une barre sombre en haut (celle de l'image en grand, à 52 px), puis la colonne
+ * des pages qui défile sur un fond neutre. Les pages restent blanches en thème sombre : c'est le papier du PDF.
+ */
+.notak-pdf {
+  --notak-pdf-fond: #45484e;
+  --notak-pdf-barre: #262626;
+  --notak-pdf-hauteur-barre: 52px;
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--notak-pdf-fond);
+  color: #fff;
+  cursor: default;
+  outline: none;
+  animation: notak-voile 0.12s ease-out;
+}
+
+.notak-pdf[data-sombre] {
+  --notak-pdf-fond: #18191b;
+  --notak-pdf-barre: #202124;
+}
+
+.notak-pdf-barre {
+  position: relative;
+  z-index: 3;
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-height: var(--notak-pdf-hauteur-barre);
+  padding: env(safe-area-inset-top, 0px) max(8px, env(safe-area-inset-right, 0px)) 0 max(8px, env(safe-area-inset-left, 0px));
+  background: var(--notak-pdf-barre);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.06), 0 2px 8px rgb(0 0 0 / 0.25);
+  font-size: 13px;
+  font-weight: 600;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.notak-pdf-groupe {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.notak-pdf-titre-groupe {
+  justify-self: start;
+  padding-left: 8px;
+}
+
+.notak-pdf-titre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-pdf-milieu {
+  justify-self: center;
+}
+
+.notak-pdf-actions {
+  justify-self: end;
+}
+
+.notak-pdf-zoom-groupe {
+  display: inline-flex;
+  align-items: center;
+}
+
+.notak-pdf-bouton {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  min-width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.notak-pdf-bouton:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.1);
+}
+
+.notak-pdf-bouton[aria-pressed='true'] {
+  background: rgb(255 255 255 / 0.18);
+}
+
+.notak-pdf-bouton:focus-visible,
+.notak-pdf-numero:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -2px;
+}
+
+.notak-pdf-bouton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.notak-pdf-pourcent {
+  min-width: 50px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.notak-pdf-sep {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  margin: 0 6px;
+  background: rgb(255 255 255 / 0.2);
+}
+
+.notak-pdf-pages {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.notak-pdf-numero {
+  box-sizing: content-box;
+  min-width: 2ch;
+  height: 22px;
+  padding: 2px 6px;
+  border: 1px solid rgb(255 255 255 / 0.25);
+  border-radius: 4px;
+  background: rgb(255 255 255 / 0.08);
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.notak-pdf-total {
+  color: rgb(255 255 255 / 0.7);
+  white-space: nowrap;
+}
+
+/* La recherche (⌘F) : une petite fiche sous la barre, à droite, sur le fond des cartes du thème. */
+.notak-pdf-recherche {
+  position: absolute;
+  top: calc(var(--notak-pdf-hauteur-barre) + env(safe-area-inset-top, 0px) + 8px);
+  right: max(12px, env(safe-area-inset-right, 0px));
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
+  padding: 4px 4px 4px 12px;
+  border-radius: 8px;
+  background: var(--notak-carte, #fff);
+  color: var(--notak-texte, #323b4a);
+  box-shadow: 0 8px 22px -6px rgb(0 0 0 / 0.3), 0 2px 6px rgb(0 0 0 / 0.15);
+  font-size: 13px;
+}
+
+.notak-pdf-recherche .notak-pdf-bouton:hover:not(:disabled) {
+  background: rgb(127 127 127 / 0.14);
+}
+
+.notak-pdf-recherche .notak-pdf-bouton:focus-visible {
+  outline-color: var(--notak-accent, #2f63f7);
+}
+
+.notak-pdf-recherche-champ {
+  width: 220px;
+  min-width: 0;
+  margin-left: 6px;
+  padding: 6px 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+/* La croix du champ de recherche du navigateur ferait double avec la nôtre, qui ferme la recherche. */
+.notak-pdf-recherche-champ::-webkit-search-cancel-button {
+  display: none;
+}
+
+.notak-pdf-recherche-compte {
+  min-width: 70px;
+  color: #8d929a;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* La colonne des pages : elle défile, au doigt comme à la molette ; le pincement, lui, est à la visionneuse. */
+.notak-pdf-defile {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y;
+}
+
+.notak-pdf-colonne {
+  position: relative;
+  width: 100%;
+}
+
+.notak-pdf-page {
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+  --user-unit: 1;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25), 0 4px 14px rgb(0 0 0 / 0.2);
+}
+
+.notak-pdf-image {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.notak-pdf-image > canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.notak-pdf-etat {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  color: rgb(255 255 255 / 0.85);
+  font-size: 14px;
+  text-align: center;
+}
+
+/*
+ * Le calque de texte de pdf.js (sa feuille `pdf_viewer.css`, réduite à ce qu'il lui faut) : des morceaux transparents
+ * posés sur l'image, qu'on choisit et qu'on copie comme du texte.
+ */
+.notak-pdf-texte {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: clip;
+  line-height: 1;
+  text-align: initial;
+  text-size-adjust: none;
+  -webkit-text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  caret-color: CanvasText;
+}
+
+.notak-pdf-texte :is(span, br) {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+
+.notak-pdf-texte > :not(.markedContent),
+.notak-pdf-texte .markedContent span:not(.markedContent) {
+  z-index: 1;
+}
+
+.notak-pdf-texte span.markedContent {
+  top: 0;
+  height: 0;
+}
+
+.notak-pdf-texte span[role='img'] {
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.notak-pdf-texte ::selection {
+  background: rgb(0 0 255 / 0.25);
+  background: color-mix(in srgb, AccentColor, transparent 75%);
+}
+
+.notak-pdf-texte br::selection {
+  background: transparent;
+}
+
+.notak-pdf-texte .endOfContent {
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: 0;
+  display: block;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.notak-pdf-texte[data-main-rotation='90'] {
+  transform: rotate(90deg) translateY(-100%);
+}
+
+.notak-pdf-texte[data-main-rotation='180'] {
+  transform: rotate(180deg) translate(-100%, -100%);
+}
+
+.notak-pdf-texte[data-main-rotation='270'] {
+  transform: rotate(270deg) translateX(-100%);
+}
+
+/* Un résultat de la recherche : jaune, et orangé pour celui qu'on montre. */
+.notak-pdf-texte .notak-pdf-trouve {
+  position: static;
+  border-radius: 2px;
+  background: rgb(255 209 77 / 0.55);
+}
+
+.notak-pdf-texte .notak-pdf-trouve-courant {
+  background: rgb(255 141 72 / 0.7);
+}
+
+/* La toile que le calque de texte garde pour mesurer ses morceaux. */
+.hiddenCanvasElement {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* Une fenêtre plus étroite : les boutons gardent leur info-bulle et leur nom pour qui lit à haute voix, pas leur libellé. */
+@media (max-width: 860px) {
+  .notak-pdf-libelle {
+    display: none;
+  }
+}
+
+/* Au téléphone, la barre passe sur deux rangs : le nom et les actions, puis le zoom et la page. */
+@media (max-width: 600px) {
+  .notak-pdf {
+    --notak-pdf-hauteur-barre: 96px;
+  }
+
+  .notak-pdf-barre {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'titre actions' 'milieu milieu';
+    row-gap: 0;
+    padding-bottom: 4px;
+  }
+
+  .notak-pdf-titre-groupe {
+    grid-area: titre;
+  }
+
+  .notak-pdf-actions {
+    grid-area: actions;
+  }
+
+  .notak-pdf-milieu {
+    grid-area: milieu;
+  }
+
+  .notak-pdf-recherche-champ {
+    width: 140px;
+  }
+}
+
+/* Au doigt, des cibles de 44 px. */
+@media (pointer: coarse) {
+  .notak-pdf-bouton {
+    min-width: 44px;
+    height: 44px;
+  }
+
+  .notak-pdf-numero {
+    height: 28px;
+  }
+}

@@ -10,6 +10,7 @@ import {
   IconPointer,
   IconArrowDown,
   IconArrowForwardUp,
+  IconArrowAutofitWidth,
   IconArrowLeft,
   IconArrowRight,
   IconArrowUp,
@@ -652,6 +653,7 @@ const ICONES = {
   // La barre du bas, le panneau de gauche et le mode Pitch de la carte ouverte.
   gantt: IconGantt,
   zoomMoins: IconZoomOut,
+  ajusterLargeur: IconArrowAutofitWidth,
   triangleGauche: IconCaretLeft,
   triangleGauchePlein: IconCaretLeftFilled,
   triangleDroite: IconCaretRight,

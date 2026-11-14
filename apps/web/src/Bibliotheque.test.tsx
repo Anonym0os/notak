@@ -989,8 +989,10 @@ describe('les gestes', () => {
       expect(document.querySelector<HTMLImageElement>('.notak-fenetre-image')!.getAttribute('src')).toBe('/api/fichiers/f-port')
       act(() => document.querySelector('.notak-fenetre')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
       expect(document.querySelector('.notak-fenetre')).toBeNull()
+      // Un PDF s'ouvre dans la visionneuse de Notak, celle de la toile.
       await act(async () => tuile('voyage/billets').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
-      expect(document.querySelector('.notak-fenetre-lecteur')!.getAttribute('src')).toBe('/api/fichiers/f-billets')
+      expect(document.querySelector('.notak-pdf')!.getAttribute('aria-label')).toBe('Billets')
+      expect(document.querySelector('.notak-pdf a[download]')!.getAttribute('href')).toBe('/api/fichiers/f-billets')
       expect(location.pathname).toBe('/')
     })
 

@@ -81,7 +81,7 @@ export function RenduFichier({ element, enEdition, contexte, brouillon }: PropsR
 
   return (
     <div className="notak-fichier" data-genre={genre} data-feuille={c.icone || undefined} data-colonne={dansColonne || undefined}>
-      {enGrand && adresse && <ModaleFichier contenu={c} adresse={adresse} />}
+      {enGrand && adresse && <ModaleFichier contenu={c} adresse={adresse} element={element} contexte={contexte} />}
       {c.icone ? (
         <>
           <Feuille genre={genre} grande />

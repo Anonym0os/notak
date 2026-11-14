@@ -280,7 +280,8 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 |---|---|---|
 | Fichier joint : mode icône (feuille de 56 × 72 px, 10 UG), naît en icône sauf son et vidéo | ✅ | Dix-huit pictogrammes à nous (3D, polices, courriels, pages web, vecteur, photo brute, montage, maquette en plus des dix premiers), le contour de sélection suit la feuille. |
 | Fichier joint : carte détaillée, aperçu de bord à bord, « Télécharger - Ouvrir - 1,2 MB » | ✅ | Aperçu : première page d'un PDF, image, vidéo ; « Aucun aperçu disponible » pour Word, Excel, PowerPoint, texte, code. |
-| Fenêtre du fichier (PDF et texte dans le lecteur du navigateur, le reste en carte agrandie) | ✅ | |
+| Fenêtre du fichier (texte dans le lecteur du navigateur, le reste en carte agrandie) | ✅ | |
+| Visionneuse PDF de Notak (pdf.js), à la place de celle du navigateur | ✅ | Pages en colonne, nettes à la densité de l'écran, seules celles proches de la vue dessinées (200 pages restent fluides). Barre à nous, chaque bouton nommé : zoom − / + et sa valeur, « Ajuster » (à la largeur que portent le plus de pages), page n sur N qu'on tape pour y sauter, rechercher, « Télécharger », « Ouvrir avec l'app » (l'app par défaut dans Notak de bureau, « Nouvel onglet » dans un navigateur), fermer. ⌘+ ⌘− ⌘0, ⌘F (sans accents ni casse, résultats surlignés), ← → ⇞ ⇟ Début Fin et Espace, Échap ; pincement au doigt et au pavé tactile. Texte sélectionnable et copiable. Au téléphone, la barre passe sur deux rangs, cibles de 44 px. |
 | Barre du fichier : Mode, Aperçu, Renommer, Légende, Infos, Boucle, Lecture auto | ✅ | |
 | Lecteurs audio et vidéo à nous (volume au survol, durée, cercle de lecture, plein écran, relances) | ✅ | |
 | Fichiers refusés avec un message (extension, nom, taille de 25 Mio) | ✅ | Les 43 extensions de Milanote ; plafond unique, sans offre. |

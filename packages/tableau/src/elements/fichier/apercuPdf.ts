@@ -13,14 +13,15 @@ const LARGEUR_DESSIN = 720
 
 const dessins = new Map<string, Promise<string | null>>()
 
-async function moteur() {
+/** Le moteur pdf.js et son travailleur, chargés à la première demande (l'aperçu d'une carte, la visionneuse). */
+export async function moteurPdf() {
   const [pdfjs, travailleur] = await Promise.all([import('pdfjs-dist'), import('pdfjs-dist/build/pdf.worker.min.mjs?url')])
   pdfjs.GlobalWorkerOptions.workerSrc = travailleur.default
   return pdfjs
 }
 
 async function dessiner(adresse: string): Promise<string | null> {
-  const [pdfjs, octets] = await Promise.all([moteur(), fetch(adresse).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))])
+  const [pdfjs, octets] = await Promise.all([moteurPdf(), fetch(adresse).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))])
   const document = await pdfjs.getDocument({ data: new Uint8Array(octets) }).promise
   try {
     const page = await document.getPage(1)
