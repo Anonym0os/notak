@@ -1,6 +1,6 @@
 import { texteLegende } from '../elements/note/legende'
 import { texteCherchableDeTable } from '../elements/table/affichage'
-import { type Element, type NoeudTexte, texteBrut } from './tableau'
+import { type Commentaire, type Element, type NoeudTexte, texteBrut } from './tableau'
 
 /** Sans accents ni majuscules : « Éte » trouve « été ». */
 export const normaliser = (t: string) =>
@@ -9,8 +9,22 @@ export const normaliser = (t: string) =>
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase()
 
-/** Tout le texte qu'on peut chercher dans un élément. `titreDe` donne le titre d'un tableau imbriqué. */
+const texteDuFil = (fil: Commentaire) => fil.messages.map((m) => `${m.auteur.nom}\n${m.texte}`).join('\n')
+
+/**
+ * Tout le texte qu'on peut chercher dans un élément, ses fils de discussion compris (celui qu'il porte, ceux de la marge
+ * de son texte, ceux des sujets d'une carte), comme on cherche une épingle. `titreDe` donne le titre d'un tableau
+ * imbriqué.
+ */
 export function texteCherchable(e: Element, titreDe: (id: string) => string | undefined): string {
+  const propre = texteDuContenu(e, titreDe)
+  const c = e.contenu
+  const marge = c.type === 'note' || c.type === 'document' || c.type === 'arbre' ? Object.values(c.fils ?? {}) : []
+  const fils = [...(e.commentaire && c.type !== 'commentaire' ? [e.commentaire] : []), ...marge].map(texteDuFil).filter(Boolean)
+  return fils.length > 0 ? [propre, ...fils].filter(Boolean).join('\n') : propre
+}
+
+function texteDuContenu(e: Element, titreDe: (id: string) => string | undefined): string {
   const c = e.contenu
   const doc = (n: NoeudTexte) => texteBrut(n)
   switch (c.type) {

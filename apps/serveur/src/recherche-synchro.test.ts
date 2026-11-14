@@ -52,6 +52,14 @@ describe('la synchro tient l’index à jour', () => {
     expect([trouve('pamplemousses'), trouve('kiwis')]).toEqual([0, 1])
     await ecrire(fil({ corbeille: 5 }, message('m2', 'Kiwis')))
     expect(trouve('kiwis')).toBe(0)
+
+    // Accroché à une note ou dans sa marge, un message se cherche de même, et part de même.
+    const note = (commentaire: unknown, fils: unknown) => ({ id: 'fil', x: 0, y: 0, largeur: 34, plan: 'a', commentaire, contenu: { type: 'note', texte: { type: 'doc', content: [] }, fils } })
+    const unFil = (...messages: unknown[]) => ({ type: 'commentaire', messages })
+    await ecrire(note(unFil(message('m3', 'Mangues')), { f1: unFil(message('m4', 'Papayes')) }))
+    expect([trouve('mangues'), trouve('papayes')]).toEqual([1, 1])
+    await ecrire(note(unFil(), { f1: unFil() }))
+    expect([trouve('mangues'), trouve('papayes')]).toEqual([0, 0])
     base.fermer()
   })
 })

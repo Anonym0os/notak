@@ -30,6 +30,22 @@ describe('entreesDIndex', () => {
       { element: 'n5', texte: 'Hôtels' },
     ])
   })
+
+  it('les messages de tous les fils se cherchent : accroché à une carte, dans la marge, sur un sujet de carte mentale', () => {
+    const doc = new Y.Doc()
+    const fil = (texte: string) => ({ type: 'commentaire', messages: [{ id: texte, auteur: { id: 'bob', nom: 'Bob' }, date: 1, texte }] })
+    poser(doc, { type: 'note', texte: texte('Budget'), fils: { f1: fil('Trop juste') } }, { id: 'note', commentaire: fil('À revoir') })
+    poser(doc, { type: 'document', titre: 'Programme', texte: texte('Jour 1'), fils: { f2: fil('Et le dimanche ?') } }, { id: 'doc' })
+    poser(doc, { type: 'arbre', sujets: {} }, { id: 'carte' })
+    doc.getMap('arbres').set(['carte', 'fils', 's1'].join('\u001f'), fil('Ce sujet manque'))
+    poser(doc, { type: 'tableau', cible: 'autre', titre: 'Budget' }, { id: 'carte-toile', commentaire: fil('À ranger') })
+    expect(entreesDIndex(lireTableau(doc))).toEqual([
+      { element: 'note', texte: 'Budget\nBob\nÀ revoir\nBob\nTrop juste' },
+      { element: 'doc', texte: 'Programme\nJour 1\nBob\nEt le dimanche ?' },
+      { element: 'carte', texte: 'Bob\nCe sujet manque' },
+      { element: 'carte-toile', texte: 'Bob\nÀ ranger' },
+    ])
+  })
 })
 
 describe('GET /api/recherche', () => {
