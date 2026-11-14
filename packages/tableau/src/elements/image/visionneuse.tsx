@@ -12,6 +12,7 @@ import { aUneCarte, miseEnPage } from './geometrie'
 import { annoter } from './modeAnnotation'
 import { type Taille, borneDecalage, borneZoom, carteEnGrand, ordreImages, tailleMontree, voisine } from './navigation'
 import { adresseALargeur, finesse, largeurEntiereAffichee, palierVisionneuse } from './tailles'
+import { useAdressePrete } from './copies'
 import { recadrer } from './Recadreur'
 import { detourerImage } from './Detoureur'
 import { Traits } from './Annotateur'
@@ -70,32 +71,6 @@ function useCopieACharger(adresse: string | null | undefined, c: Image, taille: 
   const palier = palierVisionneuse(c, largeurEntiereAffichee(c, taille.largeur), zoom, window.devicePixelRatio || 1)
   if (finesse(palier) > finesse(garde.current.palier)) garde.current.palier = palier
   return adresseALargeur(adresse, garde.current.palier)
-}
-
-/**
- * L'adresse à peindre : la voulue, mais une plus fine (l'original qu'un zoom demande) ne prend la place de la copie
- * qu'une fois décodée : l'image ne passe jamais par le vide, et le zoom reste net de ce qu'on a. Une autre image
- * (`cle`) se montre aussitôt.
- */
-function useAdressePrete(voulue: string | undefined, cle: string): string | undefined {
-  const [prete, setPrete] = useState<{ cle: string; adresse: string } | null>(null)
-  const montree = prete?.cle === cle ? prete.adresse : undefined
-  useEffect(() => {
-    if (!voulue || voulue === montree) return
-    if (!montree) return setPrete({ cle, adresse: voulue })
-    let vivant = true
-    const img = new Image()
-    img.src = voulue
-    // Illisible, l'original n'efface pas la copie qu'on voit.
-    img.decode().then(
-      () => vivant && setPrete({ cle, adresse: voulue }),
-      () => {},
-    )
-    return () => {
-      vivant = false
-    }
-  }, [voulue, montree, cle])
-  return montree ?? voulue
 }
 
 /** Un événement de la visionneuse ne remonte pas à la toile : un portail renvoie les siens à ses parents React. */

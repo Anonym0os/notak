@@ -1,8 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { Element, Image, TraitImage } from '../../coeur/tableau'
+import type { Image, TraitImage } from '../../coeur/tableau'
 import { useFichier } from '../envois'
-import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
-import { PX_PAR_UG } from '../../coeur/camera'
+import type { PropsOutils, PropsRendu } from '../types'
 import { aUneCarte, avecLegende, basculerMiroir, hauteurCartePx, miseEnPage, pivoter, rapportDuCadre } from './geometrie'
 import { prendreAmorce } from './legendeAmorce'
 import { Recadreur, recadrer, useRecadrageOuvert } from './Recadreur'
@@ -10,7 +9,7 @@ import { Annotateur, Traits } from './Annotateur'
 import { Detoureur, detourerImage, useDetourageOuvert } from './Detoureur'
 import { sansDetourage } from './detourage'
 import { annoter, useAnnotation } from './modeAnnotation'
-import { adresseALargeur, finesse, largeurCadrePx, largeurEntiereAffichee, palierPour } from './tailles'
+import { useCopieDeCarte } from './copies'
 import { Visionneuse, useImageOuverte } from './visionneuse'
 import { useDepotSurImage } from './survolDepot'
 import { t } from '../../langue'
@@ -21,25 +20,12 @@ import { LARGEUR_LEGENDE_MIN, afficherLegendes } from './legendes'
 
 export { LARGEUR_LEGENDE_MIN }
 
-/**
- * L'adresse du fichier à la taille que l'affichage demande : le plus petit palier net pour la largeur à l'écran,
- * au zoom et à la densité d'ici. On ne revient jamais à plus petit en reculant : la copie plus grande est déjà là.
- */
-function useAdresseALargeur(element: Element<Image>, contexte: ContexteToile, adresse: string | null | undefined) {
-  const garde = useRef({ fichier: '', palier: 0 as number | null })
-  const { contenu } = element
-  if (garde.current.fichier !== contenu.fichier) garde.current = { fichier: contenu.fichier, palier: 0 }
-  if (!adresse) return adresse
-  const cadre = largeurCadrePx(element.largeur, element.parent !== undefined, PX_PAR_UG, contexte.camera.echelle)
-  const palier = palierPour(contenu, largeurEntiereAffichee(contenu, cadre), window.devicePixelRatio || 1)
-  if (finesse(palier) > finesse(garde.current.palier)) garde.current.palier = palier
-  return adresseALargeur(adresse, garde.current.palier)
-}
-
 export function RenduImage({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<Image>) {
   const { contenu } = element
   const { adresse: adresseOrigine, enRoute } = useFichier(element, contexte)
-  const adresse = useAdresseALargeur(element, contexte, adresseOrigine)
+  // La copie à la taille où la carte s'affiche, qui suit le zoom une fois posé. La visionneuse choisit la sienne, et le
+  // détourage, qui lit les pixels, part de l'adresse du fichier.
+  const { adresse, suivre } = useCopieDeCarte(element, contexte, adresseOrigine)
   // Le cadre suit l'image, ou le cadrage libre qu'un redimensionnement avec Cmd a fixé : l'image le recouvre.
   const proportions = rapportDuCadre(contenu)
   const page = miseEnPage(contenu)
@@ -85,7 +71,7 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
         </span>
       )}
       {enGrand && adresseOrigine && <Visionneuse element={element} adresse={adresseOrigine} contexte={contexte} />}
-      <div className="notak-image-cadre" style={forme}>
+      <div ref={suivre} className="notak-image-cadre" style={forme}>
         {adresse ? (
           <div className="notak-image-plan" style={page.plan}>
             <img
