@@ -193,7 +193,7 @@ describe('recevoirImages', () => {
         expect(couleursDe(magasin, id)).toEqual(['#aa0000'])
       })
 
-      it('les couleurs qui arrivent n’empêchent pas de refaire un geste défait', async () => {
+      it('les couleurs qui arrivent pendant qu’un geste défait attend n’empêchent pas de le refaire, et n’attendent pas', async () => {
         const lacher = retenirCouleurs()
         const { ctx, magasin } = contexte(1440, nouveau())
         const premiere = (await recevoirImages(recus(photo('a.jpg')), { x: 0, y: 0 }, ctx))!
@@ -201,12 +201,13 @@ describe('recevoirImages', () => {
         magasin.faire([{ type: 'creer', element: { id: 'note', x: 40, y: 0, largeur: 10, contenu: { type: 'image', fichier: 'f', largeurOrigine: 10, hauteurOrigine: 10 } } }])
         magasin.annuler()
         lacher()
-        await new Promise((fin) => setTimeout(fin, 5))
-        // Les couleurs attendent : écrites maintenant, elles videraient la pile de ce qu'on peut refaire.
-        expect(couleursDe(magasin, crees(premiere)[0]!.id)).toBeUndefined()
+        await vi.waitFor(() => expect(couleursDe(magasin, crees(premiere)[0]!.id)).toEqual(['#aa0000']))
         expect(magasin.retablir()).toBe(true)
         expect(magasin.lire().elements.map((e) => e.id)).toContain('note')
-        await vi.waitFor(() => expect(couleursDe(magasin, crees(premiere)[0]!.id)).toEqual(['#aa0000']))
+        // Défaire les deux gestes emporte aussi les couleurs avec la pose.
+        expect(magasin.annuler()).toBe(true)
+        expect(magasin.annuler()).toBe(true)
+        expect(magasin.lire().elements).toEqual([])
       })
     })
   }

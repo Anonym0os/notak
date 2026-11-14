@@ -69,10 +69,9 @@ async function lireImages(fichiers: File[]): Promise<Lue[]> {
 }
 
 /**
- * Attend que l'image porte ce fichier, et que rien ne soit à rétablir : la toile pose ce que rendent les récepteurs
- * quand tous ont répondu (une image remplacée garde l'ancien jusque-là), et une correction écrite pendant qu'un geste
- * défait attend d'être refait le rendrait impossible à refaire dans un magasin partagé. Défaite, l'image peut revenir
- * tant qu'il reste de quoi rétablir. `undefined` si elle a changé pour de bon, ou n'est jamais venue.
+ * Attend que l'image porte ce fichier : la toile pose ce que rendent les récepteurs quand tous ont répondu (une image
+ * remplacée garde l'ancien jusque-là). Défaite, l'image peut revenir tant qu'il reste de quoi rétablir. `undefined`
+ * si elle a changé pour de bon, ou n'est jamais venue.
  */
 function quandPosee(magasin: Magasin, id: Id, envoi: string, delai = 10_000): Promise<Element<ContenuImage> | undefined> {
   const trouver = () => {
@@ -81,7 +80,7 @@ function quandPosee(magasin: Magasin, id: Id, envoi: string, delai = 10_000): Pr
     return f !== undefined && (f === envoi || f === fichierRecu(envoi)) ? (e as Element<ContenuImage>) : undefined
   }
   const deja = trouver()
-  if (deja && !magasin.peutRetablir()) return Promise.resolve(deja)
+  if (deja) return Promise.resolve(deja)
   return new Promise((fin) => {
     let patience = true
     let arreter = () => {}
@@ -92,8 +91,8 @@ function quandPosee(magasin: Magasin, id: Id, envoi: string, delai = 10_000): Pr
     }
     const voir = () => {
       const e = trouver()
-      if (e && !magasin.peutRetablir()) finir(e)
-      else if (!e && !patience && !magasin.peutRetablir()) finir(undefined)
+      if (e) finir(e)
+      else if (!patience && !magasin.peutRetablir()) finir(undefined)
     }
     const minuteur = setTimeout(() => {
       patience = false
@@ -104,20 +103,11 @@ function quandPosee(magasin: Magasin, id: Id, envoi: string, delai = 10_000): Pr
 }
 
 /**
- * La pose porte désormais les couleurs : c'est cette opération même que la toile inscrit dans l'historique, et que
- * « Rétablir » rejoue. Un nouvel objet, jamais l'ancien modifié : le tableau en tient peut-être déjà une référence.
+ * L'image posée reçoit ses couleurs hors de l'historique, comme la fin d'un envoi : la correction rejoint la pose
+ * (annulée, elle les emporte ; rétablie, elle les rend), et ne vide pas ce qu'on peut rétablir. Sans attendre : la
+ * photo suivante n'a pas à patienter derrière celle-ci.
  */
-function completerPose(pose: Operation, couleurs: string[]) {
-  if (pose.type === 'creer' && pose.element.contenu.type === 'image') pose.element = { ...pose.element, contenu: { ...pose.element.contenu, couleurs } }
-  else if (pose.type === 'contenu' && pose.apres.type === 'image') pose.apres = { ...pose.apres, couleurs }
-}
-
-/**
- * Les couleurs complètent la pose (rétablie, l'image les a encore), et l'image déjà posée les reçoit hors de
- * l'historique, comme la fin d'un envoi. Sans attendre : la photo suivante n'a pas à patienter derrière celle-ci.
- */
-function poserCouleurs({ id, pose, envoi }: Posee, couleurs: string[], magasin: Magasin) {
-  completerPose(pose, couleurs)
+function poserCouleurs({ id, envoi }: Posee, couleurs: string[], magasin: Magasin) {
   // L'image a pu changer entre-temps (remplacée de nouveau, défaite) : on ne colore que celle qu'on a lue.
   void quandPosee(magasin, id, envoi).then((e) => {
     if (e && !e.contenu.couleurs) magasin.corriger([{ type: 'contenu', id, avant: e.contenu, apres: { ...e.contenu, couleurs } }])
