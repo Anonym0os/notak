@@ -99,17 +99,19 @@ describe('le signe d’une touche, appris des frappes', () => {
     expect(signeParmi({ key: '\\', code: 'Period' }, ['/'])).toBe('/')
   })
 
-  it('le signe tapé l’emporte sur la place : en AZERTY, ⌘- est la touche que QWERTY place à « = », et ⌘) ne dézoome plus une fois la touche vue', () => {
+  it('le signe tapé l’emporte sur la place : en AZERTY, ⌘- est la touche que QWERTY place à « = », et ⌘) ne dézoome pas', () => {
     expect(signeParmi({ key: '-', code: 'Equal' }, ['=', '+', '-'])).toBe('-')
-    expect(signeParmi({ key: ')', code: 'Minus' }, ['=', '+', '-'])).toBe('-')
-    frappe(')', 'Minus')
     expect(signeParmi({ key: ')', code: 'Minus' }, ['=', '+', '-'])).toBeNull()
+    // ⌘= en AZERTY : la touche que QWERTY place à « / » ; la barre n'y est pas.
+    expect(signeParmi({ key: '=', code: 'Slash' }, ['/'])).toBeNull()
   })
 
-  it('une touche jamais vue se lit à sa place américaine, comme avant', () => {
+  it('une touche jamais vue se lit à sa place américaine, quand `key` ne la contredit pas, sous Alt ou morte', () => {
     expect(signeParmi({ key: '<', code: 'Comma' }, [',', '.'])).toBe(',')
+    expect(signeParmi({ key: '÷', code: 'Slash', altKey: true }, ['/'])).toBe('/')
     expect(signeParmi({ key: 'Dead', code: 'Backslash' }, ['\\'])).toBe('\\')
     expect(signeParmi({ key: '?', code: 'KeyM' }, [',', '.'])).toBeNull()
+    expect(signeParmi({ key: '/', code: 'Period' }, [',', '.'])).toBeNull()
   })
 
   it('ce qui est appris se garde d’une visite à l’autre, et ce qui est gardé passe par la porte', async () => {

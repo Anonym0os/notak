@@ -6,7 +6,7 @@
 // QWERTZ la Z envoie `KeyY`. Ni l'un ni l'autre ne suffit donc pour ⌥A.
 
 /** Ce qu'un raccourci lit d'un évènement clavier (natif ou de React). */
-export type ToucheLue = { key?: string; code?: string; keyCode?: number }
+export type ToucheLue = { key?: string; code?: string; keyCode?: number; altKey?: boolean }
 
 /**
  * La lettre (a…z) de la touche, telle qu'elle est marquée sur le clavier, même sous Alt. `key` quand il en donne une ;
@@ -105,14 +105,20 @@ export function oublierDisposition() {
 
 /**
  * Lequel de ces signes la touche porte : celui qu'elle vient de donner (`key`) ; sinon celui qu'elle donne d'ordinaire,
- * seule ou avec Maj (sous Alt, le Mac change le caractère ; sous Maj, ⇧⌘, donne « < » en QWERTY, « ? » en AZERTY) ;
- * une touche dont on n'a encore rien vu se lit à sa place sur un clavier américain. `null` : aucun.
+ * seule ou avec Maj (sous Alt, le Mac change le caractère ; sous Maj, ⇧⌘, donne « < » en QWERTY, « ? » en AZERTY).
+ * Une touche dont on n'a encore rien vu se lit à sa place sur un clavier américain, à moins que `key` ne dise qu'elle
+ * donne autre chose : en AZERTY, la touche que QWERTY place à « / » donne « = », et ⌘= reste le zoom. `null` : aucun.
  */
 export function signeParmi(e: ToucheLue, signes: readonly string[]): string | null {
   if (e.key && signes.includes(e.key)) return e.key
   const vus = [signeAppris(e.code), signeAppris(e.code, true)].filter((s): s is string => s !== undefined)
-  const candidats = vus.length > 0 ? vus : (AMERICAIN[e.code ?? ''] ?? [])
-  return candidats.find((s) => signes.includes(s)) ?? null
+  if (vus.length > 0) return vus.find((s) => signes.includes(s)) ?? null
+  const americain = AMERICAIN[e.code ?? '']
+  if (!americain) return null
+  // `key` parle quand rien ne l'a changé : ni Alt, ni une touche morte (`Dead`).
+  const parle = !e.altKey && [...(e.key ?? '')].length === 1
+  if (parle && !americain.includes(e.key!)) return null
+  return americain.find((s) => signes.includes(s)) ?? null
 }
 
 if (typeof window !== 'undefined') {

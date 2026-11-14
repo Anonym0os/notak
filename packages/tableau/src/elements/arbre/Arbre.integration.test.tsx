@@ -157,5 +157,11 @@ describe('les zones et les raccourcis', () => {
     expect(surface.hasAttribute('data-trace')).toBe(true)
     act(() => void racineGrande().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
     expect(surface.hasAttribute('data-trace')).toBe(false)
+    // Sur un Mac en AZERTY, la touche Z est à la place QWERTY de W, et Alt en fait « Â » : ⌥⌘Z arme le tracé quand même,
+    // ⌥⌘W (la place QWERTY de Z) non.
+    touche('‹', { altKey: true, code: 'KeyZ', keyCode: 87 } as KeyboardEventInit)
+    expect(surface.hasAttribute('data-trace')).toBe(false)
+    touche('Â', { altKey: true, code: 'KeyW', keyCode: 90 } as KeyboardEventInit)
+    expect(surface.hasAttribute('data-trace')).toBe(true)
   })
 })
