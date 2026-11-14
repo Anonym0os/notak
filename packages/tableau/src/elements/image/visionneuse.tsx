@@ -6,7 +6,7 @@ import { t } from '../../langue'
 import { chiffreDe, lettreDe, parAltGr, signeParmi } from '../../touches'
 import type { ContexteToile } from '../types'
 import { variablesDe } from '../surcouche'
-import { useCouvrirLaToile } from '../enGrand'
+import { refuserLeDepot, useCouvrirLaToile } from '../enGrand'
 import { ouvrirDehors } from '../fichier/ouverture'
 import { nomTelecharge } from '../fichier/telechargement'
 import { copieLocale, ecouterEnvois, enEnvoi, fichierRecu, useProgressionEnvoi, useTenirCopie } from '../envois'
@@ -298,6 +298,7 @@ export function Visionneuse({ element, adresse: adresseOuverte, apercu, contexte
       onClick={clos}
       onDoubleClick={clos}
       onContextMenu={clos}
+      {...refuserLeDepot}
     >
       <div ref={zone} className="notak-visionneuse-zone">
         <figure className="notak-visionneuse-figure" data-legende={c.legende ? '' : undefined}>

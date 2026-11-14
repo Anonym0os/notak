@@ -1,4 +1,4 @@
-import { useLayoutEffect } from 'react'
+import { type DragEvent, useLayoutEffect } from 'react'
 
 /*
  * Ce qu'un plein écran posé sur la toile (la visionneuse d'une image ; une surcouche : le croquis, le document, la carte
@@ -22,4 +22,25 @@ export function useCouvrirLaToile() {
       couvertures--
     }
   }, [])
+}
+
+const editable = (n: EventTarget | null) => n instanceof HTMLElement && (n.isContentEditable || /^(INPUT|TEXTAREA)$/.test(n.tagName))
+
+function refuser(e: DragEvent) {
+  e.stopPropagation()
+  if (e.isDefaultPrevented() || editable(e.target)) return
+  e.preventDefault()
+  if (e.type !== 'drop') e.dataTransfer.dropEffect = 'none'
+}
+
+/**
+ * Un fichier ou un texte glissé sur un plein écran ne remonte pas à la toile, qui le poserait derrière lui, sans qu'on
+ * le voie. Ce que le contenu accepte (un éditeur, la carte mentale) l'a déjà dit ; le reste est refusé : le curseur le
+ * montre, rien ne se crée, et le navigateur n'ouvre pas le fichier à la place de Notak. À poser sur la racine.
+ */
+export const refuserLeDepot = {
+  onDragEnter: refuser,
+  onDragOver: refuser,
+  onDragLeave: (e: DragEvent) => e.stopPropagation(),
+  onDrop: refuser,
 }
