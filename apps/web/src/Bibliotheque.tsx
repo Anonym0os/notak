@@ -55,6 +55,7 @@ import {
   importerEntrees,
   rangerDansUneNeuve,
   rangerLesRestes,
+  resteEnPlace,
   restesDe,
   renommerEntree,
 } from './bibliotheque/actions'
@@ -96,6 +97,8 @@ import {
   duFiltre,
   estDossier,
   filDAriane,
+  immobile,
+  regroupeUnOutil,
   ecrireAffichage,
   adresseDuDossier,
   elementDeLAdresse,
@@ -823,8 +826,9 @@ function BibliothequeBureau({
     if (!outils || es.length === 0) return
     // Le nom de la toile neuve se tape aussitôt : au doigt, le clavier doit monter dans le geste.
     preparerClavier()
-    // La toile neuve va là où tout était, sinon sur l'accueil.
-    const ou = es.every((e) => porteuseDe(e) === porteuseDe(es[0]!)) ? (porteuseDe(es[0]!) ?? outils.espace.racine) : outils.espace.racine
+    // La toile neuve va là où tout ce qui part était (ce qu'un outil a posé reste), sinon sur l'accueil.
+    const partent = es.filter((e) => !immobile(e))
+    const ou = partent.length > 0 && partent.every((e) => porteuseDe(e) === porteuseDe(partent[0]!)) ? (porteuseDe(partent[0]!) ?? outils.espace.racine) : outils.espace.racine
     // Comme le « nouveau dossier avec la sélection » du Finder : la toile neuve est choisie, son nom prêt à changer.
     void executer(rangerDansUneNeuve(outils, es, { id: ou, titre: titreToile(ou) }, confirmerOuverture(nomDe(es), ou))).then((r) => {
       if (!r) return
@@ -928,12 +932,15 @@ function BibliothequeBureau({
           : { libelle: t('biblio.menu.enDossier'), icone: 'dossier', faire: () => montrerEnDossierCe(une, true) },
       )
     l.push(null)
-    if (ecrit) l.push({ libelle: t('biblio.menu.deplacer'), icone: 'dossier', faire: () => setFenetre({ type: 'deplacer', cles }) })
-    if (ecrit && es.length > 1) l.push({ libelle: t('biblio.menu.neuveAvec'), icone: 'ajouter', faire: () => rangerDansNeuveCes(es) })
+    // Ce qu'un outil a posé reste où il l'a mis : la ligne le dit, à la place de « Déplacer vers… ».
+    const poses = es.length > 0 && es.every(immobile)
+    if (ecrit && poses) l.push({ libelle: t('biblio.menu.pose', { outil: es[0]!.outil! }), icone: 'verrou', desactive: true, faire: () => {} })
+    else if (ecrit) l.push({ libelle: t('biblio.menu.deplacer'), icone: 'dossier', faire: () => setFenetre({ type: 'deplacer', cles }) })
+    if (ecrit && es.length > 1 && !poses) l.push({ libelle: t('biblio.menu.neuveAvec'), icone: 'ajouter', faire: () => rangerDansNeuveCes(es) })
     l.push({ libelle: t(es.length > 1 ? 'biblio.menu.liens' : 'biblio.menu.lien'), icone: 'lien', faire: () => copierLiens(es) })
     if (une?.element === null && partage) l.push({ libelle: t('biblio.menu.partager'), icone: 'partager', faire: () => setFenetre({ type: 'partage', tableau: une.tableau }) })
     l.push(null)
-    if (ecrit) l.push({ libelle: t('biblio.menu.corbeille'), icone: 'corbeille', raccourci: '⌫', danger: true, faire: () => jeterCes(es) })
+    if (ecrit && !es.every(regroupeUnOutil)) l.push({ libelle: t('biblio.menu.corbeille'), icone: 'corbeille', raccourci: '⌫', danger: true, faire: () => jeterCes(es) })
     return l
   }
   const sousMenuCreer = (dans?: string): EntreeMenu[] =>
@@ -1083,6 +1090,8 @@ function BibliothequeBureau({
     const depart = { x: ev.clientX, y: ev.clientY }
     const pointeur = { y: ev.clientY }
     let courant: Glisse | null = null
+    /** Les dossiers qu'un outil a posés, choisis avec ce qu'on glisse : ils restent, et l'avis le dira. */
+    let laisses: string[] = []
     let arretDefilement = () => {}
     const viser = (x: number, y: number) => {
       if (!courant) return
@@ -1095,8 +1104,20 @@ function BibliothequeBureau({
       pointeur.y = e.clientY
       if (!courant) {
         if (Math.hypot(e.clientX - depart.x, e.clientY - depart.y) < 5) return
-        const { sel: s, ordre: o } = etat.current
-        courant = { cles: s.choisies.has(cle) ? o.filter((c) => s.choisies.has(c)) : [cle], x: e.clientX, y: e.clientY, cible: null }
+        const { sel: s, ordre: o, parCle: p } = etat.current
+        const prises = s.choisies.has(cle) ? o.filter((c) => s.choisies.has(c)) : [cle]
+        const estPose = (c: string) => {
+          const x = p.get(c)
+          return x !== undefined && immobile(x)
+        }
+        laisses = prises.filter(estPose)
+        // Rien ne se décolle qui ne puisse partir : on le dit tout de suite, au lieu d'un glisser qui ne mène nulle part.
+        if (laisses.length === prises.length) {
+          fin()
+          annoncer({ texte: resteEnPlace(laisses.flatMap((c) => p.get(c) ?? [])) })
+          return
+        }
+        courant = { cles: prises.filter((c) => !estPose(c)), x: e.clientX, y: e.clientY, cible: null }
         setMenu(null)
         arretDefilement = defilement(pointeur, () => {})
       }
@@ -1124,7 +1145,7 @@ function BibliothequeBureau({
       }
       window.addEventListener('click', bloquer, { capture: true, once: true })
       setTimeout(() => window.removeEventListener('click', bloquer, true), 0)
-      if (g.cible) deplacerVers(g.cles.flatMap((c) => etat.current.parCle.get(c) ?? []), g.cible)
+      if (g.cible) deplacerVers([...g.cles, ...laisses].flatMap((c) => etat.current.parCle.get(c) ?? []), g.cible)
     }
     const abandon = () => {
       courant = null
@@ -1751,7 +1772,8 @@ function BibliothequeBureau({
       )}
       {fenetre?.type === 'deplacer' && espace && toutes && (
         <DeplacerVers
-          entrees={entreesDes(fenetre.cles)}
+          // Ce qu'un outil a posé reste : ni compté, ni exclu des toiles où ranger le reste ; l'avis le dira.
+          entrees={entreesDes(fenetre.cles).filter((e) => !immobile(e))}
           toutes={toutes}
           accueil={{ id: espace.racine, titre: titreAccueil || t('biblio.accueil') }}
           fermer={() => setFenetre(null)}

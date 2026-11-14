@@ -49,7 +49,7 @@ describe('NOTAK_RATTACHEMENTS', () => {
 })
 
 type Etat = { etat: 'present'; tableau: string; titre: string; source: string; dossier: string } | { etat: 'absent' | 'cache'; source: string; dossier: string }
-type Entree = { tableau: string; element: string | null; titre: string; dans: string | null; fiche?: { nom: string; adresse?: string } }
+type Entree = { tableau: string; element: string | null; titre: string; dans: string | null; fiche?: { nom: string; adresse?: string }; outil?: string }
 
 describe('les dossiers des fiches d’un autre outil', () => {
   let m: Monde
@@ -126,6 +126,32 @@ describe('les dossiers des fiches d’un autre outil', () => {
     expect(entrees.find((e) => e.titre === 'Martin')?.fiche).toEqual({ nom: 'Mon CRM' })
     expect(entrees.find((e) => e.titre === 'Clients')?.fiche).toBeUndefined()
     expect(dupont?.dans).toBe(entrees.find((e) => e.titre === 'Clients')?.tableau)
+  })
+
+  it('les dossiers que l’outil a posés restent où il les a mis ; on range dedans ce qu’on veut', async () => {
+    const ranger = (id: string, json: Record<string, unknown>) => m.appeler(`/api/tableaux/${id}/parent`, { methode: 'PUT', compte: ana, json })
+    const dupont = ((await lire(ana, 'societe:1')).corps as { tableau: string }).tableau
+    const clients = m.base.tableau(dupont)!.parent!
+    const accueil = ana.utilisateur.racine
+    m.tableau(ana, 'brouillon', 'Brouillon', undefined, accueil)
+    // La bibliothèque dit lesquels : celui de chaque fiche, et celui qui les range ; pas les autres.
+    const entrees = (await (await m.appeler('/api/bibliotheque', { compte: ana })).json()) as Entree[]
+    const de = (tableau: string) => entrees.find((e) => e.tableau === tableau && e.element === null)
+    expect([de(dupont)?.outil, de(clients)?.outil, de('brouillon')?.outil]).toEqual(['Mon CRM', 'Mon CRM', undefined])
+    // Le serveur refuse de les ranger ailleurs, même à l'essai.
+    for (const [id, parent] of [
+      [dupont, accueil],
+      [clients, 'brouillon'],
+    ] as const) {
+      for (const essai of [true, false]) {
+        const r = await ranger(id, { parent, essai })
+        expect([r.status, ((await r.json()) as { code: string }).code]).toEqual([400, 'dossier_pose'])
+      }
+    }
+    expect([m.base.tableau(dupont)!.parent, m.base.tableau(clients)!.parent]).toEqual([clients, accueil])
+    // Ce qu'on y range, si.
+    expect(await (await ranger('brouillon', { parent: dupont })).json()).toMatchObject({ fait: true })
+    expect(m.base.tableau('brouillon')!.parent).toBe(dupont)
   })
 
   it('la création n’accepte que du JSON : un formulaire d’un autre site ne la déclenche pas', async () => {
@@ -352,6 +378,9 @@ describe('une source qui nomme son espace après coup range les anciens dossiers
     expect(dossiersDe(deBob, 'Clients').map((e) => e.tableau).sort()).toEqual([clients!.tableau, clientsBob].sort())
     expect(deBob.some((e) => e.tableau === martin)).toBe(true)
     expect(deBob.some((e) => e.tableau === bernard)).toBe(false)
+    // Ceux que l'outil ne lit plus se rangent comme les autres dossiers ; ceux de l'équipe restent où il les a mis.
+    expect(deBob.filter((e) => e.element === null && (e.tableau === martin || e.tableau === clientsBob)).map((e) => e.outil)).toEqual([undefined, undefined])
+    expect(clients!.outil).toBe('Mon CRM')
     expect(m.base.rattachement(equipe, 'crm', 'societe:2')).toBeNull()
     // L'outil apprend les dossiers recréés, et seulement eux.
     const crees = m.base.envoisAFaire(m.maintenant() + 1, 50).slice(deja)

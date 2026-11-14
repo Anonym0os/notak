@@ -524,6 +524,92 @@ describe('les gestes', () => {
     })
   })
 
+  describe('les dossiers qu’un outil a posés', () => {
+    /** « Voyage » range les dossiers de « Mon CRM » ; « atelier » est celui d'une de ses fiches. */
+    const POSES = TOUTES.map((e) =>
+      e.element !== null
+        ? e
+        : e.tableau === 'voyage'
+          ? { ...e, outil: 'Mon CRM', resume: { ...e.resume, dossier: true as const } }
+          : e.tableau === 'atelier'
+            ? { ...e, outil: 'Mon CRM', fiche: { nom: 'Mon CRM' }, resume: { ...e.resume, dossier: true as const } }
+            : e,
+    )
+    const monter = async () => {
+      const espace = monde()
+      appels.length = 0
+      await act(async () =>
+        racine.render(
+          <PageBibliotheque
+            charger={async () => POSES}
+            espace={espace}
+            rangerToile={async (toile, parent, options) => (appels.push([toile, parent, options ?? {}]), { nouveaux: 0, perdus: 0, permanents: 0, liensOuverts: 0, liensEteints: 0, fait: !options?.essai })}
+            definirFavori={async () => {}}
+          />,
+        ),
+      )
+      return espace
+    }
+    const libelles = (el: Element) => menu(el).map((b) => b.querySelector('.notak-e-libelle')!.textContent)
+    const avis = () => hote.querySelector('.notak-avis')!.textContent
+    const fermerMenu = () => touche('Escape')
+
+    it('restent où l’outil les a mis : ni menu, ni glisser, ni barre ne les déplacent ; celui qui range les autres ne se jette pas', async () => {
+      const espace = await monter()
+      // Le dossier d'une fiche : la ligne dit où il reste ; il se jette (l'outil l'apprend, sa fiche le remet).
+      expect(libelles(tuile('atelier/'))).toEqual(expect.arrayContaining(['Reste où Mon CRM l’a mis', 'Mettre à la corbeille']))
+      expect(libelles(tuile('atelier/'))).not.toContain('Déplacer vers…')
+      expect(entree('Reste où Mon CRM l’a mis').disabled).toBe(true)
+      fermerMenu()
+      // Celui qui les range ne part pas à la corbeille : il y emporterait chaque fiche, à l'insu de l'outil.
+      expect(libelles(tuile('voyage/'))).toContain('Reste où Mon CRM l’a mis')
+      expect(libelles(tuile('voyage/'))).not.toContain('Mettre à la corbeille')
+      fermerMenu()
+      appuyer(tuile('voyage/'))
+      await act(async () => touche('Backspace'))
+      expect(tuile('voyage/')).not.toBeNull()
+      expect(espace.tableau('racine')!.elements.find((e) => e.id === 'c-voyage')!.corbeille).toBeUndefined()
+      expect(avis()).toContain('« Voyage » reste où Mon CRM l’a mis.')
+      // Glissé, il ne se décolle pas : l'avis le dit tout de suite, et rien ne part au serveur.
+      act(() => void tuile('atelier/').dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 10, clientY: 10 })))
+      act(() => void window.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 60, clientY: 40 })))
+      expect(hote.querySelector('.biblio-fantome')).toBeNull()
+      expect(avis()).toContain('« atelier » reste où Mon CRM l’a mis.')
+      act(() => void window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true })))
+      // Choisis ensemble, la barre ne les déplace pas, et dit pourquoi ; la fiche, elle, se jette.
+      appuyer(tuile('voyage/'))
+      appuyer(tuile('atelier/'), { metaKey: true })
+      const bouton = (debut: string) => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-barre-choix button')].find((b) => b.getAttribute('aria-label')?.startsWith(debut))
+      expect(bouton('Reste où Mon CRM')?.getAttribute('aria-disabled')).toBe('true')
+      expect(bouton('Déplacer')).toBeUndefined()
+      expect(bouton('Mettre à la corbeille')?.disabled).toBe(false)
+      expect(appels).toEqual([])
+    })
+
+    it('choisis avec d’autres, ils restent et l’avis le dit ; on range dedans ce qu’on veut', async () => {
+      history.replaceState(null, '', '/?vue=tout')
+      const espace = await monter()
+      appuyer(tuile('voyage/plan'))
+      appuyer(tuile('atelier/'), { metaKey: true })
+      menu(tuile('voyage/plan'))
+      act(() => entree('Déplacer vers…').click())
+      // La fenêtre ne parle que de ce qui part.
+      expect(document.querySelector('.notak-dialogue-titre')!.textContent).toBe('Déplacer « Plan »')
+      await act(async () => [...hote.querySelectorAll<HTMLElement>('.biblio-deplacer-liste li')].find((li) => li.textContent?.startsWith('Budget'))!.click())
+      expect(espace.tableau('budget')!.elements.some((e) => e.contenu.type === 'arbre')).toBe(true)
+      expect(espace.tableau('racine')!.elements.some((e) => e.id === 'c-atelier')).toBe(true)
+      expect(avis()).toContain('Déplacé dans « Budget ». « atelier » reste où Mon CRM l’a mis.')
+      // Le dossier d'une fiche prend ce qu'on y range.
+      touche('Escape')
+      menu(tuile('voyage/notes'))
+      act(() => entree('Déplacer vers…').click())
+      await act(async () => [...hote.querySelectorAll<HTMLElement>('.biblio-deplacer-liste li')].find((li) => li.textContent?.startsWith('atelier'))!.click())
+      expect(espace.tableau('atelier')!.elements.some((e) => e.contenu.type === 'document')).toBe(true)
+      expect(avis()).toContain('Déplacé dans « atelier »')
+      expect(appels).toEqual([])
+    })
+  })
+
   it('le clic droit du fond crée, range et choisit tout', async () => {
     await ouvrir()
     const libelles = menu(hote.querySelector('.biblio-corps')!).map((b) => b.querySelector('.notak-e-libelle')!.textContent)

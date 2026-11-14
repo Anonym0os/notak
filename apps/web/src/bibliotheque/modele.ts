@@ -58,6 +58,19 @@ export interface Vue {
 /** Une toile qui se montre en dossier (`Tableau.dossier`) : elle s'ouvre d'abord ici, en liste de ce qu'elle porte. */
 export const estDossier = (e: Pick<EntreeBibliotheque, 'element' | 'resume'>) => e.element === null && e.resume.genre === 'toile' && e.resume.dossier === true
 
+/**
+ * Un dossier qu'un outil rattaché a posé (celui d'une de ses fiches, ou celui qui les range, « Clients ») : il reste où
+ * l'outil l'a mis, comme les fiches chez lui, et le serveur refuse de le ranger ailleurs. On range dedans ce qu'on veut.
+ */
+export const immobile = (e: Pick<EntreeBibliotheque, 'element' | 'outil'>) => e.element === null && e.outil !== undefined
+
+/**
+ * Le dossier qui range ceux d'un outil (posé par lui, sans fiche à lui) ne part pas non plus à la corbeille : il y
+ * emporterait le dossier de chaque fiche, que l'outil lirait jeté sans en être prévenu, et qu'aucune fiche ne saurait
+ * remettre. Celui d'une fiche, si : l'outil l'apprend, et la fiche le remet.
+ */
+export const regroupeUnOutil = (e: Pick<EntreeBibliotheque, 'element' | 'outil' | 'fiche'>) => immobile(e) && e.fiche === undefined
+
 /** Ce qu'une toile porte directement : les toiles qu'elle range, et ses pages, cartes, photos, liens et fichiers. */
 export const contenuDuDossier = (id: string, entrees: readonly EntreeBibliotheque[]) => entrees.filter((e) => e.dans === id && !(e.element === null && e.tableau === id))
 

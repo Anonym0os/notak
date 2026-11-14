@@ -126,6 +126,20 @@ export function dossierDeLaSource(sources: readonly SourceRattachement[], r: Pic
   return Boolean(s) && (!s!.espace || s!.espace === r.espace)
 }
 
+/**
+ * Les dossiers qu'un outil a posés et qui comptent pour lui (celui de chaque fiche, et celui qui les range), avec le nom
+ * de l'outil : ils restent où il les a mis, comme ses fiches chez lui. Un ancien, qu'il ne lit plus, se range comme un
+ * autre dossier.
+ */
+export function dossiersPoses(sources: readonly SourceRattachement[], rattachements: readonly Pick<Rattachement, 'source' | 'espace' | 'tableau'>[]): Map<string, string> {
+  return new Map(
+    rattachements.flatMap((r) => {
+      const s = sources.find((x) => x.source === r.source)
+      return s && dossierDeLaSource(sources, r) ? [[r.tableau, s.nom] as const] : []
+    }),
+  )
+}
+
 /** Le titre d'un dossier : sans blancs autour, borné, et à défaut la clé de la fiche. */
 export const titreDuDossier = (titre: unknown, cle: string) => (typeof titre === 'string' ? titre.trim().slice(0, TITRE_MAX) : '') || cle
 

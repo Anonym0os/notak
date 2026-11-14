@@ -34,6 +34,7 @@ import {
   adresseDeLaFiche,
   annoncerSignalement,
   dossierDeLaSource,
+  dossiersPoses,
   ecrireDossierNeuf,
   marquerCarte,
   mettreEnFile,
@@ -1247,9 +1248,11 @@ export function creerApp(ctx: Contexte): Hono {
   /**
    * Range une toile dans une autre (la bibliothèque, ou sa carte glissée d'une toile à l'autre). Il faut posséder la
    * toile et pouvoir écrire dans la nouvelle ; ni l'accueil, ni dans elle-même ou ce qu'elle contient, ni d'un espace à
-   * un autre. Ses accès hérités suivent : la réponse dit ce que cela change pour les autres (`Bilan` : qui y gagne ou y
-   * perd l'accès, qui le garde désormais sans échéance, quels liens de visiteurs y mènent ou n'y mènent plus). `essai`
-   * ne fait que compter ; `siPersonne` ne range que si cela ne change rien pour personne.
+   * un autre, ni un dossier qu'un outil a posé (celui d'une fiche, ou celui qui les range : ils restent où l'outil les
+   * a mis ; on range dedans ce qu'on veut). Ses accès hérités suivent : la réponse dit ce que cela change pour les
+   * autres (`Bilan` : qui y gagne ou y perd l'accès, qui le garde désormais sans échéance, quels liens de visiteurs y
+   * mènent ou n'y mènent plus). `essai` ne fait que compter ; `siPersonne` ne range que si cela ne change rien pour
+   * personne.
    */
   app.put('/api/tableaux/:id/parent', async (c) => {
     const g = await garde(c, 'proprietaire')
@@ -1261,6 +1264,7 @@ export function creerApp(ctx: Contexte): Hono {
     if (!ligne || !cible) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     const racineDEspace = ligne.espace ? base.espace(ligne.espace)?.racine === g.id : false
     if (g.id === g.u.racine || racineDEspace) return c.json({ erreur: 'accueil', code: 'accueil_immobile' }, 400)
+    if (dossiersPoses(ctx.rattachements ?? [], base.rattachementsDe([g.id])).has(g.id)) return c.json({ erreur: 'posé par un outil', code: 'dossier_pose' }, 400)
     const droit = await roleSur(g.u.id, parent)
     if (droit === null) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     if (!auMoins(droit, 'edition')) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
@@ -1362,12 +1366,15 @@ export function creerApp(ctx: Contexte): Hono {
       return titres.get(id)!
     }
     // Le dossier d'une fiche d'un autre outil mène à sa fiche, tant que l'outil est déclaré.
+    const rattaches = base.rattachementsDe(ouverts)
     const fiches = new Map(
-      base.rattachementsDe(ouverts).flatMap((r) => {
+      rattaches.flatMap((r) => {
         const source = sourceNommee(r.source)
         return r.cle && source && dossierDeLaSource(ctx.rattachements ?? [], r) ? [[r.tableau, { nom: source.nom, ...(r.adresse ? { adresse: r.adresse } : {}) }] as const] : []
       }),
     )
+    // Ceux qu'un outil a posés (chaque fiche, et le dossier qui les range) disent lequel : ils ne se déplacent pas.
+    const poses = dossiersPoses(ctx.rattachements ?? [], rattaches)
     const entrees = lignes.flatMap((l) => {
       if ((l.genre === 'toile' && l.tableau === u.racine) || cachees.has(l.tableau) || !genres.has(l.genre)) return []
       const ligne = base.tableau(l.tableau)
@@ -1388,6 +1395,7 @@ export function creerApp(ctx: Contexte): Hono {
           favori: toile ? favoris.has(l.tableau) : favorisElements.has(`${l.tableau}/${l.element}`),
           partage: toile && partages.has(l.tableau),
           ...(toile && fiches.has(l.tableau) ? { fiche: fiches.get(l.tableau) } : {}),
+          ...(toile && poses.has(l.tableau) ? { outil: poses.get(l.tableau) } : {}),
         },
       ]
     })

@@ -1,7 +1,21 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { EntreeBibliotheque } from '../api'
-import { adresseDeLaVue, arbreDesDossiers, compterParGenre, contenuDuDossier, dansLaPortee, duFiltre, ecrireAffichage, estDossier, filDAriane, lireAffichage, lireVue } from './modele'
+import {
+  adresseDeLaVue,
+  arbreDesDossiers,
+  compterParGenre,
+  contenuDuDossier,
+  dansLaPortee,
+  duFiltre,
+  ecrireAffichage,
+  estDossier,
+  filDAriane,
+  immobile,
+  lireAffichage,
+  lireVue,
+  regroupeUnOutil,
+} from './modele'
 
 const entree = (e: Partial<EntreeBibliotheque> & Pick<EntreeBibliotheque, 'tableau'>): EntreeBibliotheque =>
   ({ element: null, genre: 'toile', titre: e.tableau, ou: null, dans: null, vu: null, favori: false, partage: false, resume: { genre: 'toile', element: '', titre: '', boites: [] }, ...e }) as EntreeBibliotheque
@@ -88,6 +102,19 @@ describe('les dossiers', () => {
   it('l’arbre de la colonne : les dossiers par titre, à leur place ; sous une toile ordinaire, au dossier du dessus', () => {
     const plat = (n: ReturnType<typeof arbreDesDossiers>, p = 0): string[] => n.flatMap((x) => [`${'  '.repeat(p)}${x.titre}`, ...plat(x.enfants, p + 1)])
     expect(plat(arbreDesDossiers(MONDE, 'accueil'))).toEqual(['Archives', 'Projets', '  Plans', '  Voyage'])
+  })
+
+  it('ceux qu’un outil a posés restent en place ; celui qui range les autres ne se jette pas', () => {
+    const clients = dossier('clients', 'accueil', 'Clients')
+    const POSES = [
+      { ...clients, outil: 'Silak' },
+      { ...dossier('dupont', 'clients', 'Dupont'), outil: 'Silak', fiche: { nom: 'Silak' } },
+      dossier('mien', 'clients', 'À moi'),
+      // Ce que porte la toile d'un dossier posé, lui, se range où l'on veut.
+      { ...entree({ tableau: 'dupont', element: 'devis', genre: 'document', dans: 'dupont' }), outil: 'Silak' },
+    ]
+    expect(POSES.map(immobile)).toEqual([true, true, false, false])
+    expect(POSES.map(regroupeUnOutil)).toEqual([true, false, false, false])
   })
 
   it('l’adresse d’un dossier', () => {

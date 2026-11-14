@@ -774,6 +774,8 @@ export interface EntreeBibliotheque {
   partage: boolean
   /** Le dossier d'une fiche d'un autre outil (un CRM…) : l'outil, et où la fiche s'ouvre. */
   fiche?: { nom: string; adresse?: string }
+  /** Le nom de l'outil qui a posé ce dossier, celui d'une fiche ou, sans `fiche`, celui qui les range : il ne se déplace pas. */
+  outil?: string
 }
 
 /** Tout ce que le compte peut lire : ses toiles (sauf l'accueil), et ce qu'elles portent de pages, cartes mentales, photos, liens et fichiers. */
