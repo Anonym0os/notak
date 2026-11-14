@@ -8,7 +8,7 @@ import { type Auth, utilisateurDeSession } from './auth.ts'
 import type { Base } from './base.ts'
 import type { DroitsTableau } from '../../../packages/tableau/src/coeur/reglesDroits.ts'
 import type { Autorisation } from './autorisation.ts'
-import { controler, miseAJourDuMessage } from './controle.ts'
+import { type Garde, controler, miseAJourDuMessage } from './controle.ts'
 import type { Role } from './droits.ts'
 import { indexerDocument } from './indexation.ts'
 import type { ChangementDeCartes } from './rattachements.ts'
@@ -25,6 +25,8 @@ interface ContexteConnexion {
   auteur: string
   /** Commentateur, ou tableau dont des éléments ont leurs propres droits : chaque mise à jour se vérifie. */
   controle: boolean
+  /** Les dossiers générés par un outil, dès qu'un outil est déclaré : chaque mise à jour se vérifie aussi. */
+  garde?: Garde
 }
 
 function contexteDe(droits: DroitsTableau, utilisateur: Acteur): ContexteConnexion {
@@ -52,6 +54,8 @@ export function creerHocuspocus(
   expirer?: () => Promise<unknown>,
   /** Prévenu des cartes de toiles jetées ou remises à chaque enregistrement, avec qui l'a fait (`suivreLesDossiers`). */
   surCartes?: (changement: ChangementDeCartes, par: Acteur | undefined) => void,
+  /** Ce qu'aucune connexion ne change dans ce document (`gardeDesDossiers`), lu à son ouverture ; `null` : aucun outil. */
+  garder?: (tableau: string) => Garde | null,
 ): Hocuspocus {
   const activite = suivreActivite(base, maintenant)
   return new Hocuspocus({
@@ -100,18 +104,19 @@ export function creerHocuspocus(
       // Un tableau protégé ne se synchronise qu'une fois son mot de passe donné.
       if (verrouPar(base, utilisateur.id, id) !== null) throw new Error('verrouillé')
       if (droits.role === 'lecture') connectionConfig.readOnly = true
-      return contexteDe(droits, { id: utilisateur.id, nom: utilisateur.nom, couleur: utilisateur.couleur })
+      const garde = garder?.(id) ?? null
+      return { ...contexteDe(droits, { id: utilisateur.id, nom: utilisateur.nom, couleur: utilisateur.couleur }), ...(garde ? { garde } : {}) }
     },
     // Ce qu'une connexion contrôlée envoie passe élément par élément : appliqué, puis annulé s'il n'est pas permis.
     // Hocuspocus réapplique ensuite le même message, ce qui ne change plus rien.
     async beforeHandleMessage({ update, document, context, connection }) {
       const c = context as ContexteConnexion | undefined
-      if (!c?.controle) return
+      if (!c?.controle && !c?.garde) return
       const miseAJour = miseAJourDuMessage(update)
       if (!miseAJour) return
-      if (!controler(document, miseAJour, c.droits, c.auteur, { source: 'connection', connection })) {
+      if (!controler(document, miseAJour, c.droits, c.auteur, { source: 'connection', connection }, c.garde)) {
         activite.oublier(document)
-        console.warn(`Notak : un geste de ${c.auteur} sur ${document.name} a été annulé (droits par élément).`)
+        console.warn(`Notak : un geste de ${c.auteur} sur ${document.name} a été annulé (droits par élément, ou dossier généré par un outil).`)
       }
     },
   })

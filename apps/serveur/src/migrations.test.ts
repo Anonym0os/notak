@@ -4,11 +4,15 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it } from 'vitest'
 import { getMigrations } from 'better-auth/db/migration'
+import * as Y from 'yjs'
 import { ouvrirBase } from './base.ts'
-import { ORIGINE_ESSAI, authEssai } from './essai.ts'
+import type { ResumeContenu } from './contenu.ts'
+import { ORIGINE_ESSAI, authEssai, poser, poserUtilisateur, texte } from './essai.ts'
+import { indexerLesAbsents } from './indexation.ts'
 import { MIGRATIONS, type Migration, migrer, versionDe } from './migrations.ts'
 import { hacher } from './motsDePasse.ts'
 import { optionsSchema, pluginsAuth } from './auth.ts'
+import { nomDuDocument } from './synchro.ts'
 
 const derniere = MIGRATIONS.at(-1)!.version
 let dossiers: string[] = []
@@ -113,6 +117,55 @@ describe('migrations', () => {
     expect(db.prepare('SELECT COUNT(*) AS n FROM contenus').get()).toEqual({ n: 0 })
     expect(db.prepare('SELECT COUNT(*) AS n FROM favoris_elements').get()).toEqual({ n: 0 })
     db.close()
+  })
+
+  it('les plans d’avant les photos se refont au démarrage, sans attendre que chaque toile change', () => {
+    const chemin = join(dossier(), 'notak.db')
+    let base = ouvrirBase(chemin)
+    poserUtilisateur(base, { id: 'u1', email: 'ana@exemple.fr', nom: 'Ana', couleur: '#e03131', racine: 't1' })
+    base.creerTableau({ id: 't1', titre: 'Portraits', proprietaire: 'u1', parent: null })
+    const doc = new Y.Doc()
+    poser(doc, { type: 'image', fichier: 'f1', largeurOrigine: 4000, hauteurOrigine: 6000, tailles: [{ largeur: 400, fichier: 'f1-400' }] }, { id: 'p1', largeur: 20 })
+    poser(doc, { type: 'note', texte: texte('envoyée du téléphone') }, { id: 'n1', nonTrie: 1 })
+    base.enregistrerDocument(nomDuDocument('t1'), Y.encodeStateAsUpdate(doc))
+    // Ce qu'en gardait un serveur d'avant : la photo en cadre gris, sans son fichier, et rien des non triés.
+    base.indexer('t1', [], [], [{ genre: 'toile', element: '', titre: 'Portraits', boites: [[0, 0, 20, 20, '', 'image', 0]] }])
+    const plans = MIGRATIONS.find((m) => m.nom === 'les photos dans le plan des toiles')!
+    base.db.exec(`PRAGMA user_version = ${plans.version - 1}`)
+    base.fermer()
+
+    // Le démarrage du serveur : les migrations, puis ce qui n'est pas indexé (`demarrer`).
+    base = ouvrirBase(chemin)
+    expect(indexerLesAbsents(base)).toBe(1)
+    const toile = JSON.parse(base.contenus(['t1']).find((l) => l.genre === 'toile')!.resume) as Extract<ResumeContenu, { genre: 'toile' }>
+    expect(toile.boites).toEqual([[0, 0, 20, 30, '', 'image', 0, 'f1-400']])
+    expect(toile.nonTries).toBe(1)
+    base.fermer()
+  })
+
+  it('les photos d’avant leur recadrage dans la bibliothèque se refont au démarrage, comme la toile les montre', () => {
+    const chemin = join(dossier(), 'notak.db')
+    let base = ouvrirBase(chemin)
+    poserUtilisateur(base, { id: 'u1', email: 'ana@exemple.fr', nom: 'Ana', couleur: '#e03131', racine: 't1' })
+    base.creerTableau({ id: 't1', titre: 'Portraits', proprietaire: 'u1', parent: null })
+    const doc = new Y.Doc()
+    poser(doc, { type: 'image', fichier: 'f1', largeurOrigine: 6000, hauteurOrigine: 4000, rotation: 90 }, { id: 'p1', largeur: 20 })
+    base.enregistrerDocument(nomDuDocument('t1'), Y.encodeStateAsUpdate(doc))
+    // Ce qu'en gardait un serveur d'avant : la photo, sans son quart de tour.
+    base.indexer('t1', [], [], [
+      { genre: 'toile', element: '', titre: 'Portraits', boites: [[0, 0, 20, 30, '', 'image', 0, 'f1']] },
+      { genre: 'image', element: 'p1', titre: '', fichier: 'f1', largeur: 6000, hauteur: 4000 },
+    ])
+    const recadrees = MIGRATIONS.find((m) => m.nom === 'les photos recadrées et tournées dans la bibliothèque')!
+    base.db.exec(`PRAGMA user_version = ${recadrees.version - 1}`)
+    base.fermer()
+
+    base = ouvrirBase(chemin)
+    expect(indexerLesAbsents(base)).toBe(1)
+    const lignes = base.contenus(['t1'])
+    expect(JSON.parse(lignes.find((l) => l.genre === 'image')!.resume)).toMatchObject({ rotation: 90 })
+    expect(JSON.parse(lignes.find((l) => l.genre === 'toile')!.resume).boites[0][8]).toEqual({ largeur: 6000, hauteur: 4000, rotation: 90 })
+    base.fermer()
   })
 
   it('une migration qui échoue est annulée en entier et la version ne bouge pas', () => {

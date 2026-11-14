@@ -29,6 +29,9 @@ registre.type<Commentaire>({
       get libelle() {
         return t('type.commentaire')
       },
+      get etiquette() {
+        return t('outil.commentaire.court')
+      },
       icone: ico('commentaire'),
       rang: 70,
       vignette: 'commentaire',

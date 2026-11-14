@@ -1,13 +1,16 @@
-import { type FormEvent, useCallback, useEffect, useId, useRef, useState } from 'react'
+import { type FormEvent, type KeyboardEvent, useCallback, useEffect, useId, useRef, useState } from 'react'
 import {
   type Acces,
+  type AccesGeneral,
   type Blocage,
   type Cible,
   type EquipeEspace,
+  type EtatVerrou,
   type LienVisiteur,
   type Moi,
   type NiveauVisiteur,
   type Partage as ReponsePartage,
+  type PersonneProposee,
   type Role,
   type RoleDonne,
   adresseInvitation,
@@ -16,6 +19,7 @@ import {
   creerLien,
   etatVerrou,
   fermerLien,
+  lireAccesGeneral,
   listerAcces,
   listerBlocages,
   listerEquipes,
@@ -27,16 +31,21 @@ import {
   nouveauLienInvitation,
   partager,
   poserMotDePasse,
+  proposerPersonnes,
+  reglerAccesGeneral,
   retirerAcces,
   retirerMotDePasse,
 } from './api'
+import { adressePhoto } from './fichiers'
 import { langue, t, tn } from './langue'
 import { Icone } from '@notak/tableau'
 import { usePanneau } from './panneaux'
 
 // Partager un tableau, c'est deux portes, et le panneau les sépare :
 // - des personnes invitées, qui ont un compte : elles modifient, commentent ou lisent, et peuvent n'avoir qu'un accès
-//   temporaire ; une adresse sans compte (ou jamais vérifiée) reçoit une invitation, dont le lien est le seul passage ;
+//   temporaire. Comme dans le « Partager » de Notion et de Drive, on les trouve par leur nom dès qu'on tape : les
+//   membres des espaces d'équipe, avec leur photo, et les équipes. Une adresse sans compte (ou jamais vérifiée) reçoit
+//   une invitation, dont le lien est le seul passage ;
 // - des liens visiteurs, pour qui n'a pas de compte : ils voient le tableau, ou le commentent, jamais ne le modifient.
 //   Un lien par destinataire, chacun avec son échéance et son mot de passe : on en ferme un sans toucher aux autres.
 // La protection du tableau entier (mot de passe, blocage) reste repliée en bas.
@@ -85,14 +94,21 @@ const copier = async (texte: string): Promise<boolean> => {
   }
 }
 
-/** La pastille d'une ligne d'accès : l'initiale de la personne, ou l'icône d'une équipe, d'un lien. */
-function PastilleAcces({ nom, icone }: { nom: string; icone?: 'equipe' | 'lien' }) {
+/**
+ * La pastille d'une ligne d'accès : la photo de la personne, ou son initiale sur sa couleur (celle de son curseur sur la
+ * toile) ; l'icône d'une équipe, d'un lien ; une adresse sans compte reste grise.
+ */
+function PastilleAcces({ nom, icone, photo, couleur }: { nom: string; icone?: 'equipe' | 'lien'; photo?: string | null; couleur?: string }) {
+  const visage = !icone && (!!photo || !!couleur)
   return (
-    <span className="app-pastille app-pastille-neutre" aria-hidden>
-      {icone ? <Icone nom={icone} taille={15} /> : ([...nom.trim()][0]?.toLocaleUpperCase() ?? '?')}
+    <span className={visage ? 'app-pastille' : 'app-pastille app-pastille-neutre'} style={visage && !photo ? { background: couleur } : undefined} aria-hidden>
+      {icone ? <Icone nom={icone} taille={15} /> : photo ? <img src={adressePhoto(photo)} alt="" /> : ([...nom.trim()][0]?.toLocaleUpperCase() ?? '?')}
     </span>
   )
 }
+
+/** Un nom ou une adresse, sans accents ni majuscules : « eloise » trouve « Éloïse », comme le serveur. */
+const pourChercher = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
 
 /** Retirer une ligne : une croix pâle, dont le nom se lit à l'infobulle et au lecteur d'écran. */
 function Retirer({ libelle, disabled, onClick }: { libelle: string; disabled: boolean; onClick(): void }) {
@@ -164,13 +180,24 @@ async function equipesPossibles(): Promise<(EquipeEspace & { espace: string })[]
 /** Le bouton « Partager » et son panneau. */
 export function Partage({ tableau, moi }: { tableau: string; moi: Moi }) {
   const { ouvert, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
+  // Une toile privée se reconnaît à son bouton : un cadenas à la place de l'icône du partage, et son nom le dit.
+  const [prive, setPrive] = useState(false)
+  useEffect(() => {
+    let vivant = true
+    setPrive(false)
+    lireAccesGeneral(tableau).then((g) => vivant && setPrive(g.prive), () => {})
+    return () => {
+      vivant = false
+    }
+  }, [tableau])
+  const libelle = prive ? `${t('partage.titre')} · ${t('partage.privee')}` : t('partage.titre')
   return (
     <div className="partage" ref={ancre}>
-      <button type="button" ref={bouton} className="bouton" aria-expanded={ouvert} aria-label={t('partage.titre')} title={t('partage.titre')} onClick={basculer}>
-        <Icone nom="partager" taille={16} />
+      <button type="button" ref={bouton} className="bouton" aria-expanded={ouvert} aria-label={libelle} title={libelle} data-prive={prive || undefined} onClick={basculer}>
+        <Icone nom={prive ? 'verrou' : 'partager'} taille={16} />
         <span className="bouton-texte">{t('partage.titre')}</span>
       </button>
-      {ouvert && <Panneau key={tableau} tableau={tableau} moi={moi} reference={panneau} />}
+      {ouvert && <Panneau key={tableau} tableau={tableau} moi={moi} reference={panneau} surAccesGeneral={(g) => setPrive(g.prive)} />}
     </div>
   )
 }
@@ -215,14 +242,42 @@ export function PartageEnFenetre({ tableau, moi, fermer, protection }: { tableau
 /** Ce qu'il reste à faire après une invitation : le lien à transmettre, s'il n'est pas parti tout seul. */
 type Suite = { email: string } & ReponsePartage
 
-function Panneau({ tableau, moi, reference, enFenetre, protection }: { tableau: string; moi: Moi; reference(el: HTMLElement | null): void; enFenetre?: boolean; protection?: boolean }) {
+/**
+ * Le panneau, dans l'ordre du « Partager » de Notion : inviter, qui a accès, l'accès général ; puis les liens visiteurs
+ * et la protection, et « Copier le lien » en pied. `surAccesGeneral` : l'accès général vient de changer.
+ */
+function Panneau({
+  tableau,
+  moi,
+  reference,
+  enFenetre,
+  protection,
+  surAccesGeneral,
+}: {
+  tableau: string
+  moi: Moi
+  reference(el: HTMLElement | null): void
+  enFenetre?: boolean
+  protection?: boolean
+  surAccesGeneral?(g: AccesGeneral): void
+}) {
   const [acces, setAcces] = useState<Acces[] | null>(null)
+  const [general, setGeneral] = useState<AccesGeneral | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
   const charger = useCallback(() => {
     listerAcces(tableau).then(setAcces, (x: Error) => setErreur(x.message))
   }, [tableau])
   useEffect(charger, [charger])
+  useEffect(() => {
+    lireAccesGeneral(tableau).then(setGeneral, () => {})
+  }, [tableau])
   const proprietaire = acces?.some((a) => a.utilisateur === moi.id && a.role === 'proprietaire') ?? false
+  // Rendue privée ou rouverte, la toile change ce que chacun y peut par l'espace : la liste se relit.
+  const changerGeneral = (g: AccesGeneral) => {
+    setGeneral(g)
+    surAccesGeneral?.(g)
+    charger()
+  }
 
   return (
     <div className="app-panneau partage-panneau" ref={reference} role={enFenetre ? undefined : 'dialog'} aria-label={enFenetre ? undefined : t('partage.titre')}>
@@ -230,6 +285,7 @@ function Panneau({ tableau, moi, reference, enFenetre, protection }: { tableau: 
       {proprietaire && <Inviter tableau={tableau} apres={charger} />}
       <Personnes tableau={tableau} moi={moi} acces={acces} proprietaire={proprietaire} recharger={charger} />
       {acces && !proprietaire && <p className="partage-note">{t('partage.seulProprio')}</p>}
+      {general && <AccesGeneralDuTableau tableau={tableau} general={general} changer={changerGeneral} />}
       {proprietaire && <LiensVisiteurs tableau={tableau} />}
       {proprietaire && (
         <details className="partage-avance" open={protection || undefined}>
@@ -246,36 +302,218 @@ function Panneau({ tableau, moi, reference, enFenetre, protection }: { tableau: 
           {erreur}
         </p>
       )}
+      <CopierLeLien tableau={tableau} general={general} />
     </div>
   )
 }
 
-/** Inviter une adresse ou une équipe : un rôle, et une durée si l'accès ne doit pas durer. */
+/**
+ * L'accès général, à deux crans comme dans Notion : « Seulement les personnes invitées » (la toile est privée) ou « Tout
+ * l'espace ». Le choix n'est qu'au propriétaire, dans un espace d'équipe, hors de son accueil et d'une toile privée par
+ * une toile au-dessus ; sinon il se lit seulement.
+ */
+function AccesGeneralDuTableau({ tableau, general, changer }: { tableau: string; general: AccesGeneral; changer(g: AccesGeneral): void }) {
+  const [occupe, setOccupe] = useState(false)
+  const [erreur, setErreur] = useState<string | null>(null)
+  if (!general.espace) return null
+  const espace = general.espace.nom
+  // Dans un espace personnel, il n'y a que son propriétaire : seuls ceux qu'il invite l'ouvrent.
+  const prive = general.prive || general.espace.personnel
+  const note = general.espace.personnel
+    ? t('partage.generalPersonnel')
+    : general.herite
+      ? t('partage.generalHerite')
+      : prive
+        ? t('partage.generalPrive', { espace })
+        : general.accueil
+          ? t('partage.generalAccueil', { espace })
+          : t('partage.generalEspace', { espace })
+  const choisir = (valeur: string) => {
+    setErreur(null)
+    setOccupe(true)
+    reglerAccesGeneral(tableau, valeur === 'prive').then(
+      (g) => {
+        setOccupe(false)
+        changer(g)
+      },
+      (x: Error) => {
+        setOccupe(false)
+        setErreur(x.message)
+      },
+    )
+  }
+  return (
+    <section className="partage-general" aria-label={t('partage.accesGeneral')}>
+      <div className="partage-rubrique">{t('partage.accesGeneral')}</div>
+      <div className="partage-general-ligne">
+        <span className="app-pastille app-pastille-neutre" aria-hidden>
+          <Icone nom={prive ? 'verrou' : 'equipe'} taille={15} />
+        </span>
+        <span className="partage-qui">
+          {general.modifiable ? (
+            <select className="partage-general-choix" aria-label={t('partage.accesGeneral')} value={prive ? 'prive' : 'espace'} disabled={occupe} onChange={(e) => choisir(e.target.value)}>
+              <option value="prive">{t('partage.seulementInvites')}</option>
+              <option value="espace">{t('partage.toutLEspace', { espace })}</option>
+            </select>
+          ) : (
+            <strong>{prive ? t('partage.seulementInvites') : t('partage.toutLEspace', { espace })}</strong>
+          )}
+          <small>{note}</small>
+        </span>
+      </div>
+      {erreur && (
+        <p className="connexion-erreur" role="alert">
+          {erreur}
+        </p>
+      )}
+    </section>
+  )
+}
+
+/** L'élément ouvert en grand sur ce tableau, d'après l'adresse de la page (`/t/<tableau>/e/<élément>`), ou `null`. */
+function elementRegarde(tableau: string): string | null {
+  const m = /^\/t\/([^/]+)\/e\/([^/]+)\/?$/.exec(location.pathname)
+  return m && decodeURIComponent(m[1]!) === tableau ? decodeURIComponent(m[2]!) : null
+}
+
+/** L'adresse d'une toile, ou d'un élément qu'on y ouvre en grand : elle ne s'ouvre qu'à un compte qui y a accès. */
+export const adresseDuTableau = (tableau: string, element: string | null = null) =>
+  `${location.origin}/t/${encodeURIComponent(tableau)}${element ? `/e/${encodeURIComponent(element)}` : ''}`
+
+/**
+ * « Copier le lien », en bas du panneau comme dans Drive et Notion : l'adresse de la toile (ou de ce qu'on y regarde en
+ * grand), pour qui y a déjà accès ; elle n'ouvre rien à personne d'autre. Le lien visiteur est l'autre porte, pour qui
+ * n'a pas de compte. La copie refusée, l'adresse se montre, à sélectionner.
+ */
+function CopierLeLien({ tableau, general }: { tableau: string; general: AccesGeneral | null }) {
+  const [copie, setCopie] = useState<boolean | null>(null)
+  const element = elementRegarde(tableau)
+  const adresse = adresseDuTableau(tableau, element)
+  const espace = general?.espace && !general.espace.personnel && !general.prive ? general.espace.nom : null
+  return (
+    <div className="partage-pied">
+      <button type="button" className="bouton" onClick={async () => setCopie(await copier(adresse))}>
+        <Icone nom={copie ? 'coche' : 'lien'} taille={16} />
+        {copie ? t('partage.lienCopie') : element ? t('partage.copierLienElement') : t('partage.copierLeLien')}
+      </button>
+      <small className="partage-note">{espace ? t('partage.lienPourEspace', { espace }) : t('partage.lienPourInvites')}</small>
+      {copie === false && <input className="champ" readOnly aria-label={t('partage.adresseToile')} value={adresse} onFocus={(e) => e.target.select()} />}
+    </div>
+  )
+}
+
+/** Ce qu'on peut choisir dans les propositions du champ : une personne de l'entreprise, ou une équipe. */
+type Proposition = { genre: 'personne'; personne: PersonneProposee } | { genre: 'equipe'; id: string; nom: string; espace: string }
+
+const cleDe = (p: Proposition) => (p.genre === 'personne' ? `p:${p.personne.id}` : `e:${p.id}`)
+const nomDe = (p: Proposition) => (p.genre === 'personne' ? p.personne.nom : p.nom)
+
+/** Une proposition sous le champ : la pastille, le nom, l'adresse et l'espace ; l'accès qu'elle a déjà, à droite. */
+function LigneProposition({ p }: { p: Proposition }) {
+  if (p.genre === 'equipe') {
+    return (
+      <>
+        <PastilleAcces nom={p.nom} icone="equipe" />
+        <span className="partage-qui">
+          <strong>{p.nom}</strong>
+          <small>{[t('partage.equipe'), p.espace].join(' · ')}</small>
+        </span>
+      </>
+    )
+  }
+  const { personne: q } = p
+  return (
+    <>
+      <PastilleAcces nom={q.nom} photo={q.photo} couleur={q.couleur} />
+      <span className="partage-qui">
+        <strong>{q.nom}</strong>
+        <small>{[q.email, q.invite ? t('partage.inviteEspace', { espace: q.espace }) : q.espace].join(' · ')}</small>
+      </span>
+      {q.acces && <span className="partage-role">{t('partage.aDejaAcces', { role: LIBELLE_ROLE[q.acces]().toLocaleLowerCase(langue()) })}</span>}
+    </>
+  )
+}
+
+/**
+ * Inviter quelqu'un, comme dans le « Partager » de Notion ou de Drive : on tape un nom, et les membres des espaces
+ * d'équipe viennent, avec leur photo, sans qu'il faille connaître leur adresse ; les équipes aussi. Une adresse tapée en
+ * entier invite qui n'est pas de l'entreprise. Puis le rôle, et une durée si l'accès ne doit pas durer.
+ */
 function Inviter({ tableau, apres }: { tableau: string; apres(): void }) {
-  const [email, setEmail] = useState('')
+  const [saisie, setSaisie] = useState('')
+  const [choisi, setChoisi] = useState<Proposition | null>(null)
   const [role, setRole] = useState<RoleDonne>('edition')
   const [expire, setExpire] = useState<number | null>(null)
-  // À qui : une adresse (`''`) ou une équipe (son identifiant).
-  const [equipe, setEquipe] = useState('')
   const [equipes, setEquipes] = useState<(EquipeEspace & { espace: string })[]>([])
+  const [personnes, setPersonnes] = useState<PersonneProposee[]>([])
+  const [liste, setListe] = useState(false)
+  const [actif, setActif] = useState(0)
   const [occupe, setOccupe] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
   const [suite, setSuite] = useState<Suite | null>(null)
+  const champ = useRef<HTMLInputElement>(null)
+  const idListe = useId()
   useEffect(() => {
     void equipesPossibles().then(setEquipes, () => {})
   }, [])
+  // Le serveur cherche à chaque frappe, un instant après la dernière : seule la réponse à la saisie présente compte.
+  useEffect(() => {
+    if (choisi) return
+    let vivant = true
+    const minuteur = setTimeout(
+      () => proposerPersonnes(tableau, saisie.trim()).then((p) => vivant && setPersonnes(p), () => vivant && setPersonnes([])),
+      saisie ? 120 : 0,
+    )
+    return () => {
+      vivant = false
+      clearTimeout(minuteur)
+    }
+  }, [tableau, saisie, choisi])
+
+  const q = pourChercher(saisie.trim())
+  const propositions: Proposition[] = [
+    ...personnes.map((personne) => ({ genre: 'personne' as const, personne })),
+    ...equipes.filter((e) => !q || pourChercher(e.name).includes(q)).map((e) => ({ genre: 'equipe' as const, id: e.id, nom: e.name, espace: e.espace })),
+  ]
+  const montrer = liste && !choisi && propositions.length > 0
+  const rang = Math.max(0, Math.min(actif, propositions.length - 1))
+
+  const choisir = (p: Proposition) => {
+    setChoisi(p)
+    setSaisie('')
+    setListe(false)
+    setErreur(null)
+    champ.current?.focus()
+  }
+  const touche = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (!montrer) return setListe(true)
+      setActif((rang + (e.key === 'ArrowDown' ? 1 : -1) + propositions.length) % propositions.length)
+    } else if (e.key === 'Enter' && montrer) {
+      // Entrée prend la proposition en vue ; une seconde Entrée invite.
+      e.preventDefault()
+      choisir(propositions[rang]!)
+    } else if (e.key === 'Escape' && montrer) {
+      // Échap referme d'abord la liste, sans refermer le panneau.
+      e.preventDefault()
+      e.stopPropagation()
+      setListe(false)
+    } else if (e.key === 'Backspace' && !saisie && choisi) setChoisi(null)
+  }
 
   const envoyer = (e: FormEvent) => {
     e.preventDefault()
-    const adresse = email.trim().toLowerCase()
-    if (!equipe && !/^[^\s@]+@[^\s@]+$/.test(adresse)) return setErreur(t('connexion.adresseInvalide'))
+    const adresse = choisi?.genre === 'personne' ? choisi.personne.email : saisie.trim().toLowerCase()
+    if (choisi?.genre !== 'equipe' && !/^[^\s@]+@[^\s@]+$/.test(adresse)) return setErreur(t(saisie.includes('@') ? 'connexion.adresseInvalide' : 'partage.choisirOuAdresse'))
     setErreur(null)
     setSuite(null)
     setOccupe(true)
-    partager(tableau, equipe ? { equipe } : { email: adresse }, role, expire).then(
+    partager(tableau, choisi?.genre === 'equipe' ? { equipe: choisi.id } : { email: adresse }, role, expire).then(
       (r) => {
         setOccupe(false)
-        if (!equipe) setEmail('')
+        setChoisi(null)
+        setSaisie('')
         if (r.enAttente) setSuite({ email: adresse, ...r })
         apres()
       },
@@ -288,24 +526,66 @@ function Inviter({ tableau, apres }: { tableau: string; apres(): void }) {
 
   return (
     <form className="partage-form" onSubmit={envoyer} noValidate>
-      {equipes.length > 0 && (
-        <select className="partage-cible" value={equipe} aria-label={t('partage.aQui')} onChange={(e) => setEquipe(e.target.value)}>
-          <option value="">{t('partage.uneAdresse')}</option>
-          {equipes.map((q) => (
-            <option key={q.id} value={q.id}>
-              {q.name} · {q.espace}
-            </option>
-          ))}
-        </select>
-      )}
       <div className="partage-form-ligne">
-        {!equipe && (
-          <input type="email" placeholder={t('connexion.adresse')} aria-label={t('partage.adresseInviter')} value={email} onChange={(e) => setEmail(e.target.value)} />
-        )}
-        <button type="submit" className="bouton bouton-plein" disabled={occupe || (!equipe && !email.trim())}>
+        <div className="partage-inviter" onClick={() => champ.current?.focus()}>
+          {choisi && (
+            <span className="partage-choisi">
+              {choisi.genre === 'personne' ? (
+                <PastilleAcces nom={choisi.personne.nom} photo={choisi.personne.photo} couleur={choisi.personne.couleur} />
+              ) : (
+                <PastilleAcces nom={choisi.nom} icone="equipe" />
+              )}
+              <span>{nomDe(choisi)}</span>
+              <button type="button" className="app-icone-bouton" aria-label={`${t('partage.retirer')} ${nomDe(choisi)}`} onClick={() => setChoisi(null)}>
+                <Icone nom="fermer" taille={14} />
+              </button>
+            </span>
+          )}
+          <input
+            ref={champ}
+            role="combobox"
+            aria-expanded={montrer}
+            aria-controls={idListe}
+            aria-autocomplete="list"
+            aria-activedescendant={montrer ? `${idListe}-${rang}` : undefined}
+            autoComplete="off"
+            placeholder={choisi ? '' : t('partage.chercherPersonne')}
+            aria-label={t('partage.adresseInviter')}
+            value={saisie}
+            onChange={(e) => {
+              setSaisie(e.target.value)
+              setChoisi(null)
+              setActif(0)
+              setListe(true)
+            }}
+            onFocus={() => setListe(true)}
+            onBlur={() => setListe(false)}
+            onKeyDown={touche}
+          />
+        </div>
+        <button type="submit" className="bouton bouton-plein" disabled={occupe || (!choisi && !saisie.trim())}>
           {t('partage.inviter')}
         </button>
       </div>
+      {/* Sous le champ, dans le panneau : une liste posée par-dessus serait coupée par son défilement. */}
+      {montrer && (
+        <ul id={idListe} role="listbox" className="partage-propositions" aria-label={t('partage.propositions')}>
+          {propositions.map((p, i) => (
+            <li
+              key={cleDe(p)}
+              id={`${idListe}-${i}`}
+              role="option"
+              aria-selected={i === rang}
+              // Un appui ne retire pas le focus au champ : la liste reste là le temps du clic.
+              onMouseDown={(e) => e.preventDefault()}
+              onPointerEnter={() => setActif(i)}
+              onClick={() => choisir(p)}
+            >
+              <LigneProposition p={p} />
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="partage-form-ligne partage-form-reglages">
         <select value={role} aria-label={t('partage.droit')} onChange={(e) => setRole(e.target.value as RoleDonne)}>
           <option value="edition">{t('partage.edition')}</option>
@@ -379,11 +659,12 @@ function Personnes({ tableau, moi, acces, proprietaire, recharger }: { tableau: 
             a.utilisateur === moi.id ? t('partage.vous') : a.equipe ? t('partage.equipe') : a.nom && a.email ? a.email : '',
             a.enAttente ? (a.invitation?.valable === false ? t('partage.invitationExpiree') : t('partage.invitationEnAttente')) : '',
             a.herite ? t('partage.parent') : '',
+            a.parEspace ? t('partage.plusParLEspace', { role: LIBELLE_ROLE[a.parEspace]().toLocaleLowerCase(langue()) }) : '',
             a.expire ? echeanceLisible(a.expire) : '',
           ].filter(Boolean)
           return (
             <li key={cle(a)} className={a.enAttente ? 'partage-attente' : undefined}>
-              <PastilleAcces nom={nom} icone={a.equipe ? 'equipe' : undefined} />
+              <PastilleAcces nom={nom} icone={a.equipe ? 'equipe' : undefined} photo={a.photo} couleur={a.couleur} />
               <span className="partage-qui">
                 <strong>{nom}</strong>
                 {detail.length > 0 && <small>{detail.join(' · ')}</small>}
@@ -744,15 +1025,23 @@ function ReglagesLien({
 
 /**
  * « Protéger par mot de passe » : le tableau (et ce qu'il contient) ne s'ouvre plus, pour les autres comptes, qu'avec
- * ce mot de passe. Celui qui le pose n'a pas à le redonner sur cet appareil.
+ * ce mot de passe. Celui qui le pose n'a pas à le redonner sur cet appareil. Un dossier qu'un outil rattaché a généré
+ * garde le sien tel quel (l'outil l'ouvre) : ses gestes restent là, éteints, sous l'avis qui dit pourquoi.
  */
 function MotDePasse({ tableau }: { tableau: string }) {
   const [protege, setProtege] = useState<boolean | undefined>(undefined)
+  const [genere, setGenere] = useState<EtatVerrou['genere']>(undefined)
   const [saisie, setSaisie] = useState('')
   const [erreur, setErreur] = useState<string | null>(null)
   const [occupe, setOccupe] = useState(false)
   useEffect(() => {
-    etatVerrou(tableau).then((e) => setProtege(e.protege), (x: Error) => setErreur(x.message))
+    etatVerrou(tableau).then(
+      (e) => {
+        setProtege(e.protege)
+        setGenere(e.genere)
+      },
+      (x: Error) => setErreur(x.message),
+    )
   }, [tableau])
 
   const agir = async (f: () => Promise<boolean>) => {
@@ -769,6 +1058,7 @@ function MotDePasse({ tableau }: { tableau: string }) {
   }
   const poser = (e: FormEvent) => {
     e.preventDefault()
+    if (genere) return
     if (saisie.length < 6) return setErreur(t('partage.mdp6'))
     void agir(async () => (await poserMotDePasse(tableau, saisie), true))
   }
@@ -782,6 +1072,7 @@ function MotDePasse({ tableau }: { tableau: string }) {
       ) : (
         <>
           <span className="partage-note">{protege ? t('partage.mdpActif') : t('partage.mdpInactif')}</span>
+          {genere && <span className="partage-note">{tn('biblio.genere.reste', 1, { titre: genere.titre || t('commun.sansTitre'), outil: genere.outil })}</span>}
           <form className="partage-lien-ligne" onSubmit={poser} noValidate>
             <input
               type="password"
@@ -789,14 +1080,15 @@ function MotDePasse({ tableau }: { tableau: string }) {
               aria-label={protege ? t('partage.nouveauMdpTableau') : t('partage.mdpTableau')}
               placeholder={protege ? t('partage.nouveauMdp') : t('connexion.mdp')}
               value={saisie}
+              disabled={!!genere}
               onChange={(e) => setSaisie(e.target.value)}
             />
-            <button type="submit" className="bouton" disabled={occupe || !saisie}>
+            <button type="submit" className="bouton" disabled={occupe || !!genere || !saisie}>
               {protege ? t('partage.changer') : t('partage.proteger')}
             </button>
           </form>
           {protege && (
-            <button type="button" className="bouton-lien" disabled={occupe} onClick={() => agir(async () => (await retirerMotDePasse(tableau), false))}>
+            <button type="button" className="bouton-lien" disabled={occupe || !!genere} onClick={() => agir(async () => (await retirerMotDePasse(tableau), false))}>
               {t('partage.retirerMdp')}
             </button>
           )}

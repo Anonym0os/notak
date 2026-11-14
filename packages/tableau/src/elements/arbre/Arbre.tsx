@@ -50,6 +50,7 @@ import { Recherche, correspondances } from './Recherche'
 import { courbeRelation } from './trace/relations'
 import { adresseSure } from '../lien/adresse'
 import { ouvrirDehors } from '../fichier/ouverture'
+import { lettreDe } from '../../touches'
 
 const tailleEquation = (latex: string) => {
   const { l, h } = equation(latex)
@@ -478,7 +479,8 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
         return true
       }
     }
-    // Cmd+C, Cmd+X, Cmd+V, Cmd+A : copier, couper, coller des branches, tout choisir ; Alt+Cmd+Z : une zone.
+    // Cmd+C, Cmd+X, Cmd+V, Cmd+A : copier, couper, coller des branches, tout choisir ; Alt+Cmd+Z : une zone. Sous Alt,
+    // la lettre se lit telle qu'elle est marquée (`lettreDe`) : en AZERTY, Z et M ne sont pas à leur place QWERTY.
     if ((e.metaKey || e.ctrlKey) && !e.shiftKey) {
       const k = e.key.toLowerCase()
       if (!e.altKey && (k === 'c' || k === 'x') && !dansLePlan) {
@@ -496,13 +498,13 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
         setSelection(new Set(choisirParGenre(vue, lecture, null, 'tout')))
         return true
       }
-      if (e.altKey && (e as unknown as KeyboardEvent).code === 'KeyZ' && !lectureSeule) {
+      if (e.altKey && lettreDe(e) === 'z' && !lectureSeule) {
         e.preventDefault()
         creerZone()
         return true
       }
       // Alt+Cmd+M : commenter le sujet choisi.
-      if (e.altKey && (e as unknown as KeyboardEvent).code === 'KeyM' && (!lectureSeule || commentateur) && !dansLePlan && sujetsChoisis.length <= 1) {
+      if (e.altKey && lettreDe(e) === 'm' && (!lectureSeule || commentateur) && !dansLePlan && sujetsChoisis.length <= 1) {
         e.preventDefault()
         hote.commenter(courant)
         return true

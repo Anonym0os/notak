@@ -54,8 +54,8 @@ export function OutilTexte({ icone, libelle, raccourci, actif, grise, onClick, e
 
 /**
  * Les outils de texte d'une note en édition, dans la barre de gauche : la flèche retour en haut, puis « Style de
- * texte » (le seul avec son nom) et les marques, dans l'ordre de Milanote. Ils ne prennent jamais le focus à l'éditeur.
- * Retrait et « Insérer » n'y sont pas ; leurs raccourcis clavier restent.
+ * texte » (le seul avec un mot sous l'icône) et les marques, dans l'ordre de Milanote. Ils ne prennent jamais le focus à
+ * l'éditeur. Retrait et « Insérer » n'y sont pas ; leurs raccourcis clavier restent.
  */
 export function OutilsTexteGauche({ editor, lien, surLien, commenter, finir, variante = 'note' }: Props) {
   const legende = variante === 'legende'
@@ -131,12 +131,14 @@ export function OutilsTexteGauche({ editor, lien, surLien, commenter, finir, var
   const { ranges } = useRepli(barre, entrees, fixeTexte)
   const rangeStyle = ranges.has('style')
   const rangesOutils = outils.filter((o) => ranges.has(o.id))
+  // Sous l'icône, un mot court qui tient dans la tuile (« Style de texte » s'y resserrait à 10 px, comme le mot sous
+  // chaque outil de la barre de gauche, `Outil.etiquette`) ; le nom entier reste dans l'infobulle et pour qui lit à haute voix.
   const style = (
     <div className="notak-note-menu-ancre" ref={ancreMenu}>
       <Infobulle libelle={t('barre.styleTexte')} cote="droite" contenu>
         <button type="button" className="notak-outil notak-outil-selection" data-genre="tuile" aria-label={t('barre.styleTexte')} aria-expanded={menu} onClick={() => setMenu(!menu)}>
           <span className="notak-outil-icone"><Icone nom="texte" taille={24} /></span>
-          <span className="notak-outil-libelle">{t('barre.styleTexte')}</span>
+          <span className="notak-outil-libelle">{t('barre.styleTexte.court')}</span>
         </button>
       </Infobulle>
       {menu && <MenuStyle editor={editor} etat={etat} sansBlocs={legende} />}

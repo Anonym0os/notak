@@ -1,4 +1,5 @@
 import { point } from '../coeur/geometrie'
+import { lettreDe } from '../touches'
 import { definition } from './registre'
 import type { ContexteToile, Outil } from './types'
 
@@ -7,9 +8,9 @@ const surMac = () => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(
 /** Les touches qui créent un élément au clavier, pour l'infobulle de l'outil : ⌃⌘ + lettre sur Mac, Ctrl+Alt+ ailleurs. */
 export const touchesCreation = (lettre: string) => (surMac() ? `⌃⌘${lettre}` : `Ctrl+Alt+${lettre}`)
 
-/** Cet évènement est-il le raccourci de création de la lettre `lettre` ? */
+/** Cet évènement est-il le raccourci de création de la lettre `lettre`, telle qu'elle est marquée sur le clavier ? */
 export function estCreation(e: KeyboardEvent, lettre: string): boolean {
-  if (e.code !== `Key${lettre}` || e.shiftKey) return false
+  if (lettreDe(e) !== lettre.toLowerCase() || e.shiftKey) return false
   return surMac() ? e.ctrlKey && e.metaKey && !e.altKey : e.ctrlKey && e.altKey && !e.metaKey
 }
 

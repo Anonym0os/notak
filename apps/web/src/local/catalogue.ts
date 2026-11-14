@@ -1,4 +1,4 @@
-import { type Id, type ResumeContenu, type SuiviTableaux, lireTableau, resumesDuTableau, texteCherchableLu } from '@notak/tableau'
+import { type ElementLu, type Id, type ResumeContenu, type SuiviTableaux, type Trace, lireTableau, resumesDuTableau, texteCherchableLu } from '@notak/tableau'
 import type * as Y from 'yjs'
 
 /**
@@ -14,6 +14,11 @@ export interface FicheToile {
   id: Id
   version: number
   resumes: ResumeContenu[]
+  /**
+   * Le dernier geste de la personne (ms) sur chaque élément qui a un résumé, et sur la toile (clé vide) : ce qui range
+   * les récents avec ce qu'elle a ouvert (`gestesDe`).
+   */
+  gestes?: Record<string, number>
   /** Quand elle a été lue (ms). */
   lue: number
 }
@@ -25,8 +30,8 @@ export interface TextesToile {
   elements: [element: Id, texte: string][]
 }
 
-/** Le format des fiches : à changer quand `resumesDuTableau` rend autre chose, pour que tout se relise. */
-export const VERSION_FICHE = 3
+/** Le format des fiches : à changer quand elles disent autre chose (`resumesDuTableau`, `gestesDe`), pour que tout se relise. */
+export const VERSION_FICHE = 5
 const BASE = 'notak:local:catalogue'
 /** Les toiles changées et pas encore relues : retenues tout de suite, pour qu'un arrêt brutal ne les perde pas. */
 const CLE_A_RELIRE = 'notak:local:catalogue:a-relire'
@@ -73,8 +78,44 @@ const ecrireARelire = (ids: Set<Id>) => {
   }
 }
 
-/** Ce que dit une toile, lue dans son document : sa fiche et ses textes. */
-export function lireFiche(id: Id, doc: Y.Doc, titreDe: (id: Id) => string | undefined, maintenant = Date.now()): { fiche: FicheToile; textes: TextesToile } {
+/** Le dernier geste de `moi` que retient la trace d'un élément (ms) : son dernier changement s'il est de lui, sinon sa création. */
+function dernierGeste(trace: unknown, moi: Id): number | undefined {
+  if (!trace || typeof trace !== 'object') return undefined
+  const { par, cree, modifiePar, modifie } = trace as Trace
+  if (modifiePar?.id === moi && typeof modifie === 'number') return modifie
+  if (par?.id === moi && typeof cree === 'number') return cree
+  return undefined
+}
+
+/**
+ * Ce que la personne a ajouté, changé, déplacé ou remis sur la toile, et quand (ms), d'après les traces que chaque
+ * geste y laisse (`magasinYjs.ts`) : sur chaque élément de `suivis`, et sur la toile (clé vide), de tout geste sur ce
+ * qu'elle porte hors la carte d'une autre toile (y ranger un dossier, ce n'est pas y travailler). Comme sur un serveur,
+ * ce qu'on a jeté ne compte pas : un élément à la corbeille n'y est pas.
+ */
+export function gestesDe(doc: Y.Doc, elements: readonly ElementLu[], moi: Id, suivis: ReadonlySet<Id>): Record<string, number> {
+  const traces = doc.getMap<unknown>('traces')
+  const gestes: Record<string, number> = {}
+  for (const e of elements) {
+    if (e.corbeille !== undefined) continue
+    const quand = dernierGeste(traces.get(e.id), moi)
+    if (quand === undefined) continue
+    if (suivis.has(e.id)) gestes[e.id] = quand
+    if (e.contenu.type !== 'tableau') gestes[''] = Math.max(gestes[''] ?? 0, quand)
+  }
+  return gestes
+}
+
+/**
+ * Ce que dit une toile, lue dans son document : sa fiche et ses textes. `moi` : la personne dont les gestes rangent les
+ * récents ; sans elle, la fiche n'en dit rien.
+ */
+export function lireFiche(
+  id: Id,
+  doc: Y.Doc,
+  titreDe: (id: Id) => string | undefined,
+  { moi, maintenant = Date.now() }: { moi?: Id; maintenant?: number } = {},
+): { fiche: FicheToile; textes: TextesToile } {
   const lu = lireTableau(doc)
   const elements: [Id, string][] = []
   for (const e of lu.elements) {
@@ -82,14 +123,20 @@ export function lireFiche(id: Id, doc: Y.Doc, titreDe: (id: Id) => string | unde
     const texte = texteCherchableLu(e, titreDe).trim()
     if (texte) elements.push([e.id, texte])
   }
-  return { fiche: { id, version: VERSION_FICHE, resumes: resumesDuTableau(lu), lue: maintenant }, textes: { id, titre: lu.titre, elements } }
+  const resumes = resumesDuTableau(lu)
+  const gestes = moi === undefined ? {} : gestesDe(doc, lu.elements, moi, new Set(resumes.map((r) => r.element)))
+  return {
+    fiche: { id, version: VERSION_FICHE, resumes, ...(Object.keys(gestes).length ? { gestes } : {}), lue: maintenant },
+    textes: { id, titre: lu.titre, elements },
+  }
 }
 
 /**
  * Le catalogue d'un espace local. `titreDe` donne le titre d'une toile (le texte de sa carte, pour la recherche) ;
- * `base` change le nom de la base (les essais en ont une chacun).
+ * `moi`, la personne de l'espace, dont les gestes comptent parmi les récents ; `base` change le nom de la base (les
+ * essais en ont une chacun).
  */
-export function creerCatalogue({ titreDe, base = BASE }: { titreDe: (id: Id) => string | undefined; base?: string }): CatalogueLocal {
+export function creerCatalogue({ titreDe, moi, base = BASE }: { titreDe: (id: Id) => string | undefined; moi?: Id; base?: string }): CatalogueLocal {
   const db = typeof indexedDB === 'undefined' ? Promise.reject(new Error('IndexedDB')) : ouvrirBase(base)
   // Sans IndexedDB (une navigation privée qui le refuse), le catalogue reste vide : la bibliothèque lit les toiles.
   db.catch(() => {})
@@ -117,7 +164,7 @@ export function creerCatalogue({ titreDe, base = BASE }: { titreDe: (id: Id) => 
   }
 
   const garder = async (id: Id, doc: Y.Doc) => {
-    const { fiche, textes } = lireFiche(id, doc, titreDe)
+    const { fiche, textes } = lireFiche(id, doc, titreDe, { moi })
     await transaction(['fiches', 'textes'], 'readwrite', (t) => {
       t.objectStore('fiches').put(fiche)
       t.objectStore('textes').put(textes)

@@ -152,6 +152,20 @@ export interface NouvelleNotification {
   instant: number
 }
 
+/**
+ * Un message tel que l'activité et les notifications l'ont cité : leurs lignes ne gardent pas son identifiant, il s'y
+ * reconnaît à son fil, à son auteur et à son texte, coupé comme chacune le coupe.
+ */
+export interface Citation {
+  /** Le fil. */
+  element: string
+  auteur: string
+  /** Comme une ligne d'activité le cite. */
+  libelle: string
+  /** Comme une notification le cite. */
+  extrait: string
+}
+
 export interface LigneNotification extends Omit<NouvelleNotification, 'auteur' | 'destinataire'> {
   id: number
   auteur: { id: string; nom: string; couleur: string }
@@ -376,8 +390,19 @@ export interface Base {
   /** Les notifications d'un compte, la plus récente d'abord. */
   notifications(destinataire: string, limite: number): LigneNotification[]
   nonLues(destinataire: string): number
+  /** Le tableau et l'élément de chaque notification non lue (mille au plus) : le compte n'en garde que ce qu'il lit. */
+  nonLuesDe(destinataire: string): { tableau: string; element: string }[]
   /** Marque comme lues ces notifications de ce compte, ou toutes si `ids` est `null` ; rend leur nombre. */
   marquerLues(destinataire: string, ids: readonly number[] | null): number
+  /**
+   * Un message n'est plus (supprimé, ou parti avec son fil) : son texte ne doit plus se lire ailleurs. La ligne
+   * d'activité qui le citait garde le geste, sans le texte. Les notifications qui le citaient, lues ou non, sont
+   * retirées, comme chez Notion et Slack, où l'on ne trouve plus trace d'un message supprimé : y laisser « message
+   * supprimé » ferait sonner la cloche pour rien, et montrerait qu'on a retiré quelque chose.
+   */
+  retirerCitation(tableau: string, c: Citation): void
+  /** Un message récrit : ce qui le citait le cite dans sa nouvelle version. */
+  remplacerCitation(tableau: string, c: Citation, nouvelle: Pick<Citation, 'libelle' | 'extrait'>): void
 
   /**
    * Remplace tout ce qu'on sait chercher dans ce tableau (`element` vide : le titre du tableau), et la liste des
@@ -1108,6 +1133,8 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
       })),
     nonLues: (destinataire) =>
       Number(un('SELECT COUNT(*) AS n FROM notifications WHERE destinataire = ? AND lu = 0', destinataire)?.n ?? 0),
+    nonLuesDe: (destinataire) =>
+      tous('SELECT tableau, element FROM notifications WHERE destinataire = ? AND lu = 0 ORDER BY id DESC LIMIT 1000', destinataire) as unknown as { tableau: string; element: string }[],
     marquerLues(destinataire, ids) {
       if (ids === null) return Number(executer('UPDATE notifications SET lu = 1 WHERE destinataire = ? AND lu = 0', destinataire).changes)
       return Number(
@@ -1116,6 +1143,41 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
           destinataire,
           JSON.stringify(ids),
         ).changes,
+      )
+    },
+    // Seules ces lignes citent un message : `commente` dans l'activité, `commentaire` et `mention` dans les notifications.
+    retirerCitation(tableau, c) {
+      executer(
+        "UPDATE activite SET libelle = '' WHERE tableau = ? AND element = ? AND auteur = ? AND genre = 'commente' AND libelle = ?",
+        tableau,
+        c.element,
+        c.auteur,
+        c.libelle,
+      )
+      executer(
+        "DELETE FROM notifications WHERE tableau = ? AND element = ? AND auteur = ? AND genre IN ('commentaire', 'mention') AND extrait = ?",
+        tableau,
+        c.element,
+        c.auteur,
+        c.extrait,
+      )
+    },
+    remplacerCitation(tableau, c, nouvelle) {
+      executer(
+        "UPDATE activite SET libelle = ? WHERE tableau = ? AND element = ? AND auteur = ? AND genre = 'commente' AND libelle = ?",
+        nouvelle.libelle,
+        tableau,
+        c.element,
+        c.auteur,
+        c.libelle,
+      )
+      executer(
+        "UPDATE notifications SET extrait = ? WHERE tableau = ? AND element = ? AND auteur = ? AND genre IN ('commentaire', 'mention') AND extrait = ?",
+        nouvelle.extrait,
+        tableau,
+        c.element,
+        c.auteur,
+        c.extrait,
       )
     },
   }

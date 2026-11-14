@@ -24,7 +24,7 @@ import { type Hauteur, hauteurTiree, memeHauteur } from './coeur/hauteur'
 import { CANEVAS, type Fond, NOMS_CANEVAS, estLibre, estNomme, estSombre, fondParDefaut, fondRange, pointsAllumes } from './coeur/fond'
 import { creerLimiteur } from './coeur/limiteur'
 import { type Magasin, enLectureSeule, sansCorbeille } from './coeur/magasin'
-import { aFiltrer, filtrerMagasin, peutCommenter } from './coeur/droitsElements'
+import { aFiltrer, filtrerMagasin, garderLesGeneres, peutCommenter, peutSupprimerMessage, sansCaches } from './coeur/droitsElements'
 import { largeurDoubleClic, largeurMinDe, largeurTiree } from './coeur/largeur'
 import { type Cible, type Deplace, cleEntre, clesEntre, comparerOrdre, indexInsertion, pasDeDepot } from './coeur/ordre'
 import { cliquer, lasso } from './coeur/selection'
@@ -63,6 +63,7 @@ import {
 import './elements'
 import { definition, marquerDepot, tousLesCollages, tousLesRaccourcis, tousLesRecepteurs, tousLesTypes, toutesLesEntreesMenu } from './elements/registre'
 import { demanderRenommage } from './elements/tableau/renommage'
+import { avecAvis, avisGeneres, retenus, sansGeneres } from './elements/tableau/generes'
 import { figerDepot, glisseUneImage, libererDepot, survolerImage } from './elements/image/survolDepot'
 import { GardeElement } from './garde'
 import type { ContexteToile, Presence, Services } from './elements/types'
@@ -76,6 +77,7 @@ import type { CibleBord } from './coeur/pointeurs'
 import { lignesDeTrace } from './trace'
 import { personneAJour } from './personne'
 import { usePublierVue } from './vueZoom'
+import { chiffreDe, lettreDe, parAltGr, signeParmi } from './touches'
 
 type Geste =
   | {
@@ -477,16 +479,24 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   // Un commentateur, ou des éléments à droits propres : seuls passent les gestes permis (le serveur annulerait les
   // autres). Sinon, en lecture seule, rien ne passe.
   const filtre = aFiltrer(services.droits) && !services.presentation && !services.apercuModele
+  // La carte d'un dossier qu'un outil rattaché a généré ne fait que bouger sur sa toile : ce qui la changerait, la
+  // jetterait ou la doublerait n'y passe pas, et l'avis le dit (`generes.ts`).
+  const gardeGeneres = !!services.droits?.generes && !services.presentation && !services.apercuModele && (filtre || !lectureSeule)
+  const avisDesGeneres = (dossiers: readonly Id[]) => avisGeneres(dossiers, droitsActuels.current?.generes, (id) => etat.current.services.tableau?.(id)?.titre)
+  // Les cartes des toiles que ce compte ne lit pas (une toile privée où il n'est pas invité) : le serveur les nomme, la
+  // toile ne les montre nulle part, corbeille et non triés compris.
+  const caches = services.droits?.caches?.join('\u0000') ?? ''
+  const visible = useMemo(() => (caches ? sansCaches(source, new Set(caches.split('\u0000'))) : source), [source, caches])
   // Tout le tableau, corbeille comprise ; la toile, elle, ne voit pas la corbeille.
-  const complet = useMemo(
-    () =>
-      filtre
-        ? filtrerMagasin(source, () => droitsActuels.current!, () => auteurActuel.current?.moi?.()?.id ?? '')
-        : lectureSeule
-          ? enLectureSeule(source)
-          : source,
-    [source, lectureSeule, filtre],
-  )
+  const complet = useMemo(() => {
+    const m = filtre
+      ? filtrerMagasin(visible, () => droitsActuels.current!, () => auteurActuel.current?.moi?.()?.id ?? '')
+      : lectureSeule
+        ? enLectureSeule(visible)
+        : visible
+    // `avisDesGeneres` lit l'état courant au moment du refus : il n'a pas à refaire le magasin.
+    return gardeGeneres ? garderLesGeneres(m, () => droitsActuels.current?.generes, (dossiers) => annoncer({ texte: avisDesGeneres(dossiers) })) : m
+  }, [visible, lectureSeule, filtre, gardeGeneres])
   const magasin = useMemo(() => sansCorbeille(complet), [complet])
   const toutLeTableau = useSyncExternalStore(complet.ecouter, complet.lire)
   const corbeille = useMemo(() => aLaCorbeille(toutLeTableau), [toutLeTableau])
@@ -624,9 +634,25 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const [rebond, setRebond] = useState<{ libelle: string; n: number; texte?: 'barre.cliquer' } | null>(null)
   /** La dépose qui s'anime encore : un nouveau geste l'arrête net. */
   const depose = useRef<{ envol: Envol; ids: Id[] } | null>(null)
+  // La couleur et le nom d'une toile vivent dans son document : la carte d'un dossier généré ne les y change pas non
+  // plus, et le dit. Les cartes lisent ces services-ci par le contexte.
+  const servicesDesCartes = useMemo((): Services => {
+    const { colorerTableau, renommerTableau } = services
+    // Les droits et l'avis se lisent au moment du geste : arrivés après, ils comptent aussi.
+    const refuse = (id: Id) => {
+      if (droitsActuels.current?.generes?.[id] === undefined) return false
+      annoncer({ texte: avisDesGeneres([id]) })
+      return true
+    }
+    return {
+      ...services,
+      ...(colorerTableau ? { colorerTableau: (id: Id, couleur: Parameters<typeof colorerTableau>[1]) => void (refuse(id) || colorerTableau(id, couleur)) } : {}),
+      ...(renommerTableau ? { renommerTableau: (id: Id, titre: string) => void (refuse(id) || renommerTableau(id, titre)) } : {}),
+    }
+  }, [services])
   // Les gestionnaires natifs (molette, collage, animation) et le contexte lisent l'état courant ici.
-  const etat = useRef({ camera, vue, tableau, selection, edition, magasin, services })
-  etat.current = { camera, vue, tableau, selection, edition, magasin, services }
+  const etat = useRef({ camera, vue, tableau, selection, edition, magasin, services: servicesDesCartes })
+  etat.current = { camera, vue, tableau, selection, edition, magasin, services: servicesDesCartes }
 
   /*
    * Tirer ou pincer la toile au doigt arrive à 120 images par seconde sur un iPhone : rendre toute la toile à chaque
@@ -964,8 +990,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const contexteRef = useRef<ContexteToile | null>(null)
 
   /**
-   * Sort ces éléments de la toile, d'un seul pas, vers la corbeille ou les non triés. Un élément verrouillé reste ;
-   * une colonne garde son contenu ; les lignes accrochées partent à la corbeille avec, mais pas dans les non triés.
+   * Sort ces éléments de la toile, d'un seul pas, vers la corbeille ou les non triés. Un élément verrouillé reste, la
+   * carte d'un dossier généré aussi (et la colonne qui la range), l'avis le disant ; une colonne garde son contenu ; les
+   * lignes accrochées partent à la corbeille avec, mais pas dans les non triés.
    */
   const ecarter = useCallback(
     (ids: Iterable<Id>, vers: 'corbeille' | 'nonTrie') => {
@@ -973,7 +1000,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const m = etat.current.magasin
       const tab = m.lire()
       const voulus = new Set(ids)
-      const choisis = tab.elements.filter((e) => voulus.has(e.id) && !e.verrou)
+      const gardes = retenus(tab.elements, voulus, etat.current.services.droits?.generes)
+      const avis = avisDesGeneres(gardes.dossiers)
+      const choisis = tab.elements.filter((e) => voulus.has(e.id) && !e.verrou && !gardes.ids.has(e.id))
       const partants = vers === 'corbeille' ? avecLiees(choisis, tab) : choisis.filter((e) => definition(e.contenu.type)?.calque !== 'lignes')
       const dedans = new Set(partants.map((e) => e.id))
       const date = Date.now()
@@ -984,14 +1013,14 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           const [x, y] = r ? aimanter(r.min) : [e.x, e.y]
           return { type: 'ranger', id: e.id, de: placeDe(e), vers: { x, y, [vers]: date } }
         })
-      if (pas.length === 0) return
+      if (pas.length === 0) {
+        if (avis) annoncer({ texte: avis })
+        return
+      }
       m.faire(pas)
       const n = pas.length
       annoncer({
-        texte:
-          vers === 'corbeille'
-            ? tn('toile.misCorbeille', n)
-            : tn('toile.misNonTries', n),
+        texte: avecAvis(vers === 'corbeille' ? tn('toile.misCorbeille', n) : tn('toile.misNonTries', n), avis),
         // Défaire ce geste-là, même si d'autres l'ont suivi : Cmd+Z, lui, défait le dernier.
         action: { libelle: t('espace.annuler'), faire: () => m.faire(pas.map(inverse).reverse()) },
       })
@@ -1380,11 +1409,18 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
     const copier = (couper: boolean) => (e: ClipboardEvent) => {
       if (!actif() || !e.clipboardData || etat.current.selection.size === 0) return
-      const p = empaqueter(etat.current.magasin.lire(), etat.current.selection, rect)
+      // La carte d'un dossier généré ne se colle pas ailleurs : elle s'y poserait une seconde fois. Coupée, elle reste,
+      // et la colonne qui la range aussi.
+      const tab = etat.current.magasin.lire()
+      const generes = etat.current.services.droits?.generes
+      const coupable = couper && !etat.current.services.lectureSeule
+      const gardes = coupable ? retenus(tab.elements, etat.current.selection, generes) : null
+      const { paquet: p, dossiers } = sansGeneres(empaqueter(tab, [...etat.current.selection].filter((id) => !gardes?.ids.has(id)), rect), generes)
+      const laisses = [...new Set([...(gardes?.dossiers ?? []), ...dossiers])]
+      if (laisses.length > 0) annoncer({ texte: avisDesGeneres(laisses) })
       if (!p) return
       e.preventDefault()
       // Couper ne jette rien : le paquet porte une marque, ce qui est coupé se masque jusqu'au collage.
-      const coupable = couper && !etat.current.services.lectureSeule
       const cle = coupable ? nouvelId() : undefined
       const emporte = cle ? { ...p, coupe: cle } : p
       if (coupe) libererCoupe()
@@ -1503,10 +1539,14 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     return true
   }
 
-  /** Cmd+D : une copie à 2 UG en bas à droite ; dans une colonne, juste après l'original. */
+  /**
+   * Cmd+D : une copie à 2 UG en bas à droite ; dans une colonne, juste après l'original. La carte d'un dossier généré
+   * ne se double pas : elle reste seule, l'avis le disant.
+   */
   const dupliquer = () => {
     const t = magasin.lire()
-    const p = empaqueter(t, selection, rect)
+    const { paquet: p, dossiers } = sansGeneres(empaqueter(t, selection, rect), services.droits?.generes)
+    if (dossiers.length > 0) annoncer({ texte: avisDesGeneres(dossiers) })
     if (!p) return
     const neufs = deballer(p, point(2, 2))
     const originaux = new Map(p.elements.map((e, i) => [neufs[i]!.id, e]))
@@ -1539,15 +1579,21 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     )
     return new Map(p.elements.map((x, i) => [x.id, neufs[i]?.id]))
   }
-  /** Le glisser entre dans le tableau survolé : ce qu'on glisse y part, et le geste reprend dans sa toile. */
+  /**
+   * Le glisser entre dans le tableau survolé : ce qu'on glisse y part, et le geste reprend dans sa toile. La carte d'un
+   * dossier généré n'y part pas : elle revient à sa place, l'avis le disant.
+   */
   const entrerEnGlissant = (id: Id) => {
     oublierEntree()
     const g = geste.current
     const ptr = dernierPointeur.current
     if (g?.type !== 'glisser' || !g.demarre || !ptr || !services.ouvrirTableau) return
+    const gardes = retenus(magasin.lire().elements, g.origines.keys(), services.droits?.generes)
+    if (gardes.ids.size >= g.origines.size) return
+    if (gardes.dossiers.length > 0) annoncer({ texte: avisDesGeneres(gardes.dossiers) })
     const ici = cam.versTableau(camera, local({ clientX: ptr.ecran.x, clientY: ptr.ecran.y }))
     // Ce qu'on glisse, là où on le voit, par rapport au pointeur.
-    const ids = [...g.origines.keys()]
+    const ids = [...g.origines.keys()].filter((x) => !gardes.ids.has(x))
     const decalages = ids.map((x) => {
       const o = g.origines.get(x)!
       return point(o.pos.x + g.d.x - ici.x, o.pos.y + g.d.y - ici.y)
@@ -1679,11 +1725,14 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     setSelection(new Set([id]))
   }
 
+  /** Vide la corbeille, sauf la carte d'un dossier généré que l'outil y a mise (et sa colonne) : c'est à lui de la reprendre. */
   const viderCorbeille = () => {
     const t = complet.lire()
-    const jetes = new Set(aLaCorbeille(t).map((e) => e.id))
+    const gardes = retenus(t.elements, aLaCorbeille(t).map((e) => e.id), services.droits?.generes)
+    const jetes = new Set(aLaCorbeille(t).flatMap((e) => (gardes.ids.has(e.id) ? [] : [e.id])))
     const partants = t.elements.filter((e) => jetes.has(e.id) || (e.parent && jetes.has(e.parent)))
     complet.faire(partants.map((element): Operation => ({ type: 'supprimer', element })))
+    if (gardes.dossiers.length > 0) annoncer({ texte: avisDesGeneres(gardes.dossiers) })
   }
 
   /** Premier plan, arrière-plan : `cran` d'un cran parmi ce qui chevauche, sinon tout devant ou tout derrière. */
@@ -2067,21 +2116,25 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
 
   const choisis = () => tableau.elements.filter((e) => selection.has(e.id))
 
-  const deplacer = (dx: number, dy: number) =>
-    magasin.faire(
-      choisis()
-        .filter(libre)
-        .map((e) => ({ type: 'deplacer', id: e.id, de: [e.x, e.y], vers: [e.x + dx, e.y + dy] })),
-    )
+  // Un élément verrouillé ne bouge par aucun geste, pas plus aux flèches qu'à la souris : dans une sélection mêlée, les
+  // autres se déplacent et lui reste où il est.
+  const deplacer = (dx: number, dy: number) => {
+    const pas: Operation[] = choisis()
+      .filter((e) => libre(e) && !e.verrou)
+      .map((e) => ({ type: 'deplacer', id: e.id, de: [e.x, e.y], vers: [e.x + dx, e.y + dy] }))
+    if (pas.length > 0) magasin.faire(pas)
+  }
 
-  /** Dans une colonne, les flèches font monter ou descendre d'un rang ce qui est choisi. */
+  /** Dans une colonne, les flèches font monter ou descendre d'un rang ce qui est choisi, sauf ce qui est verrouillé. */
   const reordonner = (colonne: Id, sens: -1 | 1) => {
     const freres = tableau.elements.filter((x) => x.parent === colonne).sort((a, b) => comparerOrdre(a.ordre, b.ordre))
-    const choisisIci = freres.filter((x) => selection.has(x.id))
-    const autres = freres.filter((x) => !selection.has(x.id))
+    const bouge = (x: Element) => selection.has(x.id) && !x.verrou
+    const choisisIci = freres.filter(bouge)
+    if (choisisIci.length === 0) return
+    const autres = freres.filter((x) => !bouge(x))
     const premier = freres.indexOf(choisisIci[0]!)
     // La place du groupe parmi les autres, décalée d'un cran.
-    const avant = freres.slice(0, premier).filter((x) => !selection.has(x.id)).length
+    const avant = freres.slice(0, premier).filter((x) => !bouge(x)).length
     const ou = Math.max(0, Math.min(autres.length, avant + sens))
     if (ou === avant) return
     const cles = clesEntre(autres[ou - 1]?.ordre, autres[ou]?.ordre, choisisIci.length)
@@ -2090,22 +2143,54 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     )
   }
 
+  /**
+   * Les fils choisis dont chaque message peut être supprimé par qui commente (`peutSupprimerMessage` : les siens),
+   * retirés d'un seul pas, leur dernier message compris, comme quand le menu « ⋯ » vide le fil : il n'a pas de
+   * corbeille, et Cmd+Z les rend entiers. Le reste de la sélection demeure, un fil verrouillé aussi.
+   */
+  const retirerSesFils = (ids: ReadonlySet<Id>) => {
+    const moi = services.presence?.moi?.()?.id ?? ''
+    const fils = tableau.elements.filter(
+      (x) => ids.has(x.id) && !x.verrou && x.contenu.type === 'commentaire' && x.contenu.messages.every((m) => peutSupprimerMessage(services, x.id, m.auteur.id, moi)),
+    )
+    if (fils.length > 0) magasin.faire(fils.map((x): Operation => ({ type: 'supprimer', element: x })))
+  }
+
+  /**
+   * Après un clic dans la toile, ses barres et ses menus compris, le clavier lui revient s'il n'est plus nulle part : le
+   * bouton choisi est parti avec son menu (Aligner, Répartir…) ou s'est grisé, et le focus serait tombé sur la page, loin
+   * de Suppr, des flèches et de Cmd+Z. Ce qui tient le focus le garde : un champ que l'action vient d'ouvrir, un bouton
+   * resté là (dont la toile lit quand même les touches). La frame suivante laisse l'action poser le sien d'abord.
+   */
+  const rendreLeClavier = () =>
+    requestAnimationFrame(() => {
+      const div = racine.current
+      const actif = document.activeElement
+      const perdu = !actif || actif === document.body || !actif.isConnected || (actif instanceof HTMLButtonElement && actif.disabled)
+      if (perdu && div?.isConnected) div.focus({ preventScroll: true })
+    })
+
   const clavier = (e: React.KeyboardEvent) => {
     // DESSIN-LIBRE : le clavier appartient à la couche de dessin (Suppr, flèches, Cmd+Z n'agissent plus sur le tableau).
     if (toileSuspendue(racine.current)) return
     if (e.key === 'Escape' && annulerGlisser()) return e.preventDefault()
     const cmd = e.metaKey || e.ctrlKey
-    const touche = e.key.toLowerCase()
+    // La lettre que porte la touche, sur toute disposition (`lettreDe`) ; sous Alt, ces raccourcis-là n'en ont pas.
+    const touche = e.altKey ? '' : (lettreDe(e) ?? '')
     const min = cam.echelleMin(contenu(), vue)
-    if (cmd && (e.key === '=' || e.key === '+' || e.code === 'Equal')) {
+    // Le zoom au signe tapé, pas à la place QWERTY de la touche : en AZERTY, « - » est là où QWERTY met « = », et
+    // ⌘− zoomait. ⌘0 sur la touche du zéro, que le Mac français tape ⌘à.
+    const zoom = cmd && !parAltGr(e) ? signeParmi(e, ['=', '+', '-']) : null
+    if (zoom === '=' || zoom === '+') {
       e.preventDefault()
       return zoomerVers(cam.cranDessus(camera.echelle, min))
     }
-    if (cmd && (e.key === '-' || e.code === 'Minus')) {
+    if (zoom === '-') {
       e.preventDefault()
       return zoomerVers(cam.cranDessous(camera.echelle, min))
     }
-    if (cmd && (e.key === '0' || e.code === 'Digit0')) {
+    // ⌘0 seul : sous Maj, c'est « Texte normal » d'une note qu'on écrit, et la vue ne doit pas bouger avec.
+    if (cmd && !e.shiftKey && chiffreDe(e) === 0) {
       e.preventDefault()
       return zoomerVers(1)
     }
@@ -2137,16 +2222,31 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         return setSelection(new Set(tableau.elements.filter((x) => !x.parent).map((x) => x.id)))
       }
       if (e.key === 'Escape') return setSelection(new Set())
+      // Qui commente supprime à la touche ce que le menu « ⋯ » de ses messages lui laisse supprimer, et Cmd+Z le rend.
+      if (!fermeeAEcriture()) {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault()
+          return retirerSesFils(selection)
+        }
+        if (cmd && (touche === 'z' || touche === 'y')) {
+          e.preventDefault()
+          if (e.shiftKey || touche === 'y') return void (magasin.retablir() || services.retablirNavigation?.())
+          return void (magasin.annuler() || services.annulerNavigation?.())
+        }
+      }
       if (!cmd && touche === 'z' && !e.repeat) ajuster()
       return
     }
-    // Cmd+Alt+V : le style de l'élément copié (sa couleur, sa largeur pour un même type) passe à la sélection.
-    if (cmd && e.altKey && e.code === 'KeyV') {
+    // Cmd+Alt+V : le style de l'élément copié (sa couleur, sa largeur pour un même type) passe à la sélection. Alt change
+    // `key` sur Mac : la lettre se lit sur la touche, telle qu'elle est marquée.
+    if (cmd && e.altKey && lettreDe(e) === 'v') {
       e.preventDefault()
       return collerStyle()
     }
-    // Les non triés : Cmd+\ ouvre le panneau, Alt+` y met la sélection (`code`, car Alt change `key` sur Mac).
-    if (cmd && e.code === 'Backslash') {
+    // Les non triés : Cmd+\ ouvre le panneau (la barre telle qu'on la tape, ⌘⌥⇧: sur un Mac en AZERTY, ou à sa place
+    // QWERTY), Alt+` y met la sélection (`code`, car Alt change `key` sur Mac, et l'accent grave d'un Mac français est
+    // une touche morte qui ne dit pas son signe).
+    if (cmd && ((!parAltGr(e) && signeParmi(e, ['\\'])) || e.code === 'Backslash')) {
       e.preventDefault()
       return setNonTriesOuvert((o) => !o)
     }
@@ -2864,8 +2964,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       oublierEntree()
       const g = geste.current
       // Un glisser qui s'attarde sur un tableau y entre, et continue dedans.
-      // Un dossier montré en liste n'a pas de toile où entrer : on y dépose seulement.
-      if (versTableau && g?.type === 'glisser' && services.ouvrirTableau && !services.dossierEnListe?.(versTableau.id)) {
+      // Un dossier montré en liste n'a pas de toile où entrer : on y dépose seulement. Les cartes de dossiers générés
+      // n'entrent nulle part : le dépôt seul le leur dira.
+      const toutRetenu = g?.type === 'glisser' && retenus(elements, g.origines.keys(), services.droits?.generes).ids.size >= g.origines.size
+      if (versTableau && g?.type === 'glisser' && services.ouvrirTableau && !services.dossierEnListe?.(versTableau.id) && !toutRetenu) {
         const vise = versTableau
         const minuteur = setTimeout(
           () => {
@@ -3144,8 +3246,20 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       aRemesurer.current.push(...colonnesAuDepart.current)
       colonnesAuDepart.current = []
     }
+    // Ce qui ne quitte pas la toile : les cartes de dossiers générés (et la colonne qui en range une).
+    const gardes = g.demarre ? retenus(magasin.lire().elements, g.origines.keys(), services.droits?.generes) : null
+    const surCorbeille = g.demarre && !!document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-corbeille]')
+    if (gardes && gardes.ids.size >= g.origines.size && gardes.ids.size > 0 && ((versTableau && services.deposerDans) || surCorbeille)) {
+      // Rien ne peut partir là où on l'a lâché : le geste est refusé d'emblée, tout revient à sa place en douceur.
+      magasin.appliquerSeulement(g.sorties.toReversed().map(inverse))
+      g.base = point(0, 0)
+      g.vols = g.vols.filter((id) => !g.sorties.some((op) => op.type === 'ranger' && op.id === id))
+      if (g.envol) reposer(g.envol, g.vols)
+      annoncer({ texte: avisDesGeneres(gardes.dossiers) })
+      return
+    }
     if (g.demarre && versTableau && services.deposerDans) {
-      // Lâché sur un tableau : tout part dans ce tableau, colonnes et lignes comprises.
+      // Lâché sur un tableau : tout part dans ce tableau, colonnes et lignes comprises, sauf ce qui ne quitte pas la toile.
       g.envol?.arreter()
       for (const id of g.vols) {
         const n = noeudDe(id)
@@ -3153,16 +3267,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       }
       magasin.appliquerSeulement(g.sorties.toReversed().map(inverse))
       const cibleId = versTableau.id
-      const n = g.origines.size
-      envoyerDans(cibleId, [...g.origines.keys()])
+      const partants = [...g.origines.keys()].filter((id) => !gardes?.ids.has(id))
+      envoyerDans(cibleId, partants)
       const titre = services.tableau?.(cibleId)?.titre || t('commun.sansTitre')
       annoncer({
-        texte: tn('toile.deplaces', n, { titre }),
+        texte: avecAvis(tn('toile.deplaces', partants.length, { titre }), avisDesGeneres(gardes?.dossiers ?? [])),
         ...(services.ouvrirTableau ? { action: { libelle: t('commun.ouvrir'), faire: () => services.ouvrirTableau!(cibleId) } } : {}),
       })
       return
     }
-    if (g.demarre && document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-corbeille]')) {
+    if (surCorbeille) {
       // Lâché sur la corbeille : on remet d'abord ce qui sortait d'une colonne, la corbeille le prend de là.
       g.envol?.arreter()
       for (const id of g.vols) {
@@ -3223,10 +3337,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const pas = pasDeDepot(magasin.lire(), deplaces, visee)
     magasin.appliquerSeulement(pas)
     magasin.remplacer(auPremierPlan(magasin.lire(), g.origines.keys()))
-    // Alt est lue au dépôt : tenue à cet instant, une copie reste à la place de départ et l'original arrive.
+    // Alt est lue au dépôt : tenue à cet instant, une copie reste à la place de départ et l'original arrive. La carte
+    // d'un dossier généré ne laisse pas de copie : elle arrive seule.
     if (e.altKey && g.modele) {
-      g.copies = deballer(g.modele, point(0, 0)).map((element): Operation => ({ type: 'creer', element }))
-      magasin.appliquerSeulement(g.copies)
+      const { paquet, dossiers } = sansGeneres(g.modele, services.droits?.generes)
+      if (dossiers.length > 0) annoncer({ texte: avisDesGeneres(dossiers) })
+      if (paquet) {
+        g.copies = deballer(paquet, point(0, 0)).map((element): Operation => ({ type: 'creer', element }))
+        magasin.appliquerSeulement(g.copies)
+      }
     }
     magasin.inscrire([...(g.copies ?? []), ...pas])
     // Ce qui entre dans une colonne y prend sa place tout de suite ; le reste se pose en douceur.
@@ -3460,6 +3579,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       style={styleRacine}
       onKeyDown={clavier}
       onKeyUp={relacherEspace}
+      onClickCapture={rendreLeClavier}
       onBlur={() => setEspace(false)}
       onPointerDown={appui}
       onPointerMove={mouvement}

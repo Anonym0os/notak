@@ -46,6 +46,24 @@ describe('le clavier d’une carte (docs/XMIND.md § 4)', () => {
     expect(touche('&', { metaKey: true, altKey: true, code: 'Digit1' })).toEqual({ type: 'deplierNiveau', n: 1 })
   })
 
+  it('sur un vrai Mac, où Alt change le caractère : ⌘⌥/ replie tout (« ÷ »), ⌥⌘C copie le style même en Dvorak', () => {
+    expect(touche('÷', { metaKey: true, altKey: true, code: 'Slash', keyCode: 191 })).toEqual({ type: 'toutReplier' })
+    // En Dvorak, la lettre C est à la place QWERTY de I : on lit la lettre marquée, pas la place.
+    expect(touche('ç', { metaKey: true, altKey: true, code: 'KeyI', keyCode: 67 })).toEqual({ type: 'copierStyle', id: p0 })
+    expect(touche('∆', { metaKey: true, altKey: true, code: 'KeyC', keyCode: 74 })).toBeNull()
+  })
+
+  it('en AZERTY : ⌘à revient à 100 %, ⌘⌥⇧( (le crochet) ouvre le panneau de gauche, ⌥⌘& déplie au niveau 1', () => {
+    expect(touche('à', { metaKey: true, code: 'Digit0', keyCode: 48 })).toEqual({ type: 'zoom', facteur: 0 })
+    expect(touche('0', { metaKey: true, shiftKey: true, code: 'Digit0', keyCode: 48 })).toEqual({ type: 'zoom', facteur: 0 })
+    expect(touche('[', { metaKey: true, altKey: true, shiftKey: true, code: 'Digit5', keyCode: 53 })).toEqual({ type: 'mode', mode: 'navigation' })
+    expect(touche('', { metaKey: true, altKey: true, code: 'Digit1', keyCode: 49 })).toEqual({ type: 'deplierNiveau', n: 1 })
+    // Le crochet que Windows tape avec AltGr (Ctrl+Alt+5 en AZERTY) n'ouvre pas le panneau.
+    expect(touche('[', { ctrlKey: true, altKey: true, code: 'Digit5', keyCode: 219 })).not.toEqual({ type: 'mode', mode: 'navigation' })
+    // Maj+Cmd+0 en QWERTY (« ) ») n'est pas le zoom.
+    expect(touche(')', { metaKey: true, shiftKey: true, code: 'Digit0', keyCode: 48 })).toBeNull()
+  })
+
   it('les flèches suivent la carte dessinée : à gauche de P0, le central, puis P1', () => {
     expect(touche('ArrowLeft')).toEqual({ type: 'choisir', ids: [c] })
     expect(gesteDe(new KeyboardEvent('keydown', { key: 'ArrowLeft' }), [c], l, d)).toEqual({ type: 'choisir', ids: [p1] })

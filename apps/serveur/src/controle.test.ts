@@ -6,7 +6,7 @@ import WebSocket from 'ws'
 import * as Y from 'yjs'
 import { describe, expect, it } from 'vitest'
 import type { DroitsTableau } from '../../../packages/tableau/src/coeur/reglesDroits.ts'
-import { controler, miseAJourDuMessage } from './controle.ts'
+import { type Garde, controler, miseAJourDuMessage } from './controle.ts'
 import { openfgaEssai } from './essai.ts'
 import { demarrer } from './serveur.ts'
 
@@ -15,7 +15,7 @@ const fil = (messages: unknown[]) => ({ id: 'fil', x: 0, y: 0, largeur: 300, pla
 const note = (id: string, x = 0) => ({ id, x, y: 0, largeur: 200, plan: 'a0', contenu: { type: 'note', texte: { type: 'doc', content: [] } } })
 
 /** Un serveur et un client qui partent du même état ; `envoyer` passe un changement du client par le contrôle. */
-function paire(droits: DroitsTableau, auteur = 'bob') {
+function paire(droits: DroitsTableau, auteur = 'bob', garde?: Garde) {
   const serveur = new Y.Doc()
   serveur.transact(() => {
     serveur.getMap('elements').set('n1', note('n1'))
@@ -28,10 +28,10 @@ function paire(droits: DroitsTableau, auteur = 'bob') {
   const envoyer = (geste: (d: Y.Doc) => void) => {
     const vecteur = Y.encodeStateVector(client)
     geste(client)
-    const garde = controler(serveur, Y.encodeStateAsUpdate(client, vecteur), droits, auteur, {})
+    const passe = controler(serveur, Y.encodeStateAsUpdate(client, vecteur), droits, auteur, {}, garde)
     // Le client reçoit ce que le serveur a fait depuis (dont l'annulation éventuelle).
     Y.applyUpdate(client, Y.encodeStateAsUpdate(serveur, Y.encodeStateVector(client)))
-    return garde
+    return passe
   }
   return { serveur, client, envoyer }
 }
@@ -105,6 +105,41 @@ describe('le contrôle des mises à jour', () => {
     expect(serveur.getMap('textes').has('n2')).toBe(false)
     expect(client.getMap('textes').has('n2')).toBe(false)
     expect((serveur.getMap('textes').get('n1') as Y.XmlFragment).toString()).toContain('libre')
+  })
+
+  describe('les dossiers générés par un outil', () => {
+    const carte = (id: string, cible: string, en: Record<string, unknown> = {}) => ({ id, x: 0, y: 0, largeur: 10, plan: 'a2', contenu: { type: 'tableau', cible, ...en } })
+    /** Un éditeur, sur un dossier généré qui porte la carte d'un autre (« Clients » et celle de « Dupont »). */
+    const editeur = (meta: boolean) => {
+      const p = paire({ role: 'proprietaire', elements: {} }, 'ana', { meta, carte: (cible) => cible === 'dupont' })
+      p.serveur.getMap('elements').set('c-dupont', carte('c-dupont', 'dupont'))
+      Y.applyUpdate(p.client, Y.encodeStateAsUpdate(p.serveur, Y.encodeStateVector(p.client)))
+      return p
+    }
+
+    it('ni renommé, ni jeté, ni retiré, ni changé, ni doublé : chaque geste revient, chez son auteur aussi', () => {
+      const { serveur, client, envoyer } = editeur(true)
+      expect(envoyer((d) => d.getMap('meta').set('titre', 'Volé'))).toBe(false)
+      expect(envoyer((d) => d.getMap('meta').set('couleur', 'rouge'))).toBe(false)
+      expect([client.getMap('meta').get('titre'), client.getMap('meta').has('couleur')]).toEqual(['Atelier', false])
+      expect(envoyer((d) => elements(d).set('c-dupont', { ...carte('c-dupont', 'dupont'), corbeille: 5 }))).toBe(false)
+      expect(envoyer((d) => elements(d).set('c-dupont', carte('c-dupont', 'dupont', { titre: 'Autre' })))).toBe(false)
+      expect(envoyer((d) => elements(d).delete('c-dupont'))).toBe(false)
+      expect(envoyer((d) => elements(d).set('c-double', carte('c-double', 'dupont')))).toBe(false)
+      expect([elements(serveur).get('c-dupont'), elements(client).get('c-dupont')]).toEqual([carte('c-dupont', 'dupont'), carte('c-dupont', 'dupont')])
+      expect(elements(client).has('c-double')).toBe(false)
+    })
+
+    it('ce qu’on range dedans, la place de sa carte et un raccourci vers lui passent', () => {
+      const { serveur, envoyer } = editeur(true)
+      expect(envoyer((d) => elements(d).set('n3', note('n3')))).toBe(true)
+      expect(envoyer((d) => elements(d).set('c-dupont', { ...carte('c-dupont', 'dupont'), x: 40, y: 12, plan: 'a5' }))).toBe(true)
+      expect(envoyer((d) => elements(d).set('r-dupont', carte('r-dupont', 'dupont', { raccourci: true })))).toBe(true)
+      expect([...elements(serveur).keys()].sort()).toEqual(['c-dupont', 'fil', 'n1', 'n2', 'n3', 'r-dupont'])
+      expect(elements(serveur).get('c-dupont')!.x).toBe(40)
+      // Sur une toile qui n'est pas elle-même générée, son titre se change.
+      expect(editeur(false).envoyer((d) => d.getMap('meta').set('titre', 'Mon accueil'))).toBe(true)
+    })
   })
 
   it('lit la mise à jour d’un message de synchro, et rien d’autre', () => {

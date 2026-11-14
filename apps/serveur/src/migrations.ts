@@ -513,6 +513,25 @@ CREATE INDEX envois_a_faire ON envois(prochain) WHERE livre IS NULL AND prochain
 `)
     },
   },
+  {
+    version: 13,
+    nom: 'les photos dans le plan des toiles',
+    // Le plan d'une toile garde maintenant le fichier de chaque photo et la hauteur qu'elle a sur la toile, et son
+    // résumé compte ce qui attend dans ses non triés. Un résumé ne se refait qu'au prochain changement de sa toile :
+    // sans cela, une toile qu'on ne touche plus garderait ses cadres gris, ou se dirait vide.
+    appliquer(db) {
+      db.exec('DELETE FROM recherche_etat;')
+    },
+  },
+  {
+    version: 14,
+    nom: 'les photos recadrées et tournées dans la bibliothèque',
+    // Le résumé d'une photo, et sa boîte dans le plan de sa toile, disent ce que la toile en fait (la partie gardée, le
+    // quart de tour, les miroirs, le cadre libre) : la vignette la montre de même. On refait tous les résumés.
+    appliquer(db) {
+      db.exec('DELETE FROM recherche_etat;')
+    },
+  },
 ]
 
 /**

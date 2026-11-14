@@ -1,8 +1,14 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import WebSocket from 'ws'
 import * as Y from 'yjs'
-import { type Compte, type Monde, monde, poser, texte } from './essai.ts'
+import { type Compte, type Monde, monde, openfgaEssai, poser, texte } from './essai.ts'
 import { indexerDocument } from './indexation.ts'
 import { type SourceRattachement, adresseDeLaFiche, sourcesDe } from './rattachements.ts'
+import { demarrer } from './serveur.ts'
 import { nomDuDocument } from './synchro.ts'
 
 const CRM: SourceRattachement = { source: 'crm', nom: 'Mon CRM', dossier: 'Clients', origine: 'https://crm.exemple.fr' }
@@ -49,7 +55,7 @@ describe('NOTAK_RATTACHEMENTS', () => {
 })
 
 type Etat = { etat: 'present'; tableau: string; titre: string; source: string; dossier: string } | { etat: 'absent' | 'cache'; source: string; dossier: string }
-type Entree = { tableau: string; element: string | null; titre: string; dans: string | null; fiche?: { nom: string; adresse?: string } }
+type Entree = { tableau: string; element: string | null; titre: string; dans: string | null; fiche?: { nom: string; adresse?: string }; outil?: string }
 
 describe('les dossiers des fiches d’un autre outil', () => {
   let m: Monde
@@ -126,6 +132,82 @@ describe('les dossiers des fiches d’un autre outil', () => {
     expect(entrees.find((e) => e.titre === 'Martin')?.fiche).toEqual({ nom: 'Mon CRM' })
     expect(entrees.find((e) => e.titre === 'Clients')?.fiche).toBeUndefined()
     expect(dupont?.dans).toBe(entrees.find((e) => e.titre === 'Clients')?.tableau)
+  })
+
+  it('les dossiers que l’outil a posés restent où il les a mis ; on range dedans ce qu’on veut', async () => {
+    const ranger = (id: string, json: Record<string, unknown>) => m.appeler(`/api/tableaux/${id}/parent`, { methode: 'PUT', compte: ana, json })
+    const dupont = ((await lire(ana, 'societe:1')).corps as { tableau: string }).tableau
+    const clients = m.base.tableau(dupont)!.parent!
+    const accueil = ana.utilisateur.racine
+    m.tableau(ana, 'brouillon', 'Brouillon', undefined, accueil)
+    // La bibliothèque dit lesquels : celui de chaque fiche, et celui qui les range ; pas les autres.
+    const entrees = (await (await m.appeler('/api/bibliotheque', { compte: ana })).json()) as Entree[]
+    const de = (tableau: string) => entrees.find((e) => e.tableau === tableau && e.element === null)
+    expect([de(dupont)?.outil, de(clients)?.outil, de('brouillon')?.outil]).toEqual(['Mon CRM', 'Mon CRM', undefined])
+    // Le serveur refuse de les ranger ailleurs, même à l'essai.
+    for (const [id, parent] of [
+      [dupont, accueil],
+      [clients, 'brouillon'],
+    ] as const) {
+      for (const essai of [true, false]) {
+        const r = await ranger(id, { parent, essai })
+        expect([r.status, ((await r.json()) as { code: string }).code]).toEqual([400, 'dossier_genere'])
+      }
+    }
+    expect([m.base.tableau(dupont)!.parent, m.base.tableau(clients)!.parent]).toEqual([clients, accueil])
+    // Ce qu'on y range, si.
+    expect(await (await ranger('brouillon', { parent: dupont })).json()).toMatchObject({ fait: true })
+    expect(m.base.tableau('brouillon')!.parent).toBe(dupont)
+  })
+
+  it('un dossier généré ne prend ni ne perd de mot de passe ; son propriétaire apprend quel outil l’a fait', async () => {
+    const dupont = ((await lire(ana, 'societe:1')).corps as { tableau: string }).tableau
+    const clients = m.base.tableau(dupont)!.parent!
+    const motDePasse = (id: string, methode: 'PUT' | 'DELETE') => m.appeler(`/api/tableaux/${id}/mot-de-passe`, { methode, compte: ana, ...(methode === 'PUT' ? { json: { motDePasse: 'secret-du-dossier' } } : {}) })
+    for (const id of [dupont, clients]) {
+      for (const methode of ['PUT', 'DELETE'] as const) {
+        const r = await motDePasse(id, methode)
+        expect([r.status, ((await r.json()) as { code: string }).code]).toEqual([400, 'dossier_genere'])
+      }
+      expect(m.base.motDePasse(id, 'tableau')).toBeNull()
+    }
+    const verrou = async (id: string, c = ana) => (await m.appeler(`/api/tableaux/${id}/verrou`, { compte: c })).json()
+    expect(await verrou(dupont)).toEqual({ protege: false, verrouille: false, par: null, genere: { outil: 'Mon CRM', titre: 'Dupont SARL' } })
+    expect(await verrou(clients)).toMatchObject({ genere: { outil: 'Mon CRM', titre: 'Clients' } })
+    // Une autre toile se protège comme avant, et ne dit rien d'un outil.
+    m.tableau(ana, 'carnet', 'Carnet')
+    expect((await motDePasse('carnet', 'PUT')).status).toBe(204)
+    expect(await verrou('carnet')).toEqual({ protege: true, verrouille: false, par: null })
+    expect((await motDePasse('carnet', 'DELETE')).status).toBe(204)
+    // Qui n'en est pas propriétaire ne l'apprend pas d'ici.
+    const cleo = await m.compte('Cleo')
+    m.base.definirAcces({ tableau: dupont, utilisateur: cleo.utilisateur.id, role: 'edition' })
+    await m.autorisation.vider()
+    expect(await verrou(dupont, cleo)).toEqual({ protege: false, verrouille: false, par: null })
+  })
+
+  it('les droits d’une toile nomment les dossiers générés dont elle porte la carte, à qui les lit et peut y toucher', async () => {
+    const dupont = ((await lire(ana, 'societe:1')).corps as { tableau: string }).tableau
+    const clients = m.base.tableau(dupont)!.parent!
+    const accueil = ana.utilisateur.racine
+    const droits = async (id: string, c = ana) => (await (await m.appeler(`/api/tableaux/${id}/droits`, { compte: c })).json()) as { role: string; generes?: Record<string, string> }
+    expect((await droits(accueil)).generes).toEqual({ [clients]: 'Mon CRM' })
+    expect((await droits(clients)).generes).toMatchObject({ [dupont]: 'Mon CRM' })
+    m.tableau(ana, 'sans-carte', 'Sans carte')
+    expect(await droits('sans-carte')).not.toHaveProperty('generes')
+    // Dana écrit sur l'accueil d'Ana : elle lit « Clients », elle l'apprend ; écartée de « Clients », plus rien.
+    const dana = await m.compte('Dana')
+    m.base.definirAcces({ tableau: accueil, utilisateur: dana.utilisateur.id, role: 'edition' })
+    await m.autorisation.vider()
+    expect(await droits(accueil, dana)).toMatchObject({ role: 'edition', generes: { [clients]: 'Mon CRM' } })
+    expect((await m.appeler(`/api/tableaux/${clients}/blocage`, { compte: ana, json: { email: dana.utilisateur.email, etat: 'bloque' } })).status).toBe(200)
+    expect(await droits(accueil, dana)).not.toHaveProperty('generes')
+    // Qui ne fait que lire n'a rien à refuser : rien ne lui en est dit.
+    const eve = await m.compte('Eve')
+    m.base.definirAcces({ tableau: accueil, utilisateur: eve.utilisateur.id, role: 'lecture' })
+    await m.autorisation.vider()
+    expect(await droits(accueil, eve)).toMatchObject({ role: 'lecture' })
+    expect(await droits(accueil, eve)).not.toHaveProperty('generes')
   })
 
   it('la création n’accepte que du JSON : un formulaire d’un autre site ne la déclenche pas', async () => {
@@ -228,7 +310,7 @@ describe('les dossiers des fiches d’un autre outil', () => {
     const premier = ((await lire(ana, 'societe:1')).corps as { tableau: string }).tableau
     const clients = m.base.tableau(premier)!.parent!
     const accueil = ana.utilisateur.racine
-    // « Clients » jeté depuis l'accueil, comme le fait la bibliothèque : ce qu'il range part avec lui.
+    // « Clients » jeté depuis la toile d'accueil (la bibliothèque ne le jette plus) : ce qu'il range part avec lui.
     const doc = new Y.Doc()
     Y.applyUpdate(doc, m.base.document(nomDuDocument(accueil))!)
     const elements = doc.getMap<Record<string, unknown>>('elements')
@@ -247,6 +329,25 @@ describe('les dossiers des fiches d’un autre outil', () => {
     const bibliotheque = (await (await m.appeler('/api/bibliotheque', { compte: ana })).json()) as Entree[]
     expect(bibliotheque.filter((e) => e.titre === 'Clients' && e.element === null)).toHaveLength(1)
     expect((await lire(ana, 'societe:1')).corps).toMatchObject({ etat: 'present', tableau: premier })
+  })
+
+  it('le dossier de l’outil jeté cache ceux des fiches : « Le remettre » d’une fiche le ramène avec elle', async () => {
+    const premier = ((await lire(ana, 'societe:1')).corps as { tableau: string }).tableau
+    const clients = m.base.tableau(premier)!.parent!
+    const accueil = ana.utilisateur.racine
+    const doc = new Y.Doc()
+    Y.applyUpdate(doc, m.base.document(nomDuDocument(accueil))!)
+    const elements = doc.getMap<Record<string, unknown>>('elements')
+    for (const [id, e] of elements) if ((e.contenu as { cible?: string }).cible === clients) elements.set(id, { ...e, corbeille: 2 })
+    m.base.enregistrerDocument(nomDuDocument(accueil), Y.encodeStateAsUpdate(doc))
+    indexerDocument(m.base, accueil, doc)
+    expect((await lire(ana, 'societe:1')).corps).toMatchObject({ etat: 'corbeille', tableau: premier })
+
+    const r = await m.appeler(`/api/rattachements/crm/societe:1/remettre`, { compte: ana, json: {} })
+    expect(r.status).toBe(200)
+    expect(await r.json()).toMatchObject({ etat: 'present', tableau: premier })
+    expect(meta(accueil).elements.find((e) => e.contenu.cible === clients)).not.toHaveProperty('corbeille')
+    expect(cartesVers(accueil, clients)).toHaveLength(1)
   })
 })
 
@@ -352,6 +453,9 @@ describe('une source qui nomme son espace après coup range les anciens dossiers
     expect(dossiersDe(deBob, 'Clients').map((e) => e.tableau).sort()).toEqual([clients!.tableau, clientsBob].sort())
     expect(deBob.some((e) => e.tableau === martin)).toBe(true)
     expect(deBob.some((e) => e.tableau === bernard)).toBe(false)
+    // Ceux que l'outil ne lit plus se rangent comme les autres dossiers ; ceux de l'équipe restent où il les a mis.
+    expect(deBob.filter((e) => e.element === null && (e.tableau === martin || e.tableau === clientsBob)).map((e) => e.outil)).toEqual([undefined, undefined])
+    expect(clients!.outil).toBe('Mon CRM')
     expect(m.base.rattachement(equipe, 'crm', 'societe:2')).toBeNull()
     // L'outil apprend les dossiers recréés, et seulement eux.
     const crees = m.base.envoisAFaire(m.maintenant() + 1, 50).slice(deja)
@@ -361,4 +465,84 @@ describe('une source qui nomme son espace après coup range les anciens dossiers
     await bibliotheque(ana)
     expect(m.base.tableauxDeLEspace(equipe)).toHaveLength(avant)
   })
+})
+
+describe('de bout en bout, par la synchro', () => {
+  it('un dossier généré ne se renomme, ne se jette ni ne se retire : le serveur l’annule ; ranger dedans passe', async () => {
+    const dossier = mkdtempSync(join(tmpdir(), 'notak-rattachements-'))
+    const serveur = await demarrer({ port: 0, dossier, secret: 'un-secret-d-essai-assez-long-pour-better-auth', openfga: openfgaEssai(), rattachements: [CRM] })
+    const origine = `http://localhost:${serveur.port}`
+    const fermer: (() => void)[] = []
+    try {
+      const appeler = (chemin: string, cookie?: string, corps?: unknown) =>
+        fetch(origine + chemin, {
+          ...(corps === undefined ? {} : { method: 'POST', body: JSON.stringify(corps) }),
+          headers: { origin: origine, 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
+        })
+      const inscription = await appeler('/api/auth/sign-up/email', undefined, { email: 'ana@exemple.fr', password: 'motdepasse', name: 'Ana' })
+      const ana = inscription.headers.get('set-cookie')!.split(';')[0]!
+      const dupont = ((await (await appeler('/api/rattachements/crm/societe:1', ana, { titre: 'Dupont' })).json()) as { tableau: string }).tableau
+      const entrees = (await (await appeler('/api/bibliotheque', ana)).json()) as Entree[]
+      const clients = entrees.find((e) => e.titre === 'Clients' && e.element === null)!.tableau
+      const ouvrir = (tableau: string) =>
+        new Promise<Y.Doc>((resoudre, rejeter) => {
+          const doc = new Y.Doc()
+          const Ws = class extends WebSocket {
+            constructor(url: string, protocoles?: string | string[]) {
+              super(url, protocoles, { headers: { cookie: ana, origin: origine } })
+            }
+          }
+          const socket = new HocuspocusProviderWebsocket({ url: `${origine.replace(/^http/, 'ws')}/sync`, WebSocketPolyfill: Ws as never })
+          const provider = new HocuspocusProvider({
+            websocketProvider: socket,
+            name: nomDuDocument(tableau),
+            document: doc,
+            onSynced: () => resoudre(doc),
+            onAuthenticationFailed: () => rejeter(new Error('refusé')),
+          })
+          provider.attach()
+          fermer.push(() => {
+            provider.destroy()
+            socket.destroy()
+          })
+        })
+      const attendre = async (vrai: () => boolean) => {
+        for (let i = 0; i < 100 && !vrai(); i++) await new Promise((r) => setTimeout(r, 30))
+        expect(vrai()).toBe(true)
+      }
+      type Carte = { contenu: { cible?: string }; corbeille?: number }
+      const carte = (d: Y.Doc) => [...d.getMap<Carte>('elements').entries()].find(([, e]) => e.contenu.cible === dupont)!
+
+      // Ana possède les deux. Renommé, le dossier reprend son titre ; ce qu'elle y range reste.
+      const d = await ouvrir(dupont)
+      d.getMap('meta').set('titre', 'Volé')
+      d.getMap('elements').set('n1', { id: 'n1', x: 0, y: 0, largeur: 200, plan: 'a0', contenu: { type: 'note', texte: { type: 'doc', content: [] } } })
+      await attendre(() => d.getMap('meta').get('titre') === 'Dupont')
+      // Sa carte, dans « Clients » : jetée, puis retirée, elle revient chaque fois.
+      const c = await ouvrir(clients)
+      const [id, e] = carte(c)
+      c.getMap('elements').set(id, { ...e, corbeille: 1 })
+      await attendre(() => carte(c)[1].corbeille === undefined)
+      c.getMap('elements').delete(id)
+      await attendre(() => c.getMap('elements').has(id))
+      // Relu d'ailleurs : le titre d'origine, la note rangée, et le dossier toujours là pour l'outil.
+      const relu = await ouvrir(dupont)
+      expect([relu.getMap('meta').get('titre'), relu.getMap('elements').has('n1')]).toEqual(['Dupont', true])
+      expect(((await (await appeler('/api/rattachements/crm/societe:1', ana)).json()) as { etat: string }).etat).toBe('present')
+      // Une toile qui ne portait aucune de leurs cartes à l'ouverture n'en reçoit pas une seconde ; un raccourci, si.
+      expect((await appeler('/api/tableaux', ana, { id: 'toile-a-cote', titre: 'À côté' })).status).toBe(201)
+      const cote = await ouvrir('toile-a-cote')
+      const carteVers = (id: string, en: Record<string, unknown> = {}) => ({ id, x: 0, y: 0, largeur: 10, plan: 'a0', contenu: { type: 'tableau', cible: dupont, ...en } })
+      cote.getMap('elements').set('double', carteVers('double'))
+      await attendre(() => !cote.getMap('elements').has('double'))
+      cote.getMap('elements').set('raccourci', carteVers('raccourci', { raccourci: true }))
+      const cote2 = await ouvrir('toile-a-cote')
+      await attendre(() => cote2.getMap('elements').has('raccourci'))
+      expect(cote2.getMap('elements').has('double')).toBe(false)
+    } finally {
+      for (const f of fermer) f()
+      await serveur.fermer()
+      rmSync(dossier, { recursive: true, force: true })
+    }
+  }, 30_000)
 })

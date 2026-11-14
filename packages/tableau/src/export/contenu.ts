@@ -216,7 +216,7 @@ export type ResumeContenu =
     }
   | { genre: 'arbre'; element: string; titre: string; branches: string[]; cree?: number }
   | { genre: 'document'; element: string; titre: string; lignes: string[]; cree?: number }
-  | {
+  | ({
       genre: 'image'
       element: string
       /** Sa légende : vide, la bibliothèque dit « Photo ». */
@@ -224,11 +224,10 @@ export type ResumeContenu =
       fichier: string
       /** Sa plus petite copie (environ 400 px de large) : la vignette ne charge pas l'image entière. */
       petite?: string
-      /** En pixels, l'image d'origine. */
-      largeur: number
-      hauteur: number
+      /** Largeur sur hauteur du cadre libre qu'elle recouvre sur la toile (un redimensionnement avec Cmd). */
+      rapportCadre?: number
       cree?: number
-    }
+    } & PhotoMontree)
   | {
       genre: 'lien'
       element: string
@@ -260,10 +259,25 @@ export function dateDeLId(id: string): number | undefined {
 }
 
 /**
- * Une boîte du plan d'une toile (voir `ResumeContenu`) ; celle d'une photo porte aussi son fichier (sa plus petite
- * copie, s'il en a une) : la vignette montre la photo elle-même.
+ * Ce que la toile fait d'une photo (`miseEnPage`, elements/image/geometrie.ts) : la partie gardée, en fractions de
+ * l'image d'origine (`largeur` × `hauteur` pixels), puis son quart de tour et les miroirs de l'écran. Sans eux,
+ * l'image entière, droite.
  */
-export type BoitePlan = [x: number, y: number, largeur: number, hauteur: number, couleur: string, type: string, lignes: number, fichier?: string]
+export interface PhotoMontree {
+  largeur: number
+  hauteur: number
+  recadrage?: { x: number; y: number; largeur: number; hauteur: number }
+  rotation?: 90 | 180 | 270
+  miroirH?: true
+  miroirV?: true
+}
+
+/**
+ * Une boîte du plan d'une toile (voir `ResumeContenu`) ; celle d'une photo porte aussi son fichier (sa plus petite
+ * copie, s'il en a une), et, recadrée, tournée ou retournée, ce que la toile en fait : la vignette montre la photo
+ * elle-même, comme la toile.
+ */
+export type BoitePlan = [x: number, y: number, largeur: number, hauteur: number, couleur: string, type: string, lignes: number, fichier?: string, photo?: PhotoMontree]
 
 /** Au plus tant de boîtes dans le plan d'une toile, de branches d'une carte, de lignes d'un document. */
 const BOITES_MAX = 120
@@ -323,6 +337,27 @@ function rapportAffiche(c: ContenuLu): number | null {
   return c.rotation === 90 || c.rotation === 270 ? 1 / p : p
 }
 
+/** Une part de l'image (un côté du recadrage : plus que rien), ou une position dans l'image : entre 0 et 1. */
+const fraction = (v: unknown, cote: boolean): v is number => typeof v === 'number' && (cote ? v > 0 : v >= 0) && v <= 1
+
+/**
+ * Ce que la toile fait d'une photo (voir `PhotoMontree`), lu dans son contenu ; un recadrage qu'un autre client aurait
+ * écrit de travers est laissé de côté : la photo se montre alors entière.
+ */
+function photoMontree(c: ContenuLu, largeur: number, hauteur: number): PhotoMontree {
+  const r = (c.recadrage ?? {}) as Record<string, unknown>
+  const garde = fraction(r.x, false) && fraction(r.y, false) && fraction(r.largeur, true) && fraction(r.hauteur, true)
+  const rotation = c.rotation === 90 || c.rotation === 180 || c.rotation === 270 ? c.rotation : undefined
+  return {
+    largeur,
+    hauteur,
+    ...(garde ? { recadrage: { x: r.x as number, y: r.y as number, largeur: r.largeur as number, hauteur: r.hauteur as number } } : {}),
+    ...(rotation ? { rotation } : {}),
+    ...(c.miroirH === true ? { miroirH: true as const } : {}),
+    ...(c.miroirV === true ? { miroirV: true as const } : {}),
+  }
+}
+
 /** La plus petite copie d'une photo, ou rien : la bibliothèque ne charge pas l'image entière quand elle peut l'éviter. */
 function petiteCopie(c: ContenuLu): string | undefined {
   const tailles = (Array.isArray(c.tailles) ? (c.tailles as { largeur?: unknown; fichier?: unknown }[]) : []).filter(
@@ -346,7 +381,17 @@ function resumePiece(e: ElementLu, cree: { cree?: number }): ResumeContenu | nul
   if (c.type === 'image' && chaine(c.fichier)) {
     const petite = petiteCopie(c)
     const [largeur, hauteur] = [c.largeurOrigine, c.hauteurOrigine].map((v) => (typeof v === 'number' && v > 0 ? v : 1)) as [number, number]
-    return { genre: 'image', element: e.id, titre: court(chaine(c.legende).trim(), 200), fichier: chaine(c.fichier), ...(petite ? { petite } : {}), largeur, hauteur, ...cree }
+    const cadre = positif(c.rapportCadre)
+    return {
+      genre: 'image',
+      element: e.id,
+      titre: court(chaine(c.legende).trim(), 200),
+      fichier: chaine(c.fichier),
+      ...(petite ? { petite } : {}),
+      ...photoMontree(c, largeur, hauteur),
+      ...(cadre !== null ? { rapportCadre: cadre } : {}),
+      ...cree,
+    }
   }
   if (c.type === 'lien' && chaine(c.url)) {
     const apercu = (c.apercu ?? {}) as Record<string, unknown>
@@ -400,7 +445,11 @@ export function resumesDuTableau(t: TableauLu): ResumeContenu[] {
       const [x, y, l, h] = [Math.round(e.x), Math.round(e.y), Math.max(1, Math.round(e.largeur)), Math.max(1, Math.round(hauteurProbable(e, lignes)))]
       // Une toile de photos se reconnaît à ses photos, pas à des cadres gris.
       const fichier = c.type === 'image' ? (petiteCopie(c) ?? chaine(c.fichier)) : ''
-      return fichier ? [x, y, l, h, chaine(c.couleur), c.type, lignes, fichier] : [x, y, l, h, chaine(c.couleur), c.type, lignes]
+      if (!fichier) return [x, y, l, h, chaine(c.couleur), c.type, lignes]
+      // Droite et entière, elle recouvre sa boîte comme sur la toile ; sinon, la vignette doit savoir ce qu'elle en garde.
+      const photo = photoMontree(c, positif(c.largeurOrigine) ?? 1, positif(c.hauteurOrigine) ?? 1)
+      const faite = photo.recadrage || photo.rotation || photo.miroirH || photo.miroirV
+      return faite ? [x, y, l, h, chaine(c.couleur), c.type, lignes, fichier, photo] : [x, y, l, h, chaine(c.couleur), c.type, lignes, fichier]
     })
   const nonTries = vivants.filter((e) => !e.parent && e.nonTrie !== undefined).length
   const cartesDe = (jetee: boolean) => [

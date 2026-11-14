@@ -1,6 +1,6 @@
 import * as decoding from 'lib0/decoding'
 import * as Y from 'yjs'
-import { type DroitsTableau, gesteSurElement, gesteSurFil, permis } from '../../../packages/tableau/src/coeur/reglesDroits.ts'
+import { type DroitsTableau, carteIntacte, gesteSurElement, gesteSurFil, permis } from '../../../packages/tableau/src/coeur/reglesDroits.ts'
 import { decouper } from '../../../packages/tableau/src/coeur/arbresYjs.ts'
 
 // Le contrôle des mises à jour reçues par la synchro, élément par élément. Un geste qu'on n'a pas le droit de faire
@@ -114,17 +114,38 @@ export function changementsPermis(c: Changements, droits: DroitsTableau, auteur:
 }
 
 /**
- * Contrôle une mise à jour reçue d'une connexion : appliquée sous une origine suivie, puis annulée si elle n'est pas
- * permise. Rend vrai si elle a été gardée. `origine` doit être un objet propre à cet appel.
+ * Ce qu'aucune connexion ne change, quels que soient ses droits : les dossiers qu'un outil rattaché a générés
+ * (`gardeDesDossiers`). Le document d'un tel dossier garde son `meta` (titre, couleur, fond, montré en dossier…) ; sa
+ * carte, là où elle est, ne part pas, ne va pas à la corbeille et ne change pas : seule sa place sur la toile bouge. Il
+ * ne s'en pose pas une seconde (un raccourci, si). Ce qu'on range dedans reste libre.
  */
-export function controler(doc: Y.Doc, miseAJour: Uint8Array, droits: DroitsTableau, auteur: string, origine: object): boolean {
+export interface Garde {
+  /** Ce document est celui d'un dossier généré. */
+  meta: boolean
+  /** Cette toile est un dossier généré. */
+  carte(cible: string): boolean
+}
+
+/** Ces changements laissent-ils intact ce que la garde protège ? La règle des cartes est celle de la toile (`carteIntacte`). */
+export function gardeRespectee(c: Changements, garde: Garde): boolean {
+  if (garde.meta && c.meta) return false
+  for (const { avant, apres } of c.elements.values()) if (!carteIntacte(avant, apres, garde.carte)) return false
+  return true
+}
+
+/**
+ * Contrôle une mise à jour reçue d'une connexion : appliquée sous une origine suivie, puis annulée si elle n'est pas
+ * permise, ou si elle touche à ce que `garde` protège. Rend vrai si elle a été gardée. `origine` doit être un objet
+ * propre à cet appel.
+ */
+export function controler(doc: Y.Doc, miseAJour: Uint8Array, droits: DroitsTableau, auteur: string, origine: object, garde?: Garde): boolean {
   const suivi = new Y.UndoManager(
     [...CARTES, ARBRES].map((nom) => doc.getMap(nom)),
     { trackedOrigins: new Set([origine]), captureTimeout: 0 },
   )
   try {
     const c = appliquerEnRelevant(doc, miseAJour, origine)
-    if (changementsPermis(c, droits, auteur)) return true
+    if (changementsPermis(c, droits, auteur) && (!garde || gardeRespectee(c, garde))) return true
     suivi.undo()
     return false
   } finally {

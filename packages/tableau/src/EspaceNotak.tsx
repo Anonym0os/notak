@@ -48,6 +48,7 @@ import { auDoigt } from './doigt'
 import { enFeuille } from './communs/Feuille'
 import { GardeToile } from './garde'
 import { useApercuOutils, useBarreRetenue } from './apercuOutils'
+import { lettreDe, parAltGr, signeParmi } from './touches'
 
 const CLE_VUES = 'notak:vues'
 
@@ -503,8 +504,10 @@ export function EspaceNotak({
   etat.current = { courant, ouvrir, espace, parcours, enregistrer }
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
+      // Les lettres telles qu'elles sont marquées, sur toute disposition (`lettreDe`) : Alt change `key` sur Mac.
+      const lettre = lettreDe(e)
       // Cmd+S, même en écrivant : tout s'enregistre seul, on le dit plutôt que d'ouvrir « Enregistrer la page ».
-      if ((e.metaKey || e.ctrlKey) && e.altKey && !e.shiftKey && e.code === 'KeyP') {
+      if ((e.metaKey || e.ctrlKey) && e.altKey && !e.shiftKey && lettre === 'p') {
         e.preventDefault()
         return basculerPresentationRef.current()
       }
@@ -512,28 +515,36 @@ export function EspaceNotak({
         e.preventDefault()
         return ouvrirReglagesRef.current()
       }
-      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 's') {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && lettre === 's') {
         e.preventDefault()
         if (etat.current.enregistrer) return etat.current.enregistrer()
         const envoi = etat.current.espace.envoi?.(etat.current.courant)
         annoncer({ texte: envoi === 'hors-ligne' ? t('espace.horsLigneGarde') : t('espace.toutSEnregistre') })
         return
       }
-      if (!(e.metaKey || e.ctrlKey) || e.altKey || saisissable(e.target)) return
+      if (!(e.metaKey || e.ctrlKey) || saisissable(e.target)) return
       const { courant: ici, ouvrir: aller, espace: esp, parcours: p } = etat.current
-      if (e.key.toLowerCase() === 'd' && e.shiftKey) basculerThemeRef.current()
-      else if (e.shiftKey && (e.code === 'Comma' || e.code === 'Period')) changerGrilleRef.current(e.code === 'Period' ? 1 : -1)
-      else if (e.key.toLowerCase() === 'u' && e.shiftKey) {
+      // ⌘[ et ⌘] : le crochet tel qu'on le tape, avec l'Alt que demande la disposition (⌥⇧( en AZERTY, ⌥5 en QWERTZ),
+      // ou à sa place QWERTY sans rien d'autre ; Maj+Cmd+[ sans Alt reste aux onglets du navigateur, et le crochet que
+      // Windows tape avec AltGr (Ctrl+Alt) reste une frappe.
+      const crochet = (c: string, place: string) => (e.key === c && (!e.shiftKey || e.altKey) && !parAltGr(e)) || (e.code === place && !e.shiftKey && !e.altKey)
+      // ⇧⌘, et ⇧⌘. : Maj et la touche de la virgule ou du point, sur toute disposition ; en AZERTY, la virgule est à la
+      // place QWERTY de M, et le point demande Maj sur celle du point-virgule.
+      const grille = e.shiftKey && !e.altKey ? signeParmi(e, [',', '.']) : null
+      if (crochet('[', 'BracketLeft')) setParcours(reculer)
+      else if (crochet(']', 'BracketRight')) setParcours(avancer)
+      else if (e.altKey) return
+      else if (lettre === 'd' && e.shiftKey) basculerThemeRef.current()
+      else if (grille) changerGrilleRef.current(grille === '.' ? 1 : -1)
+      else if (lettre === 'u' && e.shiftKey) {
         // Redescendre : dans le tableau qu'on vient de quitter, s'il est rangé dans celui-ci.
         const quitte = p.pile[p.index - 1]
         if (quitte && esp.parent(quitte) === ici) aller(quitte)
       } else if (e.shiftKey) return
-      else if (e.key.toLowerCase() === 'u') {
+      else if (lettre === 'u') {
         const parent = esp.parent(ici)
         if (parent) aller(parent)
-      } else if (e.key === '[' || e.code === 'BracketLeft') setParcours(reculer)
-      else if (e.key === ']' || e.code === 'BracketRight') setParcours(avancer)
-      else return
+      } else return
       e.preventDefault()
     }
     document.addEventListener('keydown', touche)

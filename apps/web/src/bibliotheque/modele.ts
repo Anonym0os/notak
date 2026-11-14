@@ -86,8 +86,37 @@ export interface Vue {
 /** Une toile qui se montre en dossier (`Tableau.dossier`) : elle s'ouvre d'abord ici, en liste de ce qu'elle porte. */
 export const estDossier = (e: Pick<EntreeBibliotheque, 'element' | 'resume'>) => e.element === null && e.resume.genre === 'toile' && e.resume.dossier === true
 
+/**
+ * Un dossier qu'un outil rattaché a généré (celui d'une de ses fiches, ou celui qui les range, « Clients ») : il reste
+ * tel que l'outil l'a fait, là où il l'a mis, comme les fiches chez lui. Ni déplacé, ni renommé, ni jeté, ni montré en
+ * toile : le serveur le refuse aussi. On range dedans ce qu'on veut.
+ */
+export const genere = (e: Pick<EntreeBibliotheque, 'element' | 'outil'>) => e.element === null && e.outil !== undefined
+
 /** Ce qu'une toile porte directement : les toiles qu'elle range, et ses pages, cartes, photos, liens et fichiers. */
 export const contenuDuDossier = (id: string, entrees: readonly EntreeBibliotheque[]) => entrees.filter((e) => e.dans === id && !(e.element === null && e.tableau === id))
+
+/** Au plus tant d'entrées dans l'aperçu d'un dossier : quatre petites vignettes, comme le Finder ou Drive. */
+export const APERCU_MAX = 4
+
+/**
+ * Les entrées, chaque dossier portant l'aperçu de ce qu'il range (`resume.apercu`) : ses premières entrées dans l'ordre
+ * où il les montre ouvert, la plus récente d'abord, puis par titre. Sa vignette le distingue ainsi des autres ; vide, il
+ * n'en a pas. Un dossier rangé dans un autre s'y montre par son icône : pas d'aperçu dans l'aperçu.
+ */
+export function avecApercus(entrees: EntreeBibliotheque[]): EntreeBibliotheque[] {
+  const contenus = new Map(entrees.filter(estDossier).map((e) => [e.tableau, [] as EntreeBibliotheque[]]))
+  if (contenus.size === 0) return entrees
+  for (const e of entrees) if (e.dans && !(e.element === null && e.tableau === e.dans)) contenus.get(e.dans)?.push(e)
+  const ordre = (a: EntreeBibliotheque, b: EntreeBibliotheque) =>
+    (b.vu ?? -1) - (a.vu ?? -1) || (a.titre || '\uffff').localeCompare(b.titre || '\uffff', undefined, { sensitivity: 'base', numeric: true })
+  return entrees.map((e) => {
+    const contenu = estDossier(e) ? contenus.get(e.tableau)!.sort(ordre).slice(0, APERCU_MAX) : []
+    if (contenu.length === 0) return e
+    const apercu = contenu.map(({ tableau, resume: { apercu: _, ...resume } }) => ({ tableau, resume }))
+    return { ...e, resume: { ...e.resume, apercu } }
+  })
+}
 
 /**
  * Le chemin d'une toile depuis l'accueil, elle comprise : `[accueil, …, id]`. Une toile dont on ne lit pas le haut (un
@@ -105,10 +134,11 @@ export function filDAriane(id: string, entrees: readonly EntreeBibliotheque[], r
   return fil
 }
 
-/** Un nœud de l'arbre des dossiers de la colonne. */
+/** Un nœud de l'arbre des dossiers de la colonne ; `outil` : celui qui l'a généré, que la ligne nomme. */
 export interface NoeudDossier {
   id: string
   titre: string
+  outil?: string
   enfants: NoeudDossier[]
 }
 
@@ -128,7 +158,7 @@ export function arbreDesDossiers(entrees: readonly EntreeBibliotheque[], racine:
     (sous.get(haut) ?? [])
       .filter((e) => !vus.has(e.tableau))
       .sort(parTitre)
-      .map((e) => ({ id: e.tableau, titre: e.titre, enfants: batir(e.tableau, new Set([...vus, e.tableau])) }))
+      .map((e) => ({ id: e.tableau, titre: e.titre, ...(e.outil ? { outil: e.outil } : {}), enfants: batir(e.tableau, new Set([...vus, e.tableau])) }))
   return batir(racine, new Set([racine]))
 }
 

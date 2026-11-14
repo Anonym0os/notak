@@ -61,6 +61,21 @@ describe('ligne rapide', () => {
     expect(poignee()!.style.top).toBe('calc((10 - var(--notak-cam-oy)) * var(--notak-cam-k) * 1px)')
   })
 
+  it('sur une carte arrondie (un habillage), pose sa poignée sur l’arrondi, à 45°, et non dans le vide du coin', () => {
+    monter([b])
+    const carte = document.createElement('div')
+    carte.className = 'notak-carte'
+    carte.dataset.id = a.id
+    carte.style.borderTopRightRadius = '10px'
+    toile.append(carte)
+    monter([a])
+    // 10 px, soit 1 UG : depuis le coin (30, 10), la poignée rentre de 1 − √2/2 UG sur chaque axe.
+    const position = (css: string) => Number(/^calc\(\(([\d.]+) - /.exec(css)![1])
+    expect(position(poignee()!.style.left)).toBeCloseTo(30 - (1 - Math.SQRT1_2), 6)
+    expect(position(poignee()!.style.top)).toBeCloseTo(10 + (1 - Math.SQRT1_2), 6)
+    carte.remove()
+  })
+
   it('n’en pose pas pour deux éléments, ni pour une ligne', () => {
     monter([a, b])
     expect(poignee()).toBeNull()

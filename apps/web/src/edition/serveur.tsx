@@ -12,6 +12,7 @@ import {
   type DetailImport,
   EVENEMENT_IMPORT,
   annoncer,
+  lettreDe,
 } from '@notak/tableau'
 import { type ReactNode, StrictMode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -232,10 +233,11 @@ function Application() {
     if (chemin === '/bibliotheque') allerA('/', { remplacer: true })
   }, [chemin])
   // ⌥⌘O ramène à la bibliothèque, d'où qu'on soit : écouté avant la carte ou le document ouverts, qui gardent leurs touches.
+  // Alt change `key` sur Mac : la lettre se lit telle qu'elle est marquée, sur toute disposition.
   useEffect(() => {
     if (etat.type !== 'connecte') return
     const touche = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || !e.altKey || e.shiftKey || e.code !== 'KeyO') return
+      if (!(e.metaKey || e.ctrlKey) || !e.altKey || e.shiftKey || lettreDe(e) !== 'o') return
       e.preventDefault()
       e.stopPropagation()
       allerA('/')

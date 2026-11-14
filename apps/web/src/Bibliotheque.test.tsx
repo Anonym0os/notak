@@ -188,6 +188,15 @@ describe('la page', () => {
     expect(hote.querySelectorAll('.biblio-tuile-ou')[2]!.textContent).toBe('dans Voyage')
   })
 
+  it('une toile privée porte un cadenas devant son nom, que son nom dit aussi au lecteur d’écran', async () => {
+    await ouvrir(async () => [entree({ tableau: 'compta', titre: 'Compta', prive: true, vu: 2 }), entree({ tableau: 'voyage', titre: 'Voyage', vu: 1 })])
+    const compta = hote.querySelector<HTMLElement>('[data-cle="compta/"]')!
+    expect(compta.querySelector('.biblio-tuile-privee')?.getAttribute('title')).toBe('Privée')
+    expect(compta.getAttribute('aria-label')).toBe('Compta, Privée')
+    expect(compta.querySelector('.biblio-tuile-titre')!.textContent).toBe('Compta')
+    expect(hote.querySelector('[data-cle="voyage/"] .biblio-tuile-privee')).toBeNull()
+  })
+
   it('ce qu’on range ailleurs (le dossier d’une fiche de Silak, la toile d’un collègue) paraît au retour sur la page, sans la recharger', async () => {
     let liste = TOUTES
     let lectures = 0
@@ -551,6 +560,32 @@ describe('les gestes', () => {
       expect(hote.querySelectorAll('.biblio-fil .notak-fil-segment')).toHaveLength(0)
     })
 
+    it('le clic droit d’un dossier de l’arbre ouvre le menu de sa tuile ; « Renommer » va la montrer, prête', async () => {
+      history.replaceState(null, '', '/?vue=partages')
+      await act(async () => racine.render(<PageBibliotheque charger={async () => AVEC_DOSSIER} espace={monde()} definirFavori={async () => {}} />))
+      expect(hote.querySelector('[data-cle="voyage/"]')).toBeNull()
+      const ligne = [...hote.querySelectorAll<HTMLElement>('.biblio-arbre .biblio-rubrique')].find((b) => b.textContent === 'Voyage')!
+      const clic = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 30, clientY: 200 })
+      act(() => void ligne.dispatchEvent(clic))
+      // Pas le menu de la webview : celui de Notak, le même que celui de la tuile.
+      expect(clic.defaultPrevented).toBe(true)
+      expect([...hote.querySelectorAll('.notak-menu .notak-e-libelle')].map((x) => x.textContent)).toEqual([
+        'Ouvrir',
+        'Renommer',
+        'Dupliquer',
+        'Retirer des favoris',
+        'Afficher comme toile',
+        'Déplacer vers…',
+        'Copier le lien',
+        'Mettre à la corbeille',
+      ])
+      // Sa tuile n'est pas à l'écran : on va dans le dossier qui la range, où elle se renomme.
+      act(() => entree('Renommer').click())
+      expect(location.search).toBe('?dossier=racine')
+      expect(tuile('voyage/').querySelector<HTMLInputElement>('.biblio-renommer')!.value).toBe('Voyage')
+      expect(tuile('voyage/').getAttribute('aria-selected')).toBe('true')
+    })
+
     it('le fil d’Ariane et l’accueil de la colonne y mènent ; une portée en sort', async () => {
       history.replaceState(null, '', '/?dossier=voyage')
       await act(async () => racine.render(<PageBibliotheque charger={async () => AVEC_DOSSIER} espace={monde()} />))
@@ -561,6 +596,47 @@ describe('les gestes', () => {
       act(() => [...hote.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.dataset.rubrique === 'favoris')!.click())
       expect(location.search).toBe('?vue=favoris')
       expect(hote.querySelector('.biblio-fil')).toBeNull()
+    })
+
+    it('glisser dans un dossier : la tuile qui crée devient celle qui remonte au parent, en grille comme en liste', async () => {
+      history.replaceState(null, '', '/?dossier=voyage')
+      const espace = monde()
+      await act(async () => racine.render(<PageBibliotheque charger={async () => AVEC_DOSSIER} espace={espace} rangerToile={async () => ({ nouveaux: 0, perdus: 0, permanents: 0, liensOuverts: 0, liensEteints: 0, fait: true })} />))
+      const zone = () => hote.querySelector<HTMLElement>('[data-remonter]')
+      const glisserDe = (cle: string) => {
+        act(() => void tuile(cle).dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 10, clientY: 10 })))
+        act(() => void window.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 60, clientY: 40 })))
+      }
+      expect(zone()).toBeNull()
+      glisserDe('voyage/plan')
+      // À la place de « Nouvelle toile », sans rien décaler : le dossier du dessus, qui prend ce qu'on y lâche.
+      expect(hote.querySelector('.biblio-tuile-neuve')).toBe(zone())
+      expect(zone()!.textContent).toBe('Remonterdans « Mon espace »')
+      expect(zone()!.dataset.depot).toBe('racine')
+      const sous = document.elementFromPoint
+      document.elementFromPoint = () => zone()
+      onTestFinished(() => void (document.elementFromPoint = sous))
+      act(() => void window.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 70, clientY: 45 })))
+      expect(zone()!.hasAttribute('data-survol-depot')).toBe(true)
+      await act(async () => void window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true })))
+      expect(espace.tableau('racine')!.elements.some((e) => e.contenu.type === 'arbre')).toBe(true)
+      expect(espace.tableau('voyage')!.elements.some((e) => e.contenu.type === 'arbre')).toBe(false)
+      expect(hote.querySelector('.notak-avis')!.textContent).toContain('Déplacé dans « Mon espace »')
+      expect(zone()).toBeNull()
+      expect(hote.querySelector('.biblio-tuile-neuve .biblio-tuile-titre')!.textContent).toBe('Nouvelle toile')
+      // En liste aussi ; Échap y renonce.
+      act(() => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-tri-choix')].find((b) => b.getAttribute('aria-label') === 'Liste')!.click())
+      glisserDe('voyage/notes')
+      expect(hote.querySelector('.biblio-grille[data-affichage="liste"] [data-remonter]')).not.toBeNull()
+      touche('Escape')
+      expect(zone()).toBeNull()
+      // À l'accueil, rien au-dessus : la tuile reste celle qui crée.
+      act(() => hote.querySelector<HTMLButtonElement>('.biblio-fil button')!.click())
+      document.elementFromPoint = () => null
+      glisserDe('atelier/')
+      expect(hote.querySelector('.biblio-fantome')).not.toBeNull()
+      expect(zone()).toBeNull()
+      act(() => void window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true })))
     })
 
     it('une toile se montre en dossier, et de nouveau en toile ; chaque fois, le menu le propose et Annuler le défait', async () => {
@@ -579,6 +655,118 @@ describe('les gestes', () => {
       act(() => void document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
       await act(async () => void document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true })))
       expect(espace.tableau('atelier')).not.toHaveProperty('dossier')
+    })
+  })
+
+  describe('les dossiers qu’un outil a générés', () => {
+    /** « Voyage » range les dossiers de « Mon CRM » ; « atelier » est celui d'une de ses fiches. */
+    const GENERES = TOUTES.map((e) =>
+      e.element !== null
+        ? e
+        : e.tableau === 'voyage'
+          ? { ...e, outil: 'Mon CRM', resume: { ...e.resume, dossier: true as const } }
+          : e.tableau === 'atelier'
+            ? { ...e, outil: 'Mon CRM', fiche: { nom: 'Mon CRM' }, resume: { ...e.resume, dossier: true as const } }
+            : e,
+    )
+    const monter = async () => {
+      const espace = monde()
+      appels.length = 0
+      await act(async () =>
+        racine.render(
+          <PageBibliotheque
+            charger={async () => GENERES}
+            espace={espace}
+            rangerToile={async (toile, parent, options) => (appels.push([toile, parent, options ?? {}]), { nouveaux: 0, perdus: 0, permanents: 0, liensOuverts: 0, liensEteints: 0, fait: !options?.essai })}
+            definirFavori={async () => {}}
+          />,
+        ),
+      )
+      return espace
+    }
+    /** Les lignes du menu, et celles qui sont éteintes. */
+    const lignes = (el: Element) => {
+      const boutons = menu(el)
+      const nom = (b: HTMLButtonElement) => b.querySelector('.notak-e-libelle')!.textContent
+      return { toutes: boutons.map(nom), eteintes: boutons.filter((b) => b.disabled).map(nom) }
+    }
+    const avis = () => hote.querySelector('.notak-avis')!.textContent
+    const fermerMenu = () => touche('Escape')
+
+    it('portent le nom de l’outil, dans la tuile et dans l’arbre de la colonne', async () => {
+      await monter()
+      expect(tuile('atelier/').querySelector('.biblio-tuile-titre .biblio-genere')!.textContent).toBe('Mon CRM')
+      expect(tuile('atelier/').getAttribute('aria-label')).toBe('atelier, Généré par Mon CRM')
+      expect(tuile('budget/').querySelector('.biblio-genere')).toBeNull()
+      expect([...hote.querySelectorAll('.biblio-arbre .biblio-rubrique')].map((b) => [b.querySelector('span')!.textContent, b.querySelector('.biblio-genere')?.textContent])).toEqual([
+        ['atelier', 'Mon CRM'],
+        ['Voyage', 'Mon CRM'],
+      ])
+    })
+
+    it('ne se modifient d’aucune façon : le menu éteint ses gestes, F2, ⌫, le glisser et la barre n’y font rien', async () => {
+      const espace = await monter()
+      for (const cle of ['atelier/', 'voyage/']) {
+        const { toutes, eteintes } = lignes(tuile(cle))
+        expect(eteintes).toEqual(['Renommer', 'Afficher comme toile', 'Déplacer vers…', 'Mettre à la corbeille'])
+        // Ce qui ne le change pas reste : l'ouvrir, le copier, le mettre en favori, copier son lien.
+        expect(toutes).toEqual(expect.arrayContaining(['Ouvrir', 'Dupliquer', 'Copier le lien']))
+        fermerMenu()
+      }
+      appuyer(tuile('voyage/'))
+      touche('F2')
+      expect(hote.querySelector('.biblio-renommer')).toBeNull()
+      await act(async () => touche('Backspace'))
+      expect(tuile('voyage/')).not.toBeNull()
+      expect(espace.tableau('racine')!.elements.find((e) => e.id === 'c-voyage')!.corbeille).toBeUndefined()
+      expect(avis()).toContain('« Voyage » est généré par Mon CRM : il reste tel quel.')
+      // Glissé, il ne se décolle pas : l'avis le dit tout de suite, et rien ne part au serveur.
+      act(() => void tuile('atelier/').dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 10, clientY: 10 })))
+      act(() => void window.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 60, clientY: 40 })))
+      expect(hote.querySelector('.biblio-fantome')).toBeNull()
+      expect(avis()).toContain('« atelier » est généré par Mon CRM : il reste tel quel.')
+      act(() => void window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true })))
+      // Choisis ensemble, la barre retient « Déplacer » et la corbeille, et son infobulle dit pourquoi.
+      appuyer(tuile('voyage/'))
+      appuyer(tuile('atelier/'), { metaKey: true })
+      const retenus = [...hote.querySelectorAll<HTMLButtonElement>('.biblio-barre-choix button[aria-disabled="true"]')].map((b) => b.getAttribute('aria-label'))
+      expect(retenus).toEqual(['Généré par Mon CRM', 'Généré par Mon CRM'])
+      expect(appels).toEqual([])
+    })
+
+    it('le clic droit de l’arbre de la colonne montre les mêmes gestes éteints', async () => {
+      await monter()
+      const ligne = [...hote.querySelectorAll<HTMLElement>('.biblio-arbre .biblio-rubrique')].find((b) => b.querySelector('span')!.textContent === 'atelier')!
+      act(() => void ligne.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 30, clientY: 200 })))
+      expect([...hote.querySelectorAll<HTMLButtonElement>('.notak-menu button')].filter((b) => b.disabled).map((b) => b.querySelector('.notak-e-libelle')!.textContent)).toEqual([
+        'Renommer',
+        'Afficher comme toile',
+        'Déplacer vers…',
+        'Mettre à la corbeille',
+      ])
+    })
+
+    it('choisis avec d’autres, ils restent tels quels et l’avis le dit ; on range dedans ce qu’on veut', async () => {
+      history.replaceState(null, '', '/?vue=tout')
+      const espace = await monter()
+      appuyer(tuile('voyage/plan'))
+      appuyer(tuile('atelier/'), { metaKey: true })
+      menu(tuile('voyage/plan'))
+      act(() => entree('Déplacer vers…').click())
+      // La fenêtre ne parle que de ce qui part.
+      expect(document.querySelector('.notak-dialogue-titre')!.textContent).toBe('Déplacer « Plan »')
+      await act(async () => [...hote.querySelectorAll<HTMLElement>('.biblio-deplacer-liste li')].find((li) => li.textContent?.startsWith('Budget'))!.click())
+      expect(espace.tableau('budget')!.elements.some((e) => e.contenu.type === 'arbre')).toBe(true)
+      expect(espace.tableau('racine')!.elements.some((e) => e.id === 'c-atelier')).toBe(true)
+      expect(avis()).toContain('Déplacé dans « Budget ». « atelier » est généré par Mon CRM : il reste tel quel.')
+      // Le dossier d'une fiche prend ce qu'on y range.
+      touche('Escape')
+      menu(tuile('voyage/notes'))
+      act(() => entree('Déplacer vers…').click())
+      await act(async () => [...hote.querySelectorAll<HTMLElement>('.biblio-deplacer-liste li')].find((li) => li.textContent?.startsWith('atelier'))!.click())
+      expect(espace.tableau('atelier')!.elements.some((e) => e.contenu.type === 'document')).toBe(true)
+      expect(avis()).toContain('Déplacé dans « atelier »')
+      expect(appels).toEqual([])
     })
   })
 

@@ -37,6 +37,37 @@ describe('les résumés d’une toile pour la bibliothèque', () => {
     })
   })
 
+  it('une photo dit ce que la toile en fait : recadrée, tournée, retournée, dans un cadre libre ; écrit de travers, rien', () => {
+    const [, faite, travers] = resumesDuTableau(
+      toile([
+        poser('faite', {
+          type: 'image',
+          fichier: 'f',
+          largeurOrigine: 4000,
+          hauteurOrigine: 3000,
+          recadrage: { x: 0.25, y: 0, largeur: 0.5, hauteur: 1 },
+          rotation: 90,
+          miroirH: true,
+          rapportCadre: 0.8,
+        }),
+        poser('travers', { type: 'image', fichier: 'g', largeurOrigine: 4000, hauteurOrigine: 3000, recadrage: { x: 0.2, y: 'haut', largeur: 0, hauteur: 2 }, rotation: 45, miroirV: 'oui', rapportCadre: -1 }),
+      ]),
+    )
+    expect(faite).toEqual({
+      genre: 'image',
+      element: 'faite',
+      titre: '',
+      fichier: 'f',
+      largeur: 4000,
+      hauteur: 3000,
+      recadrage: { x: 0.25, y: 0, largeur: 0.5, hauteur: 1 },
+      rotation: 90,
+      miroirH: true,
+      rapportCadre: 0.8,
+    })
+    expect(travers).toEqual({ genre: 'image', element: 'travers', titre: '', fichier: 'g', largeur: 4000, hauteur: 3000 })
+  })
+
   it('un lien : son titre ou celui de la page, son site, sa description, et l’image qu’on lui a choisie d’abord', () => {
     const apercu = { titre: 'Le Monde', description: 'Actualités', image: 'https://exemple.fr/une.jpg', site: 'Le Monde', favicon: 'https://exemple.fr/f.ico' }
     const [, page, choisie, nue] = resumesDuTableau(
@@ -127,6 +158,20 @@ describe('le plan d’une toile, pour sa vignette', () => {
       [5, 'f-k'],
       [7, undefined],
     ])
+  })
+
+  it('une photo recadrée, tournée ou retournée y dit ce que la toile en fait ; droite et entière, rien de plus', () => {
+    const plan = planDe([
+      poser('droite', { type: 'image', fichier: 'f-d', largeurOrigine: 2000, hauteurOrigine: 1000, rapportCadre: 4 }),
+      poser('couchee', { type: 'image', fichier: 'f-c', largeurOrigine: 2000, hauteurOrigine: 1000, rotation: 270, miroirV: true }),
+      poser('recadree', { type: 'image', fichier: 'f-r', largeurOrigine: 2000, hauteurOrigine: 1000, recadrage: { x: 0.5, y: 0, largeur: 0.5, hauteur: 1 } }),
+    ])!
+    expect(plan.boites.map((b) => b[8])).toEqual([
+      undefined,
+      { largeur: 2000, hauteur: 1000, rotation: 270, miroirV: true },
+      { largeur: 2000, hauteur: 1000, recadrage: { x: 0.5, y: 0, largeur: 0.5, hauteur: 1 } },
+    ])
+    expect(plan.boites[0]).toHaveLength(8)
   })
 
   it('un dessin a la hauteur de ses traits, pas celle d’une note', () => {

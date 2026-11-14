@@ -3,9 +3,12 @@ import { readFileSync } from 'node:fs'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { BarreSelection } from './Barres'
 import { creerMagasin } from './coeur/magasin'
-import { nouvelleNote } from './coeur/tableau'
+import { type Element as ElementToile, type Image, nouvelId, nouvelleNote } from './coeur/tableau'
 import './elements'
+import { toutesLesEntreesMenu } from './elements/registre'
+import type { ContexteToile } from './elements/types'
 import { fermerMenus } from './menuUnique'
 import { EVENEMENT_CHERCHER, Toile } from './Toile'
 
@@ -118,6 +121,42 @@ describe('la toile sur un téléphone', () => {
     await act(() => new Promise((r) => setTimeout(r, 400)))
     act(() => document.querySelector<HTMLButtonElement>('.notak-tiroir-bas-outil .notak-tiroir-bas-fermer')!.click())
     expect(document.querySelector('.notak-tiroir-bas-outil')).toBeNull()
+  })
+})
+
+describe('la feuille d’actions d’un élément, au doigt', () => {
+  /** Une image choisie, sa capsule montée, et sa feuille « ••• » ouverte : ses tuiles et ses lignes. */
+  function feuilleDe(plus: Partial<Image>) {
+    const e: ElementToile<Image> = { id: nouvelId(), x: 0, y: 0, largeur: 20, contenu: { type: 'image', fichier: 'f', largeurOrigine: 100, hauteurOrigine: 100, ...plus } }
+    const contexte = {
+      magasin: creerMagasin({ titre: '', etiquettes: [], elements: [e] }),
+      choisir: () => {},
+      rect: () => null,
+      commencerEdition: () => {},
+      finirEdition: () => {},
+      selection: new Set([e.id]),
+      services: { fichiers: { enregistrer: async () => 'x', adresse: async () => null }, tableau: () => undefined },
+      // Les lignes du menu de l'élément, comme la toile les donne : les entrées des modules, telles quelles.
+      actions: () => toutesLesEntreesMenu().filter((x) => x.visible([e], contexte)).map((x) => ({ libelle: x.libelle, icone: x.icone, faire: () => {} })),
+    } as unknown as ContexteToile
+    act(() => racine.render(<BarreSelection elements={[e]} contexte={contexte} position={{ x: 0, y: 0 }} aGauche />))
+    act(() => hote.querySelector<HTMLButtonElement>('.notak-barre-outils[data-capsule] > .notak-outil-plus')!.click())
+    const tuiles = [...document.querySelectorAll('button.notak-outil .notak-outil-libelle')].map((l) => l.textContent)
+    const lignes = [...document.querySelectorAll('.notak-actions-ligne')].map((l) => l.textContent)
+    return { tuiles, lignes }
+  }
+
+  it('ne répète pas en ligne ce que fait une tuile : « Légende » sans « Ajouter une légende » ; « Retirer la légende » reste', () => {
+    const sans = feuilleDe({})
+    expect(sans.tuiles).toContain('Légende')
+    expect(sans.lignes).not.toContain('Ajouter une légende')
+    expect(sans.lignes).not.toContain('Commenter')
+    act(() => racine.render(null))
+    const avec = feuilleDe({ legende: 'Un port' })
+    expect(avec.tuiles).toContain('Légende')
+    expect(avec.lignes).not.toContain('Modifier la légende')
+    // La tuile ne la retire pas : la ligne est le seul moyen de le faire au doigt.
+    expect(avec.lignes).toContain('Retirer la légende')
   })
 })
 

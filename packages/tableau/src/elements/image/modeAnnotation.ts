@@ -29,6 +29,8 @@ function reglageEpaisseur(): number {
 
 /** Le mode dessin : l'image annotée, l'outil, la couleur et l'épaisseur (qu'on garde d'une image à l'autre). */
 let etat: EtatAnnotation = { id: null, outil: 'crayon', couleur: reglageCouleur(), epaisseur: reglageEpaisseur() }
+/** Où revenir quand on termine le dessin soi-même : ce qui l'a ouvert (la visionneuse). */
+let retour: (() => void) | undefined
 const ecouteurs = new Set<() => void>()
 
 const poser = (suite: EtatAnnotation) => {
@@ -43,11 +45,24 @@ const ecouter = (f: () => void) => {
 export const etatAnnotation = () => etat
 export const useAnnotation = () => useSyncExternalStore(ecouter, etatAnnotation)
 
-/** Entre dans le mode dessin sur cette image, ou en sort (`null`). Le crayon reprend la main à chaque entrée. */
-export function annoter(id: Id | null) {
+/**
+ * Entre dans le mode dessin sur cette image, ou en sort (`null`). Le crayon reprend la main à chaque entrée.
+ * `depuis.retour` : ce qui l'a ouvert, à rouvrir quand on termine soi-même (enregistrer, abandonner, Maj+D) ; pas
+ * quand le mode se ferme parce qu'on a choisi autre chose.
+ */
+export function annoter(id: Id | null, depuis?: { retour?: () => void }) {
   if (etat.id === id) return
+  retour = id === null ? undefined : depuis?.retour
   poser({ ...etat, id, outil: 'crayon' })
 }
+
+/** On sort du dessin de soi-même : le mode se ferme, et l'on revient d'où on l'avait ouvert. */
+export function terminerAnnotation() {
+  const revenir = retour
+  annoter(null)
+  revenir?.()
+}
+
 export const choisirOutil = (outil: OutilAnnotation) => poser({ ...etat, outil })
 export function choisirCouleur(couleur: string) {
   ecrireReglage(CLE_COULEUR, couleur)

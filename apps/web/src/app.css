@@ -49,6 +49,47 @@ body {
   outline: none;
 }
 
+/*
+ * Les barres de défilement, dans toute l'app : fines, et seulement quand on survole ce qui défile, comme celles du Finder
+ * et de Drive. Une souris branchée (une MX Master) fait dessiner à macOS des barres épaisses, toujours là, au milieu des
+ * rangées et des panneaux. Le pouce paraît au survol, donc aussi quand on y fait défiler à la molette ou au trackpad ;
+ * la piste reste transparente, et le pouce prend la couleur du texte de ce qui défile, si bien qu'il se lit en clair
+ * comme en sombre, sur une carte mentale comme sur une note. Au doigt (iPhone, iPad), les barres du système, qui ne
+ * paraissent que pendant le défilement, restent. Une rangée qui cache sa barre (`scrollbar-width: none`) la garde cachée.
+ * Un WebKit d'avant `scrollbar-color` (Safari 26.1 et avant) dessine ses barres d'après `::-webkit-scrollbar`, que les
+ * propriétés standard, quand il les connaît, feraient taire : fines, à peine teintées, sans piste.
+ */
+@media (hover: hover) {
+  @supports (scrollbar-color: red red) {
+    :where(*) {
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+    }
+
+    :where(:hover) {
+      scrollbar-color: color-mix(in srgb, currentColor 32%, transparent) transparent;
+    }
+  }
+
+  @supports not (scrollbar-color: red red) {
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track,
+    ::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      border: 2px solid transparent;
+      border-radius: 8px;
+      background: color-mix(in srgb, currentColor 22%, transparent) padding-box;
+    }
+  }
+}
+
 /* Sous la barre d'état et la barre d'accueil d'un iPhone (viewport-fit=cover), la page montre son propre fond : celui
    de l'app, jamais le blanc du navigateur. */
 html,
@@ -283,7 +324,6 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   line-height: 1.4;
   text-align: left;
   white-space: normal;
-  scrollbar-width: thin;
 }
 
 .app-panneau[hidden] {
@@ -529,13 +569,92 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   gap: 6px;
 }
 
-/* Le choix entre une adresse et une équipe prend sa propre ligne, au-dessus. */
-.partage-form .partage-cible {
-  flex: 1 1 100%;
-}
-
 .partage-form input {
   flex: 1;
+}
+
+/* Le champ d'invitation : la personne choisie s'y pose en pastille, à gauche de ce qu'on tape, comme dans Drive. */
+.partage-inviter {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 36px;
+  border-radius: 10px;
+  background-color: var(--app-champ);
+  box-shadow: inset 0 0 0 1px var(--app-filet);
+  cursor: text;
+  transition: box-shadow 0.12s ease;
+}
+
+.partage-inviter:focus-within {
+  box-shadow: inset 0 0 0 1.5px var(--accent), 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.partage-form .partage-inviter input,
+.partage-form .partage-inviter input:focus {
+  min-width: 48px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.partage-choisi {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  max-width: 70%;
+  margin-left: 4px;
+  padding: 2px;
+  border-radius: 15px;
+  background: var(--app-choisi);
+  font-size: 13px;
+}
+
+.partage-choisi > span:not(.app-pastille) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.partage-choisi .app-pastille {
+  width: 24px;
+  height: 24px;
+  font-size: 11px;
+}
+
+.partage-choisi .app-icone-bouton {
+  width: 22px;
+  height: 22px;
+}
+
+/* Les propositions, sous le champ : chaque personne par sa photo, son nom, son adresse et son espace. */
+.partage-propositions {
+  display: flex;
+  flex: 1 1 100%;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 248px;
+  margin: 0 -6px;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.partage-propositions li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 4px 6px;
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.partage-propositions li[aria-selected='true'] {
+  background: var(--app-survol);
 }
 
 .partage-form .bouton,
@@ -716,6 +835,65 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
 .partage-role-choix:is(:hover, :focus-visible) {
   background-color: var(--app-survol);
   color: var(--texte);
+}
+
+/* L'accès général : une ligne comme celles des personnes, le cadenas ou l'espace à gauche, le choix à deux crans. */
+.partage-general-ligne {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.partage-general .partage-qui small {
+  white-space: normal;
+}
+
+.partage-general-choix {
+  align-self: flex-start;
+  max-width: 100%;
+  height: 28px;
+  margin-left: -8px;
+  padding: 0 26px 0 8px;
+  border: 0;
+  border-radius: 8px;
+  outline: none;
+  appearance: none;
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238a919c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6l6 -6'/%3E%3C/svg%3E") no-repeat right 6px center;
+  color: var(--texte);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.partage-general-choix:is(:hover, :focus-visible) {
+  background-color: var(--app-survol);
+}
+
+/* « Copier le lien », en pied : pour qui a déjà accès ; le lien visiteur, au-dessus, est pour qui n'a pas de compte. */
+.partage-pied {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--app-filet);
+}
+
+.partage-pied .bouton {
+  gap: 6px;
+  height: 32px;
+  font-size: 13px;
+}
+
+.partage-pied input {
+  align-self: stretch;
+  height: 32px;
+  font-size: 12.5px;
 }
 
 .partage-ligne-reglage {
@@ -1197,12 +1375,18 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
 
 /* Plusieurs bandeaux à la fois : chacun se pose au-dessus des précédents, à leur hauteur réelle (`bandeaux.ts`). */
 
-.bouton-etoile[aria-pressed='true'] {
-  color: #e8a400;
+/*
+ * L'étoile du tableau ouvert, dans l'îlot de l'en-tête : en favori, c'est l'étoile pleine et jaune qui le dit
+ * (`notak-ico-favori`, toile.css). Le bouton ne passe donc pas en sombre plein comme un bouton enfoncé de l'îlot
+ * (ilots.css), qui la rendait blanche sur un rond noir ; au survol, il prend le voile des autres boutons.
+ */
+.notak-ilot .bouton.bouton-etoile[aria-pressed='true'] {
+  background: transparent;
+  color: inherit;
 }
 
-[data-theme='sombre'] .bouton-etoile[aria-pressed='true'] {
-  color: #f5b82e;
+.notak-ilot .bouton.bouton-etoile[aria-pressed='true']:hover:not(:disabled) {
+  background: color-mix(in srgb, currentColor 8%, transparent);
 }
 
 /* — L'invitation à une toile, en tête de la carte de connexion ou d'acceptation. — */
@@ -2076,6 +2260,20 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
   margin: 0;
   font-size: 18px;
   font-weight: 650;
+}
+
+/* Ce qui ne se peut pas, dit sous les droits : un élément ne se cache pas, une toile privée si. */
+.droits-element-prive {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--app-filet);
+}
+
+.droits-element-prive > svg {
+  flex: none;
+  margin-top: 2px;
 }
 
 .droits-element > .bouton {
@@ -3232,7 +3430,6 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
-  scrollbar-width: thin;
 }
 
 .biblio-section[data-rail] .biblio-grille[data-affichage='grille'] > li {
@@ -3334,13 +3531,13 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   box-shadow: 0 0 0 2px var(--notak-accent, #2f6feb);
 }
 
-.biblio-vignette[data-genre='toile'] {
+:is(.biblio-vignette, .biblio-miniature)[data-genre='toile'] {
   background-color: var(--notak-fond, #ebedee);
   background-image: radial-gradient(circle, var(--notak-point, #c4c8ce) 0.7px, transparent 1px);
   background-size: 9px 9px;
 }
 
-.biblio-vignette[data-genre='document'] {
+:is(.biblio-vignette, .biblio-miniature)[data-genre='document'] {
   background: color-mix(in srgb, var(--notak-fond, #ebedee) 60%, var(--notak-carte, #fff));
 }
 
@@ -3350,10 +3547,10 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 }
 
 /*
- * Une photo, l'aperçu d'un lien : l'image remplit la vignette, recadrée au centre. Posée sur toute la vignette : dans
- * la grille qui centre son contenu, sa hauteur suivait la sienne, et une photo en hauteur ne montrait que son haut.
+ * L'aperçu d'un lien : l'image remplit la vignette, recadrée au centre. Posée sur toute la vignette : dans la grille
+ * qui centre son contenu, sa hauteur suivait la sienne, et une image en hauteur ne montrait que son haut.
  */
-.biblio-vignette > img {
+:is(.biblio-vignette, .biblio-miniature) > img {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -3362,25 +3559,47 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   object-position: 50% 50%;
 }
 
-/* Une photo que le recadrage couperait trop (en hauteur, panoramique) : entière, sur le fond de la vignette. */
-.biblio-vignette[data-cadrage='entier'] > img {
-  object-fit: contain;
+/*
+ * Une photo, comme sur la toile : son cadre remplit la vignette, ou s'y montre entier (sa taille, en unités de la
+ * vignette, vient de `VignettePhoto`) ; dedans, le plan de l'image tourne autour de son centre et l'image s'y décale,
+ * en unités du cadre (`misePhoto`), comme `.notak-image-cadre` et `.notak-image-plan` sur la toile.
+ */
+.biblio-vignette[data-genre='image'] {
+  container-type: size;
+}
+
+.biblio-vignette-cadre,
+.biblio-vignette-plan {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  overflow: hidden;
+}
+
+.biblio-vignette-cadre {
+  container-type: size;
+  transform: translate(-50%, -50%);
+}
+
+.biblio-vignette-plan > img {
+  position: absolute;
+  display: block;
+  max-width: none;
 }
 
 /* Un dossier : son icône, au milieu d'un fond teinté de l'accent. */
-.biblio-vignette[data-genre='dossier'] {
+:is(.biblio-vignette, .biblio-miniature)[data-genre='dossier'] {
   background: color-mix(in srgb, var(--notak-accent, #2f6feb) 9%, var(--notak-carte, #fff));
   color: color-mix(in srgb, var(--notak-accent, #2f6feb) 75%, var(--notak-texte, #323b4a));
 }
 
-.biblio-vignette[data-genre='dossier'] svg {
+/* Son icône seule : les vignettes de ce qu'il range ont leurs propres dessins. */
+:is(.biblio-vignette, .biblio-miniature)[data-genre='dossier'] > svg {
   width: auto;
   height: 46%;
 }
 
-.biblio-vignette[data-genre='image'],
-.biblio-vignette[data-genre='lien'],
-.biblio-vignette[data-genre='fichier'] {
+:is(.biblio-vignette, .biblio-miniature):is([data-genre='image'], [data-genre='lien'], [data-genre='fichier']) {
   color: var(--biblio-pale);
   background: color-mix(in srgb, var(--notak-fond, #ebedee) 70%, var(--notak-carte, #fff));
 }
@@ -3411,8 +3630,61 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   border-radius: 6px;
 }
 
-.biblio-vignette[data-fichier='pdf'] {
+:is(.biblio-vignette, .biblio-miniature)[data-fichier='pdf'] {
   color: #d64545;
+}
+
+/*
+ * Un dossier qui range quelque chose : ses premières entrées en petites vignettes, deux par deux, sur son fond, et les
+ * places qui restent. Tout se mesure à la vignette (`cqw`, `cqh`) : en liste comme en grille, elle garde ses proportions.
+ */
+.biblio-vignette[data-genre='dossier'] {
+  container-type: size;
+}
+
+.biblio-apercu {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template: repeat(2, minmax(0, 1fr)) / repeat(2, minmax(0, 1fr));
+  gap: 6cqh 4.5cqw;
+  padding: 9cqh 7cqw;
+}
+
+.biblio-miniature,
+.biblio-apercu-place {
+  border-radius: 3cqw;
+}
+
+.biblio-apercu-place {
+  background: color-mix(in srgb, var(--notak-accent, #2f6feb) 7%, transparent);
+}
+
+/* Une miniature : une vignette en petit, qui mesure ce qu'elle porte à elle-même. */
+.biblio-miniature {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--notak-carte, #fff);
+  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.08), 0 1px 3px rgb(27 37 54 / 0.12);
+  container-type: size;
+}
+
+.biblio-miniature[data-genre='toile'] {
+  background-size: 5px 5px;
+}
+
+/* En si petit, les mots ne tiennent pas : l'icône dit le genre. */
+.biblio-miniature .biblio-vignette-vide,
+.biblio-miniature :is(.biblio-vignette-lien, .biblio-vignette-fichier) > span {
+  display: none;
+}
+
+.biblio-miniature .notak-ico,
+.biblio-miniature .biblio-vignette-favicon {
+  width: 44cqh;
+  height: 44cqh;
 }
 
 .biblio-tuile-neuve .biblio-vignette {
@@ -3434,6 +3706,42 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/*
+ * Un dossier qu'un outil rattaché a généré porte le nom de l'outil à la suite de son titre, dans la tuile, la liste et
+ * l'arbre de la colonne : on voit d'un coup d'œil qu'il ne se modifie pas d'ici. Le titre se rogne, le nom reste.
+ */
+.biblio-tuile-titre[data-genere] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.biblio-tuile-titre[data-genere] .biblio-tuile-nom {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.biblio-genere {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 9%, transparent);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+  opacity: 0.72;
+}
+
+/* Le cadenas d'une toile privée, pâle, devant son nom. */
+.biblio-tuile-privee {
+  display: inline-flex;
+  margin-right: 4px;
+  color: var(--app-pale);
+  vertical-align: -1px;
 }
 
 .biblio-tuile-ou {
@@ -3546,6 +3854,30 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 
 .biblio-tuile[data-survol-depot] .biblio-vignette {
   box-shadow: 0 0 0 3px var(--accent), 0 14px 30px -10px rgb(27 37 54 / 0.3);
+  transform: scale(1.03);
+}
+
+/*
+ * Pendant qu'on glisse dans un dossier, la tuile qui crée devient celle qui remonte au dossier du dessus : un cadre
+ * pointillé l'offre au dépôt avant qu'on la survole, puis elle s'allume comme les autres.
+ */
+.biblio-tuile[data-remonter] {
+  cursor: inherit;
+}
+
+.biblio-tuile[data-remonter] .biblio-vignette {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  box-shadow: none;
+  outline: 2px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: -2px;
+  color: var(--accent);
+  transform: none;
+}
+
+.biblio-tuile[data-remonter][data-survol-depot] .biblio-vignette {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: 0 0 0 3px var(--accent), 0 14px 30px -10px rgb(27 37 54 / 0.3);
+  outline: none;
   transform: scale(1.03);
 }
 
@@ -4132,6 +4464,9 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   margin: 0;
   padding: 0;
   list-style: none;
+  /* Un clic droit ouvre le menu du dossier : il ne choisit pas son nom comme un mot du texte. */
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .biblio-arbre-ligne {
@@ -4144,6 +4479,11 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   flex: 1;
   min-width: 0;
   padding-left: 4px;
+}
+
+/* Dans l'arbre, la marque d'un dossier généré se range au bout de la ligne, comme les nombres des rubriques. */
+.biblio-arbre-ligne .biblio-genere {
+  margin-left: auto;
 }
 
 .biblio-arbre-chevron {

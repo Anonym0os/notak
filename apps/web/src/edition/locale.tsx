@@ -1,4 +1,4 @@
-import { BullesDecouverte, type CouleurNote, auDoigt, EspaceNotak, type Id, ErreurNotak, type Services, TYPE_NOTAK } from '@notak/tableau'
+import { BullesDecouverte, type CouleurNote, auDoigt, EspaceNotak, type Id, ErreurNotak, type Services, TYPE_NOTAK, lettreDe } from '@notak/tableau'
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
 import { adressePour } from '../adresse'
@@ -119,7 +119,8 @@ function Espace({ el }: { el: EspaceLocal }) {
   const allerALaBibliotheque = useCallback(() => allerA('/'), [])
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || !e.altKey || e.shiftKey || e.code !== 'KeyO') return
+      // Alt change `key` sur Mac : la lettre se lit telle qu'elle est marquée, sur toute disposition.
+      if (!(e.metaKey || e.ctrlKey) || !e.altKey || e.shiftKey || lettreDe(e) !== 'o') return
       e.preventDefault()
       e.stopPropagation()
       allerA('/')

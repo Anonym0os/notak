@@ -1,10 +1,15 @@
 import type { Id } from '../../../coeur/tableau'
+import { chiffreDe, lettreDe, parAltGr, signeParmi } from '../../../touches'
 import type { Disposition } from '../disposition'
 import type { Geste } from './gestes'
 import type { Lecture } from './sujets'
 
-/** Les touches que le clavier passe à un sujet, comme on les lit : `event.key`, pour tomber juste en AZERTY. */
-type Touche = Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'>
+/**
+ * Les touches que le clavier passe à un sujet. Une lettre se lit telle qu'elle est marquée (`lettreDe`), un chiffre
+ * sur sa touche (`chiffreDe`), un signe tel qu'on le tape (`key`, ou `signeParmi` sous Alt, qui le change sur Mac) :
+ * tout tombe juste en AZERTY comme en QWERTY.
+ */
+type Touche = Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'> & Partial<Pick<KeyboardEvent, 'code' | 'keyCode' | 'getModifierState'>>
 
 const DIRECTIONS: Record<string, [number, number]> = {
   ArrowRight: [1, 0],
@@ -23,9 +28,9 @@ export function gesteDe(e: Touche, choisis: readonly Id[], l: Lecture, d: Dispos
   const k = e.key
   if (cmd) {
     const ids = choisis.length > 0 ? [...choisis] : [courant]
+    const lettre = lettreDe(e)
     if (e.shiftKey && !e.altKey) {
-      // Maj+Cmd+lettre : la lettre arrive en capitale.
-      switch (k.toLowerCase()) {
+      switch (lettre) {
         case 'r':
           return { type: 'relier', id: courant }
         case 'b':
@@ -38,33 +43,35 @@ export function gesteDe(e: Touche, choisis: readonly Id[], l: Lecture, d: Dispos
           return { type: 'panneau', section: 'image' }
       }
     }
-    if (e.shiftKey && !e.altKey && k.toLowerCase() === 'm') return { type: 'mode', mode: 'plan' }
-    if (e.altKey && !e.shiftKey && (e as Partial<KeyboardEvent>).code === 'KeyF') return { type: 'mode', mode: 'zen' }
-    if (e.altKey && !e.shiftKey && (e as Partial<KeyboardEvent>).code === 'KeyP') return { type: 'mode', mode: 'presentation' }
-    if (!e.altKey && !e.shiftKey && k.toLowerCase() === 'f') return { type: 'mode', mode: 'recherche' }
-    if (k.toLowerCase() === 'k' && !e.shiftKey) return { type: 'panneau', section: 'lien' }
+    if (e.shiftKey && !e.altKey && lettre === 'm') return { type: 'mode', mode: 'plan' }
+    if (e.altKey && !e.shiftKey && lettre === 'f') return { type: 'mode', mode: 'zen' }
+    if (e.altKey && !e.shiftKey && lettre === 'p') return { type: 'mode', mode: 'presentation' }
+    if (!e.altKey && !e.shiftKey && lettre === 'f') return { type: 'mode', mode: 'recherche' }
+    if (lettre === 'k' && !e.shiftKey && !e.altKey) return { type: 'panneau', section: 'lien' }
     if (k === ']') return { type: 'panneau' }
-    if (k === '[' && !e.shiftKey && !e.altKey) return { type: 'mode', mode: 'navigation' }
-    // Cmd+Alt+C, V, 0, U : copier, coller, réinitialiser le style, l'appliquer au même rang. Alt change le caractère sur Mac : on lit la touche.
-    const code = (e as Partial<KeyboardEvent>).code
-    if (e.altKey && !e.shiftKey && code === 'KeyC') return { type: 'copierStyle', id: courant }
-    if (e.altKey && !e.shiftKey && code === 'KeyV') return { type: 'collerStyleCopie', ids }
-    if (e.altKey && !e.shiftKey && code === 'Digit0') return { type: 'style', ids, style: null }
-    if (e.altKey && !e.shiftKey && code === 'KeyU') return { type: 'styleMemeRang', id: courant }
-    if (e.altKey && k.toLowerCase() === 't') return { type: 'tache', ids }
-    if (e.altKey && (e as Partial<KeyboardEvent>).code === 'KeyT') return { type: 'tache', ids }
+    // Le crochet tel qu'on le tape : en AZERTY, il demande ⌥⇧( ; Maj+Cmd+[ sans Alt reste aux onglets, et celui que
+    // Windows tape avec AltGr (Ctrl+Alt) n'est pas un raccourci.
+    if (k === '[' && (!e.shiftKey || e.altKey) && !parAltGr(e)) return { type: 'mode', mode: 'navigation' }
+    // Cmd+Alt+C, V, 0, U : copier, coller, réinitialiser le style, l'appliquer au même rang.
+    if (e.altKey && !e.shiftKey && lettre === 'c') return { type: 'copierStyle', id: courant }
+    if (e.altKey && !e.shiftKey && lettre === 'v') return { type: 'collerStyleCopie', ids }
+    if (e.altKey && !e.shiftKey && chiffreDe(e) === 0) return { type: 'style', ids, style: null }
+    if (e.altKey && !e.shiftKey && lettre === 'u') return { type: 'styleMemeRang', id: courant }
+    if (e.altKey && lettre === 't') return { type: 'tache', ids }
     // Cmd+1…7 : une priorité (la même touche l'ôte). Lue sur la touche physique : en AZERTY, Cmd+& est Cmd+1.
     const priorite = !e.altKey && !e.shiftKey ? chiffreDe(e) : null
     if (priorite && priorite <= 7) return { type: 'marqueur', ids, marqueur: `priority-${priorite}` }
     if (k === 'Enter') return { type: 'parent', id: courant }
     if (k === 'Backspace' || k === 'Delete') return { type: 'supprimerSeul', id: courant }
-    if (k === '/') return e.altKey ? { type: 'toutReplier' } : { type: 'replier', id: courant }
-    if (k.toLowerCase() === 'd' && !e.altKey) return { type: 'dupliquer', id: courant }
-    if (k.toLowerCase() === 'r' && !e.altKey && !e.shiftKey) return { type: 'recadrer' }
+    // ⌘/ et ⌘⌥/ : sous Alt, le Mac change « / » en « ÷ » ; la barre se lit sur sa touche (en AZERTY, Maj et « : »).
+    if (signeParmi(e, ['/'])) return e.altKey ? { type: 'toutReplier' } : { type: 'replier', id: courant }
+    if (lettre === 'd' && !e.altKey) return { type: 'dupliquer', id: courant }
+    if (lettre === 'r' && !e.altKey && !e.shiftKey) return { type: 'recadrer' }
     if (k === ';') return { type: 'brancheSeule', id: courant }
     if (k === '=' || k === '+') return { type: 'zoom', facteur: 1.25 }
     if (k === '-') return { type: 'zoom', facteur: 0.8 }
-    if (k === '0' && !e.altKey) return { type: 'zoom', facteur: 0 }
+    // ⌘0 sur sa touche, sans Maj : en AZERTY, ⌘à (ou ⌘⇧à, qui donne « 0 »).
+    if (!e.altKey && (k === '0' || (!e.shiftKey && chiffreDe(e) === 0))) return { type: 'zoom', facteur: 0 }
     // Alt+Cmd+1…9 : déplier jusqu'au niveau N. Avec Alt, le Mac change le caractère : on lit le chiffre de la touche.
     const chiffre = e.altKey ? chiffreDe(e) : null
     if (chiffre) return { type: 'deplierNiveau', n: chiffre }
@@ -73,8 +80,7 @@ export function gesteDe(e: Touche, choisis: readonly Id[], l: Lecture, d: Dispos
   if (e.altKey && (k === 'ArrowUp' || k === 'ArrowDown')) return { type: 'echanger', id: courant, sens: k === 'ArrowUp' ? -1 : 1 }
   // Maj+Alt+1, 2, 3, 0 : important, secondaire, barré, ordinaire.
   if (e.altKey && e.shiftKey) {
-    const c = (e as Partial<KeyboardEvent>).code
-    const classe = { Digit1: 'important', Digit2: 'secondaire', Digit3: 'barre', Digit0: null }[c ?? '']
+    const classe = ({ 1: 'important', 2: 'secondaire', 3: 'barre', 0: null } as Record<number, string | null>)[chiffreDe(e) ?? -1]
     if (classe !== undefined) return { type: 'porter', ids: [...choisis], champ: 'classe', valeur: classe ?? undefined }
   }
   if (e.altKey) return null
@@ -101,13 +107,6 @@ export function gesteDe(e: Touche, choisis: readonly Id[], l: Lecture, d: Dispos
   // Une lettre tapée sur un sujet choisi l'édite, et remplace son titre.
   if ([...k].length === 1 && /\S/u.test(k)) return { type: 'editer', id: courant, frappe: k }
   return null
-}
-
-/** Le chiffre d'une touche, même quand Alt l'a changé en symbole (« ¡ » pour 1 sur un clavier américain). */
-function chiffreDe(e: Touche): number | null {
-  const code = (e as Partial<KeyboardEvent>).code
-  const m = code?.match(/^(?:Digit|Numpad)([1-9])$/) ?? e.key.match(/^([1-9])$/)
-  return m ? Number(m[1]) : null
 }
 
 /**

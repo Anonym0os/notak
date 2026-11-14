@@ -1,16 +1,17 @@
 import { type Deplacement, MIN_ALIGNER, MIN_REPARTIR, type SensAlignement, aligner, repartir } from '../../coeur/arrangement'
 import type { Element } from '../../coeur/tableau'
 import type { Operation } from '../../coeur/tableau'
+import { lettreDe } from '../../touches'
 import type { Raccourci } from '../types'
 import { selectionDisposable } from './disposables'
 
 const ALIGNER: Record<string, SensAlignement> = {
-  KeyA: 'gauche',
-  KeyH: 'centre-horizontal',
-  KeyD: 'droite',
-  KeyW: 'haut',
-  KeyV: 'centre-vertical',
-  KeyS: 'bas',
+  a: 'gauche',
+  h: 'centre-horizontal',
+  d: 'droite',
+  w: 'haut',
+  v: 'centre-vertical',
+  s: 'bas',
 }
 
 /**
@@ -28,21 +29,24 @@ export const enOperations = (ds: Deplacement[], elements: readonly Element[] = [
   })
 
 /**
- * Alt+lettre aligne ; Cmd+Alt+Maj+H ou V répartit. On lit `code`, car Alt change `key` sur Mac. Le raccourci est pris
- * dès que la sélection a de quoi s'arranger, même quand rien ne bouge (déjà aligné, rangée répartie en hauteur) :
- * laissé au navigateur, ⌥⇧⌘V y devient « Coller et adapter le style », et Alt+D, sous Windows, la barre d'adresse.
+ * Alt+lettre aligne ; Cmd+Alt+Maj+H ou V répartit. La lettre est celle que porte la touche, sur toute disposition
+ * (`lettreDe`) : Alt change `key` sur Mac, et `code` mettrait ⌥A sur la touche Q d'un clavier AZERTY. Le raccourci
+ * est pris dès que la sélection a de quoi s'arranger, même quand rien ne bouge (déjà aligné, rangée répartie en
+ * hauteur) : laissé au navigateur, ⌥⇧⌘V y devient « Coller et adapter le style », et Alt+D, sous Windows, la barre
+ * d'adresse.
  */
 export const raccourciArrangement: Raccourci = (e, contexte) => {
   if (!e.altKey) return false
   const cmd = e.metaKey || e.ctrlKey
-  const aligne = !cmd && !e.shiftKey ? ALIGNER[e.code] : undefined
-  const repartit = cmd && e.shiftKey && (e.code === 'KeyH' || e.code === 'KeyV')
+  const lettre = lettreDe(e) ?? ''
+  const aligne = !cmd && !e.shiftKey ? ALIGNER[lettre] : undefined
+  const repartit = cmd && e.shiftKey && (lettre === 'h' || lettre === 'v')
   if (!aligne && !repartit) return false
 
   const items = selectionDisposable(contexte)
   if (items.length === 0) return false
   if (items.length < (aligne ? MIN_ALIGNER : MIN_REPARTIR)) return true
-  const pas = enOperations(aligne ? aligner(items, aligne) : repartir(items, e.code === 'KeyH' ? 'horizontal' : 'vertical'), contexte.magasin.lire().elements)
+  const pas = enOperations(aligne ? aligner(items, aligne) : repartir(items, lettre === 'h' ? 'horizontal' : 'vertical'), contexte.magasin.lire().elements)
   if (pas.length > 0) contexte.magasin.faire(pas)
   return true
 }

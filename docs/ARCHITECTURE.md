@@ -130,11 +130,18 @@ garde réseau des aperçus de liens.
 Les droits sont évalués par OpenFGA, d'après le modèle `apps/serveur/autorisation/modele.fga` et ses essais
 (`modele.fga.yaml`, lancés par la CLI d'OpenFGA). Notak décrit ce que chacun a reçu en relations (objet, relation,
 sujet) dans sa table `relations`, qui reste la vérité : un partage, un tableau qui hérite de son parent, l'espace d'un
-tableau, un rôle d'espace et ce qu'il permet, une équipe, un lien public, un blocage. Chaque changement passe par la
+tableau, un rôle d'espace et ce qu'il permet, une équipe, un lien public, un blocage, une toile privée. Chaque changement passe par la
 `boite_envoi` dans la même transaction, puis part vers OpenFGA (`autorisation.ts`) ; une vérification vide d'abord la
 boîte, et un magasin OpenFGA disparu se refait depuis la base. Les membres, rôles et équipes que Better Auth change
 sont suivis par des déclencheurs SQL (`espaces_a_synchroniser`), puis recalculés (`synchroniserEspaces`). Le modèle
 sait aussi les droits d'un élément.
+
+Une toile privée (« Seulement les personnes invitées », l'accès général de Notion) ne s'ouvre plus par le rôle dans
+l'espace, ni ce qu'elle contient : restent son propriétaire et ceux à qui on l'a partagée, ici ou au-dessus. Tout ce qui
+liste passe par OpenFGA (bibliothèque, récents, favoris, recherche, notifications et leur compte) et l'ignore donc ;
+reste la carte qui y mène, posée sur une toile que d'autres lisent. Elle est dans le document de celle-ci, qui ne se
+filtre pas : le serveur la tait partout où il compose (vignette, activité, notifications, vue d'un visiteur) et dit à la
+toile de ne pas la montrer (`caches` des droits, `prive.ts`).
 
 **Décision (26/10/2026) : sans compte, on ne se synchronise jamais.** Un visiteur passe par son lien (`/api/public/<jeton>`)
 et lit une vue faite pour lui : sans corbeille, non triés ni personne confiée, et sans les fils si le lien ne permet pas de

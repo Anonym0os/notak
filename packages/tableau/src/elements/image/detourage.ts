@@ -14,6 +14,22 @@ export interface Detourage {
   retires: number
 }
 
+/**
+ * La taille du PNG détouré : son plus long côté et son nombre de pixels au plus. Une très grande photo (48 Mpx) se
+ * réduit : à pleine taille, le détourage figeait la page des secondes, prenait des centaines de Mo (un iPad lâche
+ * la page) et rendait un PNG au-delà des 25 Mo qu'un fichier peut peser, que le dépôt refusait. L'image la plus large
+ * d'une toile se montre à 1 600 px : 2 560 laissent de quoi zoomer.
+ */
+export const COTE_DETOURAGE = 2560
+export const PIXELS_DETOURAGE = 2560 * 1920
+
+/** Les côtés d'une image de `largeur` × `hauteur` ramenée sous ces bornes, proportions gardées ; jamais agrandie. */
+export function cotesBornes(largeur: number, hauteur: number, cote = COTE_DETOURAGE, pixels = PIXELS_DETOURAGE): { largeur: number; hauteur: number } {
+  if (!(largeur > 0 && hauteur > 0)) return { largeur: 1, hauteur: 1 }
+  const k = Math.min(1, cote / Math.max(largeur, hauteur), Math.sqrt(pixels / (largeur * hauteur)))
+  return { largeur: Math.max(1, Math.round(largeur * k)), hauteur: Math.max(1, Math.round(hauteur * k)) }
+}
+
 /** La tolérance se règle de 0 à 100 ; à 100, deux couleurs distantes de ce nombre (sur 441, le blanc contre le noir) se confondent. */
 export const TOLERANCE_MAX = 100
 export const TOLERANCE_DEFAUT = 24
@@ -50,12 +66,13 @@ export function couleurDuBord({ data, width, height }: Pixels): [number, number,
  * Retire le fond d'une image dont le pourtour est uni ou presque. Depuis chaque pixel du bord proche de la couleur
  * du bord, on gagne de proche en proche les pixels voisins qui lui ressemblent : un fond qui touche le bord part,
  * un blanc enfermé dans l'objet (un œil, un reflet) reste. Les pixels qui touchent le fond sans lui ressembler tout
- * à fait gardent une partie de leur opacité : le contour n'est pas dentelé.
+ * à fait gardent une partie de leur opacité : le contour n'est pas dentelé. Le fond retiré devient noir transparent :
+ * sa couleur ne se voit plus, et le PNG, qui n'a plus à la garder, pèse bien moins.
  */
 export function detourer(source: Pixels, tolerance: number): Detourage {
   const { data, width, height } = source
   const sortie = new Uint8ClampedArray(width * height * 4)
-  for (let i = 0; i < sortie.length; i++) sortie[i] = data[i]!
+  sortie.set(data.length > sortie.length ? Array.prototype.slice.call(data, 0, sortie.length) : data)
   if (width === 0 || height === 0) return { data: sortie, retires: 0 }
 
   const [r, g, b] = couleurDuBord(source)
@@ -63,18 +80,21 @@ export function detourer(source: Pixels, tolerance: number): Detourage {
   const rampe = Math.max(RAMPE_MIN, seuil * 0.6)
   const distance = (p: number) => {
     const i = p * 4
-    return Math.hypot(data[i]! - r, data[i + 1]! - g, data[i + 2]! - b)
+    const [dr, dg, db] = [data[i]! - r, data[i + 1]! - g, data[i + 2]! - b]
+    return Math.sqrt(dr * dr + dg * dg + db * db)
   }
 
   const fond = new Uint8Array(width * height)
-  const pile: number[] = []
+  // Chaque pixel n'entre qu'une fois dans la pile (il est marqué en y entrant) : elle tient dans un tableau fixe.
+  const pile = new Int32Array(width * height)
+  let dessus = 0
   const semer = (x: number, y: number) => {
     const p = y * width + x
     if (fond[p]) return
     // Un pixel déjà transparent fait partie du fond ; les autres, s'ils ressemblent à sa couleur.
     if (data[p * 4 + 3]! >= 128 && distance(p) > seuil) return
     fond[p] = 1
-    pile.push(p)
+    pile[dessus++] = p
   }
   for (let x = 0; x < width; x++) {
     semer(x, 0)
@@ -84,8 +104,8 @@ export function detourer(source: Pixels, tolerance: number): Detourage {
     semer(0, y)
     semer(width - 1, y)
   }
-  while (pile.length > 0) {
-    const p = pile.pop()!
+  while (dessus > 0) {
+    const p = pile[--dessus]!
     const [x, y] = [p % width, (p / width) | 0]
     if (x > 0) semer(x - 1, y)
     if (x < width - 1) semer(x + 1, y)
@@ -96,7 +116,7 @@ export function detourer(source: Pixels, tolerance: number): Detourage {
   let retires = 0
   for (let p = 0; p < fond.length; p++) {
     if (fond[p]) {
-      sortie[p * 4 + 3] = 0
+      sortie.fill(0, p * 4, p * 4 + 4)
       retires++
       continue
     }

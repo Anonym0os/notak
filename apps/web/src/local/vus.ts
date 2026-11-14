@@ -2,7 +2,8 @@ import type { Id } from '@notak/tableau'
 
 /**
  * Quand chaque toile (son id) ou chaque élément (`toile/e/élément`) a été ouvert pour la dernière fois ici (ms) : les
- * récents de l'appareil. Ils restent à cet appareil (ils ne voyagent pas avec les toiles), comme ceux d'un navigateur.
+ * récents de l'appareil, avec ce qu'on y a ajouté ou changé (`bibliotheque.ts`). Ce qu'on a ouvert reste à cet
+ * appareil (il ne voyage pas avec les toiles), comme l'historique d'un navigateur.
  */
 const CLE_VUS = 'notak:local:vus'
 

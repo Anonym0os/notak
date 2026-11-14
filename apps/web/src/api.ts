@@ -1,4 +1,5 @@
 import { type Element, type Habillage, type ResultatRecherche, type ResumeContenu, lireHabillage, textesFr } from '@notak/tableau'
+import { avecApercus } from './bibliotheque/modele'
 import { langue, t } from './langue'
 
 export interface Moi {
@@ -25,7 +26,13 @@ export interface Acces {
   /** Vide pour qui n'est pas propriétaire : il ne voit que les noms des autres. */
   email: string
   nom?: string
+  /** La couleur et la photo d'un compte (voir `adressePhoto`), pour sa pastille. */
+  couleur?: string
+  photo?: string | null
+  /** Ce qu'on lui a donné, ici ou sur un tableau au-dessus. */
   role: Role
+  /** Ce que son rôle dans l'espace lui vaut de plus, tant que le tableau n'est pas privé. */
+  parEspace?: Role
   enAttente: boolean
   /** Donné sur un tableau parent : il se retire là-haut. */
   herite?: boolean
@@ -518,6 +525,56 @@ export async function retirerAcces(tableau: string, cible: Cible): Promise<void>
   if (!r.ok) throw await refus(r, { 409: 'erreur.dernier_proprietaire', ...PROPRIETAIRE, ...TABLEAU_ABSENT })
 }
 
+/**
+ * L'accès général d'un tableau, celui de Notion : `prive`, « Seulement les personnes invitées » (le rôle dans l'espace
+ * n'y donne plus rien) ; sinon tout son espace l'ouvre, selon le rôle de chacun. `herite` : c'est un tableau au-dessus
+ * qui l'a rendu privé. `espace` : son espace (un nom vide pour l'espace personnel). `accueil` : l'accueil d'un espace,
+ * qui est à tous ses membres. `modifiable` : ce compte peut le changer ici.
+ */
+export interface AccesGeneral {
+  prive: boolean
+  herite: boolean
+  espace: { nom: string; personnel: boolean } | null
+  accueil: boolean
+  modifiable: boolean
+}
+
+export async function lireAccesGeneral(tableau: string): Promise<AccesGeneral> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/prive`)
+  if (!r.ok) throw await refus(r, { ...TABLEAU_ABSENT })
+  return (await r.json()) as AccesGeneral
+}
+
+/** Rend le tableau privé, ou le rouvre à tout son espace ; rend l'accès général tel qu'il est devenu. */
+export async function reglerAccesGeneral(tableau: string, prive: boolean): Promise<AccesGeneral> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/prive`, { prive }, 'PUT')
+  if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT })
+  return (await r.json()) as AccesGeneral
+}
+
+/** Quelqu'un de l'entreprise à qui proposer un tableau : un membre d'un espace d'équipe du compte. */
+export interface PersonneProposee {
+  id: string
+  nom: string
+  email: string
+  couleur: string
+  /** Le fichier de sa photo (voir `adressePhoto`), ou `null`. */
+  photo: string | null
+  /** Le nom de l'espace d'équipe où on l'a trouvée. */
+  espace: string
+  /** Invitée de cet espace : elle n'en voit que ce qu'on lui partage. */
+  invite: boolean
+  /** L'accès qu'elle a déjà sur ce tableau, ou `null`. */
+  acces: Role | null
+}
+
+/** Les personnes dont le nom ou l'adresse contient `q` (sans accents ni majuscules) ; toutes, par leur nom, si `q` est vide. */
+export async function proposerPersonnes(tableau: string, q: string): Promise<PersonneProposee[]> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/personnes?q=${encodeURIComponent(q)}`)
+  if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT })
+  return (await r.json()) as PersonneProposee[]
+}
+
 /** Ce que permet un lien visiteur : voir, ou voir et commenter. Sans compte, on ne modifie jamais rien. */
 export type NiveauVisiteur = 'lecture' | 'commentaire'
 
@@ -755,6 +812,12 @@ export const GENRES_EN_PLUS = ['image', 'lien', 'fichier'] as const
  */
 export const GENRES_DEMANDES: readonly GenreMontre[] = ['arbre', 'document', ...GENRES_EN_PLUS]
 
+/** Ce que la vignette d'un dossier montre de ce qu'il range (`avecApercus`) : une entrée, et la toile qui la porte. */
+export interface ApercuDossier {
+  tableau: string
+  resume: ResumeContenu
+}
+
 /** Une toile, une page, une carte mentale, une photo, un lien ou un fichier de la bibliothèque. */
 export interface EntreeBibliotheque {
   tableau: string
@@ -762,7 +825,8 @@ export interface EntreeBibliotheque {
   element: string | null
   genre: GenreMontre
   titre: string
-  resume: Extract<ResumeContenu, { genre: GenreMontre }>
+  /** Ce que dessine sa vignette ; celui d'un dossier porte l'aperçu de ce qu'il range. */
+  resume: Extract<ResumeContenu, { genre: GenreMontre }> & { apercu?: ApercuDossier[] }
   /** Le titre de la toile qui le porte, s'il la lit. */
   ou: string | null
   /** L'identifiant de cette toile, s'il la lit : le dossier du tri par dossier. */
@@ -772,15 +836,19 @@ export interface EntreeBibliotheque {
   favori: boolean
   /** Une toile que d'autres lui partagent. */
   partage: boolean
+  /** Une toile privée, par elle ou par une toile au-dessus : seules les personnes invitées l'ouvrent. */
+  prive?: boolean
   /** Le dossier d'une fiche d'un autre outil (un CRM…) : l'outil, et où la fiche s'ouvre. */
   fiche?: { nom: string; adresse?: string }
+  /** Le nom de l'outil qui a posé ce dossier, celui d'une fiche ou, sans `fiche`, celui qui les range : il ne se déplace pas. */
+  outil?: string
 }
 
 /** Tout ce que le compte peut lire : ses toiles (sauf l'accueil), et ce qu'elles portent de pages, cartes mentales, photos, liens et fichiers. */
 export async function lireBibliotheque(): Promise<EntreeBibliotheque[]> {
   const r = await appeler(`/api/bibliotheque?genres=${GENRES_DEMANDES.join(',')}`)
   if (!r.ok) throw await refus(r, {})
-  return (await r.json()) as EntreeBibliotheque[]
+  return avecApercus((await r.json()) as EntreeBibliotheque[])
 }
 
 /**
@@ -834,6 +902,8 @@ export interface EtatVerrou {
   verrouille: boolean
   /** Le tableau dont il faut le mot de passe. */
   par: string | null
+  /** Un outil rattaché l'a généré (son propriétaire seul l'apprend) : son mot de passe ne se pose ni ne se retire. */
+  genere?: { outil: string; titre: string }
 }
 
 const verrouDe = (tableau: string) => `/api/tableaux/${encodeURIComponent(tableau)}`

@@ -1,6 +1,6 @@
 import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
-import { LARGEURS, largeurDemandee, nomReduit, reductible, reduire } from './tailles.ts'
+import { LARGEURS, fileDAttente, largeurDemandee, nomReduit, reductible, reduire } from './tailles.ts'
 
 const image = (largeur: number, hauteur: number, format: 'jpeg' | 'png' | 'webp' = 'jpeg') =>
   sharp({ create: { width: largeur, height: hauteur, channels: 3, background: '#cc3333' } })[format]().toBuffer()
@@ -61,5 +61,51 @@ describe('reduire', () => {
     expect(copie).not.toBeNull()
     const meta = await sharp(copie!).metadata()
     expect([meta.width, meta.height]).toEqual([400, 800])
+  })
+  it('compare la largeur de la photo vue droite : rien à gagner quand, redressée, elle est déjà assez étroite', async () => {
+    // Enregistrée 1000 × 700 avec l'orientation 6 : vue droite, 700 de large.
+    const couchee = await sharp({ create: { width: 1000, height: 700, channels: 3, background: '#33cc33' } }).jpeg().withMetadata({ orientation: 6 }).toBuffer()
+    expect(await reduire(couchee, 'image/jpeg', 800)).toBeNull()
+    const copie = await reduire(couchee, 'image/jpeg', 400)
+    expect(await sharp(copie!).metadata()).toMatchObject({ width: 400, height: 571 })
+  })
+})
+
+describe('fileDAttente', () => {
+  it('ne laisse passer que n tâches à la fois, dans l’ordre d’arrivée, et les finit toutes', async () => {
+    const aTour = fileDAttente(2)
+    let actives = 0
+    let pic = 0
+    const debuts: number[] = []
+    const fins: (() => void)[] = []
+    const taches = Array.from({ length: 5 }, (_, i) =>
+      aTour(async () => {
+        debuts.push(i)
+        pic = Math.max(pic, ++actives)
+        await new Promise<void>((fin) => fins.push(fin))
+        actives--
+        return i
+      }),
+    )
+    const tour = () => new Promise((fin) => setTimeout(fin, 0))
+    await tour()
+    expect(debuts).toEqual([0, 1])
+    // Une place se libère, et une tâche arrivée à cet instant ne passe pas devant celles qui attendent.
+    fins.shift()!()
+    const tardive = aTour(async () => (debuts.push(9), 9))
+    await tour()
+    expect(debuts).toEqual([0, 1, 2])
+    while (fins.length > 0 || debuts.length < 6) {
+      fins.shift()?.()
+      await tour()
+    }
+    expect(await Promise.all([...taches, tardive])).toEqual([0, 1, 2, 3, 4, 9])
+    expect(debuts).toEqual([0, 1, 2, 3, 4, 9])
+    expect(pic).toBe(2)
+  })
+  it('rend sa place quand une tâche échoue', async () => {
+    const aTour = fileDAttente(1)
+    await expect(aTour(async () => Promise.reject(new Error('illisible')))).rejects.toThrow('illisible')
+    expect(await aTour(async () => 'suivante')).toBe('suivante')
   })
 })

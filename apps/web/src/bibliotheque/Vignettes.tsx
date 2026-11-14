@@ -1,6 +1,8 @@
 import { type BoitePlan, FOND_NOTE, ICONE_DU_GENRE, Icone, type ResumeContenu, extensionDe, genreDe } from '@notak/tableau'
-import { createContext, useContext, useEffect, useId, useState } from 'react'
+import { type CSSProperties, createContext, useContext, useEffect, useId, useState } from 'react'
+import type { ApercuDossier } from '../api'
 import { t, tn } from '../langue'
+import { APERCU_MAX } from './modele'
 
 /**
  * Ce que les vignettes demandent à l'édition : l'adresse d'un fichier (une photo, l'image choisie d'un lien), et si
@@ -54,26 +56,52 @@ export const photoEntiere = (largeur: number, hauteur: number) => {
 }
 
 /**
- * Le dessin d'une entrée : le plan d'une toile, une carte mentale et ses branches, la page d'un document, la photo
- * elle-même, l'aperçu d'un lien, l'icône d'un fichier. `tableau` : la toile qui la porte (l'accord pour les images
- * d'autres sites).
+ * Une vignette dans l'aperçu d'un dossier : la même, sous la classe d'une miniature. Les règles des tuiles (survol,
+ * choix, liste, glisser) visent `.biblio-vignette` : ainsi elles ne la touchent pas.
  */
-export function Vignette({ resume, tableau }: { resume: ResumeContenu; tableau?: string }) {
+const ContexteMiniature = createContext(false)
+const useClasse = () => (useContext(ContexteMiniature) ? 'biblio-miniature' : 'biblio-vignette')
+
+/**
+ * Le dessin d'une entrée : le plan d'une toile, ce que range un dossier, une carte mentale et ses branches, la page
+ * d'un document, la photo elle-même, l'aperçu d'un lien, l'icône d'un fichier. `tableau` : la toile qui la porte
+ * (l'accord pour les images d'autres sites).
+ */
+export function Vignette({ resume, tableau }: { resume: ResumeContenu & { apercu?: readonly ApercuDossier[] }; tableau?: string }) {
+  const classe = useClasse()
   if (resume.genre === 'document') return <VignetteDocument titre={resume.titre} lignes={resume.lignes} />
   if (resume.genre === 'arbre') return <VignetteCarte central={resume.titre} branches={resume.branches} />
-  if (resume.genre === 'image') return <VignettePhoto fichier={resume.petite ?? resume.fichier} largeur={resume.largeur} hauteur={resume.hauteur} />
+  if (resume.genre === 'image') return <VignettePhoto photo={resume} />
   if (resume.genre === 'lien') return <VignetteLien resume={resume} tableau={tableau} />
   if (resume.genre === 'fichier') return <VignetteFichier nom={resume.nom} typeMime={resume.typeMime} />
-  // Une toile qui se montre en dossier : l'icône d'un dossier, comme dans Fichiers.
-  if (resume.dossier)
-    return (
-      <span className="biblio-vignette" data-genre="dossier" aria-hidden>
-        <Icone nom="dossier" taille={56} trait={1.2} />
-      </span>
-    )
+  if (resume.dossier) return <VignetteDossier apercu={classe === 'biblio-vignette' ? (resume.apercu ?? []) : []} />
   return (
-    <span className="biblio-vignette" data-genre="toile" aria-hidden>
+    <span className={classe} data-genre="toile" aria-hidden>
       {resume.boites.length === 0 ? <span className="biblio-vignette-vide">{texteSansPlan(resume)}</span> : <PlanToile boites={resume.boites} />}
+    </span>
+  )
+}
+
+/**
+ * Un dossier : ce qu'il range, en quatre petites vignettes sur son fond, comme le Finder ou Drive (`avecApercus`), pour
+ * qu'on le reconnaisse parmi les autres. Vide, ou lui-même dans l'aperçu d'un autre : l'icône d'un dossier.
+ */
+function VignetteDossier({ apercu }: { apercu: readonly ApercuDossier[] }) {
+  const classe = useClasse()
+  return (
+    <span className={classe} data-genre="dossier" data-apercu={apercu.length > 0 || undefined} aria-hidden>
+      {apercu.length === 0 ? (
+        <Icone nom="dossier" taille={56} trait={1.2} />
+      ) : (
+        <span className="biblio-apercu">
+          <ContexteMiniature.Provider value>
+            {Array.from({ length: APERCU_MAX }, (_, i) => {
+              const a = apercu[i]
+              return a ? <Vignette key={`${a.tableau}/${a.resume.element}`} resume={a.resume} tableau={a.tableau} /> : <span key={i} className="biblio-apercu-place" />
+            })}
+          </ContexteMiniature.Provider>
+        </span>
+      )}
     </span>
   )
 }
@@ -110,32 +138,78 @@ export function PlanToile({ boites }: { boites: BoitePlan[] }) {
   // Les photos qu'on voit dans la vignette s'y montrent elles-mêmes ; au-delà de quelques-unes, ou hors du cadre, on ne
   // les charge pas : la bibliothèque porte des dizaines de vignettes.
   const vue = (b: BoitePlan) => b[0] < gauche + l && b[0] + b[2] > gauche && b[1] < haut + h && b[1] + b[3] > haut
+  const max = useContext(ContexteMiniature) ? PHOTOS_PAR_MINIATURE : PHOTOS_PAR_PLAN
   let photos = 0
   return (
     <svg viewBox={`${gauche} ${haut} ${l} ${h}`} preserveAspectRatio="xMidYMid meet">
-      {boites.map((b, i) => (b[5] === 'image' && b[7] && vue(b) && photos++ < PHOTOS_PAR_PLAN ? <PhotoPlan key={i} boite={b} fichier={b[7]} /> : <Boite key={i} boite={b} />))}
+      {boites.map((b, i) => (b[5] === 'image' && b[7] && vue(b) && photos++ < max ? <PhotoPlan key={i} boite={b} fichier={b[7]} /> : <Boite key={i} boite={b} />))}
     </svg>
   )
 }
 
-/** Au plus tant de photos chargées dans le plan d'une toile ; les autres gardent leur dessin. */
-const PHOTOS_PAR_PLAN = 24
+/** Au plus tant de photos chargées dans le plan d'une toile, et dans sa miniature ; les autres gardent leur dessin. */
+const [PHOTOS_PAR_PLAN, PHOTOS_PAR_MINIATURE] = [24, 6]
 
-/** Une photo du plan : elle-même, au format de sa boîte ; en attendant, le dessin d'une photo. */
+/** Une photo du plan : elle-même, au format de sa boîte et comme sur la toile ; en attendant, le dessin d'une photo. */
 function PhotoPlan({ boite, fichier }: { boite: BoitePlan; fichier: string }) {
   const adresse = useAdresse(fichier, largeurDesVignettes())
   const coupe = `plan-photo-${useId().replace(/[^\w-]/g, '')}`
-  const [x, y, l, h] = boite
+  const [x, y, l, h, , , , , photo] = boite
   if (!adresse) return <Boite boite={boite} />
+  // La coupe va au groupe, pas à l'image : sur l'image, elle tournerait avec elle.
   return (
-    <g>
+    <g clipPath={`url(#${coupe})`}>
       <clipPath id={coupe}>
         <rect x={x} y={y} width={l} height={h} rx={0.8} />
       </clipPath>
       <rect x={x} y={y} width={l} height={h} rx={0.8} fill="#cfd4da" />
-      <image href={adresse} x={x} y={y} width={l} height={h} preserveAspectRatio="xMidYMid slice" clipPath={`url(#${coupe})`} />
+      <image href={adresse} {...(photo ? placerDansLaBoite(photo, boite) : { x, y, width: l, height: h })} preserveAspectRatio="xMidYMid slice" />
     </g>
   )
+}
+
+/** Ce que la toile fait d'une photo (voir `BoitePlan`, `ResumeContenu`) : la partie gardée, son quart de tour, ses miroirs. */
+type PhotoMontree = NonNullable<BoitePlan[8]>
+const ENTIERE = { x: 0, y: 0, largeur: 1, hauteur: 1 }
+const couchee = (p: PhotoMontree) => p.rotation === 90 || p.rotation === 270
+
+/** Largeur sur hauteur de la photo montrée : la partie gardée, puis son quart de tour (`proportionsAffichees`). */
+export function proportionsMontrees(p: PhotoMontree): number {
+  const r = p.recadrage ?? ENTIERE
+  const q = (p.largeur * r.largeur) / (p.hauteur * r.hauteur)
+  return couchee(p) ? 1 / q : q
+}
+
+/** Les miroirs de l'écran, puis le quart de tour, autour du centre : l'ordre de la toile (`miseEnPage`). */
+const tourner = (p: PhotoMontree, unite = '') =>
+  `${p.miroirH || p.miroirV ? ` scale(${p.miroirH ? -1 : 1}, ${p.miroirV ? -1 : 1})` : ''}${p.rotation ? ` rotate(${p.rotation}${unite})` : ''}`
+
+const pct = (v: number) => `${+(v * 100).toFixed(4)}%`
+
+/**
+ * Où poser une photo dans son cadre pour qu'elle s'y montre comme sur la toile, à la manière de `miseEnPage`
+ * (elements/image/geometrie.ts) : le plan de l'image, avant son quart de tour, recouvre le cadre (en unités du cadre,
+ * `cqw` et `cqh`) et tourne autour de son centre ; l'image y est décalée pour que seule la partie gardée apparaisse.
+ */
+export function misePhoto(p: PhotoMontree): { plan: CSSProperties; image: CSSProperties } {
+  const r = p.recadrage ?? ENTIERE
+  const q = +proportionsMontrees(p).toFixed(6)
+  const montree = { width: `max(100cqw, calc(100cqh * ${q}))`, height: `max(100cqh, calc(100cqw / ${q}))` }
+  return {
+    plan: { ...(couchee(p) ? { width: montree.height, height: montree.width } : montree), transform: `translate(-50%, -50%)${tourner(p, 'deg')}` },
+    image: { width: pct(1 / r.largeur), height: pct(1 / r.hauteur), left: pct(-r.x / r.largeur), top: pct(-r.y / r.hauteur) },
+  }
+}
+
+/** La même chose dans la boîte d'un plan, en SVG : l'image, placée et tournée autour du centre de la boîte. */
+export function placerDansLaBoite(p: PhotoMontree, [x, y, l, h]: BoitePlan) {
+  const r = p.recadrage ?? ENTIERE
+  const q = proportionsMontrees(p)
+  // La photo montrée recouvre la boîte sans être étirée ; son plan est celui d'avant le quart de tour.
+  const [lm, hm] = l / h > q ? [l, l / q] : [h * q, h]
+  const [lp, hp] = couchee(p) ? [hm, lm] : [lm, hm]
+  const [li, hi] = [lp / r.largeur, hp / r.hauteur]
+  return { x: -lp / 2 - r.x * li, y: -hp / 2 - r.y * hi, width: li, height: hi, transform: `translate(${x + l / 2} ${y + h / 2})${tourner(p)}` }
 }
 
 function Barres({ x, y, l, n, pas = 2.6, couleur = 'rgb(50 59 74 / 0.26)' }: { x: number; y: number; l: number; n: number; pas?: number; couleur?: string }) {
@@ -242,6 +316,7 @@ const BRANCHES = ['#e5534b', '#ef8a2b', '#d6b11d', '#4aa24f', '#3d7be0', '#8a5bd
 
 /** Le central au milieu, ses branches de part et d'autre, chacune de sa couleur, le titre posé sur son trait. */
 export function VignetteCarte({ central, branches }: { central: string; branches: string[] }) {
+  const classe = useClasse()
   const coupe = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s)
   const titre = coupe(central || t('commun.sansTitre'), 18)
   const lc = Math.min(110, titre.length * 5.6 + 22)
@@ -266,7 +341,7 @@ export function VignetteCarte({ central, branches }: { central: string; branches
       )
     })
   return (
-    <span className="biblio-vignette" data-genre="arbre" aria-hidden>
+    <span className={classe} data-genre="arbre" aria-hidden>
       <svg viewBox={`0 0 ${VL} ${VH}`} preserveAspectRatio="xMidYMid meet">
         {cote(droite, 1, 0)}
         {cote(gauche, -1, droite.length)}
@@ -281,10 +356,11 @@ export function VignetteCarte({ central, branches }: { central: string; branches
 
 /** La page d'un document : son titre, puis une barre par ligne, à la longueur de la ligne. */
 export function VignetteDocument({ titre, lignes }: { titre: string; lignes: string[] }) {
+  const classe = useClasse()
   const coupe = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s)
   const largeur = 98
   return (
-    <span className="biblio-vignette" data-genre="document" aria-hidden>
+    <span className={classe} data-genre="document" aria-hidden>
       <svg viewBox={`0 0 ${VL} ${VH}`} preserveAspectRatio="xMidYMid meet">
         <rect x={40} y={16} width={126} height={140} rx={4} fill="var(--notak-carte, #fff)" stroke="rgb(27 37 54 / 0.1)" />
         <text x={54} y={38} fontSize={11} fontWeight={700} fill="var(--notak-texte, #323b4a)">
@@ -300,14 +376,28 @@ export function VignetteDocument({ titre, lignes }: { titre: string; lignes: str
 
 
 /**
- * Une photo : elle-même, au format de la tuile et centrée, ou entière quand la recadrer la couperait trop
- * (`photoEntiere`) ; une copie réduite à la taille de la tuile, pas l'original. En attendant, un fond neutre.
+ * Une photo, comme sur la toile : recadrée, tournée, retournée, dans son cadre libre (`misePhoto`). Ce cadre remplit la
+ * tuile, centré, ou s'y montre entier quand le recadrer couperait trop la photo (`photoEntiere`) ; une copie réduite à
+ * la taille de la tuile, pas l'original. En attendant, un fond neutre.
  */
-function VignettePhoto({ fichier, largeur, hauteur }: { fichier: string; largeur: number; hauteur: number }) {
-  const adresse = useAdresse(fichier, largeurDesVignettes())
+function VignettePhoto({ photo }: { photo: Extract<ResumeContenu, { genre: 'image' }> }) {
+  const classe = useClasse()
+  const adresse = useAdresse(photo.petite ?? photo.fichier, largeurDesVignettes())
+  const rapport = +(photo.rapportCadre ?? proportionsMontrees(photo)).toFixed(6)
+  const entiere = photoEntiere(rapport, 1)
+  const borne = entiere ? 'min' : 'max'
+  const { plan, image } = misePhoto(photo)
   return (
-    <span className="biblio-vignette" data-genre="image" data-cadrage={photoEntiere(largeur, hauteur) ? 'entier' : undefined} aria-hidden>
-      {adresse ? <img src={adresse} alt="" loading="lazy" decoding="async" draggable={false} /> : <Icone nom="fichierImage" taille={32} />}
+    <span className={classe} data-genre="image" data-cadrage={entiere ? 'entier' : undefined} aria-hidden>
+      {adresse ? (
+        <span className="biblio-vignette-cadre" style={{ width: `${borne}(100cqw, calc(100cqh * ${rapport}))`, height: `${borne}(100cqh, calc(100cqw / ${rapport}))` }}>
+          <span className="biblio-vignette-plan" style={plan}>
+            <img src={adresse} alt="" loading="lazy" decoding="async" draggable={false} style={image} />
+          </span>
+        </span>
+      ) : (
+        <Icone nom="fichierImage" taille={32} />
+      )}
     </span>
   )
 }
@@ -317,6 +407,7 @@ const adresseWeb = (a: string | undefined) => (a && /^https:\/\//i.test(a) ? a :
 
 /** Un lien : l'image qu'on lui a choisie, sinon celle de la page (si la toile le permet), et son site. */
 function VignetteLien({ resume, tableau }: { resume: Extract<ResumeContenu, { genre: 'lien' }>; tableau?: string }) {
+  const classe = useClasse()
   const source = useContext(ContexteVignettes)
   const choisie = useAdresse(resume.fichierImage, largeurDesVignettes())
   const permis = !!source && (!tableau || source.distant(tableau))
@@ -325,7 +416,7 @@ function VignetteLien({ resume, tableau }: { resume: Extract<ResumeContenu, { ge
   const [rate, setRate] = useState(false)
   const site = resume.site || domaine(resume.url)
   return (
-    <span className="biblio-vignette" data-genre="lien" aria-hidden>
+    <span className={classe} data-genre="lien" aria-hidden>
       {image && !rate ? (
         <img src={image} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" draggable={false} onError={() => setRate(true)} />
       ) : (
@@ -348,9 +439,10 @@ const domaine = (url: string) => {
 
 /** Un fichier : l'icône de son genre et son extension, comme sa carte sur la toile. */
 function VignetteFichier({ nom, typeMime }: { nom: string; typeMime: string }) {
+  const classe = useClasse()
   const genre = genreDe(nom, typeMime)
   return (
-    <span className="biblio-vignette" data-genre="fichier" data-fichier={genre} aria-hidden>
+    <span className={classe} data-genre="fichier" data-fichier={genre} aria-hidden>
       <span className="biblio-vignette-fichier">
         <Icone nom={ICONE_DU_GENRE[genre]} taille={36} trait={1.5} />
         {extensionDe(nom) && <span>{extensionDe(nom).toUpperCase()}</span>}

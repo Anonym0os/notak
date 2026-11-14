@@ -16,9 +16,9 @@ import { useDepotSurImage } from './survolDepot'
 import { t } from '../../langue'
 import { BoutonOutil } from '../../BoutonOutil'
 import { Icone } from '../../icones'
+import { LARGEUR_LEGENDE_MIN, afficherLegendes } from './legendes'
 
-/** En dessous de cette largeur (UG), l'image n'est plus qu'un média : sa légende est masquée, comme chez Milanote. */
-export const LARGEUR_LEGENDE_MIN = 8
+export { LARGEUR_LEGENDE_MIN }
 
 /**
  * L'adresse du fichier à la taille que l'affichage demande : le plus petit palier net pour la largeur à l'écran,
@@ -65,6 +65,11 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
   useEffect(() => {
     if (dessine && (!choisie || enRecadrage || enDetourage || enEdition)) annoter(null)
   }, [dessine, choisie, enRecadrage, enDetourage, enEdition])
+  // Ouverte en grand pendant qu'on écrit sa légende, l'image referme l'écriture : le champ resterait sous le voile, à
+  // prendre les touches, et la visionneuse montrerait la légende d'avant.
+  useEffect(() => {
+    if (enGrand && enEdition) contexte.finirEdition()
+  }, [enGrand, enEdition, contexte])
   // Et pour le détourage.
   useEffect(() => {
     if (enDetourage && (!choisie || enRecadrage || contexte.services.lectureSeule)) detourerImage(null)
@@ -270,15 +275,16 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
 export function OutilsFinImage({ elements, contexte }: PropsOutils<Image>) {
   if (contexte.services.lectureSeule) return null
   const afficher = () => {
-    const sans = elements.filter((e) => !e.contenu.legende && !e.contenu.legendeAffichee)
-    if (sans.length > 0) contexte.magasin.faire(sans.map((e) => ({ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: { ...e.contenu, legendeAffichee: true } })))
+    const montrer = afficherLegendes(elements)
+    if (montrer.length > 0) contexte.magasin.faire(montrer)
     if (elements.length === 1) contexte.commencerEdition(elements[0]!.id)
   }
   const etroites = elements.every((e) => e.largeur < LARGEUR_LEGENDE_MIN)
   return (
     <BoutonOutil
       icone="legende"
-      titre={t('image.ajouterLegende')}
+      // L'infobulle apprend aussi le geste de Milanote : taper sur l'image choisie commence sa légende.
+      titre={t('image.legende.titre')}
       libelle={t('note.legende')}
       actif={elements.some((e) => !!e.contenu.legende || !!e.contenu.legendeAffichee)}
       desactive={etroites}

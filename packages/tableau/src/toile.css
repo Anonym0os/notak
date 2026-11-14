@@ -112,7 +112,8 @@
   min-height: 0;
 }
 
-/* Le filet de sélection : 2 px à l'extérieur de la carte, coins carrés ; en édition il se resserre de 2 px en glissant. */
+/* Le filet de sélection : 2 px à l'extérieur de la carte, à son arrondi (carré sans habillage) ; en édition il se resserre
+   de 2 px en glissant. */
 .notak-carte:not([data-sans-fond], [data-type='tableau'])::before {
   content: '';
   position: absolute;
@@ -121,7 +122,10 @@
   z-index: 1;
   box-shadow: 0 0 0 2px transparent;
   pointer-events: none;
-  transition: inset 0.1s ease-out;
+  /* L'arrondi glisse avec le filet : de la sélection à l'édition, il reste parallèle au bord de la carte. */
+  transition:
+    inset 0.1s ease-out,
+    border-radius 0.1s ease-out;
 }
 
 .notak-carte[data-choisie]:not([data-sans-fond], [data-type='tableau'])::before {
@@ -149,13 +153,16 @@
   box-shadow: var(--notak-ombre);
 }
 
-/* En édition, le contour se resserre de 2 px (en 0,1 s) : il passe du dehors au dedans du bord, on voit qu'on écrit dedans. */
+/* En édition, le contour se resserre de 2 px (en 0,1 s) : il passe du dehors au dedans du bord, on voit qu'on écrit dedans.
+   Rentré de 2 px, son arrondi en perd autant : son bord extérieur épouse encore l'arrondi de la carte (celui d'un
+   habillage, 10 px chez Silak), au lieu de s'en écarter aux coins. Les cartes qui ont un filet ont toutes cet arrondi. */
 .notak-carte[data-edition]:not([data-sans-fond], [data-type='tableau']) {
   box-shadow: none;
 }
 
 .notak-carte[data-edition]:not([data-sans-fond], [data-type='tableau'])::before {
   inset: 2px;
+  border-radius: max(0px, calc(var(--notak-rayon-carte, 0px) - 2px));
   box-shadow: 0 0 0 2px var(--notak-selection);
 }
 
@@ -438,6 +445,16 @@
   margin-inline: 1px;
 }
 
+/* L'étoile pleine d'un favori (`favoriPlein`, icones.tsx) : jaune partout où elle paraît, en clair comme en sombre. Ni le
+   texte qui l'entoure ni un bouton enfoncé ne la repeignent. */
+.notak-ico.notak-ico-favori {
+  color: #e8a400;
+}
+
+[data-theme='sombre'] .notak-ico.notak-ico-favori {
+  color: #f5b82e;
+}
+
 :where(button:has(> .notak-ico:only-child)) {
   display: inline-flex;
   align-items: center;
@@ -451,38 +468,40 @@
   text-align: center;
 }
 
-/* Dans la barre de création, un libellé tient sur une ligne : plus large que l'outil, il est coupé en fondu et défile
-   au survol (Barres.tsx, LibelleOutil), après un temps d'arrêt, puis revient quand le pointeur repart. */
+/* Dans la barre de création, un libellé tient sur une ligne et se lit en entier : un mot court sous chaque outil, comme
+   chez Milanote (`Outil.etiquette`), à 2 px des bords de l'outil. S'il dépasse encore, sa taille baisse juste assez pour
+   tenir (Barres.tsx, useLibellesEntiers) ; il n'est jamais coupé. */
 .notak-barre-outils:not([data-selection]) .notak-outil-libelle {
   display: block;
-  max-width: calc(100% - 8px);
+  max-width: calc(100% - 4px);
   overflow: hidden;
   white-space: nowrap;
 }
 
-.notak-barre-outils:not([data-selection]) .notak-outil-libelle > span {
-  display: inline-block;
-  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+/* Ce que la corbeille contient, en pastille sur le coin de son icône (Barres.tsx, IconeCorbeille) : sous l'outil, le
+   seul mot « Corbeille » tient dans la barre en toute langue. Le gris et l'encre de la pastille « ••• », pleins pour ne
+   pas laisser voir l'icône dessous. */
+.notak-outil[data-genre='corbeille'] .notak-outil-icone {
+  position: relative;
 }
 
-.notak-barre-outils:not([data-selection]) .notak-outil-libelle[data-deborde] {
-  text-align: left;
-  mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
-}
-
-.notak-barre-outils:not([data-selection]) .notak-outil:is(:hover, :focus-visible) .notak-outil-libelle[data-deborde] {
-  mask-image: linear-gradient(to right, transparent, #000 6px, #000 calc(100% - 6px), transparent);
-}
-
-.notak-barre-outils:not([data-selection]) .notak-outil:is(:hover, :focus-visible) .notak-outil-libelle[data-deborde] > span {
-  transform: translateX(var(--notak-defile));
-  transition: transform var(--notak-defile-duree) linear 0.4s;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .notak-barre-outils:not([data-selection]) .notak-outil-libelle > span {
-    transform: none !important;
-  }
+.notak-outil-nombre {
+  position: absolute;
+  top: -5px;
+  left: calc(100% - 10px);
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--notak-texte) 10%, var(--notak-carte));
+  box-shadow: 0 0 0 2px var(--notak-carte);
+  color: var(--notak-texte);
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+  text-align: center;
 }
 
 .notak-barre-selection {
@@ -1105,6 +1124,12 @@
   border: 6px solid transparent;
   border-left: 0;
   border-right-color: var(--notak-barre, #eceef1);
+}
+
+/* Dans le « ••• », un outil prend toute sa colonne de 76 px, à tout palier de la barre : un nom de deux mots (« Carte
+   mentale », « Toile modèle ») s'y lit en entier sans se resserrer. */
+.notak-barre-outils[data-palier] .notak-tiroir .notak-outil {
+  width: 100%;
 }
 
 .notak-barre-sep {
@@ -1834,8 +1859,9 @@
   color: var(--notak-carte);
 }
 
+/* Sur une ligne, à 2 px des bords de la tuile ; trop long, il se resserre pour tenir (Barres.tsx, useLibellesEntiers). */
 .notak-barre-selection[data-a-gauche] button.notak-outil .notak-outil-libelle {
-  max-width: 68px;
+  max-width: calc(100% - 4px);
   overflow: hidden;
   color: color-mix(in srgb, var(--notak-texte) 70%, transparent);
   font-size: 11px;
@@ -2468,7 +2494,6 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   max-height: 244px;
   padding-bottom: 20px;
   overflow-y: auto;
-  scrollbar-width: thin;
 }
 
 .notak-choix-modele-corps ul {

@@ -11,7 +11,7 @@ import { elementSous, suiviDedans, surbrillance } from "./accroche";
 import { GRIS_LIGNE, GRIS_LIGNE_SOMBRE } from "./couleur";
 import { Guides } from "./Guides";
 import { nouvelleLigne } from "./creation";
-import { SEUIL_TIRAGE, type Arrivee, arriveeDe, coinPoignee } from "./rapide";
+import { SEUIL_TIRAGE, type Arrivee, type Arrondi, arriveeDe, coinPoignee } from "./rapide";
 import { Icone } from '../../icones'
 
 /** Ce qu'on voit pendant le tirage : le trait et sa pointe, en pixels de la toile. */
@@ -22,6 +22,19 @@ interface Apercu {
   guides: { rect: Rect; p: Point } | null;
   /** Le gris du trait selon le thème. */
   couleur: string;
+}
+
+/**
+ * L'arrondi du coin haut droit d'une carte dessinée, en UG. Un rayon plus grand que la moitié de la carte est ramené à
+ * elle, comme le fait le navigateur ; un pourcentage se lit sur sa largeur et sa hauteur.
+ */
+function arrondiDe(carte: HTMLElement): Arrondi {
+  const [h = "0", v = h] = getComputedStyle(carte).borderTopRightRadius.split(" ");
+  const lire = (valeur: string, cote: number) => (valeur.endsWith("%") ? (parseFloat(valeur) / 100) * cote : parseFloat(valeur) || 0);
+  const borner = (r: number, cote: number) => (cote > 0 ? Math.min(r, cote / 2) : r);
+  const l = carte.offsetWidth;
+  const haut = carte.offsetHeight;
+  return { x: borner(lire(h, l), l) / PX_PAR_UG, y: borner(lire(v, haut), haut) / PX_PAR_UG };
 }
 
 /**
@@ -40,6 +53,14 @@ export function LigneRapide({ elements, contexte }: { elements: Element[]; conte
 
   const source = elements.length === 1 && definition(elements[0]!.contenu.type)?.calque !== "lignes" ? elements[0]! : null;
   const rect = source ? contexte.rect(source.id) : null;
+  // L'arrondi de sa carte (un habillage arrondit les cartes) : la poignée se pose dessus, pas dans le vide du coin.
+  const sourceId = source?.id ?? null;
+  const [arrondi, setArrondi] = useState<Arrondi>({ x: 0, y: 0 });
+  useLayoutEffect(() => {
+    const carte = sourceId && toile ? [...toile.querySelectorAll<HTMLElement>(".notak-carte[data-id]")].find((c) => c.dataset.id === sourceId) : null;
+    const lu = carte ? arrondiDe(carte) : { x: 0, y: 0 };
+    setArrondi((a) => (a.x === lu.x && a.y === lu.y ? a : lu));
+  }, [toile, sourceId]);
 
   const estColonne = (id: Id) => contexte.magasin.lire().elements.find((x) => x.id === id)?.contenu.type === "colonne";
   const commencer = (e: React.PointerEvent) => {
@@ -128,7 +149,7 @@ export function LigneRapide({ elements, contexte }: { elements: Element[]; conte
     fin.current = arreter;
   };
 
-  const coin = rect && coinPoignee(rect);
+  const coin = rect && coinPoignee(rect, arrondi);
   return (
     <span ref={repere} hidden>
       {toile &&

@@ -1,12 +1,12 @@
 import type { Raccourci } from '../types'
-import { annoter, etatAnnotation } from './modeAnnotation'
+import { annoter, etatAnnotation, terminerAnnotation } from './modeAnnotation'
 
-/** Maj+D : dessiner sur l'image choisie (seule choisie), ou en sortir. */
+/** Maj+D : dessiner sur l'image choisie (seule choisie), ou en sortir comme on enregistre. */
 export const raccourciAnnoter: Raccourci = (e, contexte) => {
   if (!e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || e.key.toLowerCase() !== 'd') return false
   const { id } = etatAnnotation()
   if (id !== null) {
-    annoter(null)
+    terminerAnnotation()
     return true
   }
   if (contexte.selection.size !== 1) return false

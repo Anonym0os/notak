@@ -1,5 +1,12 @@
-/** Les dimensions d'une image en pixels, ou `null` si elle ne se lit pas. */
+import { lireEnteteDe } from './entete'
+
+/**
+ * Les dimensions d'une image en pixels, telle qu'on la voit (une photo tournée par son EXIF l'est aussi ici), ou
+ * `null` si elle ne se lit pas. L'en-tête suffit le plus souvent ; sinon le navigateur décode l'image.
+ */
 export async function lireDimensions(fichier: Blob): Promise<{ largeur: number; hauteur: number } | null> {
+  const entete = fichier.type === 'image/svg+xml' ? null : await lireEnteteDe(fichier)
+  if (entete) return { largeur: entete.largeur, hauteur: entete.hauteur }
   try {
     if (fichier.type !== 'image/svg+xml') {
       const bitmap = await createImageBitmap(fichier)

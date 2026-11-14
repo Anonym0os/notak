@@ -87,9 +87,7 @@ export const Encadre = Node.create({
   },
   parseHTML: () => [{ tag: 'div[data-type="encadre"]' }],
   renderHTML: ({ HTMLAttributes }) => ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'encadre', class: 'notak-encadre' }), 0],
-  addKeyboardShortcuts() {
-    return { 'Mod-Shift-6': () => basculerEncadre(this.editor) }
-  },
+  // ⇧⌘6 est avec les autres ⇧⌘chiffre de la note (`extensions.ts`), lus sur la touche quelle que soit la disposition.
   addInputRules() {
     return [
       wrappingInputRule({

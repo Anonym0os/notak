@@ -305,7 +305,6 @@
   max-height: 240px;
   padding: 7px 0;
   overflow-y: auto;
-  scrollbar-width: thin;
 }
 
 .notak-menu-liste button {

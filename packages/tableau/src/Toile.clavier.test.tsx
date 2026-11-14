@@ -1,0 +1,213 @@
+// @vitest-environment jsdom
+import { act } from 'react'
+import { type Root, createRoot } from 'react-dom/client'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { creerMagasin } from './coeur/magasin'
+import { type Commentaire, type Element, nouvelleNote } from './coeur/tableau'
+import './elements'
+import { ajouterMessage, nouveauCommentaire } from './elements/commentaire/fil'
+import { fermerMenus } from './menuUnique'
+import type { Services } from './elements/types'
+import { Toile } from './Toile'
+
+;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+
+class ObservateurMuet {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+let racine: Root
+let hote: HTMLElement
+beforeEach(() => {
+  ;(globalThis as { ResizeObserver?: unknown }).ResizeObserver ??= ObservateurMuet
+  document.elementFromPoint ??= () => null
+  document.elementsFromPoint ??= () => []
+  ;(globalThis as { CSS?: { escape(s: string): string } }).CSS ??= { escape: (s) => s }
+  HTMLElement.prototype.setPointerCapture ??= () => {}
+  HTMLElement.prototype.releasePointerCapture ??= () => {}
+  hote = document.createElement('div')
+  document.body.append(hote)
+  racine = createRoot(hote)
+})
+afterEach(() => {
+  act(() => racine.unmount())
+  hote.remove()
+  fermerMenus()
+})
+
+/** La toile de ces éléments, montée ; on lui parle au clavier comme quand elle a le focus. */
+async function monter(elements: Element[], services: Services = {}, surCamera?: (c: { echelle: number }) => void) {
+  const magasin = creerMagasin({ titre: '', etiquettes: [], elements })
+  act(() => racine.render(<Toile magasin={magasin} services={services} {...(surCamera ? { surCamera } : {})} />))
+  await act(async () => {})
+  const toile = hote.querySelector<HTMLElement>('.notak-toile')!
+  const taper = (key: string, mods: KeyboardEventInit = {}) =>
+    act(() => void toile.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...mods })))
+  const place = (id: string) => {
+    const e = magasin.lire().elements.find((x) => x.id === id)
+    return e && [e.x, e.y]
+  }
+  return { magasin, toile, taper, place }
+}
+
+/** Tout choisir, au clavier. */
+const toutChoisir = (taper: (key: string, mods?: KeyboardEventInit) => void) => taper('a', { code: 'KeyA', keyCode: 65, metaKey: true })
+
+describe('les flèches et le verrou', () => {
+  it('dans une sélection mêlée, les flèches déplacent les autres, de 1 puis de 5 avec Maj ; le verrouillé reste', async () => {
+    const libre = nouvelleNote(0, 0, 'libre')
+    const fige = { ...nouvelleNote(40, 0, 'fige'), verrou: true }
+    const { taper, place } = await monter([libre, fige])
+    toutChoisir(taper)
+    taper('ArrowRight')
+    expect(place(libre.id)).toEqual([1, 0])
+    taper('ArrowDown', { shiftKey: true })
+    expect(place(libre.id)).toEqual([1, 5])
+    expect(place(fige.id)).toEqual([40, 0])
+  })
+
+  it('le verrouillé choisi seul ne bouge pas, et rien ne s’inscrit à annuler', async () => {
+    const fige = { ...nouvelleNote(40, 0, 'fige'), verrou: true }
+    const { taper, place, magasin } = await monter([fige])
+    toutChoisir(taper)
+    taper('ArrowLeft', { shiftKey: true })
+    expect(place(fige.id)).toEqual([40, 0])
+    expect(magasin.peutAnnuler()).toBe(false)
+  })
+})
+
+describe('un commentateur, à la touche Supprimer', () => {
+  const ana = { id: 'ana', nom: 'Ana Dupont', couleur: '#e33' }
+  const bob = { id: 'bob', nom: 'Bob Martin', couleur: '#2a7' }
+  /** Une épingle de commentaire posée en (x, 0), avec ces messages. */
+  const epingle = (x: number, auteurs: (typeof ana)[]) => {
+    const base = nouveauCommentaire(x, 0)
+    const contenu = auteurs.reduce((c, auteur, i) => ajouterMessage(c, { id: `m${x}-${i}`, auteur, date: 1, texte: `message ${i}` }), base.contenu as Commentaire)
+    return { ...base, contenu: { ...contenu, replie: true } } as Element<Commentaire>
+  }
+  // Les autres : le même tableau tant que rien ne change, comme le veut la présence.
+  const personne: never[] = []
+  const commentateur: Services = {
+    lectureSeule: true,
+    droits: { role: 'commentaire', elements: {} },
+    presence: { moi: () => ana, autres: () => personne, ecouter: () => () => {}, signaler() {} } as unknown as Services['presence'],
+  }
+
+  it('retire l’épingle dont il a écrit tous les messages, d’un seul pas que Cmd+Z rend ; le reste demeure', async () => {
+    const sienne = epingle(0, [ana, ana])
+    const melee = epingle(40, [ana, bob])
+    const note = nouvelleNote(80, 0, 'note')
+    const { taper, magasin } = await monter([sienne, melee, note], commentateur)
+    const ids = () => magasin.lire().elements.map((x) => x.id)
+    toutChoisir(taper)
+    taper('Delete')
+    expect(ids()).toEqual([melee.id, note.id])
+    taper('z', { code: 'KeyZ', keyCode: 90, metaKey: true })
+    const rendue = magasin.lire().elements.find((x) => x.id === sienne.id)
+    expect((rendue?.contenu as Commentaire | undefined)?.messages.map((m) => m.texte)).toEqual(['message 0', 'message 1'])
+    taper('z', { code: 'KeyZ', keyCode: 90, metaKey: true, shiftKey: true })
+    expect(ids()).toEqual([melee.id, note.id])
+  })
+
+  it('Retour arrière aussi ; un fil verrouillé ou celui d’un autre ne part pas', async () => {
+    const fige = { ...epingle(0, [ana]), verrou: true }
+    const autre = epingle(40, [bob])
+    const { taper, magasin } = await monter([fige, autre], commentateur)
+    toutChoisir(taper)
+    taper('Backspace')
+    expect(magasin.lire().elements).toHaveLength(2)
+    expect(magasin.peutAnnuler()).toBe(false)
+  })
+
+  it('qui ne fait que lire ne supprime rien, pas même un fil qu’il aurait écrit', async () => {
+    const sienne = epingle(0, [ana])
+    const { taper, magasin } = await monter([sienne], { ...commentateur, droits: { role: 'lecture', elements: {} } })
+    toutChoisir(taper)
+    taper('Delete')
+    expect(magasin.lire().elements).toHaveLength(1)
+  })
+})
+
+describe('le zoom au clavier, sur toute disposition', () => {
+  /** La toile dit sa vue un instant après le geste : on attend qu'elle l'ait dite. */
+  const laisserDire = () => act(async () => void (await new Promise((r) => setTimeout(r, 350))))
+
+  it('en AZERTY, ⌘− dézoome (sa touche est la place QWERTY de « = »), ⌘= zoome, ⌘à revient à 100 %', async () => {
+    const vues: number[] = []
+    const { taper } = await monter([], {}, (c) => vues.push(c.echelle))
+    taper('-', { code: 'Equal', keyCode: 189, metaKey: true })
+    await laisserDire()
+    expect(vues.at(-1)).toBeLessThan(1)
+    taper('à', { code: 'Digit0', keyCode: 48, metaKey: true })
+    await laisserDire()
+    expect(vues.at(-1)).toBe(1)
+    // « = » est à la place QWERTY de la barre oblique.
+    taper('=', { code: 'Slash', keyCode: 187, metaKey: true })
+    await laisserDire()
+    expect(vues.at(-1)).toBeGreaterThan(1)
+  })
+
+  it('en AZERTY, ⌘) ne dézoome plus : la touche que QWERTY place à « - » donne une parenthèse', async () => {
+    const vues: number[] = []
+    const { taper } = await monter([], {}, (c) => vues.push(c.echelle))
+    taper(')', { code: 'Minus', keyCode: 219, metaKey: true })
+    await laisserDire()
+    expect(vues).toEqual([])
+  })
+
+  it('⇧⌘0 ne remet pas le zoom à 100 % : dans une note, c’est « Texte normal »', async () => {
+    const vues: number[] = []
+    const { taper } = await monter([], {}, (c) => vues.push(c.echelle))
+    taper('-', { code: 'Equal', keyCode: 189, metaKey: true })
+    await laisserDire()
+    const dezoome = vues.at(-1)
+    expect(dezoome).toBeLessThan(1)
+    // QWERTY donne « ) » sous Maj, AZERTY « 0 » : ni l'un ni l'autre ne touche à la vue.
+    taper(')', { code: 'Digit0', keyCode: 48, metaKey: true, shiftKey: true })
+    taper('0', { code: 'Digit0', keyCode: 48, metaKey: true, shiftKey: true })
+    await laisserDire()
+    expect(vues.at(-1)).toBe(dezoome)
+  })
+})
+
+describe('le clavier revient à la toile après une barre ou un menu', () => {
+  const frame = () => act(async () => void (await new Promise((r) => requestAnimationFrame(r))))
+
+  it('Aligner, puis « Aligner à gauche » : le menu parti avec son bouton, la toile reprend le clavier', async () => {
+    const a = nouvelleNote(0, 0, 'a')
+    const b = nouvelleNote(30, 20, 'b')
+    const { taper, toile, place } = await monter([a, b], { barreAGauche: true })
+    toutChoisir(taper)
+    await act(async () => {})
+    const aligner = [...hote.querySelectorAll<HTMLButtonElement>('nav[data-selection] button')].find((x) => x.textContent === 'Aligner')!
+    act(() => aligner.click())
+    const gauche = hote.querySelector<HTMLButtonElement>('button[aria-label="Aligner à gauche"]')!
+    // Chrome donne le focus au bouton cliqué ; le menu, en se fermant, l'emporte.
+    gauche.focus()
+    act(() => gauche.click())
+    expect(hote.querySelector('button[aria-label="Aligner à gauche"]')).toBeNull()
+    await frame()
+    expect(document.activeElement).toBe(toile)
+    // La touche suivante va bien à la toile : la flèche déplace la sélection.
+    act(() => void document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
+    expect([place(a.id)?.[0], place(b.id)?.[0]]).toEqual([1, 31])
+  })
+
+  it('un champ que l’action vient d’ouvrir garde le focus, un bouton resté là aussi', async () => {
+    const { toile } = await monter([nouvelleNote(0, 0, 'a')])
+    const champ = document.createElement('input')
+    const ouvre = document.createElement('button')
+    const reste = document.createElement('button')
+    toile.append(champ, ouvre, reste)
+    ouvre.addEventListener('click', () => champ.focus())
+    act(() => ouvre.click())
+    await frame()
+    expect(document.activeElement).toBe(champ)
+    reste.focus()
+    act(() => reste.click())
+    await frame()
+    expect(document.activeElement).toBe(reste)
+  })
+})

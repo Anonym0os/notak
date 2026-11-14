@@ -139,3 +139,29 @@ describe('l’anneau de focus', () => {
     expect(dialogue?.declarations.outline).toBe('none')
   })
 })
+
+describe('les barres de défilement', () => {
+  const brut = readFileSync(join(ici, 'app.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+
+  it('sont fines partout, et leur pouce ne paraît qu’au survol de ce qui défile, à la souris seulement', () => {
+    const toutes = APP.find((r) => r.selecteur === ':where(*)' && 'scrollbar-width' in r.declarations)
+    const survol = APP.find((r) => r.selecteur === ':where(:hover)' && 'scrollbar-color' in r.declarations)
+    expect(toutes?.declarations).toMatchObject({ 'scrollbar-width': 'thin', 'scrollbar-color': 'transparent transparent' })
+    // La couleur du texte de ce qui défile, à peine : lisible en clair comme en sombre.
+    expect(survol?.declarations['scrollbar-color']).toMatch(/^color-mix\(in srgb, currentColor \d+%, transparent\) transparent$/)
+    // Au doigt, les barres du système, qui ne paraissent qu'en défilant, restent : la règle ne vaut qu'avec un survol.
+    expect(brut).toMatch(/@media \(hover: hover\) \{\s*@supports \(scrollbar-color: red red\) \{\s*:where\(\*\)/)
+  })
+
+  it('aucune feuille ne pose de pouce toujours visible ni ne redit « fin » : la règle commune vaut partout, vieux WebKit compris', () => {
+    const fautes: string[] = []
+    for (const fichier of [...feuilles(ici), ...feuilles(PAQUET)]) {
+      for (const r of regles(readFileSync(fichier, 'utf8'))) {
+        if (r.selecteur.startsWith(':where(')) continue
+        const largeur = r.declarations['scrollbar-width']
+        if ('scrollbar-color' in r.declarations || (largeur && largeur !== 'none')) fautes.push(`${fichier.replace(/^.*\/(apps|packages)\//, '$1/')} : ${r.selecteur}`)
+      }
+    }
+    expect(fautes).toEqual([])
+  })
+})

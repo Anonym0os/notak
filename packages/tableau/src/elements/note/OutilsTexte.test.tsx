@@ -41,10 +41,12 @@ const outil = (nom: string) => hote.querySelector<HTMLButtonElement>(`button[ari
 const retour = () => hote.querySelector<HTMLButtonElement>('.notak-barre-retour')!
 
 describe('les outils de texte dans la barre de gauche', () => {
-  it('dans l’ordre du relevé : Style de texte (avec son nom), puis des icônes seules', () => {
+  it('dans l’ordre du relevé : Style de texte (un mot sous l’icône), puis des icônes seules', () => {
     monter()
     const style = hote.querySelector('.notak-outil-selection')!
-    expect(style.textContent).toBe('Style de texte')
+    // Le mot court tient dans la tuile ; le nom entier est pour qui lit à haute voix, et dans l'infobulle.
+    expect(style.textContent).toBe('Style')
+    expect(style.getAttribute('aria-label')).toBe('Style de texte')
     const noms = [...hote.querySelectorAll<HTMLButtonElement>('button.notak-outil-texte')].map((b) => b.getAttribute('aria-label'))
     expect(noms).toEqual(['Gras', 'Italique', 'Barré', 'Souligné', 'Puces', 'Numérotée', 'Centrer', 'Code', 'Lien', 'Commenter le passage'])
     // Icône seule : pas de libellé dans la tuile ; ni retrait ni « Insérer » dans cette barre.
@@ -63,6 +65,11 @@ describe('les outils de texte dans la barre de gauche', () => {
       const bulle = hote.querySelector('.notak-infobulle')!
       expect(bulle.textContent).toContain('Gras')
       expect([...bulle.querySelectorAll('kbd')].map((k) => k.textContent)).toEqual(['⌘', 'B'])
+      // Style de texte : un mot sous l'icône, le nom entier dans sa bulle.
+      const style = hote.querySelector('.notak-outil-selection')!
+      act(() => void style.dispatchEvent(new MouseEvent('pointerover', { bubbles: true })))
+      act(() => void vi.advanceTimersByTime(DELAI_INFOBULLE))
+      expect(style.closest('.notak-infobulle-hote')!.querySelector('.notak-infobulle')!.textContent).toBe('Style de texte')
     } finally {
       vi.useRealTimers()
     }
@@ -130,7 +137,10 @@ describe('la barre de gauche en édition', () => {
     const panneau = { nombre: 2, ouverte: false, basculer() {} }
     act(() => racine.render(<BarreEdition cible={(el) => (cible = el)} corbeille={panneau} nonTries={panneau} />))
     expect(cible).toBe(hote.querySelector('nav[data-edition] .notak-barre-edition-liste'))
-    expect(hote.querySelector('nav [data-corbeille]')!.textContent).toContain('Corbeille (2)')
+    const corbeille = hote.querySelector('nav [data-corbeille]')!
+    expect(corbeille.querySelector('.notak-outil-libelle')!.textContent).toBe('Corbeille')
+    expect(corbeille.querySelector('.notak-outil-nombre')!.textContent).toBe('2')
+    expect(corbeille.getAttribute('aria-label')).toBe('Corbeille (2)')
   })
 })
 

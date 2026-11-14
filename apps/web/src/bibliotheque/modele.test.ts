@@ -4,6 +4,7 @@ import type { EntreeBibliotheque } from '../api'
 import {
   adresseDeLaVue,
   arbreDesDossiers,
+  avecApercus,
   compterParGenre,
   contenuDuDossier,
   dansLaPortee,
@@ -11,6 +12,7 @@ import {
   ecrireAffichage,
   estDossier,
   filDAriane,
+  genere,
   lireAffichage,
   lireVue,
   parLesPuces,
@@ -122,6 +124,28 @@ describe('les dossiers', () => {
     expect(contenuDuDossier('voyage', MONDE).map((e) => e.element)).toEqual(['billets'])
   })
 
+  it('un dossier porte l’aperçu de ce qu’il range : ses quatre premières entrées, la plus récente d’abord, puis par titre', () => {
+    const photo = (element: string, vu: number | null) =>
+      entree({ tableau: 'voyage', element, genre: 'image', titre: element, dans: 'voyage', vu, resume: { genre: 'image', element, titre: element, fichier: element, largeur: 4, hauteur: 3 } })
+    const monde = [...MONDE, photo('kyoto', null), photo('nara', 5), photo('osaka', 9), photo('aso', null), photo('fuji', null)]
+    const apres = avecApercus(monde)
+    const apercu = (id: string) => apres.find((e) => e.tableau === id && e.element === null)!.resume.apercu
+    // Sans date, par titre : « aso » et « fuji » passent avant « kyoto » et les billets.
+    expect(apercu('voyage')!.map((a) => a.resume.element)).toEqual(['osaka', 'nara', 'aso', 'fuji'])
+    expect(apercu('voyage')![0]).toEqual({ tableau: 'voyage', resume: { genre: 'image', element: 'osaka', titre: 'osaka', fichier: 'osaka', largeur: 4, hauteur: 3 } })
+    // « Projets » range un dossier, qui s'y montre par son icône : pas d'aperçu dans l'aperçu.
+    expect(apercu('projets')!.map((a) => [a.tableau, a.resume.genre])).toEqual([
+      ['atelier', 'toile'],
+      ['voyage', 'toile'],
+    ])
+    expect(apercu('projets')![1]!.resume).not.toHaveProperty('apercu')
+    // Un dossier vide n'en a pas ; une toile ordinaire non plus, même quand elle range quelque chose.
+    expect(apercu('archives')).toBeUndefined()
+    expect(apercu('atelier')).toBeUndefined()
+    // Sans dossier, rien ne change.
+    expect(avecApercus(TOUTES)).toBe(TOUTES)
+  })
+
   it('le fil d’Ariane remonte jusqu’à l’accueil, et s’arrête là où l’on ne sait plus', () => {
     expect(filDAriane('voyage', MONDE, 'accueil')).toEqual(['accueil', 'projets', 'voyage'])
     expect(filDAriane('plans', MONDE, 'accueil')).toEqual(['accueil', 'projets', 'atelier', 'plans'])
@@ -135,6 +159,25 @@ describe('les dossiers', () => {
   it('l’arbre de la colonne : les dossiers par titre, à leur place ; sous une toile ordinaire, au dossier du dessus', () => {
     const plat = (n: ReturnType<typeof arbreDesDossiers>, p = 0): string[] => n.flatMap((x) => [`${'  '.repeat(p)}${x.titre}`, ...plat(x.enfants, p + 1)])
     expect(plat(arbreDesDossiers(MONDE, 'accueil'))).toEqual(['Archives', 'Projets', '  Plans', '  Voyage'])
+  })
+
+  it('ceux qu’un outil a générés se reconnaissent, et l’arbre de la colonne le nomme', () => {
+    const GENERES = [
+      { ...dossier('clients', 'accueil', 'Clients'), outil: 'Silak' },
+      { ...dossier('dupont', 'clients', 'Dupont'), outil: 'Silak', fiche: { nom: 'Silak' } },
+      dossier('mien', 'clients', 'À moi'),
+      // Ce que porte la toile d'un dossier généré, lui, se change et se range où l'on veut.
+      { ...entree({ tableau: 'dupont', element: 'devis', genre: 'document', dans: 'dupont' }), outil: 'Silak' },
+    ]
+    expect(GENERES.map(genere)).toEqual([true, true, false, false])
+    const [clients] = arbreDesDossiers(GENERES, 'accueil')
+    expect([clients!.outil, clients!.enfants.map((n) => [n.titre, n.outil])]).toEqual([
+      'Silak',
+      [
+        ['À moi', undefined],
+        ['Dupont', 'Silak'],
+      ],
+    ])
   })
 
   it('l’adresse d’un dossier', () => {

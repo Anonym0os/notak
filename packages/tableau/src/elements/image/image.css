@@ -13,17 +13,12 @@
   box-shadow: 0 0 0 1px rgb(0 0 0 / 0.1);
 }
 
-/* La barre de couleur : 5 px en haut de la carte, au lieu d'une teinte sur la carte. */
-.notak-carte[data-type='image'][data-teinte]::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1;
-  height: 5px;
-  background: var(--notak-teinte);
-  pointer-events: none;
+/*
+ * Une image transparente n'a pas de carte : l'arrondi qu'un habillage donne aux cartes ne la rogne pas (un détourage
+ * qui touche ses bords les garderait entiers), et son filet de sélection reste carré, collé à sa boîte.
+ */
+.notak-carte[data-type='image'][data-sans-fond] {
+  border-radius: 0;
 }
 
 .notak-image-cadre {
@@ -33,6 +28,35 @@
   overflow: hidden;
   border-radius: 0;
   container-type: size;
+}
+
+/*
+ * La photo prend l'arrondi de sa carte (celui d'un habillage) : sans lui, ses coins carrés débordaient du filet de
+ * sélection, qui suit l'arrondi de la carte. Le haut seulement quand la légende la suit, tout le tour sinon.
+ */
+.notak-carte[data-type='image'] > .notak-image-cadre {
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+}
+
+.notak-carte[data-type='image']:not(:has(> .notak-legende)) > .notak-image-cadre {
+  border-radius: inherit;
+}
+
+/*
+ * La barre de couleur : 5 px en haut de l'image, au lieu d'une teinte sur la carte. Dans le cadre, elle est rognée
+ * par son arrondi ; et l'ombre du glisser garde pour elle le `::after` de la carte.
+ */
+.notak-carte[data-type='image'][data-teinte] > .notak-image-cadre::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  height: 5px;
+  background: var(--notak-teinte);
+  pointer-events: none;
 }
 
 .notak-image-plan {
@@ -71,24 +95,27 @@
   color: #8d929a;
 }
 
-/* La légende, dans la carte, sous l'image : 12 px sur 20, retrait de 24 px. */
+/*
+ * La légende, dans la carte, sous l'image : 12 px sur 20, retrait de 24 px. Elle prend le texte des cartes (#323b4a
+ * en clair, comme Milanote) : une couleur figée restait sombre sur la carte sombre du thème sombre.
+ */
 .notak-carte[data-type='image'] .notak-legende {
   margin: 0;
   padding: 20px 24px;
   font-size: 12px;
   line-height: 20px;
   letter-spacing: normal;
-  color: #323b4a;
+  color: var(--notak-texte);
   overflow-wrap: anywhere;
 }
 
 .notak-carte[data-type='image'][data-teinte] .notak-legende {
   background: none;
-  color: #323b4a;
+  color: var(--notak-texte);
 }
 
 .notak-carte[data-type='image'] .notak-legende[data-vide] {
-  color: #d1d3d6;
+  color: var(--notak-attente, #d1d3d6);
   cursor: text;
 }
 
@@ -135,24 +162,31 @@
   padding: 48px 60px;
 }
 
+/*
+ * L'image et sa légende, comme une carte agrandie : leurs tailles sont calculées (`carteEnGrand`) pour tenir dans la
+ * zone, légende comprise ; la barre garde pour elle la marge du bas.
+ */
 .notak-visionneuse-figure {
   margin: 0;
   max-width: 100%;
-  max-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 0;
 }
 
+/* Le cadre de l'image, au cadrage de la toile (le plan et l'image se posent comme dans la carte, en unités du cadre). */
 .notak-visionneuse-image {
-  display: block;
-  min-height: 0;
-  max-width: 100%;
-  max-height: calc(100vh - 96px);
-  object-fit: contain;
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  container-type: size;
+  border-radius: var(--notak-rayon-carte, 0);
   will-change: transform;
   transition: transform 0.12s ease-out;
+}
+
+.notak-visionneuse-figure[data-legende] > .notak-visionneuse-image {
+  border-radius: var(--notak-rayon-carte, 0) var(--notak-rayon-carte, 0) 0 0;
 }
 
 .notak-visionneuse-image[data-zoom] {
@@ -169,16 +203,24 @@
   background: repeating-conic-gradient(#d9d9d9 0% 25%, #fff 0% 50%) 0 0 / 32px 32px;
 }
 
+/*
+ * La légende, sous l'image et de sa largeur, sur le fond des cartes de la toile (blanc en clair, sombre en sombre) :
+ * un texte long passe à la ligne, et ne défile qu'au-delà de la moitié de la fenêtre, comme chez Milanote.
+ */
 .notak-visionneuse-legende {
   box-sizing: border-box;
+  flex: none;
   max-width: 100%;
   max-height: calc(50vh - 48px);
   overflow: auto;
+  margin: 0;
   padding: 16px 24px 20px;
-  background: #fff;
-  color: #323b4a;
+  border-radius: 0 0 var(--notak-rayon-carte, 0) var(--notak-rayon-carte, 0);
+  background: var(--notak-carte, #fff);
+  color: var(--notak-texte, #323b4a);
   font-size: 12px;
   line-height: 20px;
+  text-align: left;
   overflow-wrap: anywhere;
 }
 
@@ -285,23 +327,30 @@
   cursor: text;
 }
 
-/* Régler le recadrage : l'image en entier, voilée hors du cadre. */
+/* Un outil ouvert montre l'image entière (un recadrage rouvert), qui déborde alors sur ses voisines : sa carte passe
+   devant elles le temps du réglage, sous ce qu'on glisse. */
+.notak-carte:has(.notak-recadreur, .notak-annotation) {
+  z-index: 9;
+}
+
+/* Régler le recadrage : l'image en entier, voilée hors du cadre. Le filet et les poignées gardent leur taille à
+   l'écran quel que soit le zoom de la toile (`--notak-zoom-inverse`) ; les boutons sont dans la barre du bas. */
 .notak-recadreur {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  position: relative;
 }
 
 .notak-recadre {
+  --notak-recadre-k: var(--notak-zoom-inverse, 1);
   position: absolute;
   box-sizing: border-box;
-  border: 1.5px solid #fff;
+  border: calc(1.5px * var(--notak-recadre-k)) solid #fff;
   box-shadow: 0 0 0 100vmax rgb(15 17 20 / 0.55);
-  outline: 1px solid rgb(0 0 0 / 0.35);
+  outline: calc(1px * var(--notak-recadre-k)) solid rgb(0 0 0 / 0.35);
   cursor: move;
   touch-action: none;
 }
 
+/* Les coins sont des ronds, les bords des barrettes ; chacun se tient du bout du doigt (une marge invisible l'élargit). */
 .notak-recadre-poignee {
   position: absolute;
   width: 12px;
@@ -311,28 +360,50 @@
   border-radius: 50%;
   background: #fff;
   touch-action: none;
+  transform: scale(var(--notak-recadre-k));
 }
 
-.notak-recadre-poignee[data-poignee='nw'] { top: 2px; left: 2px; cursor: nwse-resize; }
-.notak-recadre-poignee[data-poignee='ne'] { top: 2px; right: 2px; cursor: nesw-resize; }
-.notak-recadre-poignee[data-poignee='sw'] { bottom: 2px; left: 2px; cursor: nesw-resize; }
-.notak-recadre-poignee[data-poignee='se'] { bottom: 2px; right: 2px; cursor: nwse-resize; }
-
-.notak-recadreur-actions {
-  display: flex;
-  gap: 6px;
-  font-size: 11px;
+.notak-recadre-poignee::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
 }
 
-.notak-recadreur-actions button {
-  padding: 3px 8px;
-  border: 1px solid var(--notak-point);
-  border-radius: 4px;
-  background: var(--notak-carte);
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
+@media (pointer: coarse) {
+  .notak-recadre-poignee::before {
+    inset: -14px;
+  }
 }
+
+.notak-recadre-poignee[data-poignee='nw'] { top: calc(2px * var(--notak-recadre-k)); left: calc(2px * var(--notak-recadre-k)); transform-origin: 0 0; cursor: nwse-resize; }
+.notak-recadre-poignee[data-poignee='ne'] { top: calc(2px * var(--notak-recadre-k)); right: calc(2px * var(--notak-recadre-k)); transform-origin: 100% 0; cursor: nesw-resize; }
+.notak-recadre-poignee[data-poignee='sw'] { bottom: calc(2px * var(--notak-recadre-k)); left: calc(2px * var(--notak-recadre-k)); transform-origin: 0 100%; cursor: nesw-resize; }
+.notak-recadre-poignee[data-poignee='se'] { bottom: calc(2px * var(--notak-recadre-k)); right: calc(2px * var(--notak-recadre-k)); transform-origin: 100% 100%; cursor: nwse-resize; }
+
+.notak-recadre-poignee:is([data-poignee='n'], [data-poignee='s'], [data-poignee='e'], [data-poignee='w']) {
+  border-radius: 3px;
+}
+
+.notak-recadre-poignee:is([data-poignee='n'], [data-poignee='s']) {
+  left: 50%;
+  width: 22px;
+  height: 7px;
+  margin-left: -11px;
+  cursor: ns-resize;
+}
+
+.notak-recadre-poignee:is([data-poignee='e'], [data-poignee='w']) {
+  top: 50%;
+  width: 7px;
+  height: 22px;
+  margin-top: -11px;
+  cursor: ew-resize;
+}
+
+.notak-recadre-poignee[data-poignee='n'] { top: calc(2px * var(--notak-recadre-k)); transform-origin: 50% 0; }
+.notak-recadre-poignee[data-poignee='s'] { bottom: calc(2px * var(--notak-recadre-k)); transform-origin: 50% 100%; }
+.notak-recadre-poignee[data-poignee='w'] { left: calc(2px * var(--notak-recadre-k)); transform-origin: 0 50%; }
+.notak-recadre-poignee[data-poignee='e'] { right: calc(2px * var(--notak-recadre-k)); transform-origin: 100% 50%; }
 
 /* Annotation : les traits dessinés par-dessus l'image, et la couche qui prend le crayon. */
 .notak-traits {
@@ -368,7 +439,7 @@
   outline-offset: 1px;
 }
 
-/* Détourer : l'aperçu sur un damier, et le curseur de tolérance. */
+/* Détourer : l'aperçu sur un damier (la roue le temps de le lire ou de détourer), le curseur dans la barre. */
 .notak-damier {
   background: repeating-conic-gradient(#d9d9d9 0% 25%, #fff 0% 50%) 0 0 / 14px 14px;
 }
@@ -379,44 +450,78 @@
   left: calc(50% - 9px);
   width: 18px;
   height: 18px;
+  /* « scale » et non « transform » : la roue tourne déjà par « transform ». */
+  scale: var(--notak-zoom-inverse, 1);
 }
 
 .notak-detoureur-reglage {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
+  gap: 8px;
+  padding: 0 8px;
 }
 
 .notak-detoureur-reglage input {
-  flex: 1;
-  min-width: 0;
+  width: 140px;
+  max-width: 30vw;
+  accent-color: var(--notak-accent, #2f6feb);
 }
 
 .notak-detoureur-reglage output {
-  min-width: 2ch;
+  min-width: 3ch;
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
-.notak-detoureur-note {
-  margin: 0;
-  font-size: 11px;
-  opacity: 0.7;
-}
-
-.notak-recadreur-actions button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-/* La barre de l'annotation est celle du croquis, flottante au centre du bas de la fenêtre. */
-.notak-annotation-barre {
+/* La barre des outils d'image est celle du croquis, flottante au centre du bas de la fenêtre, au-dessus de la barre
+   d'accueil de l'iPad et de l'iPhone. */
+.notak-croquis-barre.notak-annotation-barre {
   position: fixed;
   top: auto;
-  bottom: 4rem;
+  bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
   left: 50%;
   z-index: 60;
   width: max-content;
+  max-width: calc(100vw - 16px);
+  box-sizing: border-box;
+}
+
+/* Les volets (couleur, épaisseur) se centrent sur la barre, elle-même au milieu de l'écran, et non sur leur bouton :
+   sur un téléphone ou un iPad en hauteur, centrés sur le bouton, ils sortaient par un bord. */
+.notak-croquis-barre.notak-annotation-barre .notak-croquis-volet-hote {
+  position: static;
+}
+
+/* Sur un téléphone, la barre passe sur deux lignes plutôt que de sortir de l'écran. */
+@media (max-width: 480px) {
+  .notak-croquis-barre.notak-annotation-barre {
+    flex-wrap: wrap;
+    justify-content: center;
+    border-radius: 22px;
+  }
+}
+
+/* Recadrer et détourer n'ont que quelques boutons : la barre prend leur largeur, pas celle du crayon. */
+.notak-croquis-barre.notak-outil-image-barre {
+  min-width: 0;
+  gap: 4px;
+}
+
+/* Ce que dit l'outil (« rien à retirer ») : une étiquette posée au-dessus de la barre. */
+.notak-outil-image-note {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--notak-carte, #fff);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.18);
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
 }
 
 .notak-annotation-vise {
@@ -437,6 +542,8 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+  /* Le filet suit l'arrondi de la photo, comme celui de la sélection. */
+  border-radius: inherit;
   box-shadow: inset 0 0 0 2px #323b4a;
   color: #f3f3f4;
   font-size: 12px;

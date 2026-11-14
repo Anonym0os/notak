@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ContexteToile } from '../types'
 import { annoter, etatAnnotation } from './modeAnnotation'
 import { raccourciAnnoter } from './raccourciAnnotation'
@@ -19,6 +19,13 @@ describe('Maj+D', () => {
     expect(etatAnnotation().id).toBe('a')
     expect(raccourciAnnoter(touche({}), c)).toBe(true)
     expect(etatAnnotation().id).toBeNull()
+  })
+  it('en sortir, c’est terminer : on revient d’où le dessin avait été ouvert', () => {
+    const retour = vi.fn()
+    annoter('a', { retour })
+    expect(raccourciAnnoter(touche({}), contexte(['a'], [{ id: 'a', type: 'image' }]))).toBe(true)
+    expect(etatAnnotation().id).toBeNull()
+    expect(retour).toHaveBeenCalledTimes(1)
   })
   it('ne fait rien sans image seule choisie', () => {
     expect(raccourciAnnoter(touche({}), contexte([], []))).toBe(false)

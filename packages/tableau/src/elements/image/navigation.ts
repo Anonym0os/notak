@@ -1,6 +1,7 @@
 import { comparerOrdre } from '../../coeur/ordre'
 import type { Element, Image } from '../../coeur/tableau'
 import { enEnvoi } from '../envois'
+import { rotationDe } from './geometrie'
 
 /**
  * Les images qu'on parcourt dans la visionneuse, dans l'ordre de Milanote et non celui de création : celles de la toile
@@ -33,4 +34,38 @@ export const borneZoom = (z: number) => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z)
 export function borneDecalage(decalage: number, taille: number, zoom: number): number {
   const reste = (taille * (zoom - 1)) / 2
   return Math.max(-reste, Math.min(reste, decalage))
+}
+
+export interface Taille {
+  largeur: number
+  hauteur: number
+}
+
+/** La taille, en pixels, de l'image telle que la toile la montre : la part gardée par le recadrage, puis le quart de tour. */
+export function tailleMontree(c: Image): Taille {
+  const largeur = c.largeurOrigine * (c.recadrage?.largeur ?? 1)
+  const hauteur = c.hauteurOrigine * (c.recadrage?.hauteur ?? 1)
+  return rotationDe(c) === 90 || rotationDe(c) === 270 ? { largeur: hauteur, hauteur: largeur } : { largeur, hauteur }
+}
+
+/**
+ * L'image en grand et sa légende, comme une carte agrandie : l'image à sa taille au plus (jamais agrandie), dans la
+ * zone, avec sous elle la légende de la même largeur. `mesurer` rend la hauteur de la légende à une largeur donnée
+ * (0 sans légende) : plus l'image rétrécit, plus la légende s'allonge, on recommence jusqu'à ce qu'elles s'accordent.
+ */
+export function carteEnGrand(image: Taille, zone: Taille, mesurer: (largeur: number) => number): Taille & { legende: number } {
+  const rapport = image.largeur / image.hauteur
+  const poser = (legende: number) => {
+    const largeur = Math.max(1, Math.min(image.largeur, zone.largeur, Math.max(1, zone.hauteur - legende) * rapport))
+    return { largeur, hauteur: largeur / rapport }
+  }
+  let legende = 0
+  let taille = poser(0)
+  for (let i = 0; i < 8; i++) {
+    const mesuree = mesurer(taille.largeur)
+    if (Math.abs(mesuree - legende) < 0.5) break
+    legende = Math.max(legende, mesuree)
+    taille = poser(legende)
+  }
+  return { ...taille, legende }
 }

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import type { Element, Image, TraitImage } from '../../coeur/tableau'
 import type { ContexteToile } from '../types'
 import {
@@ -17,10 +16,10 @@ import {
   versImage,
 } from './annotation'
 import { miseEnPage, proportionsAffichees, versPlan } from './geometrie'
-import { annoter, choisirCouleur, choisirEpaisseur, choisirOutil, useAnnotation } from './modeAnnotation'
+import { choisirCouleur, choisirEpaisseur, choisirOutil, terminerAnnotation, useAnnotation } from './modeAnnotation'
 import { largeurEntiereAffichee } from './tailles'
 import { BarreEpaisseur, VoletCouleur, VoletEpaisseur } from '../croquis/partage'
-import '../croquis/croquis.css'
+import { BarreOutil, useAmenerALaVue } from './barreOutil'
 import { t } from '../../langue'
 import { ico } from '../../icones'
 
@@ -49,7 +48,11 @@ export function Traits({ contenu, traits, style }: { contenu: Image; traits: rea
   )
 }
 
-type Geste = { outil: 'crayon'; points: Point2[]; avant: TraitImage[]; trait: Omit<TraitImage, 'points'> } | { outil: 'gomme'; avant: TraitImage[] }
+/** Le geste en cours, tenu par un seul pointeur : un autre doigt ne s'y mêle pas. */
+type Geste = { pointeur: number; toucher: boolean } & (
+  | { outil: 'crayon'; points: Point2[]; avant: TraitImage[]; trait: Omit<TraitImage, 'points'> }
+  | { outil: 'gomme'; avant: TraitImage[] }
+)
 type Volet = 'couleur' | 'epaisseur' | null
 const ROUGE_GOMME = '#ff0000'
 
@@ -58,7 +61,8 @@ const ROUGE_GOMME = '#ff0000'
  * est celui du croquis : tous les points du pointeur, lissés par les milieux, bouts ronds, largeur constante à
  * l'écran. La gomme retire le trait entier qu'elle touche, cerné de rouge avant. Les gestes se gardent en brouillon
  * (`brouillon` les montre sur l'image) : Enregistrer (⌘S, ou quitter le mode) les pose en un seul pas dans le
- * tableau, Abandonner (Échap) les jette.
+ * tableau, Abandonner (Échap) les jette. La barre vit hors de la toile (`BarreOutil`) : à sa taille et au thème de la
+ * toile quel que soit le zoom.
  */
 export function Annotateur({
   element,
@@ -119,12 +123,12 @@ export function Annotateur({
     decide.current = true
     garder()
     brouillon(null)
-    annoter(null)
+    terminerAnnotation()
   }
   const abandonner = () => {
     decide.current = true
     brouillon(null)
-    annoter(null)
+    terminerAnnotation()
   }
   sur.current = { traits, modifie, outil, couleur, volet, precedente, annuler, retablir, enregistrer, abandonner }
 
@@ -137,6 +141,25 @@ export function Annotateur({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   )
+
+  useAmenerALaVue(boite, contexte, false)
+
+  // Un deuxième doigt posé pendant un trait au doigt, c'est la toile qu'on pince : le trait commencé s'efface (la
+  // toile garde pour elle les mouvements du pincement, il resterait un bout de trait parasite). Écouté à la capture,
+  // avant que la toile ne prenne ce doigt.
+  useEffect(() => {
+    const second = (e: PointerEvent) => {
+      const g = geste.current
+      if (!g?.toucher || e.pointerType !== 'touch' || e.pointerId === g.pointeur) return
+      geste.current = null
+      sur.current.traits = g.avant
+      setTraits(g.avant)
+      brouillon(g.avant)
+    }
+    window.addEventListener('pointerdown', second, true)
+    return () => window.removeEventListener('pointerdown', second, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const prendreCouleur = (c: string) => {
     if (c !== couleur) setPrecedente(couleur)
@@ -197,20 +220,25 @@ export function Annotateur({
   }
 
   const descendre = (e: React.PointerEvent) => {
-    if (e.button !== 0) return
+    // Rien de ce qui se fait sur l'image en dessin ne remonte à la toile (un clic droit n'y commence rien).
     e.stopPropagation()
+    if (e.button !== 0) return
     e.preventDefault()
+    // Un second doigt ne commence pas un trait par-dessus celui qui court.
+    if (geste.current) return
     const cible = point(e)
     if (!cible) return
     setVolet(null)
     e.currentTarget.setPointerCapture(e.pointerId)
     const c = actuel()
+    const tenu = { pointeur: e.pointerId, toucher: e.pointerType === 'touch' }
     if (outil === 'crayon') {
       const largeurImage = largeurEntiereAffichee(c, cible.largeurPx)
-      geste.current = { outil: 'crayon', points: [cible.p], avant: traits, trait: { couleur, epaisseur: epaisseurPour(EPAISSEURS_PX[epaisseur]!, largeurImage) } }
-      brouillon([...traits, { ...geste.current.trait, points: [cible.p] }])
+      const trait = { couleur, epaisseur: epaisseurPour(EPAISSEURS_PX[epaisseur]!, largeurImage) }
+      geste.current = { ...tenu, outil: 'crayon', points: [cible.p], avant: traits, trait }
+      brouillon([...traits, { ...trait, points: [cible.p] }])
     } else {
-      geste.current = { outil: 'gomme', avant: traits }
+      geste.current = { ...tenu, outil: 'gomme', avant: traits }
       setVise(-1)
       passerLaGomme(cible.p, cible.largeurPx, c)
     }
@@ -227,6 +255,7 @@ export function Annotateur({
 
   const bouger = (e: React.PointerEvent) => {
     const g = geste.current
+    if (g && g.pointeur !== e.pointerId) return
     const cible = point(e)
     if (!cible) return
     const c = actuel()
@@ -253,10 +282,10 @@ export function Annotateur({
     }
   }
 
-  const finir = () => {
+  const finir = (e: React.PointerEvent) => {
     const g = geste.current
+    if (!g || g.pointeur !== e.pointerId) return
     geste.current = null
-    if (!g) return
     if (g.outil === 'crayon') valider([...g.avant, { ...g.trait, points: g.points }], g.avant)
     else if (sur.current.traits !== g.avant) valider(sur.current.traits, g.avant)
   }
@@ -269,15 +298,19 @@ export function Annotateur({
 
   return (
     <>
+      {/* `data-poignee` : ce qui se manie sur la toile ; l'Apple Pencil y dessine sur la photo au lieu d'ouvrir le
+          dessin libre de la toile (voir `MANIABLE`). Un double-clic (deux points vite posés) n'ouvre pas l'image en grand. */}
       <div
         ref={boite}
         className="notak-annotation"
         data-outil={outil}
+        data-poignee=""
         onPointerDown={descendre}
         onPointerMove={bouger}
         onPointerUp={finir}
         onPointerCancel={finir}
         onPointerLeave={() => setVise(-1)}
+        onDoubleClick={(e) => e.stopPropagation()}
       >
         {cible && (
           <div className="notak-image-plan notak-annotation-vise" style={miseEnPage(c).plan}>
@@ -288,44 +321,41 @@ export function Annotateur({
           </div>
         )}
       </div>
-      {createPortal(
-        <div className="notak-croquis-barre notak-annotation-barre" role="toolbar" aria-label={t('croquis.outil')} onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-          <button type="button" title={`${t('dessin.crayon')} (D)`} aria-label={t('dessin.crayon')} aria-pressed={outil === 'crayon'} onClick={() => choisirOutil('crayon')}>
-            {ico('croquis')}
+      <BarreOutil etiquette={t('croquis.outil')}>
+        <button type="button" title={`${t('dessin.crayon')} (D)`} aria-label={t('dessin.crayon')} aria-pressed={outil === 'crayon'} onClick={() => choisirOutil('crayon')}>
+          {ico('croquis')}
+        </button>
+        <button type="button" title={`${t('dessin.gomme')} (E)`} aria-label={t('dessin.gomme')} aria-pressed={outil === 'gomme'} onClick={() => choisirOutil('gomme')}>
+          {ico('gomme')}
+        </button>
+        <span className="notak-croquis-sep" role="separator" />
+        <span className="notak-croquis-volet-hote">
+          <button type="button" title={`${t('couleur.titre')} (C)`} aria-label={t('couleur.titre')} aria-expanded={volet === 'couleur'} onClick={() => setVolet(volet === 'couleur' ? null : 'couleur')}>
+            <span className="notak-croquis-pastille" style={{ background: couleur }} />
           </button>
-          <button type="button" title={`${t('dessin.gomme')} (E)`} aria-label={t('dessin.gomme')} aria-pressed={outil === 'gomme'} onClick={() => choisirOutil('gomme')}>
-            {ico('gomme')}
+          {volet === 'couleur' && <VoletCouleur couleur={couleur} choisir={prendreCouleur} />}
+        </span>
+        <span className="notak-croquis-volet-hote">
+          <button type="button" title={`${t('croquis.epaisseur')} (1-4)`} aria-label={t('croquis.epaisseur')} aria-expanded={volet === 'epaisseur'} onClick={() => setVolet(volet === 'epaisseur' ? null : 'epaisseur')}>
+            <BarreEpaisseur i={epaisseur} />
           </button>
-          <span className="notak-croquis-sep" role="separator" />
-          <span className="notak-croquis-volet-hote">
-            <button type="button" title={`${t('couleur.titre')} (C)`} aria-label={t('couleur.titre')} aria-expanded={volet === 'couleur'} onClick={() => setVolet(volet === 'couleur' ? null : 'couleur')}>
-              <span className="notak-croquis-pastille" style={{ background: couleur }} />
-            </button>
-            {volet === 'couleur' && <VoletCouleur couleur={couleur} choisir={prendreCouleur} />}
-          </span>
-          <span className="notak-croquis-volet-hote">
-            <button type="button" title={`${t('croquis.epaisseur')} (1-4)`} aria-label={t('croquis.epaisseur')} aria-expanded={volet === 'epaisseur'} onClick={() => setVolet(volet === 'epaisseur' ? null : 'epaisseur')}>
-              <BarreEpaisseur i={epaisseur} />
-            </button>
-            {volet === 'epaisseur' && <VoletEpaisseur epaisseur={epaisseur} choisir={choisirEpaisseur} />}
-          </span>
-          <span className="notak-croquis-sep" role="separator" />
-          <button type="button" title={`${t('espace.annuler')} (⌘Z)`} aria-label={t('espace.annuler')} disabled={passe.length === 0} onClick={annuler}>
-            {ico('annuler')}
-          </button>
-          <button type="button" title={`${t('espace.retablir')} (⌘⇧Z)`} aria-label={t('espace.retablir')} disabled={futur.length === 0} onClick={retablir}>
-            {ico('retablir')}
-          </button>
-          <span className="notak-croquis-espace" />
-          <button type="button" className="notak-croquis-texte" title="Esc" onClick={abandonner}>
-            {modifie ? t('croquis.abandonner') : t('commun.annuler')}
-          </button>
-          <button type="button" className="notak-croquis-texte notak-croquis-enregistrer" title="⌘S" disabled={!modifie} onClick={enregistrer}>
-            {t('croquis.enregistrer')}
-          </button>
-        </div>,
-        document.body,
-      )}
+          {volet === 'epaisseur' && <VoletEpaisseur epaisseur={epaisseur} choisir={choisirEpaisseur} />}
+        </span>
+        <span className="notak-croquis-sep" role="separator" />
+        <button type="button" title={`${t('espace.annuler')} (⌘Z)`} aria-label={t('espace.annuler')} disabled={passe.length === 0} onClick={annuler}>
+          {ico('annuler')}
+        </button>
+        <button type="button" title={`${t('espace.retablir')} (⌘⇧Z)`} aria-label={t('espace.retablir')} disabled={futur.length === 0} onClick={retablir}>
+          {ico('retablir')}
+        </button>
+        <span className="notak-croquis-espace" />
+        <button type="button" className="notak-croquis-texte" title="Esc" onClick={abandonner}>
+          {modifie ? t('croquis.abandonner') : t('commun.annuler')}
+        </button>
+        <button type="button" className="notak-croquis-texte notak-croquis-enregistrer" title="⌘S" disabled={!modifie} onClick={enregistrer}>
+          {t('croquis.enregistrer')}
+        </button>
+      </BarreOutil>
     </>
   )
 }

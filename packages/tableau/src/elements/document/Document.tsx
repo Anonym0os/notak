@@ -46,6 +46,7 @@ import { exportBranche, ouvrirExport } from '../../export/sujet'
 import { sujetDocument } from './sujetExport'
 import { type ContenuExterne, useContenuExterne, useEtatExterne } from '../contenuExterne'
 import { extensionsExternes } from './externe'
+import { lettreDe } from '../../touches'
 
 /**
  * Le texte tel que le moteur de blocs le dessine, en lecture seule. Un bloc qu'une version plus récente a
@@ -559,9 +560,10 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
     ...(fragment ? {} : { content: initial }),
     editorProps: {
       attributes: { class: 'notak-texte notak-blocs', 'aria-label': t('document.texte') },
-      // ⌘⌥M : commenter le passage choisi, comme dans une note.
+      // ⌘⌥M : commenter le passage choisi, comme dans une note. Alt change le caractère sur Mac : la lettre se lit telle
+      // qu'elle est marquée (en AZERTY, M n'est pas à sa place QWERTY).
       handleKeyDown: (_, e) => {
-        if (!(e.metaKey || e.ctrlKey) || !e.altKey || e.code !== 'KeyM') return false
+        if (!(e.metaKey || e.ctrlKey) || !e.altKey || lettreDe(e) !== 'm') return false
         e.preventDefault()
         commenterRef.current()
         return true

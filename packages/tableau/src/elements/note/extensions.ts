@@ -12,8 +12,9 @@ import { basculerCentre, basculerCode, basculerSurlignage, poserStyle } from './
 import { SURLIGNAGES } from './couleurs'
 import { normaliserUrl } from './conversion'
 import { MARQUE_FIL } from './fils'
-import { AdressesReperees, Citation, CelluleTable, Encadre, EnteteTable, LienTableau, LigneTable, Mention, Table } from './noeuds'
+import { AdressesReperees, Citation, CelluleTable, Encadre, EnteteTable, LienTableau, LigneTable, Mention, Table, basculerEncadre } from './noeuds'
 import { augmenterRetrait, changerCasse, diminuerRetrait } from './texte'
+import { chiffreDe, parAltGr, signeAppris } from '../../touches'
 
 /** Le surlignage garde un nom de couleur (`vert`), que `note.css` décline : le document ne porte aucune valeur. */
 export const Surlignage = Highlight.configure({ multicolor: true }).extend({
@@ -92,7 +93,36 @@ const PetitTexte = Extension.create({
   },
 })
 
-/** Les raccourcis de mise en forme, en plus de ceux de Tiptap. */
+/**
+ * ⇧⌘ et un chiffre : les styles de bloc, lus sur la touche (`chiffreDe`) et non au caractère. La table des touches de
+ * ProseMirror tire le chiffre de `keyCode`, que WebKit déduit du caractère ; or un Mac rend parfois sous ⇧⌘ celui
+ * d'avant Maj, et la table le lisait sur un clavier américain : en AZERTY, « & » (la touche du 1) y est le 7, « ! » (celle
+ * du 8) le 1, si bien que ⇧⌘1 numérotait et que ⇧⌘8 faisait un titre ; en QWERTZ, ⇧⌘6 (« & ») numérotait aussi.
+ */
+const STYLES_CHIFFRES: Partial<Record<number, (ed: Editor) => unknown>> = {
+  1: (ed) => ed.commands.toggleHeading({ level: 1 }),
+  2: (ed) => ed.commands.toggleHeading({ level: 2 }),
+  6: (ed) => basculerEncadre(ed),
+  7: (ed) => ed.commands.toggleOrderedList(),
+  8: (ed) => ed.commands.toggleBulletList(),
+  9: (ed) => poserStyle(ed, styleActifPetit(ed) ? 'texte' : 'petit'),
+  0: (ed) => poserStyle(ed, 'texte'),
+}
+
+/** Le point de ⌘. et le chevron de ⌘> (⇧⌘. en QWERTY) : le code. */
+const SIGNES_CODE = new Set(['.', '>'])
+
+/**
+ * ⌘\ centre : la barre telle qu'on la tape (⌘⌥⇧: sur un Mac en AZERTY, ⌘⌥⇧7 en QWERTZ), ou à sa place QWERTY ; celle
+ * que Windows tape avec AltGr (Ctrl+Alt, AltGr+8 en AZERTY) reste une frappe. ⌘ ou Ctrl est déjà vérifié.
+ */
+const estCentrer = (e: KeyboardEvent) => (e.key === '\\' && !parAltGr(e)) || (e.code === 'Backslash' && !e.shiftKey && !e.altKey)
+
+/**
+ * Les raccourcis de mise en forme, en plus de ceux de Tiptap. Ceux d'un chiffre, du point et de la barre oblique
+ * inverse ne passent pas par la table des touches de ProseMirror, qui les lit mal hors d'un clavier américain : un
+ * greffon les reconnaît à la touche ou au signe tel qu'on le tape, comme ceux du document (`blocs/saisie.ts`).
+ */
 const RaccourcisFormat = Extension.create({
   name: 'raccourcisFormat',
   priority: 1000,
@@ -101,26 +131,46 @@ const RaccourcisFormat = Extension.create({
     return {
       'Mod-Shift-x': () => e().commands.toggleStrike(),
       'Mod-e': () => e().commands.toggleCode(),
-      'Mod-Shift-1': () => e().commands.toggleHeading({ level: 1 }),
-      'Mod-Shift-2': () => e().commands.toggleHeading({ level: 2 }),
-      'Mod-Shift-0': () => poserStyle(e(), 'texte'),
-      'Mod-Shift-9': () => poserStyle(e(), styleActifPetit(e()) ? 'texte' : 'petit'),
-      'Mod-Shift-8': () => e().commands.toggleBulletList(),
       'Mod-Shift-u': () => e().commands.toggleBulletList(),
-      'Mod-Shift-7': () => e().commands.toggleOrderedList(),
       'Mod-Shift-o': () => e().commands.toggleOrderedList(),
       'Mod-Shift-b': () => poserStyle(e(), 'citation'),
       "Mod-'": () => poserStyle(e(), 'citation'),
-      'Mod-.': () => basculerCode(e()),
-      'Mod->': () => basculerCode(e()),
-      'Mod-Shift-.': () => basculerCode(e()),
       'Mod-"': () => poserStyle(e(), 'citation'),
       "Mod-Shift-'": () => poserStyle(e(), 'citation'),
-      'Mod-\\': () => basculerCentre(e()),
       'Mod-Shift-h': () => basculerSurlignage(e(), 'vert'),
       'Mod-j': () => basculerSurlignage(e(), 'vert'),
       'Shift-F3': () => changerCasse(e()),
     }
+  },
+  addProseMirrorPlugins() {
+    const editor = this.editor
+    return [
+      new Plugin({
+        key: new PluginKey('raccourcisFormatSurLaTouche'),
+        props: {
+          handleKeyDown: (view, e) => {
+            if (e.isComposing || view.composing || !(e.metaKey || e.ctrlKey)) return false
+            if (estCentrer(e)) {
+              basculerCentre(editor)
+              return true
+            }
+            if (e.altKey || parAltGr(e)) return false
+            // ⌘. : le point tel que la touche le donne, avec Maj ou sans (⌘⇧; en AZERTY). Sous ⇧⌘, WebKit rend
+            // parfois « ; », le signe d'avant Maj : ce que la touche donne avec Maj, appris des frappes, tranche.
+            if (SIGNES_CODE.has(e.key) || SIGNES_CODE.has(signeAppris(e.code, e.shiftKey) ?? '')) {
+              basculerCode(editor)
+              return true
+            }
+            if (!e.shiftKey) return false
+            // Un seul caractère : sous Windows, Maj change le pavé numérique en Fin, Début ou flèches, qui ne sont pas des chiffres.
+            const style = [...e.key].length === 1 ? STYLES_CHIFFRES[chiffreDe(e) ?? -1] : undefined
+            if (!style) return false
+            style(editor)
+            return true
+          },
+        },
+      }),
+    ]
   },
 })
 
@@ -381,6 +431,38 @@ const KIT_LEGENDE = {
   trailingNode: false as const,
 }
 
+/**
+ * Les raccourcis que la barre affiche pendant qu'on écrit une légende : barrer, surligner, centrer. La légende n'a pas
+ * la table d'une note (ni titres ni listes), et sans ceux-là ⇧⌘X et ⌘\ s'affichaient sans rien faire.
+ */
+const RaccourcisLegende = Extension.create({
+  name: 'raccourcisLegende',
+  priority: 1000,
+  addKeyboardShortcuts() {
+    const e = () => this.editor
+    return {
+      'Mod-Shift-x': () => e().commands.toggleStrike(),
+      'Mod-Shift-h': () => basculerSurlignage(e(), 'vert'),
+      'Mod-j': () => basculerSurlignage(e(), 'vert'),
+    }
+  },
+  addProseMirrorPlugins() {
+    const editor = this.editor
+    return [
+      new Plugin({
+        key: new PluginKey('raccourcisLegendeSurLaTouche'),
+        props: {
+          handleKeyDown: (view, e) => {
+            if (e.isComposing || view.composing || !(e.metaKey || e.ctrlKey) || !estCentrer(e)) return false
+            basculerCentre(editor)
+            return true
+          },
+        },
+      }),
+    ]
+  },
+})
+
 export const EXTENSIONS_LEGENDE = [
   StarterKit.configure(KIT_LEGENDE),
   TextAlign.configure({ types: ['paragraph'], alignments: ['left', 'center'], defaultAlignment: 'left' }),
@@ -389,6 +471,7 @@ export const EXTENSIONS_LEGENDE = [
   Color,
   CouleursCollees,
   AdressesReperees,
+  RaccourcisLegende,
 ]
 
 export interface GestesEdition {

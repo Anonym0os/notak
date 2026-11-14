@@ -1,4 +1,4 @@
-import { Champ, Choix } from '@notak/tableau'
+import { Champ, Choix, Icone } from '@notak/tableau'
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { type DroitElement, type DroitPose, listerDroitsElement, reglerDroitElement } from './api'
 import { t } from './langue'
@@ -13,7 +13,9 @@ const cibleDe = (d: DroitPose) => ('tous' in d ? ({ tous: true } as const) : 'em
 
 /**
  * Les droits propres d'un élément, réglés par le propriétaire du tableau : le figer pour tous, puis le rendre à
- * quelques-uns (écrire, ou seulement commenter). L'élément reste lisible par tous ceux qui lisent le tableau.
+ * quelques-uns (écrire, ou seulement commenter). L'élément reste lisible par tous ceux qui lisent le tableau : le
+ * document Yjs part en entier à chacun (décision du 26/10), si bien qu'il n'y a pas d'élément privé. Le dialogue le dit,
+ * et mène à ce qui l'est vraiment : une toile privée, dont la carte ne se montre qu'à ses invités.
  */
 export function DroitsElement({ tableau, element, fermer }: { tableau: string; element: string; fermer(): void }) {
   const [droits, setDroits] = useState<DroitPose[] | null>(null)
@@ -101,6 +103,10 @@ export function DroitsElement({ tableau, element, fermer }: { tableau: string; e
             {erreur}
           </p>
         )}
+        <p className="partage-note droits-element-prive">
+          <Icone nom="verrou" taille={14} />
+          <span>{t('droitsElement.prive')}</span>
+        </p>
         <button type="button" className="bouton-lien" onClick={fermer}>
           {t('droitsElement.fermer')}
         </button>

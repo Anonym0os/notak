@@ -1,7 +1,8 @@
 import type { Magasin } from './coeur/magasin'
 import { type Element, type Operation, LARGEUR_NOTE, nouvelId, nouvelleNote } from './coeur/tableau'
-import { TAILLE_MAX, TYPES_ACCEPTES, largeurInitiale } from './elements/image/geometrie'
+import { largeurInitiale } from './elements/image/geometrie'
 import { lireDimensions, lireTransparence } from './elements/image/lecture'
+import { preparerImage, prisEnImage } from './elements/image/conversion'
 import type { DepotFichiers } from './elements/types'
 import { decomposerArrivee } from './decomposer'
 
@@ -33,8 +34,8 @@ export function elementsDeTexte(a: Pick<Arrivee, 'titre' | 'texte' | 'adresse'>,
 
 /**
  * Les éléments de toute l'arrivée. Les images sont envoyées tout de suite et l'élément porte leur vrai fichier :
- * personne ne les regarde ici pour finir un envoi. Une image illisible, trop grosse, ou d'un format refusé est
- * laissée, et comptée dans `ignores`.
+ * personne ne les regarde ici pour finir un envoi. Comme sur la toile, une photo HEIC devient un JPEG et une photo trop
+ * lourde une copie plus petite ; une image illisible, ou d'un format refusé, est laissée, et comptée dans `ignores`.
  */
 export async function elementsArrives(
   a: Arrivee,
@@ -44,14 +45,17 @@ export async function elementsArrives(
   const elements = elementsDeTexte(a, maintenant)
   let ignores = 0
   for (const [i, f] of (a.fichiers ?? []).entries()) {
-    const d = TYPES_ACCEPTES.includes(f.type) && f.size <= TAILLE_MAX && depot ? await lireDimensions(f) : null
-    if (!d || !depot) {
+    const prete = prisEnImage(f) && depot ? await preparerImage(f) : null
+    const pret = prete && 'fichier' in prete ? prete : null
+    const d = pret ? (pret.entete ?? (await lireDimensions(pret.fichier))) : null
+    if (!pret || !d || !depot) {
       ignores++
       continue
     }
+    const image = pret.fichier
     try {
-      const transparente = await lireTransparence(f)
-      const fichier = await depot.enregistrer(f)
+      const transparente = await lireTransparence(image)
+      const fichier = await depot.enregistrer(image)
       elements.push({
         id: nouvelId(maintenant),
         x: 0,
@@ -63,7 +67,7 @@ export async function elementsArrives(
           fichier,
           largeurOrigine: d.largeur,
           hauteurOrigine: d.hauteur,
-          typeMime: f.type,
+          typeMime: image.type,
           ...(transparente !== undefined ? { transparente } : {}),
         },
       })

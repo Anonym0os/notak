@@ -1,10 +1,10 @@
-import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { type RefObject, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Element } from './coeur/tableau'
 import { BarreEtiquette } from './elements/decor/BarreEtiquette'
 import { BoutonEtiquettes } from './elements/decor/BoutonEtiquettes'
 import { useFilOuvert, usePuce } from './elements/decor/etat'
 import { t } from './langue'
-import { RANG_APRES_TETE, definition, tousLesOutilsCommunsRanges, tousLesTypes } from './elements/registre'
+import { RANG_APRES_TETE, definition, tousLesOutilsCommunsRanges, tousLesTypes, toutesLesEntreesMenu } from './elements/registre'
 import type { ContexteToile, Outil } from './elements/types'
 import { ContexteOutils } from './BoutonOutil'
 import { type EntreeRepli, ORDRE, type Palier, useRepli } from './repli'
@@ -73,44 +73,88 @@ function useEchapFerme(barre: { current: HTMLElement | null }, fermer: () => voi
 }
 
 /**
- * La barre de gauche. Un outil se glisse sur la toile : c'est la toile qui suit le geste (`surAppui`).
- * Un simple clic ne crée rien : l'outil rebondit et une bulle rappelle qu'on le glisse (`rebond`).
+ * Les libellés d'une barre de gauche (création, sélection, écriture) se lisent toujours en entier, sur une ligne : un
+ * mot court sous chaque outil, comme chez Milanote (`Outil.etiquette`). Celui qui dépasse encore sa tuile (une autre
+ * langue, une autre police, un nombre qui grandit) voit sa taille baisser juste assez pour tenir, au lieu d'être coupé ;
+ * son interligne reste, pour que la barre ne bouge pas. La barre se remesure quand elle change de largeur (un autre
+ * palier), quand ses outils changent ou s'ouvrent (le « ••• ») et quand la police arrive.
  */
-/** La vitesse du défilement d'un libellé trop long, en pixels par seconde : celle d'une lecture posée. */
-const VITESSE_DEFILEMENT = 28
+export function useLibellesEntiers(ref: RefObject<HTMLElement | null>) {
+  // La barre peut paraître après le premier rendu (la pastille d'une étiquette tient d'abord sa place) : on la suit.
+  const [barre, setBarre] = useState<HTMLElement | null>(null)
+  useLayoutEffect(() => {
+    if (ref.current !== barre) setBarre(ref.current)
+  })
+  useLayoutEffect(() => {
+    if (!barre) return
+    let vivant = true
+    const ajuster = () => {
+      if (!vivant) return
+      const libelles = [...barre.querySelectorAll<HTMLElement>('.notak-outil-libelle')]
+      for (const l of libelles) l.style.removeProperty('font-size')
+      for (const l of libelles) l.style.removeProperty('line-height')
+      // Toutes les mesures, puis toutes les retouches : une seule mise en page pour la barre entière.
+      const mesures = libelles.map((l) => {
+        const style = getComputedStyle(l)
+        return { l, exces: l.clientWidth > 0 ? l.scrollWidth / l.clientWidth : 0, taille: parseFloat(style.fontSize), interligne: style.lineHeight }
+      })
+      for (const { l, exces, taille, interligne } of mesures) {
+        if (exces <= 1 || !(taille > 0)) continue
+        l.style.lineHeight = interligne
+        l.style.fontSize = `${(taille / exces).toFixed(2)}px`
+      }
+    }
+    ajuster()
+    void document.fonts?.ready.then(ajuster)
+    const suivis: { disconnect(): void }[] = []
+    if (typeof ResizeObserver !== 'undefined') {
+      const largeur = new ResizeObserver(ajuster)
+      largeur.observe(barre)
+      suivis.push(largeur)
+    }
+    if (typeof MutationObserver !== 'undefined') {
+      // Pas le `style` des libellés, que l'ajustement change : seulement des outils qui viennent, partent ou se montrent.
+      const outils = new MutationObserver(ajuster)
+      outils.observe(barre, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['hidden'] })
+      suivis.push(outils)
+    }
+    return () => {
+      vivant = false
+      for (const s of suivis) s.disconnect()
+    }
+  }, [barre])
+}
 
 /**
- * Le libellé d'un outil de la barre de création. Plus large que la barre, il reste sur une ligne, coupé en fondu,
- * et défile au survol de son outil pour se lire en entier, puis revient.
+ * Les lignes du menu d'un élément que la feuille d'actions d'un téléphone ne répète pas, parce qu'une tuile des outils
+ * les fait déjà juste au-dessus : « Commenter », et les gestes que leur tuile fait (`EntreeMenu.faitParSaTuile`).
  */
-function LibelleOutil({ children }: { children: ReactNode }) {
-  const boite = useRef<HTMLSpanElement>(null)
-  useLayoutEffect(() => {
-    const b = boite.current!
-    const texte = b.firstElementChild as HTMLElement
-    const mesurer = () => {
-      const exces = texte.scrollWidth - b.clientWidth
-      if (exces > 1) {
-        b.dataset.deborde = ''
-        b.style.setProperty('--notak-defile', `${-exces}px`)
-        b.style.setProperty('--notak-defile-duree', `${Math.max(0.5, exces / VITESSE_DEFILEMENT).toFixed(2)}s`)
-      } else delete b.dataset.deborde
-    }
-    mesurer()
-    // La police chargée, ou la barre qui change de taille, changent la mesure.
-    if (typeof ResizeObserver === 'undefined') return
-    const obs = new ResizeObserver(mesurer)
-    obs.observe(b)
-    obs.observe(texte)
-    return () => obs.disconnect()
-  }, [children])
+const faitsParLesTuiles = () => new Set([t('menu.commenter'), ...toutesLesEntreesMenu().filter((x) => x.faitParSaTuile).map((x) => x.libelle)])
+
+/** Le nom de la corbeille pour qui lit à haute voix : avec ce qu'elle contient, que la pastille montre à l'œil. */
+export const libelleCorbeille = (nombre: number) => (nombre > 0 ? `${t('corbeille.titre')} (${nombre})` : t('corbeille.titre'))
+
+/**
+ * L'icône de la corbeille, et ce qu'elle contient en pastille sur son coin. Sous l'outil, le libellé garde le seul mot
+ * « Corbeille », qui tient dans la barre en toute langue : « Corbeille (8) » y était coupé.
+ */
+export function IconeCorbeille({ nombre }: { nombre: number }) {
   return (
-    <span ref={boite} className="notak-outil-libelle">
-      <span>{children}</span>
+    <span className="notak-outil-icone">
+      <Icone nom="corbeille" taille={26} />
+      {nombre > 0 && (
+        <span className="notak-outil-nombre" aria-hidden="true">
+          {nombre > 99 ? '99+' : nombre}
+        </span>
+      )}
     </span>
   )
 }
 
+/**
+ * La barre de gauche. Un outil se glisse sur la toile : c'est la toile qui suit le geste (`surAppui`).
+ * Un simple clic ne crée rien : l'outil rebondit et une bulle rappelle qu'on le glisse (`rebond`).
+ */
 export function BarreOutils({
   grisee = false,
   surAppui,
@@ -197,6 +241,7 @@ export function BarreOutils({
   useEffect(() => () => prise.current?.fin(), [])
   const nav = useRef<HTMLElement>(null)
   useGlissement(nav, 0)
+  useLibellesEntiers(nav)
   useEchapFerme(nav, () => setTiroir(false))
   // DESSIN-LIBRE : pendant le mode, la barre s'éteint et le bouton du dessin se montre ouvert.
   const dessinOuvert = useDessinLibreOuvert()
@@ -227,7 +272,7 @@ export function BarreOutils({
           }}
         >
           <span className="notak-outil-icone">{vignette ?? o.outil.icone}</span>
-          <LibelleOutil>{o.outil.libelle}</LibelleOutil>
+          <span className="notak-outil-libelle">{o.outil.etiquette ?? o.outil.libelle}</span>
         </button>
         </Infobulle>
         {rebondit && (
@@ -293,20 +338,21 @@ export function BarreOutils({
                   }}
                 >
                   <span className="notak-outil-icone">{o.outil.vignette ? <Vignette nom={o.outil.vignette} /> : o.outil.icone}</span>
-                  <span className="notak-outil-libelle">{o.outil.libelle}</span>
+                  <span className="notak-outil-libelle">{o.outil.etiquette ?? o.outil.libelle}</span>
                 </button>
               ))}
               <button
                 type="button"
                 className="notak-outil"
                 data-genre="corbeille"
+                aria-label={libelleCorbeille(corbeille.nombre)}
                 onClick={() => {
                   setFeuille(false)
                   corbeille.basculer()
                 }}
               >
-                <span className="notak-outil-icone"><Icone nom="corbeille" taille={26} /></span>
-                <span className="notak-outil-libelle">{t('corbeille.titre')}{corbeille.nombre > 0 ? ` (${corbeille.nombre})` : ''}</span>
+                <IconeCorbeille nombre={corbeille.nombre} />
+                <span className="notak-outil-libelle">{t('corbeille.titre')}</span>
               </button>
             </div>
           </Feuille>
@@ -345,11 +391,11 @@ export function BarreOutils({
             data-genre="corbeille"
             data-corbeille
             aria-expanded={corbeille.ouverte}
-            aria-label={t('corbeille.titre')}
+            aria-label={libelleCorbeille(corbeille.nombre)}
             onClick={corbeille.basculer}
           >
-            <span className="notak-outil-icone"><Icone nom="corbeille" taille={26} /></span>
-            <LibelleOutil>{t('corbeille.titre')}{corbeille.nombre > 0 ? ` (${corbeille.nombre})` : ''}</LibelleOutil>
+            <IconeCorbeille nombre={corbeille.nombre} />
+            <span className="notak-outil-libelle">{t('corbeille.titre')}</span>
           </button>
         </Infobulle>
       </nav>
@@ -384,6 +430,7 @@ export function BarreSelection({
   const barre = useRef<HTMLDivElement>(null)
   const nav = useRef<HTMLElement>(null)
   useGlissement(nav, 1)
+  useLibellesEntiers(nav)
   useEchapFerme(aGauche ? nav : barre, () => {
     setPlus(false)
     setTiroir(false)
@@ -479,8 +526,9 @@ export function BarreSelection({
         {feuilleActions && (
           <Feuille fermer={() => setFeuilleActions(false)} role="presentation" className="notak-tiroir-bas-actions">
             <ActionsFeuille
-              // « Commenter » est déjà une tuile des outils, au-dessus : pas une seconde fois en ligne.
-              entrees={(contexte.actions?.() ?? []).filter((e) => !e || e.libelle !== t('menu.commenter'))}
+              // Ce que fait déjà une tuile des outils, au-dessus (« Commenter », « Ajouter une légende » sous la tuile
+              // « Légende »…) : pas une seconde fois en ligne.
+              entrees={(contexte.actions?.() ?? []).filter((e) => !e || !faitsParLesTuiles().has(e.libelle))}
               fermer={() => setFeuilleActions(false)}
               avant={
                 <>

@@ -444,6 +444,12 @@ export interface Coloration<C extends Contenu = Contenu> {
  */
 export interface Outil {
   libelle: string
+  /**
+   * Le mot court sous l'outil, dans la barre de gauche, quand son nom n'y tient pas (« Image » pour « Ajouter une
+   * image ») : comme chez Milanote, un mot qui se lit en entier. Le nom entier reste dans l'infobulle et pour qui lit à
+   * haute voix.
+   */
+  etiquette?: string
   icone: ReactNode
   /** Sa place dans la barre, croissante vers le bas. */
   rang: number
@@ -499,6 +505,12 @@ export interface EntreeMenu {
   visible(elements: Element[], contexte: ContexteToile): boolean
   /** Le geste a déjà sa tuile dans la barre de gauche : l'entrée reste au clic droit, et ne se répète pas dans « ••• ». */
   tuile?: boolean
+  /**
+   * Sa tuile fait exactement ce geste (la tuile « Légende » ajoute et écrit la légende) : la feuille d'actions d'un
+   * téléphone, qui montre les tuiles au-dessus de ses lignes, ne le répète pas en ligne. Un geste que la tuile ne fait
+   * pas (retirer la légende) y garde sa ligne, seul moyen de le faire au doigt.
+   */
+  faitParSaTuile?: boolean
   /** Une case cochée devant le libellé, quand elle l'est pour ces éléments (« Rogner l'image sur la grille »). */
   coche?(elements: Element[], contexte: ContexteToile): boolean
   faire(elements: Element[], contexte: ContexteToile): void

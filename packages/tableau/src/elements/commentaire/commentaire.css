@@ -63,8 +63,6 @@
   min-height: 0;
   overflow-y: auto;
   padding-bottom: 8px;
-  scrollbar-width: thin;
-  scrollbar-color: #8d929a66 transparent;
 }
 
 .notak-commentaire-defile[data-defile] {
