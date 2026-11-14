@@ -1004,8 +1004,14 @@ export interface ListeNotifications {
   nonLues: number
 }
 
+/**
+ * Les genres que cette app sait montrer, demandés au serveur : sans eux, il ne rend que ceux d'avant les réactions, pour
+ * qu'une app plus ancienne ne casse pas sur un genre qu'elle ne connaît pas. Un genre ajouté ne compile pas sans être ici.
+ */
+const GENRES_CONNUS: Record<GenreNotification, true> = { commentaire: true, mention: true, modification: true, partage: true, reaction: true }
+
 export async function listerNotifications(): Promise<ListeNotifications> {
-  const r = await appeler('/api/notifications')
+  const r = await appeler(`/api/notifications?genres=${Object.keys(GENRES_CONNUS).join(',')}`)
   if (!r.ok) throw await refus(r, {})
   return (await r.json()) as ListeNotifications
 }

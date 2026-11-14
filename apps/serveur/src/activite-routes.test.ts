@@ -104,4 +104,12 @@ describe('notifications', () => {
     const l = await lire(bob)
     expect(l.notifications).toEqual([])
   })
+  it('une app d’avant les réactions ne les reçoit pas, ni dans la liste ni dans son compte ; l’app d’aujourd’hui les demande', async () => {
+    m.base.noterNotification({ destinataire: cleo.utilisateur.id, genre: 'reaction', tableau: 'tableau-un', element: 'b', auteur: ana.utilisateur.id, extrait: 'b', instant: 6000 })
+    const avant = await lire(cleo)
+    expect(avant.notifications.some((n) => n.genre === 'reaction')).toBe(false)
+    const aujourdhui = (await (await m.appeler('/api/notifications?genres=commentaire,mention,modification,partage,reaction', { compte: cleo })).json()) as Liste
+    expect(aujourdhui.notifications.some((n) => n.genre === 'reaction')).toBe(true)
+    expect(aujourdhui.nonLues).toBe(avant.nonLues + 1)
+  })
 })

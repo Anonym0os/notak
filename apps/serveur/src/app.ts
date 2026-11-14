@@ -160,6 +160,8 @@ const TYPES_PHOTO = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif
 const RECENTS_AFFICHES = 12
 /** Ce que `/api/bibliotheque` rend sans `?genres=` : les genres qu'une app d'avant les photos, liens et fichiers sait montrer. */
 const GENRES_D_AVANT = ['toile', 'arbre', 'document']
+/** Ce que `/api/notifications` rend sans `?genres=` : les genres qu'une app d'avant les réactions sait montrer. */
+const GENRES_NOTIFICATIONS_D_AVANT = ['commentaire', 'mention', 'modification', 'partage']
 /** Combien de résultats la recherche dans tous les tableaux rend au plus. */
 const RESULTATS_RECHERCHE = 30
 /** Combien de gestes l'activité d'un tableau rend, par défaut et au plus. */
@@ -1382,10 +1384,15 @@ export function creerApp(ctx: Contexte): Hono {
     const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const limite = entier(c.req.query('limite'), NOTIFICATIONS_AFFICHEES, 0, NOTIFICATIONS_AFFICHEES)
+    // Sans `?genres=`, les genres d'avant seulement : une app déjà livrée, branchée sur ce serveur, casserait sur un genre
+    // qu'elle ne connaît pas (une réaction), et le compterait dans sa pastille sans pouvoir le montrer.
+    const demandes = c.req.query('genres')?.split(',').filter(Boolean)
+    const genres = new Set<string>(demandes?.length ? demandes : GENRES_NOTIFICATIONS_D_AVANT)
     // Un tableau qu'on ne peut plus ouvrir (retiré, rendu privé) ne se devine pas par ses notifications, ni par leur compte.
     const visible = await notificationsVisibles(u)
-    const notifications = base.notifications(u.id, limite).flatMap((n) => (visible(n) ? [{ ...n, titreTableau: base.tableau(n.tableau)!.titre }] : []))
-    return c.json({ notifications, nonLues: base.nonLuesDe(u.id).filter(visible).length }, 200, { 'cache-control': 'no-store' })
+    const montree = (n: { genre: string; tableau: string; element: string }) => genres.has(n.genre) && visible(n)
+    const notifications = base.notifications(u.id, limite).flatMap((n) => (montree(n) ? [{ ...n, titreTableau: base.tableau(n.tableau)!.titre }] : []))
+    return c.json({ notifications, nonLues: base.nonLuesDe(u.id).filter(montree).length }, 200, { 'cache-control': 'no-store' })
   })
 
   // `{ ids: [...] }` marque celles-là, `{ tout: true }` toutes les siennes ; jamais celles d'un autre.
