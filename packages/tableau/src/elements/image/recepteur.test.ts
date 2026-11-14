@@ -1,18 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { creerMagasin } from '../../coeur/magasin'
+import * as Y from 'yjs'
+import { type Magasin, creerMagasin } from '../../coeur/magasin'
+import { creerMagasinYjs } from '../../coeur/magasinYjs'
 import type { Element, Image, Operation } from '../../coeur/tableau'
 import type { ContexteToile, DepotFichiers } from '../types'
 import { fichier, heic, jpeg, octets, png } from './fauxOctets'
 
 const avis = vi.hoisted(() => ({ annonces: [] as string[] }))
 vi.mock('../../avis', () => ({ annoncer: (a: { texte: string }) => void avis.annonces.push(a.texte) }))
-// Les couleurs demandent un vrai décodage : ici, chaque image en a une.
-vi.mock('./palette', () => ({ lirePalette: vi.fn(async () => ['#aa0000']) }))
+// Les couleurs demandent un vrai décodage : ici, chaque image en a une, quand `palette.lue` le permet.
+const palette = vi.hoisted(() => ({ lue: Promise.resolve() }))
+vi.mock('./palette', () => ({ lirePalette: vi.fn(async () => (await palette.lue, ['#aa0000'])) }))
 
 const { recevoirImages, remplacerImage } = await import('./recepteur')
 
-function contexte(largeurVue = 1440) {
-  const magasin = creerMagasin({ titre: 'Toile', elements: [] })
+/** Les couleurs ne se lisent qu'à l'appel de la fonction rendue. */
+function retenirCouleurs() {
+  let lacher = () => {}
+  palette.lue = new Promise((fin) => (lacher = fin))
+  return lacher
+}
+
+function contexte(largeurVue = 1440, magasin: Magasin = creerMagasin({ titre: 'Toile', elements: [] })) {
   const envoyes: string[] = []
   const depot: DepotFichiers = {
     enregistrer: async (f) => {
@@ -27,8 +36,13 @@ function contexte(largeurVue = 1440) {
 
 const recus = (...fichiers: File[]) => ({ files: fichiers }) as unknown as DataTransfer
 const crees = (ops: Operation[]) => ops.flatMap((op) => (op.type === 'creer' ? [op.element as Element<Image>] : []))
+const couleursDe = (magasin: Magasin, id: string) => (magasin.lire().elements.find((e) => e.id === id)?.contenu as Image | undefined)?.couleurs
+const photo = (nom = 'a.jpg') => fichier(jpeg(800, 600), nom, 'image/jpeg')
 
-beforeEach(() => void (avis.annonces = []))
+beforeEach(() => {
+  avis.annonces = []
+  palette.lue = Promise.resolve()
+})
 
 describe('recevoirImages', () => {
   it('pose plusieurs photos dans l’ordre reçu, une colonne chacune, aux proportions de l’écran (portrait d’iPhone compris)', async () => {
@@ -97,6 +111,58 @@ describe('recevoirImages', () => {
     expect(magasin.annuler()).toBe(true)
     expect(magasin.lire().elements).toEqual([])
   })
+
+  // Le magasin d'une toile seule, et celui, partagé, de l'application : l'historique de l'un garde les opérations,
+  // celui de l'autre ce qu'elles ont écrit.
+  for (const [nom, nouveau] of [
+    ['seul', () => creerMagasin({ titre: 'Toile', elements: [] })],
+    ['partagé', () => creerMagasinYjs(new Y.Doc())],
+  ] as const) {
+    describe(`magasin ${nom}`, () => {
+      it('rétablir la pose rend la photo avec ses couleurs', async () => {
+        const { ctx, magasin } = contexte(1440, nouveau())
+        const ops = (await recevoirImages(recus(photo()), { x: 0, y: 0 }, ctx))!
+        const { id } = crees(ops)[0]!
+        magasin.faire(ops)
+        await vi.waitFor(() => expect(couleursDe(magasin, id)).toEqual(['#aa0000']))
+        magasin.annuler()
+        magasin.retablir()
+        expect(couleursDe(magasin, id)).toEqual(['#aa0000'])
+      })
+
+      it('défaite avant que ses couleurs soient lues, la photo les a dès qu’on la rétablit, et les garde', async () => {
+        const lacher = retenirCouleurs()
+        const { ctx, magasin } = contexte(1440, nouveau())
+        const ops = (await recevoirImages(recus(photo()), { x: 0, y: 0 }, ctx))!
+        const { id } = crees(ops)[0]!
+        magasin.faire(ops)
+        magasin.annuler()
+        lacher()
+        await new Promise((fin) => setTimeout(fin, 5))
+        magasin.retablir()
+        await vi.waitFor(() => expect(couleursDe(magasin, id)).toEqual(['#aa0000']))
+        magasin.annuler()
+        magasin.retablir()
+        expect(couleursDe(magasin, id)).toEqual(['#aa0000'])
+      })
+
+      it('les couleurs qui arrivent n’empêchent pas de refaire un geste défait', async () => {
+        const lacher = retenirCouleurs()
+        const { ctx, magasin } = contexte(1440, nouveau())
+        const premiere = (await recevoirImages(recus(photo('a.jpg')), { x: 0, y: 0 }, ctx))!
+        magasin.faire(premiere)
+        magasin.faire([{ type: 'creer', element: { id: 'note', x: 40, y: 0, largeur: 10, contenu: { type: 'image', fichier: 'f', largeurOrigine: 10, hauteurOrigine: 10 } } }])
+        magasin.annuler()
+        lacher()
+        await new Promise((fin) => setTimeout(fin, 5))
+        // Les couleurs attendent : écrites maintenant, elles videraient la pile de ce qu'on peut refaire.
+        expect(couleursDe(magasin, crees(premiere)[0]!.id)).toBeUndefined()
+        expect(magasin.retablir()).toBe(true)
+        expect(magasin.lire().elements.map((e) => e.id)).toContain('note')
+        await vi.waitFor(() => expect(couleursDe(magasin, crees(premiere)[0]!.id)).toEqual(['#aa0000']))
+      })
+    })
+  }
 })
 
 describe('remplacerImage', () => {
@@ -110,6 +176,11 @@ describe('remplacerImage', () => {
     expect([apres.largeurOrigine, apres.hauteurOrigine, apres.legende, apres.couleurs]).toEqual([3024, 4032, 'Plage', undefined])
     magasin.faire(ops)
     await vi.waitFor(() => expect((magasin.lire().elements[0]!.contenu as Image).couleurs).toEqual(['#aa0000']))
+    // Défaire rend l'ancienne photo et ses couleurs ; refaire, la nouvelle avec les siennes.
+    magasin.annuler()
+    expect(couleursDe(magasin, 'img')).toEqual(['#000000'])
+    magasin.retablir()
+    expect(couleursDe(magasin, 'img')).toEqual(['#aa0000'])
   })
 
   it('une photo refusée ne remplace rien', async () => {
