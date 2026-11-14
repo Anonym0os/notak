@@ -211,7 +211,8 @@ export function Detoureur({ id, contenu, adresse, contexte }: { id: Id; contenu:
 
   const note = echec ? t('detourage.impossible') : resultat && resultat.retires === 0 ? t('detourage.rien') : null
   return (
-    <div ref={racine} className="notak-recadreur notak-detoureur" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+    // `data-poignee` : l'Apple Pencil posé sur l'aperçu n'ouvre pas le dessin libre de la toile (voir `MANIABLE`).
+    <div ref={racine} className="notak-recadreur notak-detoureur" data-poignee="" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
       <div className="notak-image-cadre notak-damier" style={{ aspectRatio: String(proportionsAffichees(contenu, true)) }}>
         <div className="notak-image-plan" style={page.plan}>
           {source === null ? (

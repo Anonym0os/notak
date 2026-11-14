@@ -92,7 +92,9 @@ export function Recadreur({ id, contenu, adresse, contexte }: { id: Id; contenu:
   }
 
   return (
-    <div ref={racine} className="notak-recadreur" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+    // `data-poignee` : tout l'outil se manie ; l'Apple Pencil y agit comme le doigt au lieu d'ouvrir le dessin libre
+    // de la toile (voir `MANIABLE`), sur le cadre comme sur l'image voilée.
+    <div ref={racine} className="notak-recadreur" data-poignee="" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
       <div ref={boite} className="notak-image-cadre" style={{ aspectRatio: String(proportionsAffichees(contenu, true)) }}>
         <div className="notak-image-plan" style={page.plan}>
           <img className="notak-image" src={adresse} alt="" draggable={false} style={page.image} />

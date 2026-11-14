@@ -103,6 +103,11 @@ describe('le recadrage', () => {
     expect(hote.querySelector('.notak-recadreur .notak-traits path')).not.toBeNull()
   })
 
+  it('se manie tout entier : l’Apple Pencil y agit comme le doigt, sans ouvrir le dessin de la toile', () => {
+    ouvrir()
+    expect(hote.querySelector('.notak-recadreur')?.hasAttribute('data-poignee')).toBe(true)
+  })
+
   it('a des poignées aux coins et au milieu des bords', () => {
     ouvrir()
     expect([...hote.querySelectorAll<HTMLElement>('.notak-recadre-poignee')].map((p) => p.dataset.poignee).sort()).toEqual(['e', 'n', 'ne', 'nw', 's', 'se', 'sw', 'w'])

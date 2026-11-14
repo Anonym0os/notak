@@ -45,6 +45,8 @@ describe('le détourage', () => {
     expect(barre.querySelector('input[type="range"]')).not.toBeNull()
     expect([...barre.querySelectorAll('button')].map((b) => b.textContent)).toEqual([t('commun.annuler'), t('recadreur.valider')])
     expect(hote.querySelector('input, button')).toBeNull()
+    // L'Apple Pencil posé sur l'aperçu agit comme le doigt.
+    expect(hote.querySelector('.notak-detoureur')?.hasAttribute('data-poignee')).toBe(true)
   })
 
   it('une image illisible le dit, et Valider reste éteint', async () => {
