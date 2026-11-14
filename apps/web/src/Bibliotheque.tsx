@@ -78,6 +78,7 @@ import {
 import { FournisseurVignettes, type SourceVignettes, Vignette } from './bibliotheque/Vignettes'
 import { fichiers as fichiersServeur } from './fichiers'
 import { suivreAppuiLong } from './bibliotheque/appuiLong'
+import { suivreLaMolette } from './bibliotheque/molette'
 import { memeLecture, useRelecture } from './bibliotheque/relecture'
 import {
   type Affichage,
@@ -488,6 +489,8 @@ function BibliothequeBureau({
   const boutonTiroir = useRef<HTMLButtonElement>(null)
   const nav = useRef<HTMLElement>(null)
   const corps = useRef<HTMLElement>(null)
+  /** La rangée « Reprendre » prend la molette verticale quand la page n'a rien à faire défiler (`molette.ts`). */
+  const suivreLaRangee = useCallback((ul: HTMLUListElement | null) => (ul ? suivreLaMolette(ul, () => corps.current) : undefined), [])
   const minuteurs = useRef(new Set<ReturnType<typeof setTimeout>>())
   /**
    * La racine des toiles se nomme comme l'espace, et non comme la toile d'accueil qui la tient en coulisse : on y crée et
@@ -1751,7 +1754,14 @@ function BibliothequeBureau({
                     )}
                   </h2>
                 )}
-                <ul className="biblio-grille" data-affichage={affichageVu} role="listbox" aria-multiselectable aria-label={s.titre || titreDeLaVue(vue)}>
+                <ul
+                  className="biblio-grille"
+                  data-affichage={affichageVu}
+                  role="listbox"
+                  aria-multiselectable
+                  aria-label={s.titre || titreDeLaVue(vue)}
+                  ref={accueilDeLaBibliotheque && s.cle === 'reprendre' && affichageVu === 'grille' ? suivreLaRangee : undefined}
+                >
                   {i === 0 && neuf && (
                     <li role="presentation">
                       {remonter ? (
