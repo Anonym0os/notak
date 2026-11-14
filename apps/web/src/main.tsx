@@ -5,6 +5,7 @@ import './app.css'
 import './styles/ios.css'
 import { estMobile } from './appareil'
 import { coque, estBureau, marquerBureau, peutJoindreUnServeur } from './bureau'
+import { brancherPrecedentSuivant } from './precedentSuivant'
 import { simulerCoqueSiDemandee } from './ios/coqueSimulee'
 
 // En développement, `?coque=ios` fait croire à la page qu'elle est dans l'app d'un iPhone : de quoi essayer dans le
@@ -12,6 +13,8 @@ import { simulerCoqueSiDemandee } from './ios/coqueSimulee'
 if (import.meta.env.DEV) simulerCoqueSiDemandee()
 
 marquerBureau()
+// Les boutons précédent et suivant de la souris (et ⌘[ / ⌘]) reculent et avancent partout, là où WebKit ne le fait pas seul.
+brancherPrecedentSuivant()
 // Sur un iPhone ou un iPad : le thème du système au premier lancement, la vue native au fond du thème, le clavier suivi.
 if (estMobile()) void import('./ios/demarrage').then((m) => m.demarrerMobile(window, coque()!))
 
