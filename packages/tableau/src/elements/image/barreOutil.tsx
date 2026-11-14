@@ -136,8 +136,10 @@ export function useAmenerALaVue(ancre: RefObject<Element | null>, contexte: Cont
   sur.current = { contexte, entiere }
   useEffect(() => {
     if (fait.current) return
-    // Après la mise en page : la carte a pris la taille de l'outil, et la barre est posée.
-    const image = requestAnimationFrame(() => {
+    // Après la mise en page : la carte a pris la taille de l'outil, et la barre est posée. À l'image suivante, ou
+    // passé un court délai si la page ne peint pas (cachée, en arrière-plan) : la mesure, elle, se fait sans peindre.
+    const mesurer = () => {
+      if (fait.current) return
       fait.current = true
       const { contexte: ctx, entiere: tout } = sur.current
       const noeud = ancre.current
@@ -153,7 +155,12 @@ export function useAmenerALaVue(ancre: RefObject<Element | null>, contexte: Cont
         tout,
       )
       if (suite) ctx.poserCamera(suite, false)
-    })
-    return () => cancelAnimationFrame(image)
+    }
+    const image = requestAnimationFrame(mesurer)
+    const borne = setTimeout(mesurer, 60)
+    return () => {
+      cancelAnimationFrame(image)
+      clearTimeout(borne)
+    }
   }, [ancre])
 }
