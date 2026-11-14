@@ -185,3 +185,19 @@ describe('sans dossier généré', () => {
     expect(avis()).toBe('Mis à la corbeille')
   })
 })
+
+describe('lâcher sur la carte d’une toile', () => {
+  it('une toile qu’on ne peut pas écrire d’ici refuse ce qu’on y lâche : la note reste, et l’avis le dit', async () => {
+    const { noeud, element, services, avis, note } = await accueil()
+    // L'espace refuse le dépôt dans une toile en lecture seule (`deposerDans`, dans `EspaceNotak`).
+    services.deposerDans = () => undefined
+    sousLePointeur.noeuds = [noeud('c-projets')]
+    pointeur(noeud(note.id), 'pointerdown', 10, 10)
+    pointeur(noeud(note.id), 'pointermove', 60, 10)
+    pointeur(noeud(note.id), 'pointermove', 200, 10)
+    pointeur(noeud(note.id), 'pointerup', 200, 10)
+    await act(async () => {})
+    expect(element(note.id)).toMatchObject({ x: note.x, y: note.y })
+    expect(avis()).toBe('« Projets » ne se modifie pas d’ici : rien n’y est parti')
+  })
+})

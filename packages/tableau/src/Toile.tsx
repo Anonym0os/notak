@@ -1570,7 +1570,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const t = magasin.lire()
     const p = empaqueter(t, ids, rect)
     if (!p || !services.deposerDans) return
-    const neufs = services.deposerDans(cibleTableau, p.elements.map((x) => ({ ...x }))) ?? []
+    const neufs = services.deposerDans(cibleTableau, p.elements.map((x) => ({ ...x })))
+    // Une toile qu'on ne peut pas écrire d'ici refuse ce qu'on y lâche : rien ne quitte celle-ci.
+    if (!neufs) return
     // Le déplacement n'entre pas dans l'historique : l'annuler ici laisserait un double là-bas.
     const partis = new Set(p.elements.map((x) => x.id))
     const lignesOrphelines = avecLiees(t.elements.filter((x) => partis.has(x.id)), t).filter((x) => !partis.has(x.id))
@@ -1615,6 +1617,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     setEmpreintes(AUCUNE)
     setEnGeste(false)
     const neufs = envoyerDans(id, ids)
+    // Refusé là-bas : on reste ici, ce qu'on glissait revenu à sa place.
+    if (!neufs) return annoncer({ texte: t('toile.depotRefuse', { titre: services.tableau?.(id)?.titre || t('commun.sansTitre') }) })
     const suite = ids.flatMap((x, i) => {
       const n = neufs?.get(x)
       return n ? [{ id: n, decalage: decalages[i]! }] : []
@@ -3289,8 +3293,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       magasin.appliquerSeulement(g.sorties.toReversed().map(inverse))
       const cibleId = versTableau.id
       const partants = [...g.origines.keys()].filter((id) => !gardes?.ids.has(id))
-      envoyerDans(cibleId, partants)
+      const partis = envoyerDans(cibleId, partants)
       const titre = services.tableau?.(cibleId)?.titre || t('commun.sansTitre')
+      if (!partis) return annoncer({ texte: t('toile.depotRefuse', { titre }) })
       annoncer({
         texte: avecAvis(tn('toile.deplaces', partants.length, { titre }), avisDesGeneres(gardes?.dossiers ?? [])),
         ...(services.ouvrirTableau ? { action: { libelle: t('commun.ouvrir'), faire: () => services.ouvrirTableau!(cibleId) } } : {}),
