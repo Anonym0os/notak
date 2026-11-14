@@ -57,6 +57,7 @@ class AppareilPlugin: Plugin {
   private weak var vue: WKWebView?
   private var observateurs: [NSObjectProtocol] = []
   private var gardeDefilement: NSKeyValueObservation?
+  private var gardeDuBord: GardeDuBord?
   /// La feuille de connexion ouverte, et ce qu'on lui a demandé : iOS ne la garde pas, on la tient jusqu'à sa fin.
   private var feuilleConnexion: ASWebAuthenticationSession?
   private var demandeConnexion: Invoke?
@@ -89,8 +90,10 @@ class AppareilPlugin: Plugin {
       }
     }
     // Le geste du bord gauche fait le retour de l'historique : chaque toile, la bibliothèque et l'élément ouvert en
-    // grand ont leur adresse (`adresse.ts`), et le retour y ramène comme le bouton ‹.
+    // grand ont leur adresse (`adresse.ts`), et le retour y ramène comme le bouton ‹. Jamais vers une page d'un autre
+    // site que celle où l'on est (`GardeDuBord`).
     webview.allowsBackForwardNavigationGestures = true
+    gardeDuBord = GardeDuBord(webview)
     masquerBarreDuClavier(webview)
     let crayon = UIPencilInteraction()
     crayon.delegate = self
