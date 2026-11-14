@@ -1,5 +1,6 @@
 import { type ReactNode, type SyntheticEvent, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { refuserLeDepot, useCouvrirLaToile, useTenirLaPlaceEnPartant } from './enGrand'
 
 /**
  * Les variables de thème de la toile. Une surcouche vit sous `document.body`, hors de `.notak-toile` qui les
@@ -124,7 +125,8 @@ interface Props {
 
 /**
  * Un plein écran posé au-dessus de la toile (le croquis, le document ouverts en grand). Il reprend le thème
- * de la toile, garde le focus, et ne laisse rien de ce qu'on y fait atteindre la toile.
+ * de la toile, garde le focus, et ne laisse rien de ce qu'on y fait atteindre la toile : ni une touche (la toile est
+ * couverte tant qu'il est ouvert), ni un dépôt, ni la fin du geste qui le ferme (voir `enGrand.ts`).
  */
 export function Surcouche({ etiquette, className, fermer, surTouche, children }: Props) {
   const ancre = useRef<HTMLSpanElement>(null)
@@ -132,6 +134,8 @@ export function Surcouche({ etiquette, className, fermer, surTouche, children }:
   const [variables, setVariables] = useState<Record<string, string> | null>(null)
   // Le thème de l'espace suit aussi : ce qui se règle dessus (les menus du document) le retrouve dans la surcouche.
   const [theme, setTheme] = useState<string | undefined>(undefined)
+  useCouvrirLaToile()
+  const enPartant = useTenirLaPlaceEnPartant()
   useLayoutEffect(() => {
     const espace = ancre.current?.closest<HTMLElement>('.notak-espace')
     let vues = ''
@@ -171,6 +175,8 @@ export function Surcouche({ etiquette, className, fermer, surTouche, children }:
             aria-modal
             aria-label={etiquette}
             tabIndex={-1}
+            {...enPartant}
+            {...refuserLeDepot}
             onPointerDown={(e) => {
               clos(e)
               if (e.target === e.currentTarget) fermer()

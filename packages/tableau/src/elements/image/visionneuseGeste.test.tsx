@@ -9,7 +9,7 @@ import { fermerMenus } from '../../menuUnique'
 import { Toile } from '../../Toile'
 import { imageOuverte, ouvrirImage } from './visionneuse'
 import { recadrer, useRecadrageOuvert } from './Recadreur'
-import { DUREE_TENUE } from './tenirLaPlace'
+import { DUREE_TENUE } from '../enGrand'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 

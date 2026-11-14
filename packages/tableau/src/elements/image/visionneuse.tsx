@@ -6,7 +6,7 @@ import { t } from '../../langue'
 import { chiffreDe, lettreDe, parAltGr, signeParmi } from '../../touches'
 import type { ContexteToile } from '../types'
 import { variablesDe } from '../surcouche'
-import { refuserLeDepot, useCouvrirLaToile } from '../enGrand'
+import { refuserLeDepot, useCouvrirLaToile, useTenirLaPlaceEnPartant } from '../enGrand'
 import { ouvrirDehors } from '../fichier/ouverture'
 import { nomTelecharge } from '../fichier/telechargement'
 import { copieLocale, ecouterEnvois, enEnvoi, fichierRecu, useProgressionEnvoi, useTenirCopie } from '../envois'
@@ -19,7 +19,6 @@ import { AnneauChargement, useBalise, useLent } from './chargement'
 import { recadrer } from './Recadreur'
 import { detourerImage } from './Detoureur'
 import { Traits } from './Annotateur'
-import { tenirLaPlace } from './tenirLaPlace'
 
 /** L'image montrée en grand, une seule à la fois : la carte qui la porte l'affiche par-dessus la page. */
 let ouverte: Id | null = null
@@ -167,14 +166,14 @@ export function Visionneuse({ element, adresse: adresseOuverte, apercu, contexte
   lente.current = lent
   const page = miseEnPage(c)
   const geste = useRef<{ x: number; y: number; depart: { x: number; y: number } } | null>(null)
-  /** Le dernier appui dans la visionneuse : le bouton qui la ferme garde cette place le temps du geste (`sortir`). */
-  const appui = useRef<{ x: number; y: number; quand: number } | null>(null)
   const pret = useRef<ReturnType<typeof setTimeout>>(undefined)
   const modifiable = !contexte.services.lectureSeule && !contexte.services.presentation
   const plusieurs = liste.length > 1
   // L'image est encore en route : une barre de 4 px au bas de l'image, et la barre d'outils le dit au lieu de ses boutons.
   const envoi = useProgressionEnvoi(c.fichier)
   useCouvrirLaToile()
+  // Fermée sous le pointeur (le fond, « Dessiner », « Modifier », « Fond »), elle laisse sa place tenue le temps du geste.
+  const enPartant = useTenirLaPlaceEnPartant()
 
   const reglerZoom = (vers: number) => {
     const z = borneZoom(vers)
@@ -249,10 +248,6 @@ export function Visionneuse({ element, adresse: adresseOuverte, apercu, contexte
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
   }
   const sortir = (apres: () => void) => {
-    // Le clic qui ferme la visionneuse vient d'un appui tout juste relâché : un second appui (un double-clic), ou le clic
-    // qu'une webview tire en retard d'un toucher, tomberait sur la toile dessous. Au clavier, il n'y a pas de place.
-    const a = appui.current
-    if (a && performance.now() - a.quand < 1000) tenirLaPlace(a.x, a.y)
     contexte.choisir([courant.id])
     ouvrirImage(null)
     apres()
@@ -283,14 +278,11 @@ export function Visionneuse({ element, adresse: adresseOuverte, apercu, contexte
       role="dialog"
       aria-label={c.legende || t('type.image')}
       style={couleurs}
+      {...enPartant}
       onPointerDown={(e) => {
         clos(e)
-        appui.current = { x: e.clientX, y: e.clientY, quand: performance.now() }
         // Le fond ferme ; l'image, la légende et la barre gardent le clic.
-        if (e.target instanceof HTMLElement && e.target.closest('[data-garder]')) return
-        // Fermée dès l'appui, la visionneuse laisserait la suite du geste (relâchement, clic) à la toile dessous.
-        tenirLaPlace(e.clientX, e.clientY, e.pointerId)
-        ouvrirImage(null)
+        if (!(e.target instanceof HTMLElement && e.target.closest('[data-garder]'))) ouvrirImage(null)
       }}
       onPointerUp={clos}
       onPointerMove={clos}
