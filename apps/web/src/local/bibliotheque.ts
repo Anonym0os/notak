@@ -1,4 +1,4 @@
-import { type EntreeIndex, type Id, type ResumeContenu, rangerLesToiles } from '@notak/tableau'
+import { type EntreeIndex, type Id, type NiveauRange, type ResumeContenu, rangerLesToiles } from '@notak/tableau'
 import type { BilanRangement, EntreeBibliotheque } from '../api'
 import type { BilanImport } from '../importation'
 import { t } from '../langue'
@@ -26,6 +26,18 @@ const REGROUPER = 250
 
 type ResumeToile = Extract<ResumeContenu, { genre: 'toile' }>
 
+/** La règle commune (`rangerLesToiles`) sur les toiles de l'index, avec les cartes que le catalogue a lues. */
+function rangement(toiles: readonly EntreeIndex[], fiches: ReadonlyMap<Id, Pick<FicheToile, 'resumes'>>) {
+  const resumeDe = (id: Id) => fiches.get(id)?.resumes.find((r): r is ResumeToile => r.genre === 'toile')
+  const regle = rangerLesToiles(
+    toiles.map((e) => {
+      const r = resumeDe(e.id)
+      return { id: e.id, parent: e.parent ?? null, ...(r?.cartes ? { cartes: r.cartes } : {}), ...(r?.jetees ? { jetees: r.jetees } : {}) }
+    }),
+  )
+  return { ...regle, resumeDe }
+}
+
 /**
  * Les entrées de l'appareil, comme celles qu'un serveur rend (`GET /api/bibliotheque`) : chaque toile hors l'accueil
  * et la corbeille, avec la toile qui la range ; chaque page, carte mentale, photo, lien et fichier qu'elles portent,
@@ -48,13 +60,7 @@ export function entreesDeLAppareil(
     const quand = [vus[cleVu(toile.id, element)], geste !== undefined && geste >= toile.cree ? geste : undefined].filter((v): v is number => typeof v === 'number')
     return quand.length ? Math.max(...quand) : null
   }
-  const resumeDe = (id: Id) => fiches.get(id)?.resumes.find((r): r is ResumeToile => r.genre === 'toile')
-  const { dossierDe, cachees } = rangerLesToiles(
-    toiles.map((e) => {
-      const r = resumeDe(e.id)
-      return { id: e.id, parent: e.parent ?? null, ...(r?.cartes ? { cartes: r.cartes } : {}), ...(r?.jetees ? { jetees: r.jetees } : {}) }
-    }),
-  )
+  const { dossierDe, cachees, resumeDe } = rangement(toiles, fiches)
   const entrees: EntreeBibliotheque[] = []
   for (const e of toiles) {
     if (cachees.has(e.id)) continue
@@ -91,6 +97,23 @@ export function entreesDeLAppareil(
     }
   }
   return entrees
+}
+
+/**
+ * Où une toile de l'appareil est rangée, pour le fil de son en-tête (`EspaceNotak`, `rangement`) : ses dossiers, de
+ * l'accueil à son parent, par la règle de la bibliothèque, sur l'index de l'espace et les cartes que le catalogue a
+ * lues. Une toile que rien ne range n'a rien au-dessus d'elle : le fil garde sa sortie vers l'accueil.
+ */
+export async function cheminDansLAppareil({ index, catalogue }: Pick<EspaceLocal, 'index' | 'catalogue'>, id: Id): Promise<NiveauRange[]> {
+  const { dossierDe, resumeDe } = rangement(index.lister(), await catalogue.fiches().catch(() => new Map<Id, FicheToile>()))
+  const racine = index.racine()
+  const chemin: NiveauRange[] = []
+  const vus = new Set([id])
+  for (let p = id === racine ? null : dossierDe(id); p !== null && !vus.has(p) && index.entree(p); p = p === racine ? null : dossierDe(p)) {
+    vus.add(p)
+    chemin.unshift({ id: p, titre: index.entree(p)?.titre ?? '', ...(resumeDe(p)?.dossier ? { dossier: true } : {}) })
+  }
+  return chemin
 }
 
 /** Ce que la page de la bibliothèque demande, pour les toiles de cet appareil. */

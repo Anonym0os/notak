@@ -6,6 +6,7 @@ import {
   deverrouiller,
   ecouterSessionFinie,
   lireBibliotheque,
+  lireChemin,
   lireDemandeBureau,
   lireInstance,
   listerAcces,
@@ -193,6 +194,17 @@ describe('la bibliothèque', () => {
     vi.stubGlobal('fetch', async (chemin: string) => (demandes.push(chemin), Response.json([])))
     await lireBibliotheque()
     expect(demandes).toEqual(['/api/bibliotheque?genres=arbre,document,image,lien,fichier'])
+  })
+
+  it('le chemin d’une toile, pour son fil ; rien quand le serveur ne le dit pas, sans faire échouer la toile', async () => {
+    serveur({
+      '/api/tableaux/t%201/chemin': () => Response.json([{ id: 'r', titre: 'Accueil' }, { id: 'p', titre: 'Projets', dossier: true }]),
+      '/api/tableaux/perdue/chemin': () => new Response(JSON.stringify({ code: 'introuvable' }), { status: 404 }),
+    })
+    expect(await lireChemin('t 1')).toEqual([{ id: 'r', titre: 'Accueil' }, { id: 'p', titre: 'Projets', dossier: true }])
+    expect(await lireChemin('perdue')).toBeNull()
+    vi.stubGlobal('fetch', async () => Promise.reject(new TypeError('hors ligne')))
+    expect(await lireChemin('t 1')).toBeNull()
   })
 })
 

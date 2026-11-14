@@ -3,9 +3,10 @@ import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { creerEspace } from './coeur/espace'
+import { creerEspaceDistant } from './coeur/espaceDistant'
 import type { Element, Id } from './coeur/tableau'
 import './elements'
-import { type Adresse, EspaceNotak } from './EspaceNotak'
+import { type Adresse, EspaceNotak, type NiveauRange } from './EspaceNotak'
 import { definirLangue } from './langue'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -98,5 +99,61 @@ describe('le fil d’une toile part de la racine de son espace', () => {
     const { ecrits } = rendre('t', { bibliotheque: false })
     act(() => niveaux()[0]!.click())
     expect(ecrits).toContain('r')
+  })
+})
+
+/** Un espace synchronisé, comme sur un serveur : son chemin, il l'apprend en naviguant, ou de l'hôte. Ses documents n'arrivent pas. */
+const distant = () =>
+  creerEspaceDistant({
+    racine: 'r',
+    utilisateur: { id: 'u1', nom: 'Samy', couleur: '#2f6feb' },
+    reseau: {
+      connecter: () => ({ awareness: null, lectureSeule: () => false, refuse: () => false, synchronise: () => false, detruire() {} }),
+      declarer: async () => {},
+    },
+  })
+
+describe('le fil d’une toile ouverte par son adresse (un lien, un rechargement)', () => {
+  async function ouvrirParLAdresse(ouverte: Id, rangement: (id: Id) => Promise<readonly NiveauRange[] | null>, equipes?: { racine: Id; nom: string }[]) {
+    const e = distant()
+    const adresse: Adresse = { lire: () => ouverte, ecrire: () => {}, ecouter: () => () => {} }
+    await act(async () =>
+      racine.render(<EspaceNotak espace={e} adresse={adresse} dossier={vi.fn()} bibliotheque={vi.fn()} rangement={rangement} {...(equipes ? { espacesDEquipe: equipes } : {})} />),
+    )
+    await act(async () => {})
+    return e
+  }
+
+  it('montre tout le chemin dès l’ouverture, comme l’hôte le sait ; ses dossiers se nomment le temps que leurs documents arrivent', async () => {
+    const demandes: Id[] = []
+    const e = await ouvrirParLAdresse('t', async (id) => {
+      demandes.push(id)
+      return [{ id: 'r', titre: 'Accueil de Samy' }, { id: 'p', titre: 'Projets', dossier: true }, { id: 'v', titre: 'Voyage' }]
+    })
+    expect(demandes).toEqual(['t'])
+    expect(niveaux().map((b) => [b.textContent, b.dataset.genre])).toEqual([
+      ['Mon espace', 'accueil'],
+      ['Projets', 'dossier'],
+      ['Voyage', 'toile'],
+    ])
+    // L'espace le retient : remonter (⌘U, ‹) va au parent où la toile est rangée.
+    expect(e.parent('t')).toBe('v')
+    act(() => racine.unmount())
+    racine = createRoot(hote)
+    e.detruire()
+  })
+
+  it('une toile d’un espace d’équipe part de son nom ; ce que l’hôte ne nomme pas (une toile qu’on ne lit pas) n’y est pas', async () => {
+    const equipe = await ouvrirParLAdresse('u', async () => [{ id: 'e', titre: 'Accueil de l’équipe' }, { id: 'c', titre: 'Compta' }], [{ racine: 'e', nom: 'Silak' }])
+    expect(niveaux().map((b) => b.textContent)).toEqual(['Silak', 'Compta'])
+    act(() => racine.unmount())
+    racine = createRoot(hote)
+    equipe.detruire()
+    // Un partage dont on ne lit pas le haut : rien au-dessus de lui, sinon la sortie vers « Mon espace ».
+    const partage = await ouvrirParLAdresse('s', async () => [])
+    expect(niveaux().map((b) => b.textContent)).toEqual(['Mon espace'])
+    act(() => racine.unmount())
+    racine = createRoot(hote)
+    partage.detruire()
   })
 })

@@ -78,6 +78,30 @@ describe('espace distant', () => {
     e.detruire()
   })
 
+  it('prend le chemin où un tableau est rangé, au lieu de celui par lequel on y est venu, et le dit', () => {
+    const e = creerEspaceDistant({ racine: 'R', utilisateur, reseau: faux().reseau })
+    let n = 0
+    e.ecouter(() => n++)
+    // Venu de Z (une notification, un lien dans une note) : le chemin appris en naviguant passe par lui.
+    e.entrer?.('Z', 'R')
+    e.entrer?.('B', 'Z')
+    expect(e.chemin('B')).toEqual(['R', 'Z', 'B'])
+    e.poserChemin?.('B', ['R', 'A'])
+    expect([e.chemin('B'), e.parent('B'), n]).toEqual([['R', 'A', 'B'], 'A', 1])
+    // Rien de neuf : personne n'est prévenu.
+    e.poserChemin?.('B', ['R', 'A'])
+    expect(n).toBe(1)
+    // Un partage dont on ne lit pas le haut commence à lui, même si on y était venu d'ailleurs.
+    e.entrer?.('P', 'B')
+    e.entrer?.('Q', 'P')
+    e.poserChemin?.('Q', ['P'])
+    expect(e.chemin('Q')).toEqual(['P', 'Q'])
+    // Une boucle ne se pose pas.
+    e.poserChemin?.('A', ['R', 'A'])
+    expect(e.chemin('A')).toEqual(['R', 'A'])
+    e.detruire()
+  })
+
   it('lit le titre d’un renvoi dans le document cible', () => {
     const e = creerEspaceDistant({ racine: 'R', utilisateur, reseau: faux().reseau })
     let n = 0

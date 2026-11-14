@@ -1626,6 +1626,34 @@ export function creerApp(ctx: Contexte): Hono {
     return c.json(entrees)
   })
 
+  /**
+   * Où ce tableau est rangé, pour le fil d'Ariane d'une toile ouverte par son adresse (un lien, un rechargement) : ses
+   * dossiers, de la racine de son espace (« Mon espace », ou l'accueil d'un espace d'équipe) à son parent, par la règle
+   * de la bibliothèque (la toile qui porte sa carte), avec leur titre et s'ils se montrent en dossier. Le chemin
+   * s'arrête au premier niveau que ce compte ne lit pas (une toile privée où il n'est pas invité, un mot de passe pas
+   * encore donné) : il ne le nomme pas, ni rien au-dessus, comme la bibliothèque ne le nomme pas (`dans`). Un tableau
+   * sous mot de passe a le sien : ce qui le range, ce compte le lit déjà.
+   */
+  app.get('/api/tableaux/:id/chemin', async (c) => {
+    const g = await garde(c, 'lecture', true)
+    if (g instanceof Response) return g
+    const { ouverts, lignes, dossierDe } = await rangementPour(g.u)
+    const ouvrables = new Set(ouverts)
+    const enDossier = new Set(lignes.flatMap((l) => (l.genre === 'toile' && (l.lu as { dossier?: boolean }).dossier === true ? [l.tableau] : [])))
+    // La racine d'un espace n'est rangée nulle part : le chemin y commence.
+    const racineDEspace = (id: string) => {
+      const espace = base.tableau(id)?.espace
+      return id === g.u.racine || (!!espace && base.espace(espace)?.racine === id)
+    }
+    const chemin: { id: string; titre: string; dossier?: true }[] = []
+    const vus = new Set([g.id])
+    for (let p = racineDEspace(g.id) ? null : dossierDe(g.id); p !== null && ouvrables.has(p) && !vus.has(p); p = racineDEspace(p) ? null : dossierDe(p)) {
+      vus.add(p)
+      chemin.unshift({ id: p, titre: base.tableau(p)?.titre ?? '', ...(enDossier.has(p) ? { dossier: true as const } : {}) })
+    }
+    return c.json(chemin, 200, { 'cache-control': 'no-store' })
+  })
+
   // ---- Liens visiteurs ----
   // Pour quelqu'un sans compte. Un tableau en a autant qu'on veut en donner (vingt au plus) : un par destinataire, pour
   // en fermer un sans fermer les autres. Chacun voit le tableau, ou le voit et le commente ; aucun ne modifie rien.

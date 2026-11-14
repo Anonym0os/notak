@@ -32,6 +32,7 @@ import { allerA, useChemin } from '../chemin'
 import { adresseDuDossier } from '../bibliotheque/modele'
 import { type BilanImport, importerFichiers } from '../importation'
 import { BibliothequeApp } from '../local/BibliothequeApp'
+import { cheminDansLAppareil } from '../local/bibliotheque'
 import { initialiserSynchro } from '../local/synchro'
 import { useBandeau } from '../bandeaux'
 
@@ -117,6 +118,8 @@ function Espace({ el }: { el: EspaceLocal }) {
     if (chemin === '/toiles' || chemin === '/bibliotheque') allerA(`/${location.search}`, { remplacer: true })
   }, [chemin])
   const allerALaBibliotheque = useCallback(() => allerA('/'), [])
+  // Le fil d'une toile ouverte par un lien ou après un rechargement : où l'index de l'espace dit qu'elle est rangée.
+  const ouEstRangee = useCallback((id: Id) => cheminDansLAppareil(el, id), [el])
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
       // Alt change `key` sur Mac : la lettre se lit telle qu'elle est marquée, sur toute disposition.
@@ -284,6 +287,7 @@ function Espace({ el }: { el: EspaceLocal }) {
             enregistrer={() => void enregistrer()}
             bibliotheque={allerALaBibliotheque}
             dossier={(id, o) => allerA(adresseDuDossier(id), o)}
+            rangement={ouEstRangee}
             actions={(ici, ouvrir, _aide) => {
           courant.current = ici
           ouvrirTableau.current = ouvrir

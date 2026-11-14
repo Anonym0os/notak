@@ -2,6 +2,7 @@ import {
   BandeauAvis,
   BoutonIlot,
   type EntreeMenu,
+  type EspaceNavigable,
   type FenetresNotak,
   type Fichier,
   type GenreNeuf,
@@ -318,8 +319,8 @@ function ecrireTri(tri: Tri) {
   }
 }
 
-/** Ce que la page demande à l'espace : de quoi lire l'accueil, créer, et ranger. */
-type EspaceBibliotheque = EspaceRangement
+/** Ce que la page demande à l'espace : de quoi lire l'accueil, créer, ranger, et dire où est ce qu'on ouvre. */
+type EspaceBibliotheque = EspaceRangement & Pick<EspaceNavigable, 'poserChemin'>
 
 /** Une fenêtre ouverte par-dessus la page. */
 type Fenetre =
@@ -661,12 +662,14 @@ function BibliothequeBureau({
   const titreToile = (id: string) => (espace && id === espace.racine ? nomRacine : parCle.get(`${id}/`)?.titre || t('commun.sansTitre'))
   /**
    * Ce qu'on ouvre d'ici arrive avec le chemin des dossiers où il est rangé (`parent` : pour une toile qu'on vient d'y
-   * créer) : la barre de la toile le redit, et chaque maillon mène à sa liste, au lieu de croire qu'on vient de l'accueil.
+   * créer) : la barre de la toile le redit, et chaque maillon mène à sa liste, au lieu de croire qu'on vient de l'accueil
+   * ou de la dernière toile parcourue.
    */
   const tenirLeChemin = (tableau: string, parent?: string) => {
-    if (!espace?.entrer || !toutes) return
+    if (!espace || !toutes) return
     const c = parent ? [...filDAriane(parent, toutes, espace.racine), tableau] : filDAriane(tableau, toutes, espace.racine)
-    for (let i = 1; i < c.length; i++) espace.entrer(c[i]!, c[i - 1]!)
+    if (espace.poserChemin) return espace.poserChemin(tableau, c.slice(0, -1))
+    for (let i = 1; i < c.length; i++) espace.entrer?.(c[i]!, c[i - 1]!)
   }
   /**
    * Une toile qui se montre en dossier : elle ne s'ouvre jamais en toile, ni ce qu'elle porte sur la sienne. La racine en

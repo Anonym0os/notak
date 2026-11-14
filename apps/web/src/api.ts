@@ -1,4 +1,4 @@
-import { type Element, type Habillage, type ResultatRecherche, type ResumeContenu, lireHabillage, textesFr } from '@notak/tableau'
+import { type Element, type Habillage, type NiveauRange, type ResultatRecherche, type ResumeContenu, lireHabillage, textesFr } from '@notak/tableau'
 import { avecApercus } from './bibliotheque/modele'
 import { langue, t } from './langue'
 
@@ -849,6 +849,16 @@ export async function lireBibliotheque(): Promise<EntreeBibliotheque[]> {
   const r = await appeler(`/api/bibliotheque?genres=${GENRES_DEMANDES.join(',')}`)
   if (!r.ok) throw await refus(r, {})
   return avecApercus((await r.json()) as EntreeBibliotheque[])
+}
+
+/**
+ * Où une toile est rangée (`GET /api/tableaux/:id/chemin`), pour son fil d'Ariane : ses dossiers, de la racine de son
+ * espace à son parent, sans un niveau que ce compte ne lit pas. `null` quand le serveur ne le dit pas (hors ligne, une
+ * toile qu'il ne lit plus) : le fil garde ce qu'il sait.
+ */
+export async function lireChemin(tableau: string): Promise<NiveauRange[] | null> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/chemin`).catch(() => null)
+  return r?.ok ? ((await r.json()) as NiveauRange[]) : null
 }
 
 /**

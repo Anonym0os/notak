@@ -24,6 +24,7 @@ import {
   lireInstance,
   listerEspaces,
   listerTableaux,
+  lireChemin,
   moi as lireMoi,
   noterElementVu,
   rangerToile,
@@ -442,6 +443,8 @@ function Espace({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
         adresse={adresse}
         bibliotheque={() => allerA('/')}
         espacesDEquipe={equipes}
+        // Le fil d'une toile ouverte par un lien ou après un rechargement : où le serveur sait qu'elle est rangée.
+        rangement={lireChemin}
         // Une notification qui mène au fil d'une page rangée dans un dossier : la liste l'ouvre, et la page son fil.
         dossier={(id, o) => allerA(adresseDuDossier(id, elementDuFilDemande()), o)}
         actions={(courant, ouvrir) => (

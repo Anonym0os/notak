@@ -403,6 +403,21 @@ export function creerEspaceDistant(options: OptionsEspaceDistant): EspaceDistant
       if (depuis === racine && parents.has(id)) return
       parents.set(id, depuis)
     },
+    poserChemin(id, dossiers) {
+      const c = [...dossiers, id]
+      if (new Set(c).size !== c.length) return
+      let change = false
+      c.forEach((t, i) => {
+        if (t === racine) return
+        // Le plus haut niveau n'a pas de parent qu'on lise : celui qu'on lui avait appris en naviguant ne vaut plus.
+        const p = i > 0 ? c[i - 1]! : undefined
+        if (parents.get(t) === p) return
+        if (p === undefined) parents.delete(t)
+        else parents.set(t, p)
+        change = true
+      })
+      if (change) notifier()
+    },
     retenir: (id) => retenirTableau(id, true),
     presence: (id) => ouvrir(id).presence,
     lectureSeule: (id) => entrees.get(id)?.connexion?.lectureSeule() ?? false,

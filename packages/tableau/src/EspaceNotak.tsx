@@ -111,6 +111,14 @@ export interface Adresse {
   ecouter(f: (id: Id | null, element?: Id | null) => void): () => void
 }
 
+/** Un dossier où une toile est rangée, tel que l'hôte le sait : le fil le nomme le temps que son document arrive. */
+export interface NiveauRange {
+  id: Id
+  titre: string
+  /** Il se montre en dossier (`Tableau.dossier`). */
+  dossier?: boolean
+}
+
 /**
  * Des éléments venus d'un autre tableau, rangés à droite de ce qu'il y a déjà (4 UG d'écart, en haut du contenu),
  * ou à 5 UG du coin si le tableau est vide ; ils gardent leur disposition et reçoivent des identifiants neufs.
@@ -170,6 +178,7 @@ export function EspaceNotak({
   bibliotheque,
   dossier,
   espacesDEquipe,
+  rangement,
 }: {
   espace: EspaceNavigable
   services?: Services
@@ -214,6 +223,12 @@ export function EspaceNotak({
    * part de son nom, à la place de « Mon espace ».
    */
   espacesDEquipe?: readonly { racine: Id; nom: string }[]
+  /**
+   * Où une toile est rangée, que l'hôte sait (le serveur, l'index de l'appareil) : ses dossiers, de la racine de son
+   * espace (ou du plus haut niveau que ce compte lit) à son parent, sans un niveau qu'il ne lit pas. Le fil le montre dès
+   * l'ouverture (un lien, un rechargement), au lieu du seul chemin qu'on a parcouru pour venir. `null` : rien de plus.
+   */
+  rangement?(id: Id): Promise<readonly NiveauRange[] | null>
 }) {
   const racine = espace.racine
   const [parcours, setParcours] = useState(() => parcoursDepart(racine))
@@ -476,10 +491,37 @@ export function EspaceNotak({
     setParcours(parcoursDepart(racine))
   }, [refuse, courant, racine])
 
+  // Où la toile ouverte est rangée, demandé à l'hôte : le fil le dit dès l'ouverture, sans qu'on ait à y naviguer.
+  // L'espace le retient (`poserChemin`) ; les titres servent le temps que les documents des dossiers arrivent.
+  const [ranges, setRanges] = useState<ReadonlyMap<Id, NiveauRange>>(() => new Map())
+  useEffect(() => {
+    if (!rangement || courant === racine) return
+    let vivant = true
+    rangement(courant).then(
+      (niveaux) => {
+        if (!vivant || !niveaux) return
+        setRanges((avant) => new Map([...avant, ...niveaux.map((n) => [n.id, n] as const)]))
+        espace.poserChemin?.(courant, niveaux.map((n) => n.id))
+      },
+      () => {},
+    )
+    return () => {
+      vivant = false
+    }
+  }, [rangement, espace, courant, racine])
+
   // Le fil, lu comme une chaîne : l'en-tête ne se redessine que si le chemin, un titre ou un dossier change.
   const fil = useSyncExternalStore(espace.ecouter, () => {
     const chemin = espace.chemin(courant)
-    return JSON.stringify(chemin.map((id) => [id, espace.tableau(id)?.titre ?? '', espace.tableau(id)?.dossier === true]))
+    return JSON.stringify(
+      chemin.map((id) => {
+        const t = espace.tableau(id)
+        const dit = ranges.get(id)
+        // Tant que son document n'est pas arrivé, un dossier se nomme comme l'hôte l'a dit.
+        if (dit && !t?.titre && !(espace.synchronise?.(id) ?? true)) return [id, dit.titre, dit.dossier === true]
+        return [id, t?.titre ?? '', t?.dossier === true]
+      }),
+    )
   })
   const segments = useMemo(() => {
     const chemin = (JSON.parse(fil) as [Id, string, boolean][]).map(([id, titre, estDossier]): Segment => ({ id, titre, genre: estDossier ? 'dossier' : 'toile' }))

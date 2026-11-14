@@ -2,7 +2,7 @@
 import 'fake-indexeddb/auto'
 import { type BoitePlan, type EntreeIndex, type ResumeContenu, creerDans, definirLangue, deplacer, jeter, quandPretes, renommerChose } from '@notak/tableau'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { entreesDeLAppareil, sourceLocale } from './bibliotheque'
+import { cheminDansLAppareil, entreesDeLAppareil, sourceLocale } from './bibliotheque'
 import { espaceLocal } from './espace'
 import { noterVu } from './vus'
 
@@ -82,6 +82,29 @@ describe('les entrées de l’appareil', () => {
   it('une toile que le catalogue ne connaît pas encore se montre quand même, sans plan', () => {
     const e = entreesDeLAppareil([toile('accueil', 'Accueil'), toile('neuve', 'Neuve', 'accueil')], 'accueil', new Map(), new Map(), {})
     expect(e.map((x) => [x.titre, x.dans, x.resume.genre])).toEqual([['Neuve', 'accueil', 'toile']])
+  })
+})
+
+describe('le chemin d’une toile de l’appareil, pour le fil de son en-tête', () => {
+  const TOILES = [toile('accueil', 'Accueil'), toile('projets', 'Projets', 'accueil'), toile('voyage', 'Voyage', 'accueil'), toile('japon', 'Japon', 'voyage'), toile('seule', 'Seule')]
+  const FICHES = new Map([
+    ['accueil', { resumes: [resumeToile('Accueil', ['projets'])] }],
+    // « Voyage », créée dans l'accueil, a été glissée dans « Projets » : c'est sa carte qui le dit.
+    ['projets', { resumes: [{ ...resumeToile('Projets', ['voyage']), dossier: true } as ResumeContenu] }],
+  ])
+  const el = { index: { lister: () => TOILES, racine: () => 'accueil', entree: (id: string) => TOILES.find((e) => e.id === id) }, catalogue: { fiches: async () => FICHES } }
+
+  it('va de l’accueil à son parent par la règle de la bibliothèque, et dit ce qui se montre en dossier', async () => {
+    expect(await cheminDansLAppareil(el as never, 'japon')).toEqual([
+      { id: 'accueil', titre: 'Accueil' },
+      { id: 'projets', titre: 'Projets', dossier: true },
+      { id: 'voyage', titre: 'Voyage' },
+    ])
+  })
+
+  it('rien au-dessus de l’accueil, ni d’une toile que rien ne range', async () => {
+    expect(await cheminDansLAppareil(el as never, 'accueil')).toEqual([])
+    expect(await cheminDansLAppareil(el as never, 'seule')).toEqual([])
   })
 })
 

@@ -36,6 +36,12 @@ export interface EspaceNavigable {
   parent(id: Id): Id | null
   /** La vue entre dans `id` en partant de `depuis` : l'espace s'en sert pour tenir le chemin. */
   entrer?(id: Id, depuis: Id | null): void
+  /**
+   * Où `id` est rangé, tel que le serveur, l'index de l'appareil ou la bibliothèque le savent : `dossiers` va de la
+   * racine de son espace (ou du plus haut niveau qu'on lit) à son parent. Il remplace le chemin appris en naviguant
+   * (`entrer`), et les écouteurs en sont prévenus : le fil se redessine.
+   */
+  poserChemin?(id: Id, dossiers: readonly Id[]): void
   /** Un tableau regardé reste ouvert tant qu'on ne rend pas ce qu'il rend. */
   retenir?(id: Id): () => void
   /** La présence des autres sur ce tableau. */

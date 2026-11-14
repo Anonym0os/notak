@@ -650,6 +650,17 @@ describe('les gestes', () => {
       expect(charger).toHaveBeenCalledOnce()
     })
 
+    it('une toile qu’on ouvre d’un dossier arrive avec le chemin où elle est rangée, qui remplace celui qu’on a parcouru', async () => {
+      const carnet = { ...VOYAGE, tableau: 'carnet', titre: 'Carnet', ou: 'Étape', dans: 'etape', vu: null, favori: false, resume: { genre: 'toile' as const, element: '' as const, titre: 'Carnet', boites: [] } }
+      const poses: [string, readonly string[]][] = []
+      const espace = Object.assign(monde(), { poserChemin: (id: string, dossiers: readonly string[]) => void poses.push([id, dossiers]) })
+      history.replaceState(null, '', '/?dossier=etape')
+      await act(async () => racine.render(<PageBibliotheque charger={async () => [...PROFOND, carnet]} espace={espace} />))
+      act(() => tuile('carnet/').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+      expect(location.pathname).toBe('/t/carnet')
+      expect(poses).toEqual([['carnet', ['racine', 'voyage', 'etape']]])
+    })
+
     it('arrivé dans un dossier par son adresse, la colonne le montre, ses parents dépliés', async () => {
       history.replaceState(null, '', '/?dossier=etape')
       await act(async () => racine.render(<PageBibliotheque charger={async () => PROFOND} espace={monde()} />))
