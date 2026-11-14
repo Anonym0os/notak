@@ -104,7 +104,6 @@
   min-height: 0;
   padding: 0 4px 0 20px;
   overflow-y: auto;
-  scrollbar-width: thin;
 }
 
 .notak-banque-liste {

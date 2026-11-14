@@ -49,6 +49,47 @@ body {
   outline: none;
 }
 
+/*
+ * Les barres de défilement, dans toute l'app : fines, et seulement quand on survole ce qui défile, comme celles du Finder
+ * et de Drive. Une souris branchée (une MX Master) fait dessiner à macOS des barres épaisses, toujours là, au milieu des
+ * rangées et des panneaux. Le pouce paraît au survol, donc aussi quand on y fait défiler à la molette ou au trackpad ;
+ * la piste reste transparente, et le pouce prend la couleur du texte de ce qui défile, si bien qu'il se lit en clair
+ * comme en sombre, sur une carte mentale comme sur une note. Au doigt (iPhone, iPad), les barres du système, qui ne
+ * paraissent que pendant le défilement, restent. Une rangée qui cache sa barre (`scrollbar-width: none`) la garde cachée.
+ * Un WebKit d'avant `scrollbar-color` (Safari 26.1 et avant) dessine ses barres d'après `::-webkit-scrollbar`, que les
+ * propriétés standard, quand il les connaît, feraient taire : fines, à peine teintées, sans piste.
+ */
+@media (hover: hover) {
+  @supports (scrollbar-color: red red) {
+    :where(*) {
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+    }
+
+    :where(:hover) {
+      scrollbar-color: color-mix(in srgb, currentColor 32%, transparent) transparent;
+    }
+  }
+
+  @supports not (scrollbar-color: red red) {
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track,
+    ::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      border: 2px solid transparent;
+      border-radius: 8px;
+      background: color-mix(in srgb, currentColor 22%, transparent) padding-box;
+    }
+  }
+}
+
 /* Sous la barre d'état et la barre d'accueil d'un iPhone (viewport-fit=cover), la page montre son propre fond : celui
    de l'app, jamais le blanc du navigateur. */
 html,
@@ -283,7 +324,6 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   line-height: 1.4;
   text-align: left;
   white-space: normal;
-  scrollbar-width: thin;
 }
 
 .app-panneau[hidden] {
@@ -3238,7 +3278,6 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
-  scrollbar-width: thin;
 }
 
 .biblio-section[data-rail] .biblio-grille[data-affichage='grille'] > li {
