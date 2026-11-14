@@ -1,5 +1,5 @@
 import { type BoitePlan, FOND_NOTE, ICONE_DU_GENRE, Icone, type ResumeContenu, extensionDe, genreDe } from '@notak/tableau'
-import { createContext, useContext, useEffect, useId, useState } from 'react'
+import { type CSSProperties, createContext, useContext, useEffect, useId, useState } from 'react'
 import { t, tn } from '../langue'
 
 /**
@@ -61,7 +61,7 @@ export const photoEntiere = (largeur: number, hauteur: number) => {
 export function Vignette({ resume, tableau }: { resume: ResumeContenu; tableau?: string }) {
   if (resume.genre === 'document') return <VignetteDocument titre={resume.titre} lignes={resume.lignes} />
   if (resume.genre === 'arbre') return <VignetteCarte central={resume.titre} branches={resume.branches} />
-  if (resume.genre === 'image') return <VignettePhoto fichier={resume.petite ?? resume.fichier} largeur={resume.largeur} hauteur={resume.hauteur} />
+  if (resume.genre === 'image') return <VignettePhoto photo={resume} />
   if (resume.genre === 'lien') return <VignetteLien resume={resume} tableau={tableau} />
   if (resume.genre === 'fichier') return <VignetteFichier nom={resume.nom} typeMime={resume.typeMime} />
   // Une toile qui se montre en dossier : l'icône d'un dossier, comme dans Fichiers.
@@ -121,21 +121,66 @@ export function PlanToile({ boites }: { boites: BoitePlan[] }) {
 /** Au plus tant de photos chargées dans le plan d'une toile ; les autres gardent leur dessin. */
 const PHOTOS_PAR_PLAN = 24
 
-/** Une photo du plan : elle-même, au format de sa boîte ; en attendant, le dessin d'une photo. */
+/** Une photo du plan : elle-même, au format de sa boîte et comme sur la toile ; en attendant, le dessin d'une photo. */
 function PhotoPlan({ boite, fichier }: { boite: BoitePlan; fichier: string }) {
   const adresse = useAdresse(fichier, largeurDesVignettes())
   const coupe = `plan-photo-${useId().replace(/[^\w-]/g, '')}`
-  const [x, y, l, h] = boite
+  const [x, y, l, h, , , , , photo] = boite
   if (!adresse) return <Boite boite={boite} />
+  // La coupe va au groupe, pas à l'image : sur l'image, elle tournerait avec elle.
   return (
-    <g>
+    <g clipPath={`url(#${coupe})`}>
       <clipPath id={coupe}>
         <rect x={x} y={y} width={l} height={h} rx={0.8} />
       </clipPath>
       <rect x={x} y={y} width={l} height={h} rx={0.8} fill="#cfd4da" />
-      <image href={adresse} x={x} y={y} width={l} height={h} preserveAspectRatio="xMidYMid slice" clipPath={`url(#${coupe})`} />
+      <image href={adresse} {...(photo ? placerDansLaBoite(photo, boite) : { x, y, width: l, height: h })} preserveAspectRatio="xMidYMid slice" />
     </g>
   )
+}
+
+/** Ce que la toile fait d'une photo (voir `BoitePlan`, `ResumeContenu`) : la partie gardée, son quart de tour, ses miroirs. */
+type PhotoMontree = NonNullable<BoitePlan[8]>
+const ENTIERE = { x: 0, y: 0, largeur: 1, hauteur: 1 }
+const couchee = (p: PhotoMontree) => p.rotation === 90 || p.rotation === 270
+
+/** Largeur sur hauteur de la photo montrée : la partie gardée, puis son quart de tour (`proportionsAffichees`). */
+export function proportionsMontrees(p: PhotoMontree): number {
+  const r = p.recadrage ?? ENTIERE
+  const q = (p.largeur * r.largeur) / (p.hauteur * r.hauteur)
+  return couchee(p) ? 1 / q : q
+}
+
+/** Les miroirs de l'écran, puis le quart de tour, autour du centre : l'ordre de la toile (`miseEnPage`). */
+const tourner = (p: PhotoMontree, unite = '') =>
+  `${p.miroirH || p.miroirV ? ` scale(${p.miroirH ? -1 : 1}, ${p.miroirV ? -1 : 1})` : ''}${p.rotation ? ` rotate(${p.rotation}${unite})` : ''}`
+
+const pct = (v: number) => `${+(v * 100).toFixed(4)}%`
+
+/**
+ * Où poser une photo dans son cadre pour qu'elle s'y montre comme sur la toile, à la manière de `miseEnPage`
+ * (elements/image/geometrie.ts) : le plan de l'image, avant son quart de tour, recouvre le cadre (en unités du cadre,
+ * `cqw` et `cqh`) et tourne autour de son centre ; l'image y est décalée pour que seule la partie gardée apparaisse.
+ */
+export function misePhoto(p: PhotoMontree): { plan: CSSProperties; image: CSSProperties } {
+  const r = p.recadrage ?? ENTIERE
+  const q = +proportionsMontrees(p).toFixed(6)
+  const montree = { width: `max(100cqw, calc(100cqh * ${q}))`, height: `max(100cqh, calc(100cqw / ${q}))` }
+  return {
+    plan: { ...(couchee(p) ? { width: montree.height, height: montree.width } : montree), transform: `translate(-50%, -50%)${tourner(p, 'deg')}` },
+    image: { width: pct(1 / r.largeur), height: pct(1 / r.hauteur), left: pct(-r.x / r.largeur), top: pct(-r.y / r.hauteur) },
+  }
+}
+
+/** La même chose dans la boîte d'un plan, en SVG : l'image, placée et tournée autour du centre de la boîte. */
+export function placerDansLaBoite(p: PhotoMontree, [x, y, l, h]: BoitePlan) {
+  const r = p.recadrage ?? ENTIERE
+  const q = proportionsMontrees(p)
+  // La photo montrée recouvre la boîte sans être étirée ; son plan est celui d'avant le quart de tour.
+  const [lm, hm] = l / h > q ? [l, l / q] : [h * q, h]
+  const [lp, hp] = couchee(p) ? [hm, lm] : [lm, hm]
+  const [li, hi] = [lp / r.largeur, hp / r.hauteur]
+  return { x: -lp / 2 - r.x * li, y: -hp / 2 - r.y * hi, width: li, height: hi, transform: `translate(${x + l / 2} ${y + h / 2})${tourner(p)}` }
 }
 
 function Barres({ x, y, l, n, pas = 2.6, couleur = 'rgb(50 59 74 / 0.26)' }: { x: number; y: number; l: number; n: number; pas?: number; couleur?: string }) {
@@ -300,14 +345,27 @@ export function VignetteDocument({ titre, lignes }: { titre: string; lignes: str
 
 
 /**
- * Une photo : elle-même, au format de la tuile et centrée, ou entière quand la recadrer la couperait trop
- * (`photoEntiere`) ; une copie réduite à la taille de la tuile, pas l'original. En attendant, un fond neutre.
+ * Une photo, comme sur la toile : recadrée, tournée, retournée, dans son cadre libre (`misePhoto`). Ce cadre remplit la
+ * tuile, centré, ou s'y montre entier quand le recadrer couperait trop la photo (`photoEntiere`) ; une copie réduite à
+ * la taille de la tuile, pas l'original. En attendant, un fond neutre.
  */
-function VignettePhoto({ fichier, largeur, hauteur }: { fichier: string; largeur: number; hauteur: number }) {
-  const adresse = useAdresse(fichier, largeurDesVignettes())
+function VignettePhoto({ photo }: { photo: Extract<ResumeContenu, { genre: 'image' }> }) {
+  const adresse = useAdresse(photo.petite ?? photo.fichier, largeurDesVignettes())
+  const rapport = +(photo.rapportCadre ?? proportionsMontrees(photo)).toFixed(6)
+  const entiere = photoEntiere(rapport, 1)
+  const borne = entiere ? 'min' : 'max'
+  const { plan, image } = misePhoto(photo)
   return (
-    <span className="biblio-vignette" data-genre="image" data-cadrage={photoEntiere(largeur, hauteur) ? 'entier' : undefined} aria-hidden>
-      {adresse ? <img src={adresse} alt="" loading="lazy" decoding="async" draggable={false} /> : <Icone nom="fichierImage" taille={32} />}
+    <span className="biblio-vignette" data-genre="image" data-cadrage={entiere ? 'entier' : undefined} aria-hidden>
+      {adresse ? (
+        <span className="biblio-vignette-cadre" style={{ width: `${borne}(100cqw, calc(100cqh * ${rapport}))`, height: `${borne}(100cqh, calc(100cqw / ${rapport}))` }}>
+          <span className="biblio-vignette-plan" style={plan}>
+            <img src={adresse} alt="" loading="lazy" decoding="async" draggable={false} style={image} />
+          </span>
+        </span>
+      ) : (
+        <Icone nom="fichierImage" taille={32} />
+      )}
     </span>
   )
 }

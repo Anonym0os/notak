@@ -143,6 +143,31 @@ describe('migrations', () => {
     base.fermer()
   })
 
+  it('les photos d’avant leur recadrage dans la bibliothèque se refont au démarrage, comme la toile les montre', () => {
+    const chemin = join(dossier(), 'notak.db')
+    let base = ouvrirBase(chemin)
+    poserUtilisateur(base, { id: 'u1', email: 'ana@exemple.fr', nom: 'Ana', couleur: '#e03131', racine: 't1' })
+    base.creerTableau({ id: 't1', titre: 'Portraits', proprietaire: 'u1', parent: null })
+    const doc = new Y.Doc()
+    poser(doc, { type: 'image', fichier: 'f1', largeurOrigine: 6000, hauteurOrigine: 4000, rotation: 90 }, { id: 'p1', largeur: 20 })
+    base.enregistrerDocument(nomDuDocument('t1'), Y.encodeStateAsUpdate(doc))
+    // Ce qu'en gardait un serveur d'avant : la photo, sans son quart de tour.
+    base.indexer('t1', [], [], [
+      { genre: 'toile', element: '', titre: 'Portraits', boites: [[0, 0, 20, 30, '', 'image', 0, 'f1']] },
+      { genre: 'image', element: 'p1', titre: '', fichier: 'f1', largeur: 6000, hauteur: 4000 },
+    ])
+    const recadrees = MIGRATIONS.find((m) => m.nom === 'les photos recadrées et tournées dans la bibliothèque')!
+    base.db.exec(`PRAGMA user_version = ${recadrees.version - 1}`)
+    base.fermer()
+
+    base = ouvrirBase(chemin)
+    expect(indexerLesAbsents(base)).toBe(1)
+    const lignes = base.contenus(['t1'])
+    expect(JSON.parse(lignes.find((l) => l.genre === 'image')!.resume)).toMatchObject({ rotation: 90 })
+    expect(JSON.parse(lignes.find((l) => l.genre === 'toile')!.resume).boites[0][8]).toEqual({ largeur: 6000, hauteur: 4000, rotation: 90 })
+    base.fermer()
+  })
+
   it('une migration qui échoue est annulée en entier et la version ne bouge pas', () => {
     const db = new DatabaseSync(':memory:')
     const essai: Migration[] = [

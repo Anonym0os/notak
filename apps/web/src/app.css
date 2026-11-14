@@ -3350,8 +3350,8 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 }
 
 /*
- * Une photo, l'aperçu d'un lien : l'image remplit la vignette, recadrée au centre. Posée sur toute la vignette : dans
- * la grille qui centre son contenu, sa hauteur suivait la sienne, et une photo en hauteur ne montrait que son haut.
+ * L'aperçu d'un lien : l'image remplit la vignette, recadrée au centre. Posée sur toute la vignette : dans la grille
+ * qui centre son contenu, sa hauteur suivait la sienne, et une image en hauteur ne montrait que son haut.
  */
 .biblio-vignette > img {
   position: absolute;
@@ -3362,9 +3362,32 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   object-position: 50% 50%;
 }
 
-/* Une photo que le recadrage couperait trop (en hauteur, panoramique) : entière, sur le fond de la vignette. */
-.biblio-vignette[data-cadrage='entier'] > img {
-  object-fit: contain;
+/*
+ * Une photo, comme sur la toile : son cadre remplit la vignette, ou s'y montre entier (sa taille, en unités de la
+ * vignette, vient de `VignettePhoto`) ; dedans, le plan de l'image tourne autour de son centre et l'image s'y décale,
+ * en unités du cadre (`misePhoto`), comme `.notak-image-cadre` et `.notak-image-plan` sur la toile.
+ */
+.biblio-vignette[data-genre='image'] {
+  container-type: size;
+}
+
+.biblio-vignette-cadre,
+.biblio-vignette-plan {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  overflow: hidden;
+}
+
+.biblio-vignette-cadre {
+  container-type: size;
+  transform: translate(-50%, -50%);
+}
+
+.biblio-vignette-plan > img {
+  position: absolute;
+  display: block;
+  max-width: none;
 }
 
 /* Un dossier : son icône, au milieu d'un fond teinté de l'accent. */

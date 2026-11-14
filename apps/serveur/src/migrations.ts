@@ -523,6 +523,15 @@ CREATE INDEX envois_a_faire ON envois(prochain) WHERE livre IS NULL AND prochain
       db.exec('DELETE FROM recherche_etat;')
     },
   },
+  {
+    version: 14,
+    nom: 'les photos recadrées et tournées dans la bibliothèque',
+    // Le résumé d'une photo, et sa boîte dans le plan de sa toile, disent ce que la toile en fait (la partie gardée, le
+    // quart de tour, les miroirs, le cadre libre) : la vignette la montre de même. On refait tous les résumés.
+    appliquer(db) {
+      db.exec('DELETE FROM recherche_etat;')
+    },
+  },
 ]
 
 /**
