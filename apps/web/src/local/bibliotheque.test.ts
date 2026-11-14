@@ -169,7 +169,7 @@ describe('la source de l’appareil', () => {
     const source = sourceLocale(el)
     const id = el.espace.creerTableau('Essai', el.index.racine())
     const bilan = await source.rangerToile(id, 'ailleurs', { essai: true })
-    expect(bilan).toEqual({ nouveaux: 0, perdus: 0, permanents: 0, liensOuverts: 0, liensEteints: 0, fait: false })
+    expect(bilan).toEqual({ nouveaux: 0, perdus: 0, permanents: 0, liensOuverts: 0, liensEteints: 0, membresPerdus: 0, membresNouveaux: 0, fait: false })
     expect(el.index.entree(id)!.parent).toBe(el.index.racine())
   })
 })

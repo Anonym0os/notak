@@ -18,7 +18,7 @@ import { cleVu, lireVus, noterVu } from './vus'
  */
 
 /** Rien ne change pour personne : l'app n'a pas d'autres comptes. */
-const BILAN_VIDE: BilanRangement = { nouveaux: 0, perdus: 0, permanents: 0, liensOuverts: 0, liensEteints: 0 }
+const BILAN_VIDE: BilanRangement = { nouveaux: 0, perdus: 0, permanents: 0, liensOuverts: 0, liensEteints: 0, membresPerdus: 0, membresNouveaux: 0 }
 /** Tant de toiles inconnues du catalogue se lisent avant de montrer la page ; les autres, ensuite, en tâche de fond. */
 const LUES_D_ABORD = 24
 /** Les fiches qui arrivent en rafale (une première lecture, une synchro) redessinent la page une fois. */

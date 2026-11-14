@@ -861,6 +861,9 @@ function BibliothequeBureau({
   const lignesDuBilan = (b: BilanRangement, vers: string) => {
     const toile = titreToile(vers)
     return [
+      // La toile privée d'abord : elle la ferme à tout l'espace, hors ses invités.
+      b.membresPerdus > 0 && tn('biblio.confirmer.membresPerdus', b.membresPerdus, { toile }),
+      b.membresNouveaux > 0 && tn('biblio.confirmer.membresNouveaux', b.membresNouveaux),
       b.nouveaux > 0 && tn('biblio.confirmer.nouveaux', b.nouveaux, { toile }),
       b.perdus > 0 && tn('biblio.confirmer.perdus', b.perdus),
       b.permanents > 0 && tn('biblio.confirmer.permanents', b.permanents),

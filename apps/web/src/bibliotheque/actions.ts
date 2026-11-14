@@ -69,7 +69,7 @@ export function resteTelQuel(laisses: readonly EntreeBibliotheque[]): string {
 /** Le texte d'un geste, suivi de ce qui n'a pas changé ; ce dernier seul quand rien d'autre n'a été fait. */
 const avecLaisses = (texte: string, laisses: readonly EntreeBibliotheque[]): string => [texte, resteTelQuel(laisses)].filter(Boolean).join('. ')
 
-const CHAMPS_BILAN = ['nouveaux', 'perdus', 'permanents', 'liensOuverts', 'liensEteints'] as const
+const CHAMPS_BILAN = ['nouveaux', 'perdus', 'permanents', 'liensOuverts', 'liensEteints', 'membresPerdus', 'membresNouveaux'] as const
 
 /**
  * Ce que change le rangement de plusieurs toiles : pour chaque ligne, le plus grand nombre d'une toile (les mêmes

@@ -777,6 +777,10 @@ export interface BilanRangement {
   liensOuverts: number
   /** Liens de visiteurs qui n'y mèneraient plus. */
   liensEteints: number
+  /** Membres de l'espace qui la voient et ne la verraient plus : elle passe sous une toile privée où ils ne sont pas invités. */
+  membresPerdus: number
+  /** Membres de l'espace qui la verraient sans la voir aujourd'hui : elle sort d'une toile privée. */
+  membresNouveaux: number
 }
 
 export async function rangerToile(tableau: string, parent: string, options: { essai?: boolean; siPersonne?: boolean } = {}): Promise<BilanRangement & { fait: boolean }> {

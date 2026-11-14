@@ -1452,8 +1452,8 @@ export function creerApp(ctx: Contexte): Hono {
    * un autre, ni un dossier qu'un outil a généré (celui d'une fiche, ou celui qui les range : ils restent où l'outil
    * les a mis ; on range dedans ce qu'on veut). Ses accès hérités suivent : la réponse dit ce que cela change pour les
    * autres (`Bilan` : qui y gagne ou y perd l'accès, qui le garde désormais sans échéance, quels liens de visiteurs y
-   * mènent ou n'y mènent plus). `essai` ne fait que compter ; `siPersonne` ne range que si cela ne change rien pour
-   * personne.
+   * mènent ou n'y mènent plus, combien de membres de l'espace la perdent sous une toile privée ou la retrouvent en en
+   * sortant). `essai` ne fait que compter ; `siPersonne` ne range que si cela ne change rien pour personne.
    */
   app.put('/api/tableaux/:id/parent', async (c) => {
     const g = await garde(c, 'proprietaire')
@@ -1472,13 +1472,10 @@ export function creerApp(ctx: Contexte): Hono {
     if (parent === g.id || base.descendants(g.id).includes(parent)) return c.json({ erreur: 'boucle', code: 'dossier_dans_lui' }, 400)
     if ((cible.espace ?? null) !== (ligne.espace ?? null)) return c.json({ erreur: 'autre espace', code: 'autre_espace' }, 400)
     if (ligne.parent === parent) return c.json({ ...AUCUN_CHANGEMENT, fait: true })
-    // Ce que chacun y gagne ou y perd. Celui qui range, et les membres d'un espace d'équipe (leur accès vient de
-    // l'espace, qui ne change pas), n'y comptent pas.
+    // Ce que chacun y gagne ou y perd, sauf celui qui range. Les membres d'un espace d'équipe la lisent aussi par leur
+    // rôle, sauf sous une toile privée : la ranger sous une toile privée, ou l'en sortir, la leur ferme ou la leur rouvre.
     const espaceDEquipe = ligne.espace && !base.espace(ligne.espace)?.personnel ? ligne.espace : null
-    const bilan = bilanDuRangement(base, g.id, ligne.parent, parent, (sujet) => {
-      if (sujet === `user:${g.u.id}`) return true
-      return espaceDEquipe !== null && sujet.startsWith('user:') && base.roleMembre(espaceDEquipe, sujet.slice(5)) !== null
-    })
+    const bilan = bilanDuRangement(base, g.id, ligne.parent, parent, `user:${g.u.id}`, espaceDEquipe)
     if (b?.essai === true || (b?.siPersonne === true && !rienNeChange(bilan))) return c.json({ ...bilan, fait: false })
     base.changerParent(g.id, parent)
     // Les accès hérités de l'ancien parent ne valent plus, ici ni plus bas : chacun relit son rôle.

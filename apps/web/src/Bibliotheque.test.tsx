@@ -424,14 +424,14 @@ describe('les gestes', () => {
       },
     })
   const appels: [string, string, unknown][] = []
-  const ouvrir = async (espace = monde(), nouveaux = 0, perdus = 0) => {
+  const ouvrir = async (espace = monde(), nouveaux = 0, perdus = 0, membresPerdus = 0) => {
     appels.length = 0
     await act(async () =>
       racine.render(
         <PageBibliotheque
           charger={async () => TOUTES}
           espace={espace}
-          rangerToile={async (toile, parent, options) => (appels.push([toile, parent, options ?? {}]), { nouveaux, perdus, permanents: 0, liensOuverts: 0, liensEteints: nouveaux > 0 ? 1 : 0, fait: !options?.essai })}
+          rangerToile={async (toile, parent, options) => (appels.push([toile, parent, options ?? {}]), { nouveaux, perdus, permanents: 0, liensOuverts: 0, liensEteints: nouveaux > 0 ? 1 : 0, membresPerdus, membresNouveaux: 0, fait: !options?.essai })}
           definirFavori={async () => {}}
         />,
       ),
@@ -670,7 +670,7 @@ describe('les gestes', () => {
     it('glisser dans un dossier : la tuile qui crée devient celle qui remonte au parent, en grille comme en liste', async () => {
       history.replaceState(null, '', '/?dossier=voyage')
       const espace = monde()
-      await act(async () => racine.render(<PageBibliotheque charger={async () => AVEC_DOSSIER} espace={espace} rangerToile={async () => ({ nouveaux: 0, perdus: 0, permanents: 0, liensOuverts: 0, liensEteints: 0, fait: true })} />))
+      await act(async () => racine.render(<PageBibliotheque charger={async () => AVEC_DOSSIER} espace={espace} rangerToile={async () => ({ nouveaux: 0, perdus: 0, permanents: 0, liensOuverts: 0, liensEteints: 0, membresPerdus: 0, membresNouveaux: 0, fait: true })} />))
       const zone = () => hote.querySelector<HTMLElement>('[data-remonter]')
       const glisserDe = (cle: string) => {
         act(() => void tuile(cle).dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 10, clientY: 10 })))
@@ -746,7 +746,7 @@ describe('les gestes', () => {
           <PageBibliotheque
             charger={async () => GENERES}
             espace={espace}
-            rangerToile={async (toile, parent, options) => (appels.push([toile, parent, options ?? {}]), { nouveaux: 0, perdus: 0, permanents: 0, liensOuverts: 0, liensEteints: 0, fait: !options?.essai })}
+            rangerToile={async (toile, parent, options) => (appels.push([toile, parent, options ?? {}]), { nouveaux: 0, perdus: 0, permanents: 0, liensOuverts: 0, liensEteints: 0, membresPerdus: 0, membresNouveaux: 0, fait: !options?.essai })}
             definirFavori={async () => {}}
           />,
         ),
@@ -1027,7 +1027,7 @@ describe('les gestes', () => {
       history.replaceState(null, '', '/?dossier=voyage')
       const espace = monde()
       espace.magasin('voyage').faire([{ type: 'creer', element: { id: 'memo', x: 60, y: 0, largeur: 20, contenu: { type: 'note', texte: 'À ne pas perdre' } } as unknown as ElementToile }])
-      await act(async () => racine.render(<PageBibliotheque charger={async () => EN_DOSSIER} espace={espace} vignettes={vignettes} rangerToile={async () => ({ nouveaux: 0, perdus: 0, permanents: 0, liensOuverts: 0, liensEteints: 0, fait: true })} definirFavori={async () => {}} />))
+      await act(async () => racine.render(<PageBibliotheque charger={async () => EN_DOSSIER} espace={espace} vignettes={vignettes} rangerToile={async () => ({ nouveaux: 0, perdus: 0, permanents: 0, liensOuverts: 0, liensEteints: 0, membresPerdus: 0, membresNouveaux: 0, fait: true })} definirFavori={async () => {}} />))
       // Le plan de « Voyage » (l'entrée d'essai) porte une note : la ligne le dit.
       expect(hote.querySelector('.biblio-restes p')!.textContent).toBe('Une note ou une forme de ce dossier ne se voit que sur une toile.')
       await act(async () => hote.querySelector<HTMLButtonElement>('.biblio-restes button')!.click())
@@ -1094,6 +1094,19 @@ describe('les gestes', () => {
     expect(espace.tableau('voyage')!.elements.some((e) => e.contenu.type === 'tableau' && e.contenu.cible === 'atelier')).toBe(true)
     expect(espace.tableau('racine')!.elements.some((e) => e.id === 'c-atelier')).toBe(false)
     expect(hote.querySelector('.notak-avis')!.textContent).toContain('Déplacé dans « Voyage »')
+  })
+
+  it('ranger sous une toile privée dit, en une ligne, combien de membres de l’espace la perdent', async () => {
+    await ouvrir(undefined, 0, 0, 3)
+    menu(tuile('atelier/'))
+    act(() => entree('Déplacer vers…').click())
+    await act(async () => [...hote.querySelectorAll<HTMLElement>('.biblio-deplacer-liste li')][2]!.click())
+    expect([...hote.querySelectorAll('[role="alertdialog"] li')].map((l) => l.textContent)).toEqual([
+      'Elle deviendra privée, comme « Voyage » : 3 membres de l’espace qui la voient aujourd’hui n’y auront plus accès.',
+    ])
+    // Renoncer ne range rien.
+    await act(async () => [...hote.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button')].find((b) => b.textContent !== 'Déplacer')!.click())
+    expect(appels).toEqual([['atelier', 'voyage', { essai: true }]])
   })
 
   it('des fichiers lâchés sur une toile y sont importés ; ce qui en naît s’y montre aussitôt', async () => {
