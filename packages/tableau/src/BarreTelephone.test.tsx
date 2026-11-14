@@ -110,6 +110,41 @@ describe('la barre du haut au téléphone', () => {
   })
 })
 
+describe('la maison et ‹ au téléphone', () => {
+  // L'accueil range « Clients », qui range « Dupont ».
+  const carte = (id: string, cible: string) => ({ id, x: 0, y: 0, largeur: 10, contenu: { type: 'tableau' as const, cible } })
+  const monde = () =>
+    creerEspace({
+      racine: 'r',
+      tableaux: {
+        r: { titre: '', elements: [carte('c1', 'clients')] },
+        clients: { titre: 'Clients', elements: [carte('c2', 'dupont')] },
+        dupont: { titre: 'Dupont', elements: [] },
+      },
+    })
+  const ouvrir = (id: string, bibliotheque: () => void) =>
+    act(() => racine.render(<EspaceNotak espace={monde()} adresse={{ lire: () => id, ecrire() {}, ecouter: () => () => {} }} bibliotheque={bibliotheque} />))
+  const boutons = () => [...hote.querySelectorAll('.notak-ilot-fil button[aria-label]')].map((b) => b.getAttribute('aria-label'))
+
+  it('une toile rangée à l’accueil rentre à la bibliothèque par la maison, et non à la toile d’accueil', () => {
+    auDoigt(true)
+    const bibliotheque = vi.fn()
+    ouvrir('clients', bibliotheque)
+    expect(boutons()).toEqual(['Bibliothèque'])
+    act(() => hote.querySelector<HTMLButtonElement>('.notak-ilot-fil button[aria-label="Bibliothèque"]')!.click())
+    expect(bibliotheque).toHaveBeenCalledOnce()
+  })
+
+  it('plus bas, ‹ remonte à la toile parente ; au bureau, la maison et ‹ restent côte à côte', () => {
+    auDoigt(true)
+    ouvrir('dupont', vi.fn())
+    expect(boutons()).toEqual(['Revenir à la toile parente'])
+    auDoigt(false)
+    ouvrir('clients', vi.fn())
+    expect(boutons().slice(0, 2)).toEqual(['Bibliothèque', 'Revenir à la toile parente'])
+  })
+})
+
 describe('surplusBarre', () => {
   const ilot = (top: number, hauteur = 44) => ({ top, bottom: top + hauteur, height: hauteur })
 

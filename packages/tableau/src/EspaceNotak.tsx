@@ -872,7 +872,7 @@ function Entete({
   }, [menu])
 
   // Sur un téléphone, un seul bouton de tête, comme une app iPhone : ‹ remonte à la toile parente, la maison ouvre la
-  // bibliothèque depuis l'accueil ; le fil n'a que la toile ouverte, et son titre prend la place qui reste.
+  // bibliothèque depuis l'accueil et ce qu'il range ; le fil n'a que la toile ouverte, et son titre prend la place qui reste.
   const telephone = auDoigt() && typeof innerWidth === 'number' && innerWidth <= 640
   // Le titre du tableau ouvert se change en place, au bout du fil ; l'accueil n'a que son nom.
   const avecTitre = segments.length > 1
@@ -909,8 +909,11 @@ function Entete({
     )
   }
   const parent = segments.length > 1 ? segments.at(-2) : undefined
+  // Au téléphone, une toile rangée à l'accueil rentre à la bibliothèque, qui la montre, plutôt qu'à la toile d'accueil :
+  // la bibliothèque ne montre plus celle-ci. Plus bas, ‹ remonte à la toile parente.
+  const remonter = telephone && bibliotheque && parent?.id === segments[0]?.id ? undefined : parent
   if (telephone) {
-    if (parent) bibliotheque = undefined
+    if (remonter) bibliotheque = undefined
     outils = undefined
   }
 
@@ -922,9 +925,9 @@ function Entete({
             reste vide et transparent. */}
         <Ilot className="notak-ilot-fil">
           {bibliotheque && <BoutonIlot icone="maison" libelle={t('espace.bibliotheque')} raccourci="⌥⌘O" onClick={bibliotheque} />}
-          {bibliotheque && (parent || outils) && <FiletIlot />}
-          {parent && <BoutonIlot icone="gauche" libelle={t('espace.remonter')} onClick={() => aller(parent.id)} />}
-          {parent && outils && <FiletIlot />}
+          {bibliotheque && (remonter || outils) && <FiletIlot />}
+          {remonter && <BoutonIlot icone="gauche" libelle={t('espace.remonter')} onClick={() => aller(remonter.id)} />}
+          {remonter && outils && <FiletIlot />}
           {outils && (
             <BoutonIlot
               icone="panneauGauche"
@@ -934,7 +937,7 @@ function Entete({
               onClick={outils.basculer}
             />
           )}
-          {(bibliotheque || parent || outils) && <FiletIlot />}
+          {(bibliotheque || remonter || outils) && <FiletIlot />}
           <nav className="notak-fil" aria-label={t('espace.fil')} ref={fil}>
             {visibles.flatMap((i, rang) => [
               rang > 0 && <span key={`s${i}`} className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
