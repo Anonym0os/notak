@@ -1330,7 +1330,8 @@ export function creerApp(ctx: Contexte): Hono {
   /**
    * La bibliothèque : chaque toile que le compte peut lire (sauf son accueil), et ce qu'elles portent (cartes mentales,
    * pages, et, si on les demande par `?genres=`, photos, liens et fichiers), avec la toile qui les porte (son titre,
-   * `ou`, et son identifiant, `dans`), la dernière fois qu'il les a ouverts, et ses favoris et partages. Ce qui est sous
+   * `ou`, et son identifiant, `dans`), la dernière fois qu'il les a ouverts, ajoutés ou changés (`vu`), et ses favoris
+   * et partages. Ce qui est sous
    * un mot de passe pas encore donné n'y est pas. Une toile est dans celle qui porte sa carte, où qu'on l'ait glissée ;
    * sa carte jetée, elle est à la corbeille et n'y est plus, ni rien de ce qu'elle contient. Sans `?genres=`, les
    * genres d'avant seulement : une app plus ancienne, branchée sur ce serveur, ne reçoit rien qu'elle ne sait montrer.
@@ -1344,6 +1345,14 @@ export function creerApp(ctx: Contexte): Hono {
     const { ouverts, lignes, dossierDe, cachees } = await rangementPour(u)
     const ouvrables = new Set(ouverts)
     const vus = new Map(base.vus(u.id).map((v) => [`${v.tableau}/${v.element}`, v.vu]))
+    // Ce que le compte a ajouté ou changé compte comme ce qu'il a ouvert, comme dans les récents du Finder, de Fichiers
+    // ou de Drive : les photos qu'il vient de poser sur une toile y viennent sans qu'il les ait ouvertes une à une. Une
+    // toile est récente de tout geste sur ce qu'elle porte, hors la carte d'une autre toile : y ranger un dossier, ce
+    // n'est pas y travailler.
+    for (const g of base.gestesDe(u.id, ouverts)) {
+      const cles = [...(g.element ? [`${g.tableau}/${g.element}`] : []), ...(!g.element || g.typeElement !== 'tableau' ? [`${g.tableau}/`] : [])]
+      for (const cle of cles) vus.set(cle, Math.max(vus.get(cle) ?? 0, g.instant))
+    }
     const favoris = new Set(base.favoris(u.id))
     const favorisElements = new Set(base.favorisElements(u.id))
     const partages = new Set(base.tableauxAccessibles(u.id).flatMap((t) => (t.role === 'proprietaire' ? [] : [t.id])))

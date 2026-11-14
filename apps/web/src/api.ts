@@ -767,7 +767,7 @@ export interface EntreeBibliotheque {
   ou: string | null
   /** L'identifiant de cette toile, s'il la lit : le dossier du tri par dossier. */
   dans: string | null
-  /** La dernière fois que le compte l'a ouvert, ou `null`. */
+  /** La dernière fois que le compte l'a ouvert, ajouté ou changé, ou `null` : ce qui range les récents. */
   vu: number | null
   favori: boolean
   /** Une toile que d'autres lui partagent. */

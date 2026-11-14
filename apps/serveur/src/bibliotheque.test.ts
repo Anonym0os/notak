@@ -106,6 +106,44 @@ describe('GET /api/bibliotheque', () => {
     expect(parCle.get('secret/')!.favori).toBe(true)
   })
 
+  it('ce que le compte a ajouté ou changé compte comme ouvert : une photo posée sur une toile vient dans les récents', async () => {
+    ecrire('etape', 'Étape', (d) => {
+      poser(d, carte('Lisbonne', 'Musées'), { id: 'lisbonne' })
+      poser(d, { type: 'image', fichier: 'f-tram', largeurOrigine: 30, hauteurOrigine: 40 }, { id: 'tram' })
+      poser(d, { type: 'image', fichier: 'f-fado', largeurOrigine: 30, hauteurOrigine: 40 }, { id: 'fado' })
+      poser(d, { type: 'tableau', cible: 'secret' }, { id: 'carte-secret' })
+    })
+    const geste = (auteur: Compte, element: string, typeElement: string, genre: 'cree' | 'modifie' | 'supprime', instant: number) =>
+      m.base.noterActivite({ tableau: 'etape', auteur: auteur.utilisateur.id, genre, element, typeElement, libelle: '', instant }, 0)
+    // Dans le passé : les essais suivants comptent sur des ouvertures plus récentes que celles-ci.
+    const avant = Date.now() - 600_000
+    geste(ana, 'tram', 'image', 'cree', avant + 1)
+    // Ce qu'un autre a posé, et ce qu'Ana a jeté, ne comptent pas pour elle.
+    geste(bob, 'fado', 'image', 'cree', avant + 2)
+    geste(ana, 'fado', 'image', 'supprime', avant + 3)
+    const lu = async () => new Map(((await (await m.appeler('/api/bibliotheque?genres=image,arbre', { compte: ana })).json()) as Entree[]).map((e) => [cle(e), e]))
+    let r = await lu()
+    expect(r.get('etape/tram')!.vu).toBe(avant + 1)
+    expect(r.get('etape/fado')!.vu).toBeNull()
+    // La toile est récente de ce qu'Ana y a fait.
+    expect(r.get('etape/')!.vu).toBe(avant + 1)
+    // Y ranger une toile (sa carte) ne la rend pas récente ; la renommer, si.
+    geste(ana, 'carte-secret', 'tableau', 'cree', avant + 4)
+    r = await lu()
+    expect(r.get('etape/')!.vu).toBe(avant + 1)
+    geste(ana, '', 'tableau', 'modifie', avant + 5)
+    r = await lu()
+    expect(r.get('etape/')!.vu).toBe(avant + 5)
+    // L'ouverture la plus récente l'emporte sur un geste plus ancien.
+    m.base.noterElementVu(ana.utilisateur.id, 'etape', 'tram', avant + 9)
+    r = await lu()
+    expect(r.get('etape/tram')!.vu).toBe(avant + 9)
+    // Les récents de Bob ne sont pas ceux d'Ana.
+    const deBob = new Map(((await (await m.appeler('/api/bibliotheque?genres=image', { compte: bob })).json()) as Entree[]).map((e) => [cle(e), e]))
+    expect(deBob.get('etape/fado')!.vu).toBe(avant + 2)
+    expect(deBob.get('etape/tram')!.vu).toBeNull()
+  })
+
   it('n’ouvre que les cartes et documents qui existent, sur une toile qu’on lit', async () => {
     expect((await m.appeler('/api/tableaux/voyage/elements/inconnu/vu', { methode: 'POST', compte: ana })).status).toBe(404)
     expect((await m.appeler('/api/tableaux/secret/elements/idees/vu', { methode: 'POST', compte: ana })).status).toBe(404)

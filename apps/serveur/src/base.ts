@@ -362,6 +362,11 @@ export interface Base {
   activite(tableau: string, limite: number, apres?: number): LigneActivite[]
   /** Le dernier changement fait par quelqu'un sur chaque élément de ces toiles (ms). */
   derniersChangements(tableaux: readonly string[]): { tableau: string; element: string; instant: number }[]
+  /**
+   * Le dernier geste de ce compte sur chaque élément de ces toiles (ms) : ce qu'il a ajouté, changé, déplacé ou remis,
+   * pas ce qu'il a jeté. `typeElement` : ce qu'était l'élément (`tableau` pour la carte d'une toile).
+   */
+  gestesDe(utilisateur: string, tableaux: readonly string[]): { tableau: string; element: string; typeElement: string; instant: number }[]
 
   /**
    * Ajoute une notification. Avec `fusionner` (ms), une notification non lue du même genre, sur le même tableau,
@@ -1020,6 +1025,21 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
             `SELECT tableau, element, MAX(instant) AS instant FROM activite WHERE tableau IN (${paquet.map(() => '?').join(',')}) GROUP BY tableau, element`,
             ...paquet,
           ) as unknown as { tableau: string; element: string; instant: number }[]),
+        )
+      }
+      return lus
+    },
+    gestesDe(utilisateur, tableaux) {
+      const lus: { tableau: string; element: string; typeElement: string; instant: number }[] = []
+      for (let i = 0; i < tableaux.length; i += 500) {
+        const paquet = tableaux.slice(i, i + 500)
+        lus.push(
+          ...(tous(
+            `SELECT tableau, element, MAX(type_element) AS typeElement, MAX(instant) AS instant FROM activite
+             WHERE auteur = ? AND genre <> 'supprime' AND tableau IN (${paquet.map(() => '?').join(',')}) GROUP BY tableau, element`,
+            utilisateur,
+            ...paquet,
+          ) as unknown as { tableau: string; element: string; typeElement: string; instant: number }[]),
         )
       }
       return lus
