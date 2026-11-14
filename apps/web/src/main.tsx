@@ -5,6 +5,7 @@ import './app.css'
 import './styles/ios.css'
 import { estMobile } from './appareil'
 import { coque, estBureau, marquerBureau, peutJoindreUnServeur } from './bureau'
+import { brancherMenuNatif } from './menuNatif'
 import { brancherPrecedentSuivant } from './precedentSuivant'
 import { simulerCoqueSiDemandee } from './ios/coqueSimulee'
 
@@ -15,6 +16,8 @@ if (import.meta.env.DEV) simulerCoqueSiDemandee()
 marquerBureau()
 // Les boutons précédent et suivant de la souris (et ⌘[ / ⌘]) reculent et avancent partout, là où WebKit ne le fait pas seul.
 brancherPrecedentSuivant()
+// Le menu du clic droit du système ne paraît que dans ce qu'on écrit ; ailleurs, celui de Notak ou rien.
+brancherMenuNatif()
 // Sur un iPhone ou un iPad : le thème du système au premier lancement, la vue native au fond du thème, le clavier suivi.
 if (estMobile()) void import('./ios/demarrage').then((m) => m.demarrerMobile(window, coque()!))
 

@@ -2336,8 +2336,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const [actionsDemandees, setActionsDemandees] = useState(0)
   const ouvrirMenuRef = useRef<(e: React.MouseEvent) => void>(() => {})
   const ouvrirMenu = (e: React.MouseEvent) => {
-    e.preventDefault()
+    // Dans ce qu'on écrit, le menu du système sert à l'orthographe et au presse-papiers : la toile n'en ouvre pas
+    // d'autre, et l'application ne le laisse paraître que dans le texte (`menuNatif.ts`, dans apps/web).
     if (dansEdition(racine.current, e.target)) return
+    e.preventDefault()
     // En lecture seule, comme Milanote : aucun des deux menus. Un commentateur garde celui de la toile vide, pour y
     // poser un fil.
     const id = sous(document.elementFromPoint(e.clientX, e.clientY))
