@@ -335,6 +335,12 @@ export interface TypeElement<C extends Contenu = Contenu> {
    * double-clic, qui y choisit un mot. Choisi, un clic ne l'écrit que sur un de ses champs (`data-ecrire`), pas ailleurs.
    */
   ecritSurPlace?: boolean
+  /**
+   * Choisi, un clic sur un de ses champs (`data-ecrire`, dont `champ` est la valeur) l'écrit autrement que par l'édition
+   * de la toile : le titre d'une toile ou d'un document se renomme sur la carte. Le second clic d'un double-clic n'écrit
+   * rien : le double-clic, lui, ouvre l'élément.
+   */
+  ecrireSurClic?(element: Element<C>, champ: string, contexte: ContexteToile): void
   surEntree?(element: Element<C>, contexte: ContexteToile): void
   /* `surFrappe` (plus haut) peut aussi tout faire lui-même et ne rien rendre : un document s'ouvre avec ce caractère. */
   /** L'élément dont l'édition de celui-ci écrit le texte (un clone : son original) ; `null` si rien ne s'écrit. Absent : lui-même. */

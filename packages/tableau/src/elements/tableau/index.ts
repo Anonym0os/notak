@@ -137,6 +137,8 @@ registre.type<RenvoiTableau>({
   sansFond: true,
   sansInclinaison: true,
   ouvrir: (e, contexte) => contexte.services.ouvrirTableau?.(e.contenu.cible),
+  // La toile choisie, un clic sur son titre le renomme ; le double-clic, titre compris, ouvre la toile.
+  ecrireSurClic: (e) => demanderRenommage(e.id),
   hauteurParDefaut: 14,
   suivant: (e, _places, _format, contexte) => nouveauRenvoi({ x: e.x + 17, y: e.y }, contexte),
   largeurMin: LARGEUR_RENVOI,

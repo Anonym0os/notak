@@ -17,6 +17,7 @@ import { avisGeneres, outilDe } from './generes'
 import { annoncer } from '../../avis'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
+import { useChampOuvert } from '../champOuvert'
 
 const sans = () => () => {}
 
@@ -87,20 +88,19 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
   const choixModele = useSyncExternalStore(ecouterModele, modeleEnCours) === element.id
   const apercu = useApercuAuSurvol()
   const plan = apercu.vu ? tableau?.(cible) : undefined
-  // Un clic sur un tableau déjà choisi : sur le titre, on le renomme ; sur l'icône, une bulle dit de double-cliquer.
+  // Un clic sur un tableau déjà choisi : sur l'icône, une bulle dit de double-cliquer. Sur le titre, il le renomme : la
+  // toile s'en charge (`ecrireSurClic`), elle qui sait si ce clic est le second d'un double-clic, qui ouvre la toile.
   const dejaChoisie = useRef(false)
   const [bulle, setBulle] = useState(false)
   const minuteur = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => () => clearTimeout(minuteur.current), [])
-  const apresClic = (sur: 'titre' | 'icone') => {
+  const apresClicIcone = () => {
     if (!dejaChoisie.current || contexte.services.lectureSeule) return
     clearTimeout(minuteur.current)
-    if (sur === 'titre') minuteur.current = setTimeout(() => demanderRenommage(element.id), 100)
-    else
-      minuteur.current = setTimeout(() => {
-        setBulle(true)
-        minuteur.current = setTimeout(() => setBulle(false), 2000)
-      }, 500)
+    minuteur.current = setTimeout(() => {
+      setBulle(true)
+      minuteur.current = setTimeout(() => setBulle(false), 2000)
+    }, 500)
   }
 
   // Arrivé ici par « Retrouver le tableau d'origine » : la carte se choisit, et la vue s'y centre une fois la toile mesurée.
@@ -170,7 +170,7 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
       )}
       <div
         {...apercu.proprietes}
-        onClick={() => apresClic('icone')}
+        onClick={apresClicIcone}
         className="notak-renvoi-carre"
         style={{ background: fond, color: element.contenu.glyphe ?? couleurTexteSur(fond) }}
       >
@@ -193,7 +193,7 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
       {enRenommage ? (
         <Saisie depart={titre} valider={valider} />
       ) : (
-        <div className="notak-renvoi-titre" onClick={() => apresClic('titre')}>
+        <div className="notak-renvoi-titre" data-ecrire="titre">
           {titre}
         </div>
       )}
@@ -207,8 +207,12 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
   )
 }
 
-/** Le titre en place. Entrée, Échap et la sortie du champ valident. */
+/**
+ * Le titre en place. Entrée, Échap et la sortie du champ valident. Ouvert par le premier clic d'un double-clic, il se
+ * referme et laisse le double-clic ouvrir la toile (`useChampOuvert`).
+ */
 function Saisie({ depart, valider }: { depart: string; valider(v: string): void }) {
+  const ouvert = useChampOuvert()
   const champ = useRef<HTMLInputElement>(null)
   const fini = useRef(false)
   useEffect(() => {
@@ -227,8 +231,7 @@ function Saisie({ depart, valider }: { depart: string; valider(v: string): void 
       className="notak-renvoi-saisie"
       defaultValue={depart}
       aria-label={t('tableau.titreChamp')}
-      onPointerDown={(e) => e.stopPropagation()}
-      onDoubleClick={(e) => e.stopPropagation()}
+      {...ouvert.proprietes}
       onKeyDown={(e) => {
         e.stopPropagation()
         if (e.key === 'Enter' || e.key === 'Escape') {

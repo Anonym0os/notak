@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { t } from '../langue'
 import { BoutonOutil } from '../BoutonOutil'
 import type { Contenu } from '../coeur/tableau'
 import type { PropsOutils } from './types'
+import { useChampOuvert } from './champOuvert'
 
 /**
  * La légende d'une carte (croquis, document en vue carte) : un texte sous la carte. Choisie, un clic sur la légende
@@ -14,8 +15,7 @@ import type { PropsOutils } from './types'
  */
 export function LegendeLocale({ texte, choisie, modifiable, valider, classe }: { texte: string; choisie: boolean; modifiable: boolean; valider(texte: string): void; classe: string }) {
   const [edition, setEdition] = useState(false)
-  // Les appuis dans le champ depuis qu'il s'est ouvert : au plus un, le double-clic est celui qui l'a ouvert.
-  const appuis = useRef(0)
+  const champ = useChampOuvert()
   if (!edition) {
     return (
       <p
@@ -25,7 +25,7 @@ export function LegendeLocale({ texte, choisie, modifiable, valider, classe }: {
         onPointerDown={(e) => choisie && modifiable && e.stopPropagation()}
         onClick={(e) => {
           if (!choisie || !modifiable || e.detail > 1) return
-          appuis.current = 0
+          champ.ouvert()
           setEdition(true)
         }}
       >
@@ -47,15 +47,8 @@ export function LegendeLocale({ texte, choisie, modifiable, valider, classe }: {
         c.style.height = `${c.scrollHeight}px`
       }}
       onFocus={(e) => e.currentTarget.setSelectionRange(e.currentTarget.value.length, e.currentTarget.value.length)}
-      onPointerDown={(e) => {
-        appuis.current++
-        e.stopPropagation()
-      }}
-      onDoubleClick={(e) => {
-        if (appuis.current > 1) return e.stopPropagation()
-        // Le premier clic de ce double-clic a ouvert le champ : il se referme, et la toile ouvre la carte.
-        e.currentTarget.blur()
-      }}
+      // Le premier clic d'un double-clic l'a ouvert : il se referme, et la toile ouvre la carte (`useChampOuvert`).
+      {...champ.proprietes}
       onInput={(e) => {
         e.currentTarget.style.height = 'auto'
         e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`

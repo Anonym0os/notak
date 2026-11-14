@@ -10,6 +10,8 @@ import { imageOuverte, ouvrirImage } from './elements/image/visionneuse'
 import { fermerMenus } from './menuUnique'
 import { Toile } from './Toile'
 import type { Services } from './elements/types'
+import { nouveauDocument } from './elements/document/texte'
+import { demanderRenommage } from './elements/tableau/renommage'
 
 /**
  * Le double-clic sur un élément qui porte une légende l'ouvre, toujours, légende comprise ; seul le champ où l'on écrit
@@ -49,10 +51,12 @@ afterEach(() => {
   act(() => racine.unmount())
   hote.remove()
   fermerMenus()
-  // L'ouverture d'un fichier ou d'une image est un état du module : un essai ne la laisse pas au suivant.
+  // L'ouverture d'un fichier ou d'une image, le renommage d'une toile sont des états du module : un essai ne les laisse
+  // pas au suivant.
   act(() => {
     ouvrirFenetreFichier(null)
     ouvrirImage(null)
+    demanderRenommage(null)
   })
   vise = null
   for (const n of document.querySelectorAll('input[type="color"]')) n.remove()
@@ -116,10 +120,10 @@ const image: ElementToile = {
   contenu: { type: 'image', fichier: 'i1', largeurOrigine: 300, hauteurOrigine: 200, typeMime: 'image/jpeg', legende: 'Façade sud' },
 }
 
-function monter(elements: ElementToile[]) {
+function monter(elements: ElementToile[], plus: Partial<Services> = {}) {
   const magasin = creerMagasin({ titre: '', etiquettes: [], elements })
   const pleinEcran = vi.fn()
-  const services: Services = { pleinEcran, fichiers: { enregistrer: async () => 'x', adresse: async () => '/api/fichiers/ab' } }
+  const services: Services = { pleinEcran, fichiers: { enregistrer: async () => 'x', adresse: async () => '/api/fichiers/ab' }, ...plus }
   act(() => racine.render(<Toile magasin={magasin} services={services} />))
   const carte = (id: string) => hote.querySelector<HTMLElement>(`.notak-carte[data-id="${id}"]`)!
   const enEdition = () => [...hote.querySelectorAll<HTMLElement>('.notak-carte[data-edition]')].map((n) => n.dataset.id)
@@ -341,6 +345,58 @@ describe('au doigt, deux touchers sur une légende', () => {
     toucher(champ)
     expect(m.enEdition()).toEqual([])
     expect(hote.querySelector('textarea.notak-croquis-legende-champ')).not.toBeNull()
+  })
+})
+
+describe('le titre d’une toile ou d’un document', () => {
+  const renvoi: ElementToile = { id: 'T', x: 0, y: 0, largeur: 10, contenu: { type: 'tableau', cible: 'projets' } }
+  const services = () => ({ tableau: () => ({ titre: 'Projet maison', elements: [] }) as never, ouvrirTableau: vi.fn(), renommerTableau: vi.fn() }) satisfies Partial<Services>
+  // Le titre, ou le champ qui l'a remplacé sous le pointeur.
+  const titre = () => hote.querySelector('[data-id="T"] .notak-renvoi-titre, [data-id="T"] .notak-renvoi-saisie')!
+  const carre = () => hote.querySelector('[data-id="T"] .notak-renvoi-carre')!
+
+  it('toile choisie : un clic sur son titre la renomme', () => {
+    monter([renvoi], services())
+    clic(carre, 1)
+    clic(titre, 1)
+    expect(hote.querySelector('.notak-renvoi-saisie')).not.toBeNull()
+  })
+
+  it('toile choisie ou non : le double-clic sur son titre l’ouvre, sans laisser de titre à écrire', () => {
+    const s = services()
+    monter([renvoi], s)
+    doubleClic(titre)
+    expect(s.ouvrirTableau).toHaveBeenCalledTimes(1)
+    doubleClic(titre)
+    expect(s.ouvrirTableau).toHaveBeenCalledTimes(2)
+    expect(hote.querySelector('.notak-renvoi-saisie')).toBeNull()
+    expect(s.renommerTableau).not.toHaveBeenCalled()
+  })
+
+  it('au doigt, deux touchers sur le titre d’une toile choisie l’ouvrent, sans la renommer', () => {
+    const s = services()
+    monter([renvoi], s)
+    toucher(carre)
+    instant += 1000
+    toucher(titre)
+    toucher(titre)
+    expect(s.ouvrirTableau).toHaveBeenCalledTimes(1)
+    expect(hote.querySelector('.notak-renvoi-saisie')).toBeNull()
+  })
+
+  it('document choisi : un clic sur son titre le renomme sur la carte, le double-clic l’ouvre', () => {
+    const doc = { ...nouveauDocument(0, 30), id: 'D' }
+    const m = monter([doc])
+    const titreDoc = () => hote.querySelector('[data-id="D"] .notak-document-titre, [data-id="D"] .notak-document-saisie')!
+    clic(() => hote.querySelector('[data-id="D"]')!, 1)
+    clic(titreDoc, 1)
+    expect(hote.querySelector('.notak-document-saisie')).not.toBeNull()
+    expect(m.enEdition()).toEqual([])
+    act(() => (hote.querySelector('.notak-document-saisie') as HTMLInputElement).blur())
+    instant += 1000
+    doubleClic(titreDoc)
+    expect(m.enEdition()).toEqual(['D'])
+    expect(hote.querySelector('.notak-document-saisie')).toBeNull()
   })
 })
 

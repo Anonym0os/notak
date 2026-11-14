@@ -31,6 +31,8 @@ registre.type<DocumentTexte>({
   // Comme Milanote : un clic sur le document choisi ne l'ouvre pas (double-clic), Entrée en édite le titre sur la carte.
   ouvreAuDoubleClic: true,
   surEntree: (element) => demanderRenommer(element.id),
+  // Le document choisi, un clic sur son titre le renomme sur la carte ; le double-clic, titre compris, l'ouvre.
+  ecrireSurClic: (element) => demanderRenommer(element.id),
   // Ouvrir en grand : le double-clic, Espace, ou le premier caractère tapé (qui arrive dans le texte).
   ouvrir: (element, contexte) => contexte.commencerEdition(element.id),
   surFrappe: (element, caractere, contexte) => {

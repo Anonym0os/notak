@@ -33,6 +33,7 @@ import { colorer, ecrireALaFin, insererImage } from '../../blocs/transformer'
 import { NodeSelection, TextSelection } from '@tiptap/pm/state'
 import { BLOCS_SANS_TEXTE, blocSansTexteChoisi, filDuBlocChoisi } from '../../blocs/commentaires'
 import { LegendeLocale, OutilLegende, avecTexteLegende } from '../LegendeLocale'
+import { useChampOuvert } from '../champOuvert'
 import type { ContexteToile, DepotFichiers, PropsOutils, PropsRendu } from '../types'
 import { EntetePage, OptionsPage, attributsPage, pageDe } from './Page'
 import { extensionsDuPartage, textePartage } from '../partage'
@@ -120,9 +121,11 @@ function Papier({ choisie, taille = 72 }: { choisie?: boolean; taille?: number }
 
 /**
  * Le titre qu'on écrit sur la carte : tout est choisi d'avance ; Entrée ou un appui ailleurs le valide (un titre
- * vidé n'est pas gardé), Échap le laisse. Entrée désélectionne ensuite le document.
+ * vidé n'est pas gardé), Échap le laisse. Entrée désélectionne ensuite le document. Ouvert par le premier clic d'un
+ * double-clic, il se referme et laisse le double-clic ouvrir le document (`useChampOuvert`).
  */
 function TitreSurCarte({ titre, valider, fini }: { titre: string; valider(titre: string): void; fini(entree: boolean): void }) {
+  const ouvert = useChampOuvert()
   const champ = useRef<HTMLInputElement>(null)
   const annule = useRef(false)
   const entree = useRef(false)
@@ -139,8 +142,7 @@ function TitreSurCarte({ titre, valider, fini }: { titre: string; valider(titre:
       placeholder={t('document.nouveau')}
       maxLength={TITRE_MAX}
       spellCheck={false}
-      onPointerDown={(e) => e.stopPropagation()}
-      onDoubleClick={(e) => e.stopPropagation()}
+      {...ouvert.proprietes}
       onKeyDown={(e) => {
         e.stopPropagation()
         if (e.nativeEvent.isComposing) return
@@ -199,7 +201,9 @@ export function RenduDocument({ element, choisie, enEdition, contexte, brouillon
           }}
         />
       ) : (
-        <div className="notak-document-titre">{titreAffiche(c.titre) || t('document.nouveau')}</div>
+        <div className="notak-document-titre" data-ecrire="titre">
+          {titreAffiche(c.titre) || t('document.nouveau')}
+        </div>
       )}
       <div className="notak-document-mots">{tn('document.mots', mots)}</div>
     </>

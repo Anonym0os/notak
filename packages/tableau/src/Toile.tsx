@@ -557,7 +557,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   // de ce second toucher, quand la toile a déjà ouvert l'élément, ne va plus à son champ (`clicEteint`).
   const appuis = useRef(0)
   const appuisAOuverture = useRef(0)
-  const clicQuiEcrit = useRef<{ id: Id; ou: Point } | null>(null)
+  const clicQuiEcrit = useRef<(() => void) | null>(null)
   const appuiDernier = useRef<{ instant: number; x: number; y: number; doigt: boolean; champ: globalThis.Element | null } | null>(null)
   const clicEteint = useRef<{ instant: number; id: Id } | null>(null)
   const [anime, setAnime] = useState(false)
@@ -2701,15 +2701,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   }
 
   /**
-   * Le clic qui ouvre l'écriture d'une image, d'un fichier ou d'un lien choisis, sur leur légende ou leur nom. Ouverte au
-   * relâchement du second clic d'un double-clic, elle remplaçait le champ sous le pointeur : le navigateur, qui ne
-   * retrouve plus où l'appui a commencé, n'envoyait alors ni ce clic ni le double-clic, et l'élément ne s'ouvrait pas.
+   * Le clic qui ouvre l'écriture d'une image, d'un fichier ou d'un lien choisis, sur leur légende ou leur nom, ou le
+   * renommage d'une toile ou d'un document, sur leur titre. Ouverte au relâchement du second clic d'un double-clic,
+   * l'écriture remplaçait le champ sous le pointeur : le navigateur, qui ne retrouve plus où l'appui a commencé,
+   * n'envoyait alors ni ce clic ni le double-clic, et l'élément ne s'ouvrait pas.
    * Le clic, lui, dit son rang (`detail`) : le second d'un double-clic laisse le double-clic ouvrir l'élément.
    */
   const ecrireAuClic = (e: React.MouseEvent) => {
-    const c = clicQuiEcrit.current
+    const ecrire = clicQuiEcrit.current
     clicQuiEcrit.current = null
-    if (c && e.detail < 2) commencerEdition(c.id, c.ou)
+    if (ecrire && e.detail < 2) ecrire()
   }
 
   /** Le clic du second toucher d'un double toucher qui a déjà ouvert l'élément : il n'écrit pas sa légende par-dessus. */
@@ -3529,11 +3530,18 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const surTitre = el?.contenu.type !== 'colonne' || !!document.elementFromPoint(r.ou.x, r.ou.y)?.closest('.notak-colonne-titre')
       // Une image, un fichier, un lien ne s'écrivent que sur un de leurs champs (leur légende, leur nom) : un clic
       // ailleurs les laisse choisis, et le double-clic les ouvre sans qu'une écriture ouverte au premier clic le prenne.
+      // Le titre d'une toile ou d'un document se renomme de même, d'un clic sur lui (`ecrireSurClic`).
       const def = el ? definition(el.contenu.type) : undefined
-      const surChamp = clicEcrit(def, document.elementFromPoint(r.ou.x, r.ou.y))
-      if (r.seul && el && !lectureSeule && surTitre && surChamp && defEcrite(el, tableau)?.editable && !def?.ouvreAuDoubleClic && e.type === 'pointerup') {
-        // À la souris, leur écriture attend le clic, qui sait s'il est le second d'un double-clic (`ecrireAuClic`).
-        if (def?.ecritSurPlace && e.pointerType !== 'touch') clicQuiEcrit.current = { id: r.id, ou: r.ou }
+      const touche = document.elementFromPoint(r.ou.x, r.ou.y)
+      const champ = touche?.closest<HTMLElement>('[data-ecrire]')
+      const surChamp = clicEcrit(def, touche)
+      // À la souris, leur écriture attend le clic, qui sait s'il est le second d'un double-clic (`ecrireAuClic`).
+      const auClic = (ecrire: () => void) => (e.pointerType !== 'touch' ? (clicQuiEcrit.current = ecrire) : ecrire())
+      if (r.seul && el && !lectureSeule && e.type === 'pointerup' && def?.ecrireSurClic && champ && sous(champ) === r.id) {
+        const ecrire = def.ecrireSurClic
+        auClic(() => ecrire(el as never, champ.dataset.ecrire ?? '', contexte))
+      } else if (r.seul && el && !lectureSeule && surTitre && surChamp && defEcrite(el, tableau)?.editable && !def?.ouvreAuDoubleClic && e.type === 'pointerup') {
+        if (def?.ecritSurPlace) auClic(() => commencerEdition(r.id, r.ou))
         else commencerEdition(r.id, r.ou)
       } else setSelection(new Set([r.id]))
       return
