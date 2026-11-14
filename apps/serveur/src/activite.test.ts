@@ -40,7 +40,18 @@ describe('comparer deux états d’un élément', () => {
     expect(changementsDe('c', undefined, fil(m1))).toMatchObject([{ genre: 'commente', fil: '', typeElement: 'commentaire', messages: [{ texte: 'Bonjour' }], participants: [] }])
     expect(changementsDe('c', fil(), fil(m1))).toMatchObject([{ genre: 'commente', messages: [{ texte: 'Bonjour' }], participants: [] }])
     expect(changementsDe('c', fil(m1), fil(m1, m2))).toMatchObject([{ genre: 'commente', libelle: 'Salut @Bob', participants: ['ana'] }])
-    expect(changementsDe('c', fil(m1), { ...fil(m1), contenu: { type: 'commentaire', messages: [m1], resolu: true } })).toMatchObject([{ genre: 'modifie' }])
+  })
+
+  it('une épingle n’est que son fil : y réagir, la résoudre, la replier ou la recolorer ne modifie pas le tableau', () => {
+    const m1 = { id: 'm1', texte: 'Bonjour', auteur: { id: 'ana' } }
+    const fil = (champs: Record<string, unknown> = {}, ...messages: Record<string, unknown>[]) => ({
+      id: 'c', x: 0, y: 0, largeur: 28, plan: 'a', contenu: { type: 'commentaire', messages: messages.length ? messages : [m1], ...champs },
+    })
+    for (const champs of [{ resolu: true }, { replie: true }, { couleur: 'jaune' }]) expect(changementsDe('c', fil(), fil(champs))).toEqual([])
+    expect(changementsDe('c', fil(), fil({}, { ...m1, reactions: { '👍': ['bob'] } }))).toEqual([])
+    // La déplacer, la jeter, la remettre restent des gestes sur la toile.
+    expect(changementsDe('c', fil(), { ...fil(), x: 30 })).toMatchObject([{ genre: 'deplace' }])
+    expect(changementsDe('c', { ...fil(), corbeille: 5 }, fil())).toMatchObject([{ genre: 'restaure' }])
   })
 
   it('un fil dit quels messages ne disent plus ce qu’on a pu citer d’eux : supprimés, récrits, ou partis avec lui', () => {
@@ -50,7 +61,7 @@ describe('comparer deux états d’un élément', () => {
     const m1 = { id: 'm1', texte: 'Bonjour', auteur: { id: 'ana' } }
     const m2 = { id: 'm2', texte: 'Je regrette', auteur: { id: 'bob' } }
     const perimes = (avant: Record<string, unknown> | undefined, apres: Record<string, unknown> | undefined) => changementsDe('c', avant, apres).flatMap((c) => c.perimes ?? [])
-    expect(changementsDe('c', fil({}, m1, m2), fil({}, m1))).toMatchObject([{ genre: 'modifie' }, { genre: 'fil', perimes: [{ id: 'm2', auteur: 'bob', texte: 'Je regrette' }] }])
+    expect(changementsDe('c', fil({}, m1, m2), fil({}, m1))).toEqual([{ genre: 'fil', element: 'c', fil: '', typeElement: 'commentaire', libelle: '', perimes: [{ id: 'm2', auteur: 'bob', texte: 'Je regrette' }] }])
     expect(perimes(fil({}, m1, m2), fil({}, m1, { ...m2, texte: 'Je nuance' }))).toEqual([{ id: 'm2', auteur: 'bob', texte: 'Je regrette', nouveau: 'Je nuance' }])
     // Jeté ou retiré, le fil emporte tous ses messages ; déjà jeté, il n'a plus rien à dire.
     const tous = [{ auteur: 'ana', texte: 'Bonjour' }, { auteur: 'bob', texte: 'Je regrette' }]

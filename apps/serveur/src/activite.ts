@@ -213,11 +213,9 @@ export function comparer(id: string, avant: Stocke | undefined, apres: Stocke | 
   const c0 = contenuDe(avant)
   const c1 = contenuDe(apres)
   if (JSON.stringify(horsFils(c0)) !== JSON.stringify(horsFils(c1))) {
-    // Un message de plus dans une épingle est un commentaire, que ses fils disent.
-    if (c1?.type === 'commentaire') {
-      const connus = new Set(messagesDe(c0).map((m) => m.id))
-      if (messagesDe(c1).some((m) => !connus.has(m.id))) return null
-    }
+    // Une épingle n'est que son fil : un message de plus est un commentaire, que ses fils disent ; une réaction, un fil
+    // résolu, replié, recoloré, un message corrigé ou retiré ne modifient pas le tableau (voir `notificationsDe`).
+    if (c1?.type === 'commentaire') return null
     return decrire(apres, 'modifie')
   }
   const loin = Math.hypot(nombre(apres.x) - nombre(avant.x), nombre(apres.y) - nombre(avant.y)) >= DEPLACEMENT_MIN
@@ -410,7 +408,10 @@ export function mentionnes(texte: string, candidats: readonly { id: string; nom:
 /**
  * Les notifications que ces changements font naître chez les autres membres du tableau. Un commentaire, où qu'il soit
  * (une épingle, le fil d'une carte, la marge d'une note ou d'un document, un sujet de carte mentale), prévient ceux qui
- * ont écrit dans son fil, ceux qui tiennent le tableau, et ceux qu'il nomme.
+ * ont écrit dans son fil, ceux qui tiennent le tableau, et ceux qu'il nomme. Ce qui touche un fil sans y écrire (une
+ * réaction, un fil résolu ou replié, un message corrigé ou retiré) ne prévient personne : la boîte de réception de
+ * Notion reçoit les mentions, les réponses à ses commentaires et, si on l'a demandé, les commentaires d'une page, et
+ * aucun de ces petits gestes n'y sonne chez tous les membres.
  */
 export function notificationsDe(
   base: Base,

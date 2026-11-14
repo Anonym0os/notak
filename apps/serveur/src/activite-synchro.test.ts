@@ -314,6 +314,29 @@ describe('où qu’on commente, le fil prévient et se cite de même', () => {
     base.fermer()
   })
 
+  it('une réaction, un fil résolu, un message corrigé ou retiré ne font sonner la cloche de personne', async () => {
+    const { base, ouvrir, ana } = await tableau()
+    const m1 = message('m1', 'ana', 'Qui vient ?')
+    const m2 = message('m2', 'ana', 'À revoir')
+    await ana.transact((doc) => {
+      poser(doc, { type: 'commentaire', messages: [m1, message('m3', 'ana', 'Moi')] }, { id: 'epingle' })
+      changer(doc, 'note', (e) => ({ ...e, commentaire: fil(m2) }))
+    })
+    const bob = await ouvrir('bob')
+    const epingle = (contenu: Record<string, unknown>) => (doc: Y.Doc) => changer(doc, 'epingle', (e) => ({ ...e, contenu: { ...e.contenu, ...contenu } }))
+    await bob.transact(epingle({ messages: [{ ...m1, reactions: { '👍': ['bob'] } }, message('m3', 'ana', 'Moi')] }))
+    await bob.transact(epingle({ resolu: true, replie: true }))
+    await bob.transact((doc) => changer(doc, 'note', (e) => ({ ...e, commentaire: fil({ ...m2, reactions: { '🎉': ['bob'] } }) })))
+    await ana.transact(epingle({ messages: [{ ...m1, texte: 'Qui vient samedi ?' }] }))
+    for (const qui of ['ana', 'bob', 'cleo']) {
+      expect(base.notifications(qui, 50).filter((n) => n.genre === 'modification' && ['epingle', 'note'].includes(n.element)), qui).toEqual([])
+    }
+    expect(base.activite('tableau-act-1', 50).filter((a) => a.auteur.id === 'bob')).toEqual([])
+    await bob.disconnect()
+    await ana.disconnect()
+    base.fermer()
+  })
+
   it('une épingle lâchée sur une note ne prévient pas une seconde fois : ce qui la citait mène à la note', async () => {
     const { base, ouvrir, ana } = await tableau()
     const bob = await ouvrir('bob')
