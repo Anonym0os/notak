@@ -6,6 +6,7 @@ import { PanneauBanque } from './elements/image/Banque'
 import { attacherFil, pointDePose } from './elements/commentaire/attacher'
 import { avecLegende } from './elements/image/geometrie'
 import { ouvrirImage, useImageOuverte } from './elements/image/visionneuse'
+import { toileCouverte } from './elements/enGrand'
 import { ouvrirFenetreFichier, useFichierOuvert } from './elements/fichier/ouverture'
 import { PanneauEnvoi } from './elements/fichier/PanneauEnvoi'
 import { BarreOutils, BarreSelection, type OutilDeBarre, outilsDeBarre } from './Barres'
@@ -1479,7 +1480,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
 
   // Copier, couper, coller sur la toile, hors édition.
   useEffect(() => {
-    const actif = () => document.activeElement === racine.current && !etat.current.edition
+    const actif = () => document.activeElement === racine.current && !etat.current.edition && !toileCouverte()
     const coller = (e: ClipboardEvent) => {
       if (!actif() || !e.clipboardData) return
       e.preventDefault()
@@ -2314,6 +2315,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     })
 
   const clavier = (e: React.KeyboardEvent) => {
+    // Une image ou une surcouche ouverte en grand par-dessus : rien de ce qu'on tape ne touche la toile dessous.
+    if (toileCouverte()) return
     // DESSIN-LIBRE : le clavier appartient à la couche de dessin (Suppr, flèches, Cmd+Z n'agissent plus sur le tableau).
     if (toileSuspendue(racine.current)) return
     if (e.key === 'Escape' && annulerGlisser()) return e.preventDefault()
@@ -2607,7 +2610,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     setEspace(false)
     const bref = espaceBref.current
     espaceBref.current = false
-    if (!bref || edition || selection.size !== 1) return
+    if (!bref || edition || selection.size !== 1 || toileCouverte()) return
     const el = tableau.elements.find((x) => selection.has(x.id))
     const ouvrir = el && definition(el.contenu.type)?.ouvrir
     if (el && ouvrir) ouvrir(el, contexte)

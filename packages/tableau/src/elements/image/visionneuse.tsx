@@ -3,8 +3,10 @@ import { createPortal } from 'react-dom'
 import type { Element, Id, Image } from '../../coeur/tableau'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
+import { chiffreDe, lettreDe, parAltGr, signeParmi } from '../../touches'
 import type { ContexteToile } from '../types'
 import { variablesDe } from '../surcouche'
+import { useCouvrirLaToile } from '../enGrand'
 import { ouvrirDehors } from '../fichier/ouverture'
 import { nomTelecharge } from '../fichier/telechargement'
 import { copieLocale, ecouterEnvois, enEnvoi, fichierRecu, useProgressionEnvoi, useTenirCopie } from '../envois'
@@ -78,6 +80,9 @@ function useCopieACharger(adresse: string | null | undefined, c: Image, taille: 
 /** Un événement de la visionneuse ne remonte pas à la toile : un portail renvoie les siens à ses parents React. */
 const clos = (e: SyntheticEvent) => e.stopPropagation()
 
+/** Un champ où l'on écrit (celui d'une fenêtre posée par-dessus, les réglages) : ses touches sont les siennes. */
+const saisie = (n: EventTarget | null) => n instanceof HTMLElement && (n.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(n.tagName))
+
 /**
  * Les couleurs de la toile (thème clair ou sombre, habillage), recopiées sur la visionneuse : elle vit sous
  * `document.body`, hors de la toile qui les définit, et sa légende se pose sur le fond des cartes.
@@ -127,8 +132,9 @@ function useCarteEnGrand(zone: React.RefObject<HTMLDivElement | null>, legende: 
  * L'image en grand (la fenêtre V2 de Milanote) : un voile à 70 %, l'image telle que la toile la montre (recadrée,
  * tournée, son dessin par-dessus), à sa taille au plus, et sa légende dessous comme dans sa carte ; une barre sombre
  * en bas (dessiner, modifier, fond, précédent, suivant, ouvrir, télécharger). La molette, = + − 0 zooment de 1 à 4 et
- * on déplace l'image zoomée à la main ; ← ↑ et → ↓ passent d'une image à l'autre, Échap ferme. Un clic sur le fond
- * ferme, pas sur l'image, la légende ni la barre.
+ * on déplace l'image zoomée à la main ; ← ↑ et → ↓ passent d'une image à l'autre, Maj+D dessine, Échap ferme. Un clic
+ * sur le fond ferme, pas sur l'image, la légende ni la barre. Tant qu'elle est ouverte, la toile dessous ne prend aucune
+ * touche (`useCouvrirLaToile`).
  */
 export function Visionneuse({ element, adresse: adresseOuverte, apercu, contexte }: { element: Element<Image>; adresse: string; apercu?: string | undefined; contexte: ContexteToile }) {
   const [courantId, setCourantId] = useState(element.id)
@@ -168,6 +174,7 @@ export function Visionneuse({ element, adresse: adresseOuverte, apercu, contexte
   const plusieurs = liste.length > 1
   // L'image est encore en route : une barre de 4 px au bas de l'image, et la barre d'outils le dit au lieu de ses boutons.
   const envoi = useProgressionEnvoi(c.fichier)
+  useCouvrirLaToile()
 
   const reglerZoom = (vers: number) => {
     const z = borneZoom(vers)
@@ -189,19 +196,30 @@ export function Visionneuse({ element, adresse: adresseOuverte, apercu, contexte
     setDecalage({ x: 0, y: 0 })
   }
   // Les gestes lisent toujours le dernier état.
-  const dernier = useRef({ reglerZoom, aller })
-  dernier.current = { reglerZoom, aller }
+  const dernier = useRef({ reglerZoom, aller, dessiner: null as (() => void) | null })
 
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if (saisie(e.target)) return
       const faire = (f: () => void) => {
         e.preventDefault()
         e.stopPropagation()
         f()
       }
       const d = dernier.current
+      const cmd = e.metaKey || e.ctrlKey
+      const lettre = lettreDe(e)
+      // ⌘Z, ⇧⌘Z et ⌘Y n'ont rien à défaire ici : on dessine dans « Dessiner », dont ⌘Z reprend le dernier trait. Rendus à
+      // la toile, ils y déferaient son dernier geste, derrière l'image, sans qu'on le voie.
+      if (cmd && !e.altKey && (lettre === 'z' || lettre === 'y')) return faire(() => {})
+      // ⌘+ ⌘− ⌘0 zooment l'image comme sur la toile, où ils zoomeraient la vue derrière elle.
+      const signe = cmd && !parAltGr(e) ? signeParmi(e, ['=', '+', '-']) : null
+      if (signe) return faire(() => d.reglerZoom(signe === '-' ? zoomRef.current / 1.25 : zoomRef.current * 1.25))
+      if (cmd && !e.shiftKey && chiffreDe(e) === 0) return faire(() => d.reglerZoom(1))
+      if (cmd || e.altKey) return
       if (e.key === 'Escape') return faire(() => ouvrirImage(null))
+      // Maj+D, comme sur la toile : dessiner sur l'image, comme le bouton « Dessiner ».
+      if (e.shiftKey && lettre === 'd') return d.dessiner ? faire(d.dessiner) : undefined
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') return faire(() => d.aller(-1))
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') return faire(() => d.aller(1))
       if (e.key === '=' || e.key === '+') return faire(() => d.reglerZoom(zoomRef.current * 1.25))
@@ -244,6 +262,8 @@ export function Visionneuse({ element, adresse: adresseOuverte, apercu, contexte
     const id = courant.id
     return { retour: () => ouvrirImage(id) }
   }
+  const dessiner = envoi === null && modifiable ? () => sortir(() => annoter(courant.id, depuisIci())) : null
+  dernier.current = { reglerZoom, aller, dessiner }
   const outil = (icone: NomIcone, libelle: string, onClick: () => void, actif = true) => (
     <button type="button" className="notak-visionneuse-outil" aria-label={libelle} title={libelle} disabled={!actif} onClick={onClick}>
       <Icone nom={icone} taille={16} />
@@ -340,7 +360,7 @@ export function Visionneuse({ element, adresse: adresseOuverte, apercu, contexte
             {t('visionneuse.envoi')}
           </span>
         )}
-        {envoi === null && modifiable && texte(t('visionneuse.dessiner'), () => sortir(() => annoter(courant.id, depuisIci())))}
+        {dessiner && texte(t('visionneuse.dessiner'), dessiner)}
         {envoi === null && modifiable && texte(t('visionneuse.modifier'), () => sortir(() => recadrer(courant.id, depuisIci())))}
         {envoi === null && modifiable && !!contexte.services.fichiers && aUneCarte({ ...c, fondBlanc: false }) && texte(t('visionneuse.fond'), () => sortir(() => detourerImage(courant.id, depuisIci())))}
         {envoi === null && modifiable && <span className="notak-visionneuse-sep" role="separator" />}
