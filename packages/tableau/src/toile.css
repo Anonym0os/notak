@@ -1118,6 +1118,12 @@
   border-right-color: var(--notak-barre, #eceef1);
 }
 
+/* Dans le « ••• », un outil prend toute sa colonne de 76 px, à tout palier de la barre : un nom de deux mots (« Carte
+   mentale », « Toile modèle ») s'y lit en entier sans se resserrer. */
+.notak-barre-outils[data-palier] .notak-tiroir .notak-outil {
+  width: 100%;
+}
+
 .notak-barre-sep {
   flex: none;
   width: 44px;

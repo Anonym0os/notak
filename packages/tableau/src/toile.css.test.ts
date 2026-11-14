@@ -21,3 +21,10 @@ describe('le filet d’une carte', () => {
     expect(filet).toMatch(/border-radius 0\.1s ease-out/)
   })
 })
+
+describe('le « ••• » de la barre de gauche', () => {
+  it('donne à chaque outil toute sa colonne, à tout palier : un nom de deux mots s’y lit sans se resserrer', () => {
+    expect(regle('.notak-tiroir')).toMatch(/grid-template-columns: repeat\(3, 76px\);/)
+    expect(regle('.notak-barre-outils[data-palier] .notak-tiroir .notak-outil')).toMatch(/width: 100%;/)
+  })
+})
