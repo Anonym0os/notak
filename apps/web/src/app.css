@@ -38,6 +38,17 @@ body {
   user-select: none;
 }
 
+/*
+ * Un conteneur qui reçoit le focus par programme (un dialogue, un panneau, un menu, une feuille, une carte de page, la
+ * toile) ne dessine pas d'anneau : le navigateur le montre dès que la dernière touche venait du clavier (« / » ouvre les
+ * raccourcis), et c'est ce contour bleu autour des fenêtres. L'anneau reste aux commandes, au clavier seulement
+ * (:focus-visible) : un lien, un bouton, un champ, une case, une ligne de menu. Sans spécificité, la règle cède à toute
+ * règle d'un composant qui dessine son propre focus.
+ */
+:where(:focus:not(a[href], button, input, select, textarea, summary, [contenteditable]:not([contenteditable='false']), [role='button'], [role='link'], [role='checkbox'], [role='radio'], [role='switch'], [role='tab'], [role='menuitem'], [role='menuitemcheckbox'], [role='menuitemradio'], [role='option'], [role='treeitem'], [role='gridcell'], [role='slider'], [role='spinbutton'], [role='combobox'], [role='textbox'], [role='searchbox'])) {
+  outline: none;
+}
+
 /* Sous la barre d'état et la barre d'accueil d'un iPhone (viewport-fit=cover), la page montre son propre fond : celui
    de l'app, jamais le blanc du navigateur. */
 html,

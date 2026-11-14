@@ -98,3 +98,44 @@ describe('la sélection de texte', () => {
     expect(fautes).toEqual([])
   })
 })
+
+describe('l’anneau de focus', () => {
+  // La règle d'app.css, `:focus` ôté : elle dit quels éléments, une fois le focus pris, ne dessinent pas d'anneau.
+  const regle = APP.find((r) => r.selecteur.startsWith(':where(:focus:not(') && r.declarations.outline === 'none')
+  const sansAnneau = (html: string) => elementDe(html).matches(regle!.selecteur.replace(':focus', ''))
+
+  it('ne cerne pas un conteneur qui reçoit le focus par programme : dialogue, carte, menu, liste, toile, titre', () => {
+    expect(regle).toBeDefined()
+    for (const html of [
+      '<dialog class="notak-dialogue-hote" tabindex="-1"></dialog>',
+      '<section class="app-carte" tabindex="-1"></section>',
+      '<div role="menu" tabindex="-1"></div>',
+      '<div role="listbox" tabindex="0"></div>',
+      '<div class="notak-toile" tabindex="0"></div>',
+      '<div class="notak-arbre-fond" role="dialog" tabindex="-1"></div>',
+      '<h2 tabindex="-1">Ouvrir ces fichiers ?</h2>',
+    ])
+      expect(sansAnneau(html), html).toBe(true)
+  })
+
+  it('le garde aux commandes, que le clavier atteint : lien, bouton, champ, ligne de menu, option, onglet', () => {
+    for (const html of [
+      '<a href="/aide">Aide</a>',
+      '<button>Partager</button>',
+      '<input>',
+      '<textarea></textarea>',
+      '<select></select>',
+      '<div contenteditable="true"></div>',
+      '<div role="menuitem" tabindex="-1">Copier</div>',
+      '<div role="option" tabindex="-1">Toile</div>',
+      '<div role="tab" tabindex="0">Général</div>',
+      '<span role="checkbox" tabindex="0"></span>',
+    ])
+      expect(sansAnneau(html), html).toBe(false)
+  })
+
+  it('ne cerne pas le dialogue commun, même sans la feuille de l’app', () => {
+    const dialogue = regles(readFileSync(join(PAQUET, 'communs/dialogue.css'), 'utf8')).find((r) => r.selecteur === '.notak-dialogue-hote:focus')
+    expect(dialogue?.declarations.outline).toBe('none')
+  })
+})

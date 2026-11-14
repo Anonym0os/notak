@@ -12,6 +12,12 @@
   color: inherit;
 }
 
+/* Sans champ ni bouton à prendre (les raccourcis), c'est le dialogue qui reçoit le focus : pas d'anneau autour de lui,
+   même ouvert au clavier. */
+.notak-dialogue-hote:focus {
+  outline: none;
+}
+
 .notak-dialogue-hote::backdrop {
   background: var(--notak-dialogue-voile, rgb(27 37 54 / 0.24));
 }
