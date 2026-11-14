@@ -1573,10 +1573,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const neufs = services.deposerDans(cibleTableau, p.elements.map((x) => ({ ...x })))
     // Une toile qu'on ne peut pas écrire d'ici refuse ce qu'on y lâche : rien ne quitte celle-ci.
     if (!neufs) return
-    // Le déplacement n'entre pas dans l'historique : l'annuler ici laisserait un double là-bas.
+    // Un transfert, hors de l'historique et pour de bon : rien, ni l'annulation du glisser qui l'emmène, ni celle d'un
+    // pas d'avant qui l'a touché, ne le ferait revenir ici, en double de sa copie là-bas.
     const partis = new Set(p.elements.map((x) => x.id))
     const lignesOrphelines = avecLiees(t.elements.filter((x) => partis.has(x.id)), t).filter((x) => !partis.has(x.id))
-    magasin.appliquerSeulement(
+    magasin.transferer(
       [...t.elements.filter((x) => partis.has(x.id) || (x.parent && partis.has(x.parent))), ...lignesOrphelines].map(
         (element): Operation => ({ type: 'supprimer', element }),
       ),

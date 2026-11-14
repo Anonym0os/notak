@@ -158,4 +158,41 @@ for (const [nom, nouveau] of [
       expect(m.lire().elements).toEqual([{ ...n, x: 9 }])
     })
   })
+
+  describe(`transferer, magasin ${nom}`, () => {
+    it('parti pour une autre toile en plein glisser, l’élément ne revient ni à l’annulation ni au rétablissement ; le reste s’annule et se rétablit', () => {
+      const m = nouveau()
+      const [n, o] = [nouvelleNote(0, 0), nouvelleNote(30, 0)]
+      m.faire([{ type: 'creer', element: n }, { type: 'creer', element: o }])
+      m.faire([{ type: 'deplacer', id: o.id, de: [30, 0], vers: [40, 0] }])
+      // Un pas d'avant qui le touche : l'annuler ne doit pas le faire revenir non plus.
+      m.faire([{ type: 'deplacer', id: n.id, de: [0, 0], vers: [5, 0] }])
+      // Le glisser écrit en chemin (il sort d'une colonne, comme `sorties`), puis l'élément part.
+      m.appliquerSeulement([{ type: 'deplacer', id: n.id, de: [5, 0], vers: [7, 7] }])
+      m.transferer([{ type: 'supprimer', element: trouver(m, n.id)! }])
+      expect(ids(m)).toEqual([o.id])
+      expect(m.annuler()).toBe(true)
+      expect([ids(m), place(m, o.id)]).toEqual([[o.id], [30, 0]])
+      expect(m.annuler()).toBe(true)
+      expect(ids(m)).toEqual([])
+      expect(m.annuler()).toBe(false)
+      while (m.retablir());
+      expect([ids(m), place(m, o.id)]).toEqual([[o.id], [40, 0]])
+    })
+
+    it('arrivé d’une autre toile, l’élément ne part pas à l’annulation, et le glisser qui reprend fait son propre pas', () => {
+      const m = nouveau()
+      const [n, o] = [nouvelleNote(0, 0), nouvelleNote(30, 0)]
+      m.faire([{ type: 'creer', element: o }])
+      // Un geste en cours, jamais inscrit : l'arrivée ne s'y joint pas.
+      m.appliquerSeulement([{ type: 'deplacer', id: o.id, de: [30, 0], vers: [31, 0] }])
+      m.transferer([{ type: 'creer', element: n }])
+      m.appliquerSeulement([{ type: 'deplacer', id: n.id, de: [0, 0], vers: [9, 9] }])
+      m.inscrire([{ type: 'deplacer', id: n.id, de: [0, 0], vers: [9, 9] }])
+      expect(m.annuler()).toBe(true)
+      expect(place(m, n.id)).toEqual([0, 0])
+      while (m.annuler());
+      expect(ids(m)).toEqual([n.id])
+    })
+  })
 }

@@ -111,6 +111,11 @@ export function magasinVisiteur(
       base.appliquerSeulement(pas)
       apres(pas, false)
     },
+    // Ce qui arrive ou part pour de bon n'attend pas la fin d'un geste.
+    transferer(pas) {
+      base.transferer(pas)
+      apres(pas, true)
+    },
     annuler: () => false,
     retablir: () => false,
     peutAnnuler: () => false,

@@ -75,6 +75,14 @@ export function indexerArbres(arbres: Y.Map<unknown>) {
   }
 }
 
+/**
+ * Toutes les clés de `arbres` que cette carte a jamais écrites, celles d'un sujet retiré depuis comprises : un pas
+ * d'historique qui l'a retiré le rendrait encore, et il faut les connaître pour l'en empêcher (`magasinYjs`).
+ */
+export function clesEcrites(arbres: Y.Map<unknown>, element: string): string[] {
+  return [...arbres._map.keys()].filter((cle) => decouper(cle)?.[0] === element)
+}
+
 const estDico = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 const pareil = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b)
 

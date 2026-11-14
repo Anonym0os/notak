@@ -4,7 +4,7 @@ import type { HorsDocument, Magasin } from './magasin'
 import { cleEntre, comparerOrdre } from './ordre'
 import { lireElement } from './valider'
 import { fusionnerParCles } from './fusion'
-import { NOM_ARBRES, dicosEnLigne, ecrireDifference, indexerArbres, sansDicos } from './arbresYjs'
+import { NOM_ARBRES, clesEcrites, decouper, dicosEnLigne, ecrireDifference, indexerArbres, sansDicos } from './arbresYjs'
 import { type Arbre, type Auteur, type CouleurNote, type Element, type Etiquette, type Id, type Operation, type Tableau, type Trace, appliquer, inverse } from './tableau'
 
 /** Un élément tel qu'il vit dans le document : l'`Element` entier, plus sa place dans l'empilement. */
@@ -24,6 +24,32 @@ export type MagasinYjs = Magasin & { detruire(): void; texte(id: Id): Y.XmlFragm
 const sansPlan = (s: ElementStocke): Element => {
   const { plan: _plan, ...element } = s
   return element
+}
+
+/** Un pas de l'historique de Yjs, et ce qu'il a écrit ou retiré : des plages d'identifiants, par poste. */
+type PasYjs = Y.UndoManager['undoStack'][number]
+type Ensemble = PasYjs['deletions']
+
+/** Les entrées du document que désigne cet ensemble. */
+function entreesDuPas(doc: Y.Doc, ensemble: Ensemble): Y.Item[] {
+  const entrees: Y.Item[] = []
+  ensemble.clients.forEach((plages, poste) => {
+    const structs = doc.store.clients.get(poste)
+    if (!structs) return
+    for (const { clock, len } of plages)
+      for (let i = Y.findIndexSS(structs, clock); i < structs.length && structs[i]!.id.clock < clock + len; i++) {
+        const s = structs[i]!
+        if (s instanceof Y.Item) entrees.push(s)
+      }
+  })
+  return entrees
+}
+
+/** L'entrée d'une carte racine du document qui porte celle-ci (elle-même, ou la valeur où elle est imbriquée). */
+function aLaRacine(entree: Y.Item): Y.Item {
+  let e = entree
+  while (e.parent instanceof Y.AbstractType && e.parent._item) e = e.parent._item
+  return e
 }
 
 /**
@@ -207,6 +233,27 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
     for (const k of index.cles(id)) arbres.delete(k)
   }
 
+  /**
+   * Scelle une clé : une valeur posée puis retirée dans la même transaction, que personne ne lit (le ramasse-miettes la
+   * vide avant qu'elle parte), mais qui se tient après tout ce que la clé a porté. Yjs ne rend jamais une valeur qu'une
+   * écriture venue d'ailleurs que de l'historique a recouverte : aucun pas, ici ni chez un autre membre, ne fait plus
+   * revenir ce que la clé portait. Retirer seulement ne suffit pas : annuler un pas qui l'a écrite rend la valeur d'avant.
+   * À appeler dans une transaction hors historique.
+   */
+  const sceller = (carte: Y.Map<unknown>, cle: string) => {
+    carte.set(cle, null)
+    carte.delete(cle)
+  }
+
+  /** Ce pas n'a écrit que ces éléments (leur entrée de `elements`, leurs sujets) ; le reste, l'historique ne le suit pas. */
+  const neToucheQue = (pas: PasYjs, ids: ReadonlySet<Id>) =>
+    [...entreesDuPas(doc, pas.insertions), ...entreesDuPas(doc, pas.deletions)].every((e) => {
+      const r = aLaRacine(e)
+      if (r.parent === elements) return ids.has(r.parentSub ?? '')
+      if (r.parent === arbres) return ids.has(decouper(r.parentSub ?? '')?.[0] ?? '')
+      return true
+    })
+
   const plusHaut = () => {
     let max: string | undefined
     elements.forEach((s) => {
@@ -338,6 +385,27 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
     },
     appliquerSeulement(pas) {
       if (pas.length > 0) transaction(() => ecrire(pas), ORIGINE_LIBRE)
+    },
+    transferer(pas) {
+      if (pas.length === 0) return
+      const partants = new Set(pas.flatMap((op) => (op.type === 'supprimer' ? [op.element.id] : [])))
+      // Hors historique : ce qui arrive, aucun pas ne le retire ; ce qui part, la clé scellée, aucun pas ne le rend.
+      transaction(() => {
+        ecrire(pas)
+        for (const id of partants) {
+          sceller(elements as Y.Map<unknown>, id)
+          for (const cle of clesEcrites(arbres, id)) sceller(arbres, cle)
+        }
+      }, ORIGINE_HORS)
+      // Le pas encore ouvert est celui du glisser qui vient de quitter la toile : s'il n'écrivait que ce qui part, il ne
+      // ferait plus rien qu'un Annuler pour rien, et il part avec. Sinon il reste, sans plus pouvoir rendre les partants.
+      const ouvert = historique.lastChange > 0 ? historique.undoStack.at(-1) : undefined
+      if (ouvert && partants.size > 0 && neToucheQue(ouvert, partants)) {
+        historique.undoStack.pop()
+        prevenir()
+      }
+      // Ce qui continue (le glisser qui reprend dans l'autre toile, ou ici à l'arrivée) fait un pas neuf.
+      historique.stopCapturing()
     },
     inscrire(pas) {
       if (pas.length > 0) {

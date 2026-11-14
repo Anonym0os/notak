@@ -100,6 +100,21 @@ export class Historique {
     }
   }
 
+  /**
+   * Oublie ces éléments, partis pour une autre toile : aucun pas, à annuler ou à rétablir, ne les touche plus (rétablir
+   * leur création les ferait revenir ici, en double de leur copie là-bas). Un pas qui ne faisait rien d'autre s'en va.
+   */
+  oublier(ids: ReadonlySet<Id>) {
+    const sans = (pas: Pas[]) =>
+      pas.flatMap((p) => {
+        const operations = p.operations.filter((op) => !ids.has(op.type === 'creer' || op.type === 'supprimer' ? op.element.id : op.type === 'etiquettes' || op.type === 'fond' ? '' : op.id))
+        if (operations.length === p.operations.length) return [p]
+        return operations.length > 0 ? [{ ...p, operations }] : []
+      })
+    this.passe = sans(this.passe)
+    this.futur = sans(this.futur)
+  }
+
   /** Le tableau d'avant le dernier pas ; ce que ce pas a fait hors du tableau est défait. */
   annuler(t: Tableau): Tableau | null {
     const pas = this.passe.pop()

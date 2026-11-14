@@ -42,6 +42,12 @@ de `textes`, de `lignes` et de `traces`, et ses sujets dans `arbres` : sinon cha
 la lirait encore, même partie dans une toile privée. Le contenu de l'élément garde une copie de son texte, d'où l'éditeur
 repart s'il revient (une annulation). Un élément jeté à la corbeille garde tout.
 
+Ce qui change de toile passe par `Magasin.transferer`, hors de l'historique des deux toiles : annuler dans la première
+ne fait pas revenir ce qui est parti (il ferait double), annuler dans l'autre ne retire pas ce qui est arrivé (il serait
+perdu). Retirer ne suffit pas : Yjs, en annulant un pas qui avait écrit la clé de l'élément, rendrait sa valeur d'avant,
+chez soi comme chez un autre membre. La clé est donc scellée, d'une valeur posée puis retirée dans la même transaction,
+qui recouvre tout ce qu'elle a porté ; Yjs ne rend pas une valeur qu'une écriture hors de l'historique a recouverte.
+
 La toile ne voit pas Yjs. Elle parle à un `Magasin` (`coeur/magasin.ts`) : `lire()`, `faire(opérations)`,
 `annuler()`. Les opérations (`coeur/tableau.ts`) sont des données (`creer`, `deplacer`, `contenu`, …), qu'on sait
 inverser, ce qui donne l'historique. Ce qu'on lit d'un document passe par `coeur/valider.ts` : il peut venir d'un

@@ -76,6 +76,7 @@ export function filtrerMagasin(m: Magasin, droits: () => DroitsTableau, auteur: 
     ...m,
     faire: (pas, hors) => garder((p) => m.faire(p, hors))(pas),
     appliquerSeulement: garder((p) => m.appliquerSeulement(p)),
+    transferer: garder((p) => m.transferer(p)),
     inscrire: garder((p) => m.inscrire(p)),
     corriger: garder((p) => m.corriger(p)),
     remplacer() {},
@@ -117,6 +118,7 @@ export function garderLesGeneres(m: Magasin, generes: () => Readonly<Record<Id, 
     ...m,
     faire: (pas, hors) => garder((p) => m.faire(p, hors))(pas),
     appliquerSeulement: garder((p) => m.appliquerSeulement(p)),
+    transferer: garder((p) => m.transferer(p)),
     // Inscrire refait le geste depuis son début (`magasinYjs`) : c'est de là qu'il se juge, déjà appliqué ou non.
     inscrire: garder(
       (p) => m.inscrire(p),

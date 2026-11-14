@@ -3,7 +3,7 @@ import * as Y from 'yjs'
 import { lireTableau } from '../export/contenu'
 import { enLectureSeule } from './magasin'
 import { type ElementStocke, creerMagasinYjs, plansPour } from './magasinYjs'
-import { type Auteur, type Contenu, type Element, type Tableau, annoter, auPremierPlan, nouvelleNote, placeDe } from './tableau'
+import { type Auteur, type Contenu, type Element, type Tableau, annoter, auPremierPlan, nouvelleColonne, nouvelleNote, placeDe } from './tableau'
 
 /** Deux documents qui s'échangent leurs mises à jour, comme le ferait un serveur ; `auteur` : qui fait les gestes de A. */
 function relies(auteur?: Auteur) {
@@ -117,15 +117,15 @@ describe('magasin Yjs', () => {
     expect(ma.annuler()).toBe(false)
   })
 
-  it('un élément qui quitte le document emporte son texte, sa ligne et sa trace ; annuler le rend, texte compris', () => {
+  it('un élément qui quitte le document emporte son texte, sa ligne et sa trace ; annuler l’effacement le rend, texte compris', () => {
     const { a, b, ma, mb } = relies({ id: 'ana', nom: 'Ana' })
     const n = nouvelleNote(1, 1, 'Le budget secret')
     ma.faire([{ type: 'creer', element: n }])
     ma.texte(n.id).insert(0, [new Y.XmlText('Le budget secret')])
     ma.ligne(n.id).insert(0, 'Budget')
     expect(mb.texte(n.id).toString()).toContain('Le budget secret')
-    // Il part dans une autre toile, comme le fait la toile (`envoyerDans`) : hors du geste en cours.
-    ma.appliquerSeulement([{ type: 'supprimer', element: ma.lire().elements[0]! }])
+    // Effacé (une corbeille qu'on vide).
+    ma.faire([{ type: 'supprimer', element: ma.lire().elements[0]! }])
     for (const doc of [a, b]) for (const cle of ['textes', 'lignes', 'traces']) expect(doc.getMap(cle).has(n.id)).toBe(false)
     // Chez un autre membre, le document ne garde plus rien de ce texte, ni dans l'élément, ni dans le fragment.
     expect(new TextDecoder().decode(Y.encodeStateAsUpdate(b))).not.toContain('secret')
@@ -133,6 +133,46 @@ describe('magasin Yjs', () => {
     expect(ma.annuler()).toBe(true)
     expect(mb.lire().elements).toEqual([n])
     expect(ma.texte(n.id).length).toBe(0)
+  })
+
+  it('parti pour une autre toile, un élément emporte son texte, et aucune annulation ne le rend, même celle d’un autre membre qui l’avait touché', () => {
+    const { a, b, ma, mb } = relies({ id: 'ana', nom: 'Ana' })
+    const n = nouvelleNote(1, 1, 'Le budget')
+    ma.faire([{ type: 'creer', element: n }])
+    ma.texte(n.id).insert(0, [new Y.XmlText('Le budget secret')])
+    mb.faire([{ type: 'deplacer', id: n.id, de: [1, 1], vers: [8, 8] }])
+    ma.transferer([{ type: 'supprimer', element: ma.lire().elements[0]! }])
+    for (const doc of [a, b]) expect(doc.getMap('textes').has(n.id)).toBe(false)
+    // L'historique de B garde la note d'avant son déplacement (c'est le sien), pas le texte écrit à plusieurs.
+    expect(new TextDecoder().decode(Y.encodeStateAsUpdate(b))).not.toContain('secret')
+    // Sans quoi B, en annulant son déplacement, le ferait revenir ici, en double de sa copie là-bas.
+    expect(mb.annuler()).toBe(false)
+    expect(ma.annuler()).toBe(false)
+    expect([ma.lire().elements, mb.lire().elements]).toEqual([[], []])
+  })
+
+  it('le glisser qui n’écrivait que ce qui part s’en va avec lui : il ne reste pas d’Annuler qui ne fait rien', () => {
+    const { ma, mb } = relies()
+    const [colonne, n, autre] = [nouvelleColonne(0, 0), note(1, 1), note(40)]
+    const range = { ...n, parent: colonne.id, ordre: 'a' }
+    // Posé par un autre : rien dans l'historique de A.
+    mb.faire([{ type: 'creer', element: colonne }, { type: 'creer', element: range }, { type: 'creer', element: autre }])
+    // Il sort de sa colonne en chemin, y revient au lâcher, puis part.
+    const glisser = () => {
+      const avant = ma.lire().elements.find((e) => e.id === n.id)!
+      ma.appliquerSeulement([{ type: 'ranger', id: n.id, de: placeDe(avant), vers: { x: 9, y: 9 } }])
+      ma.appliquerSeulement([{ type: 'ranger', id: n.id, de: { x: 9, y: 9 }, vers: placeDe(avant) }])
+    }
+    glisser()
+    ma.transferer([{ type: 'supprimer', element: ma.lire().elements.find((e) => e.id === n.id)! }])
+    expect(ma.peutAnnuler()).toBe(false)
+    // Un glisser qui a écrit autre chose que ce qui part reste, lui, à annuler.
+    mb.faire([{ type: 'creer', element: range }])
+    glisser()
+    ma.appliquerSeulement([{ type: 'deplacer', id: autre.id, de: [40, 0], vers: [41, 0] }])
+    ma.transferer([{ type: 'supprimer', element: ma.lire().elements.find((e) => e.id === n.id)! }])
+    expect(ma.annuler()).toBe(true)
+    expect(ma.lire().elements.map((e) => [e.id, e.x])).toEqual([[colonne.id, 0], [autre.id, 40]])
   })
 
   it('la corbeille garde le texte ; la vider, ou remplacer le tableau sans l’élément, l’emporte', () => {

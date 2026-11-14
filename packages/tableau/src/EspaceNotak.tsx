@@ -411,7 +411,8 @@ export function EspaceNotak({
         if (espace.lectureSeule?.(cible)) return
         const m = espace.magasin(cible)
         const neufs = nonTries ? versLesNonTries(m.lire(), elements) : placerALaSuite(m.lire(), elements)
-        m.appliquerSeulement(neufs.map((element) => ({ type: 'creer' as const, element })))
+        // L'arrivée d'un transfert : annuler ici ne la retire pas, l'élément ayant déjà quitté sa toile (il serait perdu).
+        m.transferer(neufs.map((element) => ({ type: 'creer' as const, element })))
         for (const e of neufs) if (e.contenu.type === 'tableau' && !e.contenu.raccourci) hote.toileRangee?.(e.contenu.cible, cible)
         return neufs
       },

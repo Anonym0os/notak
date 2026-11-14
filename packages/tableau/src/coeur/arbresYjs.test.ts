@@ -106,16 +106,20 @@ describe('ce que lit le serveur', () => {
     expect(Object.keys(arbre(a).sujets)).toEqual(['c'])
   })
 
-  it('la carte qui part pour une autre toile emporte aussi les sujets écrits depuis qu’on l’a lue ; annuler les rend', () => {
+  it('la carte qui part pour une autre toile emporte aussi les sujets écrits depuis qu’on l’a lue ; aucune annulation, ni d’ici ni de l’autre, ne les rend', () => {
     const { a, b, da, db, synchroniser } = deuxAppareils()
+    // Un sujet que A retire avant le départ : annuler ce retrait le rendrait seul, sans sa carte.
+    geste(a, (x) => ({ ...x, sujets: { ...x.sujets, s1: { parent: 'c', ordre: 'V', titre: 'Retiré par A' } } }))
+    geste(a, (x) => ({ ...x, sujets: { c: x.sujets.c! } }))
     const lue = a.lire().elements[0]!
     geste(b, (x) => ({ ...x, sujets: { ...x.sujets, s2: { parent: 'c', ordre: 'W', titre: 'Écrit par B' } } }))
     synchroniser()
-    // Le départ, calculé sur la carte d'avant l'écriture de B, hors du geste en cours (comme `envoyerDans`).
-    a.appliquerSeulement([{ type: 'supprimer', element: lue }])
-    synchroniser()
-    for (const d of [da, db]) expect(d.getMap(NOM_ARBRES).size).toBe(0)
-    a.annuler()
-    expect(Object.keys(arbre(a).sujets).sort()).toEqual(['c', 's2'])
+    // Le départ, calculé sur la carte d'avant l'écriture de B (comme `envoyerDans`).
+    a.transferer([{ type: 'supprimer', element: lue }])
+    // Relu après chaque annulation, de A puis de B : aucune ne rend la carte ni un seul de ses sujets.
+    do {
+      synchroniser()
+      for (const d of [da, db]) expect([d.getMap('elements').size, d.getMap(NOM_ARBRES).size]).toEqual([0, 0])
+    } while (a.annuler() || b.annuler())
   })
 })

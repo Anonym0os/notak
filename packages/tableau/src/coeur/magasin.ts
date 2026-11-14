@@ -15,6 +15,13 @@ export interface Magasin {
   faire(pas: Operation[], hors?: HorsDocument): void
   /** Applique sans rien inscrire : un glisser en cours, inscrit à la fin par `inscrire`. */
   appliquerSeulement(pas: Operation[]): void
+  /**
+   * Écrit ce qu'un transfert fait à cette toile : ce qui y arrive d'ailleurs (`creer`), ce qui part pour une autre toile
+   * (`supprimer`). Rien n'en entre dans l'historique, et aucun pas, d'avant ou à rétablir, ne le défait : annuler ici ne
+   * fait pas revenir ce qui est parti (il ferait double avec sa copie là-bas), ni ne retire ce qui est arrivé (il serait
+   * perdu). Le geste en cours s'y arrête ; ce qu'il avait écrit des seuls partants part avec eux.
+   */
+  transferer(pas: Operation[]): void
   inscrire(pas: Operation[]): void
   /**
    * Écrit la suite d'un geste déjà inscrit, qui ne doit pas devenir un pas à part (un fichier qui finit d'arriver,
@@ -66,6 +73,11 @@ export function creerMagasin(initial: Tableau): Magasin {
     appliquerSeulement(pas) {
       if (pas.length > 0) poser(pas.reduce(appliquer, tableau))
     },
+    transferer(pas) {
+      if (pas.length === 0) return
+      historique.oublier(new Set(pas.flatMap((op) => (op.type === 'supprimer' ? [op.element.id] : []))))
+      poser(pas.reduce(appliquer, tableau))
+    },
     inscrire(pas) {
       historique.inscrire(pas)
       for (const f of ecouteurs) f()
@@ -98,6 +110,7 @@ export function enLectureSeule(m: Magasin): Magasin {
     ecouter: m.ecouter,
     faire() {},
     appliquerSeulement() {},
+    transferer() {},
     inscrire() {},
     corriger() {},
     remplacer() {},
