@@ -113,6 +113,12 @@ const STYLES_CHIFFRES: Partial<Record<number, (ed: Editor) => unknown>> = {
 const SIGNES_CODE = new Set(['.', '>'])
 
 /**
+ * ⌘\ centre : la barre telle qu'on la tape (⌘⌥⇧: sur un Mac en AZERTY, ⌘⌥⇧7 en QWERTZ), ou à sa place QWERTY ; celle
+ * que Windows tape avec AltGr (Ctrl+Alt, AltGr+8 en AZERTY) reste une frappe. ⌘ ou Ctrl est déjà vérifié.
+ */
+const estCentrer = (e: KeyboardEvent) => (e.key === '\\' && !parAltGr(e)) || (e.code === 'Backslash' && !e.shiftKey && !e.altKey)
+
+/**
  * Les raccourcis de mise en forme, en plus de ceux de Tiptap. Ceux d'un chiffre, du point et de la barre oblique
  * inverse ne passent pas par la table des touches de ProseMirror, qui les lit mal hors d'un clavier américain : un
  * greffon les reconnaît à la touche ou au signe tel qu'on le tape, comme ceux du document (`blocs/saisie.ts`).
@@ -144,9 +150,7 @@ const RaccourcisFormat = Extension.create({
         props: {
           handleKeyDown: (view, e) => {
             if (e.isComposing || view.composing || !(e.metaKey || e.ctrlKey)) return false
-            // ⌘\ centre : la barre telle qu'on la tape (⌘⌥⇧: sur un Mac en AZERTY, ⌘⌥⇧7 en QWERTZ), ou à sa place
-            // QWERTY ; celle que Windows tape avec AltGr (Ctrl+Alt, AltGr+8 en AZERTY) reste une frappe.
-            if ((e.key === '\\' && !parAltGr(e)) || (e.code === 'Backslash' && !e.shiftKey && !e.altKey)) {
+            if (estCentrer(e)) {
               basculerCentre(editor)
               return true
             }
@@ -427,6 +431,38 @@ const KIT_LEGENDE = {
   trailingNode: false as const,
 }
 
+/**
+ * Les raccourcis que la barre affiche pendant qu'on écrit une légende : barrer, surligner, centrer. La légende n'a pas
+ * la table d'une note (ni titres ni listes), et sans ceux-là ⇧⌘X et ⌘\ s'affichaient sans rien faire.
+ */
+const RaccourcisLegende = Extension.create({
+  name: 'raccourcisLegende',
+  priority: 1000,
+  addKeyboardShortcuts() {
+    const e = () => this.editor
+    return {
+      'Mod-Shift-x': () => e().commands.toggleStrike(),
+      'Mod-Shift-h': () => basculerSurlignage(e(), 'vert'),
+      'Mod-j': () => basculerSurlignage(e(), 'vert'),
+    }
+  },
+  addProseMirrorPlugins() {
+    const editor = this.editor
+    return [
+      new Plugin({
+        key: new PluginKey('raccourcisLegendeSurLaTouche'),
+        props: {
+          handleKeyDown: (view, e) => {
+            if (e.isComposing || view.composing || !(e.metaKey || e.ctrlKey) || !estCentrer(e)) return false
+            basculerCentre(editor)
+            return true
+          },
+        },
+      }),
+    ]
+  },
+})
+
 export const EXTENSIONS_LEGENDE = [
   StarterKit.configure(KIT_LEGENDE),
   TextAlign.configure({ types: ['paragraph'], alignments: ['left', 'center'], defaultAlignment: 'left' }),
@@ -435,6 +471,7 @@ export const EXTENSIONS_LEGENDE = [
   Color,
   CouleursCollees,
   AdressesReperees,
+  RaccourcisLegende,
 ]
 
 export interface GestesEdition {

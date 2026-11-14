@@ -3,7 +3,7 @@ import { Editor } from '@tiptap/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { apprendre, oublierDisposition } from '../../touches'
 import { poserStyle } from './commandes'
-import { EXTENSIONS_NOTE } from './extensions'
+import { EXTENSIONS_LEGENDE, EXTENSIONS_NOTE } from './extensions'
 
 // Un éditeur laissé vivant garde un minuteur de ProseMirror, qui part après le démontage de jsdom.
 const ouverts: Editor[] = []
@@ -123,5 +123,33 @@ describe('⌘. et ⌘\\, au signe tel qu’on le tape', () => {
     touche(e, { key: '\\', code: 'Digit8', keyCode: 56, ctrlKey: true, altKey: true })
     expect(aligne(e)).toBe('left')
     expect(e.getJSON().content![0]!.type).toBe('paragraph')
+  })
+})
+
+describe('la légende d’une note : les raccourcis que sa barre affiche', () => {
+  const legende = () => {
+    const e = new Editor({ extensions: EXTENSIONS_LEGENDE, content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'abc' }] }] } })
+    ouverts.push(e)
+    e.commands.selectAll()
+    return e
+  }
+
+  // Ceux-là passent par la table des touches de ProseMirror, où « Mod » est Ctrl hors d'un Mac, donc dans jsdom.
+  it('⇧⌘X barre, ⌘J surligne', () => {
+    const e = legende()
+    touche(e, { key: 'x', code: 'KeyX', keyCode: 88, shiftKey: true, ctrlKey: true })
+    expect(e.isActive('strike')).toBe(true)
+    touche(e, { key: 'j', code: 'KeyJ', keyCode: 74, ctrlKey: true })
+    expect(e.isActive('highlight')).toBe(true)
+  })
+
+  it('⌘\\ centre, en AZERTY (⌘⌥⇧:) comme à sa place QWERTY, et AltGr reste une frappe', () => {
+    const e = legende()
+    touche(e, { key: '\\', code: 'Period', keyCode: 220, metaKey: true, altKey: true, shiftKey: true })
+    expect(aligne(e)).toBe('center')
+    touche(e, { key: '\\', code: 'Backslash', keyCode: 220, metaKey: true })
+    expect(aligne(e)).toBe('left')
+    touche(e, { key: '\\', code: 'Digit8', keyCode: 56, ctrlKey: true, altKey: true })
+    expect(aligne(e)).toBe('left')
   })
 })
