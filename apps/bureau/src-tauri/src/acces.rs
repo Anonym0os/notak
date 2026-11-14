@@ -1034,7 +1034,11 @@ mod essais {
     }
 
     fn essayer(origine: &str) -> Result<Joint, Erreur> {
-        let client = client(false, Duration::from_millis(1500), "0.0.0").unwrap();
+        essayer_en(origine, Duration::from_millis(1500))
+    }
+
+    fn essayer_en(origine: &str, delai: Duration) -> Result<Joint, Erreur> {
+        let client = client(false, delai, "0.0.0").unwrap();
         tauri::async_runtime::block_on(verifier(&client, origine))
     }
 
@@ -1103,7 +1107,9 @@ mod essais {
         let ecoute = TcpListener::bind("127.0.0.1:0").unwrap();
         let ferme = format!("http://127.0.0.1:{}", ecoute.local_addr().unwrap().port());
         drop(ecoute);
-        assert_eq!(essayer(&ferme), Err(Erreur::Injoignable));
+        // Au délai de l'app : Windows ne rend un port fermé qu'après deux secondes de nouvelles tentatives (le refus
+        // n'y est pas immédiat comme sur macOS ou Linux), au-delà du délai court des autres essais.
+        assert_eq!(essayer_en(&ferme, DELAI), Err(Erreur::Injoignable));
         let muet = serveur_d_essai(|_, _| None);
         assert_eq!(essayer(&muet), Err(Erreur::Delai));
     }
