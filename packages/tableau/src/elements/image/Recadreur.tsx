@@ -42,6 +42,7 @@ const POIGNEES: Poignee[] = ['n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se']
  * L'image montrée en entier, avec un cadre qu'on glisse et qu'on tire par ses coins et ses bords ; il s'ouvre sur ce
  * qui est déjà gardé, traits dessinés compris. Entrée valide, Échap annule ; « Toute l'image » rend le cadre à l'image
  * entière. Les boutons sont dans la barre du bas, hors du zoom ; les poignées gardent leur taille à l'écran.
+ * `adresse` peut être une copie réduite : le cadre se règle en proportions de l'image, et vaut tel quel pour l'original.
  */
 export function Recadreur({ id, contenu, adresse, contexte }: { id: Id; contenu: Image; adresse: string; contexte: ContexteToile }) {
   const [cadre, setCadre] = useState<Cadre>(() => cadreDe(contenu))

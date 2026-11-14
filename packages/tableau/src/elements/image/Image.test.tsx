@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { act, useEffect, useState } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { ContexteOutils } from '../../BoutonOutil'
 import { creerMagasin } from '../../coeur/magasin'
 import type { Element, Image } from '../../coeur/tableau'
@@ -104,6 +104,23 @@ describe('la carte d’une image', () => {
     expect(sansFond({ ...base, typeMime: 'image/png', transparente: true })).toBe(true)
     expect(sansFond({ ...base, typeMime: 'image/png', transparente: true, fondBlanc: true })).toBe(false)
     expect(def.retraitPx?.(base)).toBe(2)
+  })
+})
+
+describe('le recadrage d’une photo', () => {
+  it('s’ouvre sur la copie que peint déjà la carte, pas sur l’original', async () => {
+    const densite = vi.spyOn(window, 'devicePixelRatio', 'get').mockReturnValue(2)
+    onTestFinished(() => {
+      densite.mockRestore()
+      act(() => recadrer(null))
+    })
+    const photo = { largeurOrigine: 8064, hauteurOrigine: 6048 }
+    // 20 UG à 100 % : 200 px de large, 400 pixels d'un écran Retina.
+    await rendre(photo, {}, true)
+    expect(hote.querySelector('img.notak-image')!.getAttribute('src')).toBe('/api/fichiers/ab?l=400')
+    act(() => recadrer('i1'))
+    await rendre(photo, {}, true)
+    expect(hote.querySelector('.notak-recadreur img')!.getAttribute('src')).toBe('/api/fichiers/ab?l=400')
   })
 })
 

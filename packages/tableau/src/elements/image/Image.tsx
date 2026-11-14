@@ -61,7 +61,9 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
   useEffect(() => {
     if (enDetourage && (!choisie || enRecadrage || contexte.services.lectureSeule)) detourerImage(null)
   }, [enDetourage, choisie, enRecadrage, contexte.services.lectureSeule])
-  if (enRecadrage && adresseOrigine) return <Recadreur id={element.id} contenu={contenu} adresse={adresseOrigine} contexte={contexte} />
+  // Le recadrage montre l'image entière dans la largeur de la carte : la copie qu'elle peint déjà y suffit (choisie pour
+  // la part gardée, que le recadrage étire), sans recharger l'original de 20 Mo.
+  if (enRecadrage && adresse) return <Recadreur id={element.id} contenu={contenu} adresse={adresse} contexte={contexte} />
   if (enDetourage && adresseOrigine) return <Detoureur id={element.id} contenu={contenu} adresse={adresseOrigine} contexte={contexte} />
   return (
     <>
