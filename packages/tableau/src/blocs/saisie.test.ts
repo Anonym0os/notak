@@ -5,7 +5,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { NoeudTexte } from '../coeur/tableau'
 import { definirLangue } from '../langue'
 import { poserIds } from './ids'
-import { basculerDepliants, effacerFormat, numeroAccepte, valeursDeNumero } from './saisie'
+import { apprendre, oublierDisposition } from '../touches'
+import { basculerDepliants, effacerFormat, numeroAccepte, raccourcisBlocs, valeursDeNumero } from './saisie'
 import { EXTENSIONS_BLOCS } from './schema'
 import { guillemet } from './typographie'
 import { colorer, dupliquerBloc, inserer, supprimerBloc, transformer, versActuel } from './transformer'
@@ -345,6 +346,36 @@ describe('NOTION.md § 5 : les raccourcis du moteur', () => {
     expect((ed.getJSON().content ?? []).map((n) => n.attrs?.ouvert)).toEqual([false, false, false])
     basculerDepliants(ed)
     expect((ed.getJSON().content ?? []).map((n) => n.attrs?.ouvert)).toEqual([true, true, true])
+  })
+
+  it('⌘⌥T lit la lettre marquée, ⌘⌥\\ la barre telle qu’on la tape : ⌥⇧: sur un Mac en AZERTY', () => {
+    const ed = ouvrir({ type: 'depliant' }, { type: 'depliant' })
+    // En Dvorak, la lettre T est à la place QWERTY de K ; Alt la change en « † ».
+    ed.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: '†', code: 'KeyK', keyCode: 84, metaKey: true, altKey: true, bubbles: true }))
+    expect((ed.getJSON().content ?? []).map((n) => n.attrs?.ouvert)).toEqual([false, false])
+    const ed2 = ouvrir({ type: 'paragraph', content: [{ type: 'text', text: 'abc', marks: [{ type: 'bold' }] }] })
+    ed2.commands.selectAll()
+    ed2.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: '\\', code: 'Period', metaKey: true, altKey: true, shiftKey: true, bubbles: true }))
+    expect(ed2.getJSON().content?.[0]?.content?.[0]?.marks ?? []).toEqual([])
+  })
+
+  it('⌘/ ouvre « Transformer en » là où la barre demande Maj : ⌘⇧: en AZERTY, même quand le navigateur rend « : »', () => {
+    let ouvert = 0
+    const gestes = { current: { transformerEn: () => void ouvert++, derniereCouleur() {} } }
+    editeur = new Editor({ extensions: [...EXTENSIONS_BLOCS, raccourcisBlocs(gestes)], content: { type: 'doc', content: [p('x')] } })
+    const touche = (init: KeyboardEventInit) => editeur!.view.dom.dispatchEvent(new KeyboardEvent('keydown', { metaKey: true, shiftKey: true, bubbles: true, ...init }))
+    touche({ key: '/', code: 'Period', keyCode: 191 })
+    expect(ouvert).toBe(1)
+    // Safari rend parfois le caractère sans Maj sous ⌘ : ce que la touche donne avec Maj, appris des frappes, tranche.
+    touche({ key: ':', code: 'Period', keyCode: 186 })
+    expect(ouvert).toBe(1)
+    apprendre(new KeyboardEvent('keydown', { key: '/', code: 'Period', shiftKey: true }))
+    touche({ key: ':', code: 'Period', keyCode: 186 })
+    expect(ouvert).toBe(2)
+    // En QWERTY, ⌘⇧/ est ⌘? : pas la barre.
+    touche({ key: '?', code: 'Slash', keyCode: 191 })
+    expect(ouvert).toBe(2)
+    oublierDisposition()
   })
 })
 

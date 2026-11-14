@@ -10,6 +10,7 @@ import { FlechesBlocs } from './fleches'
 import { CONTENEURS } from './ids'
 import { blocsDe } from './modele'
 import { animerCaseDuBloc } from './structure'
+import { lettreDe, signeAppris } from '../touches'
 import { transformer } from './transformer'
 import { DELIMITEURS, REMPLACEMENTS, chercherMarque, dansCodeOuvert, guillemet } from './typographie'
 
@@ -303,12 +304,14 @@ export const SaisieBlocs = Extension.create({
           handleKeyDown: (view, e) => {
             if (e.isComposing || view.composing) return false
             const mod = e.metaKey || e.ctrlKey
-            // ⌘⌥\ efface la mise en forme, ⌘⌥T ouvre ou ferme tous les dépliants (NOTION.md § 5).
-            if (mod && e.altKey && !e.shiftKey && e.code === 'Backslash') {
+            // ⌘⌥\ efface la mise en forme, ⌘⌥T ouvre ou ferme tous les dépliants (NOTION.md § 5). Alt change le
+            // caractère sur Mac : la lettre se lit telle qu'elle est marquée (`lettreDe`), la barre oblique inverse à sa
+            // place QWERTY ou telle qu'on la tape (⌥⇧: en AZERTY, ⌥⇧7 en QWERTZ).
+            if (mod && e.altKey && ((e.code === 'Backslash' && !e.shiftKey) || e.key === '\\')) {
               e.preventDefault()
               return effacerFormat(editor)
             }
-            if (mod && e.altKey && !e.shiftKey && e.code === 'KeyT') {
+            if (mod && e.altKey && !e.shiftKey && lettreDe(e) === 't') {
               e.preventDefault()
               return basculerDepliants(editor)
             }
@@ -400,5 +403,23 @@ export const raccourcisBlocs = (gestes: { current: GestesBlocs }) =>
           return true
         },
       }
+    },
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          key: new PluginKey('barreSousMaj'),
+          props: {
+            // ⌘/ là où la barre demande Maj (⌘⇧: en AZERTY, ⌘⇧7 en QWERTZ) : la table des touches de ProseMirror lit
+            // alors le « ? » d'un clavier américain. On reconnaît la barre à ce que la touche donne avec Maj.
+            handleKeyDown: (_, e) => {
+              if (!(e.metaKey || e.ctrlKey) || e.altKey || !e.shiftKey) return false
+              if (e.key !== '/' && signeAppris(e.code, true) !== '/') return false
+              e.preventDefault()
+              gestes.current.transformerEn()
+              return true
+            },
+          },
+        }),
+      ]
     },
   })
