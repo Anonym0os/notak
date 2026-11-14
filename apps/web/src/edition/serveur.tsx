@@ -59,7 +59,7 @@ import { ApercuInvitation, PageInvitation, jetonInvitation, useInvitation } from
 import { Partage, PartageEnFenetre } from '../Partage'
 import { PlusEntete } from '../PlusEntete'
 import { PlusTelephone } from '../PlusTelephone'
-import { estPageServeur, estServeurDansApp, signalerVie } from '../bureau'
+import { estPageServeur, estServeurDansApp, signalerVie, signalerVieAuRetour } from '../bureau'
 import { lancerMisesAJour } from '../MiseAJour'
 import { enregistrerServiceWorker, signalerNouvelleVersion } from '../pwa'
 import { PageAutoriser } from '../serveur/Autoriser'
@@ -254,7 +254,10 @@ function Application() {
   useEffect(() => {
     if (!decide || signale.current) return
     signale.current = true
-    if (estServeurDansApp()) signalerVie()
+    if (!estServeurDansApp()) return
+    signalerVie()
+    // Pour toute la vie de la page : revenue du cache de WebKit par un retour, elle se signale de nouveau.
+    signalerVieAuRetour()
   }, [decide])
 
   if (etat.type === 'chargement' || !instance) return <EcranAttente />
@@ -530,7 +533,10 @@ enregistrerServiceWorker()
 // Dans l'app de bureau : la recherche des mises à jour signées (`MiseAJour.tsx`).
 if (estPageServeur()) lancerMisesAJour()
 // Une page publiée n'a pas d'écran à décider : elle se dit vivante dès le départ (l'application, elle, le fait au premier écran).
-if (publie && estServeurDansApp()) signalerVie()
+if (publie && estServeurDansApp()) {
+  signalerVie()
+  signalerVieAuRetour()
+}
 // ⇧⌘S, partout : un bug se signale sans quitter ce qu'on fait (`signaler/Signaler.tsx`).
 brancherSignaler()
 

@@ -28,6 +28,7 @@ import {
   reglerOuverture,
   revenirIci,
   signalerVie,
+  signalerVieAuRetour,
 } from './bureau'
 
 type Appel = { commande: string; arguments_?: unknown; options?: { headers?: Record<string, string> } }
@@ -107,6 +108,21 @@ describe("l'application de bureau", () => {
     })
     expect(() => signalerVie()).not.toThrow()
     await Promise.resolve()
+  })
+
+  it('la page d’un serveur que le retour fait revenir du cache de WebKit se signale de nouveau', () => {
+    const { appels } = poserCoque(() => ({ ouvrir: 'serveur', serveur: 'https://notak.exemple.fr', majAuto: true, version: '0.2.0' }))
+    const fin = signalerVieAuRetour(window)
+    // Un premier affichage n'est pas un retour : la page se signale à son premier écran, pas ici.
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: false }))
+    expect(appels).toEqual([])
+    // Revenue telle qu'on l'avait laissée, elle ne repasse pas par son premier écran : sans signe de vie, la coque, qui
+    // compte ce retour pour un chargement, ramènerait la fenêtre à l'écran d'accès au bout de 20 s.
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
+    expect(appels.map((a) => a.commande)).toEqual(['acces'])
+    fin()
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
+    expect(appels).toHaveLength(1)
   })
 
   it('reconnaît la page d’un serveur : une adresse web qui n’est pas l’app embarquée', () => {

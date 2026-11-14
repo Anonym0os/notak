@@ -167,6 +167,20 @@ export const acces = () => invoquer<Acces>('acces')
  */
 export const signalerVie = (): void => void acces().catch(() => {})
 
+/**
+ * Une page du serveur que le retour fait revenir telle qu'on l'avait quittée (gardée par WebKit : `pageshow` persisté)
+ * ne repasse pas par son premier écran. La coque, elle, compte ce retour pour un chargement, qui a 20 s pour se
+ * signaler : sans un nouveau signe de vie, elle croirait la page muette et ramènerait la fenêtre à l'écran d'accès. Rend
+ * de quoi ne plus écouter.
+ */
+export function signalerVieAuRetour(fenetre: Window = window): () => void {
+  const auRetour = (e: PageTransitionEvent) => {
+    if (e.persisted) signalerVie()
+  }
+  fenetre.addEventListener('pageshow', auRetour)
+  return () => fenetre.removeEventListener('pageshow', auRetour)
+}
+
 /** Vérifie l'adresse, puis y envoie la fenêtre (page embarquée seulement). `garder` : Notak s'y ouvrira désormais. */
 export const joindreServeur = (adresse: string, garder: boolean) => invoquer<ServeurJoint>('joindre_serveur', { adresse, garder })
 
