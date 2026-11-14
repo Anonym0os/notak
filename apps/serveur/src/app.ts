@@ -575,6 +575,20 @@ export function creerApp(ctx: Contexte): Hono {
     await echus()
     return ctx.autorisation.roleSur(`user:${utilisateur}`, id)
   }
+  /**
+   * Le rôle donné à ce compte sur ce tableau, ici ou au-dessus, à lui ou à une équipe dont il est, sans ce que lui vaut
+   * son rôle dans l'espace (les relations `*_donne` du modèle) ; `null` si on ne lui a rien donné.
+   */
+  const roleDonne = async (utilisateur: string, id: string): Promise<Role | null> => {
+    const relations: [Role, string][] = [
+      ['proprietaire', 'possede_donne'],
+      ['edition', 'ecrire_donne'],
+      ['commentaire', 'commenter_donne'],
+      ['lecture', 'lire_donne'],
+    ]
+    const permis = await Promise.all(relations.map(([, relation]) => ctx.autorisation.verifier(`user:${utilisateur}`, relation, `tableau:${id}`)))
+    return relations.find((_, i) => permis[i])?.[0] ?? null
+  }
   /** Les tableaux que ce compte peut lire, d'après OpenFGA. */
   const lisibles = async (utilisateur: string): Promise<string[]> => {
     await echus()
@@ -812,12 +826,22 @@ export function creerApp(ctx: Contexte): Hono {
     // Les accès du tableau et ceux de ses ancêtres ; `herite` : donné plus haut, il se retire là-haut.
     const chaine: string[] = []
     for (let t: string | null = g.id; t !== null && !chaine.includes(t); t = base.tableau(t)?.parent ?? null) chaine.push(t)
-    const meilleurs = new Map<string, { role: Role; herite: boolean; expire: number | null }>()
+    // `role` : ce qu'on lui a donné, ici ou au-dessus ; `parEspace` : ce que son rôle dans l'espace lui vaut de plus,
+    // tant que le tableau n'est pas privé. Inviter un membre à « peut lire » se lit ainsi tel quel, et non « peut
+    // modifier » sans qu'on sache d'où.
+    const meilleurs = new Map<string, { role: Role; parEspace?: Role; herite: boolean; expire: number | null }>()
     for (const t of chaine) {
       for (const a of base.acces(t)) {
         if (meilleurs.has(a.utilisateur)) continue
         const r = await roleSur(a.utilisateur, g.id)
-        if (r) meilleurs.set(a.utilisateur, { role: r, herite: role(base.acces(g.id), a.utilisateur, g.id) !== r, expire: base.echeance(t, `user:${a.utilisateur}`) })
+        if (!r) continue
+        const donne = (await roleDonne(a.utilisateur, g.id)) ?? r
+        meilleurs.set(a.utilisateur, {
+          role: donne,
+          ...(r !== donne && auMoins(r, donne) ? { parEspace: r } : {}),
+          herite: role(base.acces(g.id), a.utilisateur, g.id) !== donne,
+          expire: base.echeance(t, `user:${a.utilisateur}`),
+        })
       }
     }
     // Les équipes qui ont reçu le tableau (ou un tableau au-dessus) : leur rôle donné, le plus proche l'emporte.
@@ -830,12 +854,25 @@ export function creerApp(ctx: Contexte): Hono {
         if (eq && donne && !equipes.has(eq.id)) equipes.set(eq.id, { equipe: eq.id, nom: eq.nom, role: donne, herite: t !== g.id, expire: base.echeance(t, r.sujet) })
       }
     }
-    const membres = [...meilleurs].flatMap(([id, { role: r, herite, expire }]) => {
+    const membres = [...meilleurs].flatMap(([id, { role: r, parEspace, herite, expire }]) => {
       const m = base.utilisateurParId(id)
       if (!m) return []
       const soi = id === g.u.id
       // Sa photo et sa couleur, comme sur la toile : on reconnaît un visage avant un nom.
-      return [{ utilisateur: m.id, email: gerant || soi ? m.email : '', nom: m.nom, couleur: m.couleur, photo: m.photo ?? null, role: r, enAttente: false, herite, expire: gerant || soi ? expire : null }]
+      return [
+        {
+          utilisateur: m.id,
+          email: gerant || soi ? m.email : '',
+          nom: m.nom,
+          couleur: m.couleur,
+          photo: m.photo ?? null,
+          role: r,
+          ...(parEspace ? { parEspace } : {}),
+          enAttente: false,
+          herite,
+          expire: gerant || soi ? expire : null,
+        },
+      ]
     })
     if (!gerant) return c.json(membres)
     const emails = new Set<string>()

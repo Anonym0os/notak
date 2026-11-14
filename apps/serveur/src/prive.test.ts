@@ -88,6 +88,20 @@ describe('une toile privée', () => {
     expect(await statut(bob, '/api/tableaux/salaires/acces')).toBe(200)
   })
 
+  it('la liste de qui a accès dit le rôle donné tel quel, et à part ce que l’espace y ajoute tant qu’elle n’est pas privée', async () => {
+    const e = await silak()
+    await compta(e)
+    await partager(ana, 'compta', cleo.utilisateur.email)
+    type Ligne = { nom: string; role: string; parEspace?: string; herite: boolean }
+    const cleoSur = async (id: string) => (await json<Ligne[]>(m.appeler(`/api/tableaux/${id}/acces`, { compte: ana }))).find((a) => a.nom === 'Cléo')
+    expect(await cleoSur('compta')).toMatchObject({ role: 'lecture', parEspace: 'edition', herite: false })
+    await rendrePrive(ana, 'compta', true)
+    expect(await cleoSur('compta')).toEqual(expect.not.objectContaining({ parEspace: expect.anything() }))
+    expect(await cleoSur('compta')).toMatchObject({ role: 'lecture', herite: false })
+    // Dessous, le même accès vient d'au-dessus.
+    expect(await cleoSur('salaires')).toMatchObject({ role: 'lecture', herite: true })
+  })
+
   it('ce qu’elle contient l’est comme elle, et ne se rouvre que là-haut', async () => {
     const e = await silak()
     await compta(e)

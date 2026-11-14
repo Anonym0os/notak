@@ -272,9 +272,11 @@ function Panneau({
     lireAccesGeneral(tableau).then(setGeneral, () => {})
   }, [tableau])
   const proprietaire = acces?.some((a) => a.utilisateur === moi.id && a.role === 'proprietaire') ?? false
+  // Rendue privée ou rouverte, la toile change ce que chacun y peut par l'espace : la liste se relit.
   const changerGeneral = (g: AccesGeneral) => {
     setGeneral(g)
     surAccesGeneral?.(g)
+    charger()
   }
 
   return (
@@ -657,6 +659,7 @@ function Personnes({ tableau, moi, acces, proprietaire, recharger }: { tableau: 
             a.utilisateur === moi.id ? t('partage.vous') : a.equipe ? t('partage.equipe') : a.nom && a.email ? a.email : '',
             a.enAttente ? (a.invitation?.valable === false ? t('partage.invitationExpiree') : t('partage.invitationEnAttente')) : '',
             a.herite ? t('partage.parent') : '',
+            a.parEspace ? t('partage.plusParLEspace', { role: LIBELLE_ROLE[a.parEspace]().toLocaleLowerCase(langue()) }) : '',
             a.expire ? echeanceLisible(a.expire) : '',
           ].filter(Boolean)
           return (

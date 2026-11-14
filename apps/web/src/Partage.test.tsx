@@ -8,10 +8,13 @@ import { Partage, PartageEnFenetre } from './Partage'
 const CLEO: PersonneProposee = { id: 'cleo', nom: 'Cléo', email: 'cleo@x.fr', couleur: '#3366ff', photo: null, espace: 'Silak', invite: false, acces: null }
 const faux = vi.hoisted(() => {
   const ouverte = { prive: false, herite: false, espace: { nom: 'Silak', personnel: false }, accueil: false, modifiable: true }
+  const proprietaire = { utilisateur: 'moi', email: 'moi@x.fr', role: 'proprietaire', enAttente: false }
   return {
     proposerPersonnes: vi.fn(async (_tableau: string, _q: string): Promise<unknown[]> => []),
     partager: vi.fn(async () => ({ enAttente: false, expire: null })),
     ouverte,
+    proprietaire,
+    listerAcces: vi.fn(async (_tableau: string): Promise<unknown[]> => [proprietaire]),
     lireAccesGeneral: vi.fn(async (_tableau: string) => ({ ...ouverte })),
     reglerAccesGeneral: vi.fn(async (_tableau: string, prive: boolean) => ({ ...ouverte, prive })),
   }
@@ -19,7 +22,7 @@ const faux = vi.hoisted(() => {
 
 vi.mock('./api', async (origine) => ({
   ...(await origine<typeof import('./api')>()),
-  listerAcces: async () => [{ utilisateur: 'moi', email: 'moi@x.fr', role: 'proprietaire', enAttente: false }],
+  listerAcces: faux.listerAcces,
   listerLiens: async () => [],
   listerBlocages: async () => [],
   listerEspaces: async () => [],
@@ -172,6 +175,22 @@ describe('l’accès général', () => {
   })
   const choix = (boite: Element) => boite.querySelector<HTMLSelectElement>('.partage-general select')!
   const note = (boite: Element) => boite.querySelector('.partage-general small')!.textContent
+
+  it('un membre invité se lit avec le rôle donné, et à part ce que l’espace lui vaut de plus ; rendue privée, la liste se relit', async () => {
+    const cleo = { utilisateur: 'cleo', email: 'cleo@x.fr', nom: 'Cléo', couleur: '#3366ff', photo: null, role: 'lecture', enAttente: false }
+    faux.listerAcces.mockReset().mockImplementation(async () => [faux.proprietaire, { ...cleo, parEspace: 'edition' }])
+    const boite = await ouvrir(() => {})
+    const ligne = () => [...boite.querySelectorAll('.partage-liste li')].find((li) => li.textContent?.includes('Cléo'))!
+    expect(ligne().querySelector('select')!.value).toBe('lecture')
+    expect(ligne().querySelector('small')!.textContent).toBe('cleo@x.fr · peut modifier par son rôle dans l’espace')
+    faux.listerAcces.mockImplementation(async () => [faux.proprietaire, cleo])
+    await act(async () => {
+      choix(boite).value = 'prive'
+      choix(boite).dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    expect(ligne().querySelector('small')!.textContent).toBe('cleo@x.fr')
+    faux.listerAcces.mockReset().mockImplementation(async () => [faux.proprietaire])
+  })
 
   it('a deux crans, comme Notion : le propriétaire rend la toile privée, et la note le dit', async () => {
     const boite = await ouvrir(() => {})

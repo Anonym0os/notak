@@ -29,7 +29,10 @@ export interface Acces {
   /** La couleur et la photo d'un compte (voir `adressePhoto`), pour sa pastille. */
   couleur?: string
   photo?: string | null
+  /** Ce qu'on lui a donné, ici ou sur un tableau au-dessus. */
   role: Role
+  /** Ce que son rôle dans l'espace lui vaut de plus, tant que le tableau n'est pas privé. */
+  parEspace?: Role
   enAttente: boolean
   /** Donné sur un tableau parent : il se retire là-haut. */
   herite?: boolean
