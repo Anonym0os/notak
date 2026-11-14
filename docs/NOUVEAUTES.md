@@ -55,4 +55,5 @@ fil des changements ; `bun run nouvelle-version x.y.z` en fait la section de la 
 - **Dans l'app d'iPhone et d'iPad, secouer l'appareil ou faire une capture d'écran ouvre le signalement d'un bug**,
   sur un serveur qui les reçoit. La fenêtre reste ouverte jusqu'à Annuler ou Envoyer.
 - **La toile ne bute plus sur son bord** : on va bien au-delà de son contenu, dans les quatre sens et à tout zoom ; plus
-  loin, elle résiste de plus en plus et revient en douceur quand on la lâche, comme une liste sur iPhone.
+  loin, elle résiste de plus en plus et revient en douceur quand on la lâche, comme une liste sur iPhone. Si plus rien
+  n'est en vue, « Recentrer » paraît en bas et ramène sur tout le contenu.

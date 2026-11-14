@@ -2440,8 +2440,59 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   pointer-events: auto;
 }
 
+/*
+ * Plus rien en vue : le bouton qui ramène au contenu, de la famille de la pastille du zoom et à sa place, au centre du
+ * bas. Quand la pastille paraît aussi (on zoome sans rien voir), elle monte juste au-dessus de lui.
+ */
+.notak-recentrer {
+  position: absolute;
+  bottom: calc(10px + var(--notak-zone-bas, 0px));
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--notak-carte);
+  box-shadow: 0 8px 22px -6px rgb(0 0 0 / 0.25), 0 14px 32px -4px rgb(0 0 0 / 0.2);
+  color: var(--notak-texte);
+  font: inherit;
+  font-size: 12px;
+  line-height: 17px;
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: 0;
+  transform: translate(-50%, 10px);
+  transition: opacity 0.15s linear, transform 0.15s ease-out;
+  pointer-events: none;
+}
+
+.notak-recentrer[data-visible] {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+.notak-recentrer .notak-touches {
+  margin-left: 2px;
+}
+
+@media (hover: hover) {
+  .notak-recentrer:hover {
+    background: color-mix(in srgb, var(--notak-texte) 4%, var(--notak-carte));
+  }
+}
+
+.notak-recentrer[data-visible] ~ .notak-zoom-pastille {
+  bottom: calc(50px + var(--notak-zone-bas, 0px));
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .notak-zoom-pastille {
+  .notak-zoom-pastille,
+  .notak-recentrer {
     transition: none;
   }
 }

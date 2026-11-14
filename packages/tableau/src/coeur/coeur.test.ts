@@ -368,6 +368,19 @@ describe('caméra', () => {
     expect(cam.rappeler(c, grand, VUE, 0)).toBe(c)
   })
 
+  test('plus aucun élément dans la vue, barres ôtées', () => {
+    const c: cam.Camera = { origine: point(0, 0), echelle: 1 }
+    const dedans = depuisTaille(point(50, 40), 10, 10)
+    const sousLEntete = depuisTaille(point(50, 0), 10, 5)
+    const loin = depuisTaille(point(500, 500), 10, 10)
+    expect(cam.rienEnVue([dedans, loin], c, VUE)).toBe(false)
+    expect(cam.rienEnVue([loin], c, VUE)).toBe(true)
+    // Ce que l'en-tête couvre ne se voit pas.
+    expect(cam.rienEnVue([sousLEntete], c, VUE)).toBe(false)
+    expect(cam.rienEnVue([sousLEntete], c, VUE, { haut: 68, gauche: 0 })).toBe(true)
+    expect(cam.rienEnVue([], c, VUE)).toBe(true)
+  })
+
   test('l’arrivée sur une toile jamais vue : à 100 %, au milieu de la place libre, ou son coin après les barres', () => {
     const degagement = { haut: 68, gauche: 90 }
     const ecran = (c: cam.Camera, p: { x: number; y: number }) => cam.versEcran(c, point(p.x, p.y))

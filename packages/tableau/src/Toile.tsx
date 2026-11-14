@@ -70,7 +70,7 @@ import { figerDepot, glisseUneImage, libererDepot, survolerImage } from './eleme
 import { GardeElement } from './garde'
 import type { ContexteToile, Presence, Services } from './elements/types'
 import { t, tn } from './langue'
-import { PastilleZoom } from './PastilleZoom'
+import { BoutonRecentrer, PastilleZoom } from './PastilleZoom'
 import { Minicarte } from './Minicarte'
 import { PastilleAutre } from './PastilleAutre'
 import { PointActivite } from './PointActivite'
@@ -465,6 +465,9 @@ interface PropsToile {
 
 /** Le texte qu'on écrit part dans le tableau à ce rythme au plus, en millisecondes. */
 const DELAI_ECRITURE = 1000
+
+/** « Recentrer » paraît (ou s'en va) quand la vue est posée depuis ce temps, en millisecondes. */
+const DELAI_PERDU = 250
 
 /** Le pointeur est signalé aux autres à ce rythme au plus, en millisecondes. */
 const DELAI_CURSEUR = 100
@@ -866,6 +869,19 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (!avant.camera || !memeVue) setCamera(bornee)
     else lancerRetour(bornee)
   }, [camera, enGeste, anime, edition, vue, tableau, contenu])
+
+  // Plus aucun élément en vue (hors de ce que couvrent les barres) : « Recentrer » paraît. On le dit une fois la vue
+  // posée, geste, animation et retour finis, pas à chaque image : le bouton ne clignote pas pendant qu'on passe.
+  const [perdu, setPerdu] = useState(false)
+  useEffect(() => {
+    if (enGeste || anime || vue.largeur <= 1) return
+    const minuteur = setTimeout(() => {
+      if (!racine.current?.isConnected) return
+      const rects = etat.current.tableau.elements.filter((x) => !x.parent).flatMap((x) => rect(x.id) ?? [])
+      setPerdu(rects.length > 0 && cam.rienEnVue(rects, cameraVive.current ?? etat.current.camera, etat.current.vue, degagement()))
+    }, DELAI_PERDU)
+    return () => clearTimeout(minuteur)
+  }, [camera, vue, tableau, enGeste, anime, rect])
 
   const sous = (cible: EventTarget | null): Id | null => {
     const n = (cible as HTMLElement | null)?.closest?.('[data-id]')
@@ -2180,7 +2196,14 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const ajuster = () => {
     const cible = cam.ajuster(contenu(), vue)
     if (!cible) return
-    lancerAnimation(cam.revenirA100(camera.echelle, cible.echelle) ? cam.centree(cam.centreCamera(camera, vue), 1, vue) : cible)
+    // Perdu dans le vide, Z cadre tout : revenir à 100 % au milieu de ce vide ne montrerait toujours rien.
+    lancerAnimation(!perdu && cam.revenirA100(camera.echelle, cible.echelle) ? cam.centree(cam.centreCamera(camera, vue), 1, vue) : cible)
+  }
+  /** « Recentrer » : la vue glisse sur tout le contenu, comme Tout voir, et le clavier revient à la toile. */
+  const recentrer = () => {
+    const cible = cam.ajuster(contenu(), vue)
+    if (cible) lancerAnimation(cible)
+    racine.current?.focus({ preventScroll: true })
   }
   // [aperçu d'un modèle] Le cadrage de tout le contenu, à l'ouverture et à chaque nouvelle taille de vue.
   const cadree = useRef<cam.Vue | null>(null)
@@ -3589,7 +3612,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     {
       details: () => {
         const cadre = cam.ajuster(contenu(), vue)
-        return { min: cam.echelleMin(contenu(), vue), toutAffiche: !!cadre && cam.revenirA100(camera.echelle, cadre.echelle) && Math.abs(camera.echelle - 1) > 1e-3 }
+        return { min: cam.echelleMin(contenu(), vue), toutAffiche: !perdu && !!cadre && cam.revenirA100(camera.echelle, cadre.echelle) && Math.abs(camera.echelle - 1) > 1e-3 }
       },
       zoomer: zoomerVers,
       tout: ajuster,
@@ -3889,6 +3912,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         <div className="notak-lecture">{t(aFiltrer(services.droits) && peutCommenter(services) ? 'toile.commentaireSeul' : 'toile.lectureSeule')}</div>
       )}
       <PointeursBord cibles={ciblesBord} camera={camera} vue={vue} aller={(ou) => lancerAnimation(cam.centree(ou, camera.echelle, vue))} />
+      {/* Avant la pastille : elle se range au-dessus du bouton quand les deux paraissent (`toile.css`). */}
+      <BoutonRecentrer visible={perdu && !services.presentation && !services.apercuModele} recentrer={recentrer} />
       <PastilleZoom echelle={camera.echelle} remettre={remettreA100} />
       {!services.presentation && (
         <Minicarte

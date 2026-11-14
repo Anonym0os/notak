@@ -206,6 +206,15 @@ export function revenir(depart: Camera, cible: Camera, t: number): { camera: Cam
   return { camera: { echelle: cible.echelle, origine: point(cible.origine.x + dx * reste, cible.origine.y + dy * reste) }, fini: false }
 }
 
+/**
+ * Plus aucun élément dans la vue : aucun des rectangles (en UG) ne touche ce que la caméra montre, une fois ôté ce que
+ * les barres couvrent en haut et à gauche (en pixels).
+ */
+export function rienEnVue(rects: readonly Rect[], c: Camera, v: Vue, barres = { haut: 0, gauche: 0 }): boolean {
+  const vu = { min: versTableau(c, point(barres.gauche, barres.haut)), max: versTableau(c, point(v.largeur, v.hauteur)) }
+  return !rects.some((r) => r.max.x > vu.min.x && r.min.x < vu.max.x && r.max.y > vu.min.y && r.min.y < vu.max.y)
+}
+
 export function centree(centre: Point, echelle: number, v: Vue): Camera {
   const k = PX_PAR_UG * echelle
   return { echelle, origine: point(centre.x - v.largeur / 2 / k, centre.y - v.hauteur / 2 / k) }
