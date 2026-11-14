@@ -39,6 +39,34 @@ export function dansLaPortee(portee: Portee, entrees: readonly EntreeBibliothequ
 /** Ce que les puces gardent. */
 export const duFiltre = (filtre: Filtre, entrees: readonly EntreeBibliotheque[]) => (filtre === 'tout' ? [...entrees] : entrees.filter((e) => e.genre === filtre))
 
+/** Ce que portent les toiles, et qui ne s'ouvre pas en soi : une photo, un lien, un fichier. */
+export const PIECES: ReadonlySet<Genre> = new Set<Genre>(['image', 'lien', 'fichier'])
+
+/**
+ * Ce que les puces gardent, là où l'on est. Dans toute la bibliothèque et dans les récents se mêle ce que portent toutes
+ * les toiles : « Tout » y garde ce qui s'ouvre (toiles, dossiers, pages, cartes mentales), et les photos, liens et
+ * fichiers restent sous leur puce, comme les pièces jointes d'un message. Dans un dossier ou parmi les favoris, ils
+ * ont été rangés ou choisis un à un : « Tout » les montre, comme le Finder tout ce qu'un dossier contient.
+ */
+export function parLesPuces(vue: Vue, entrees: readonly EntreeBibliotheque[]): EntreeBibliotheque[] {
+  if (vue.filtre !== 'tout') return duFiltre(vue.filtre, entrees)
+  const melees = !vue.dossier && (vue.portee === 'tout' || vue.portee === 'recents')
+  return melees ? entrees.filter((e) => !PIECES.has(e.genre)) : [...entrees]
+}
+
+/**
+ * Où montrer ce qui vient d'arriver (un import) quand la vue ne le montre pas : les récents, qui prennent ce qu'on
+ * touche, sous la puce de leur genre si ce sont des pièces d'un même genre ; des pièces mêlées, dans la toile où elles
+ * sont posées, parcourue comme un dossier, qui montre tout ce qu'elle porte.
+ */
+export function vueDeLArrivee(entrees: readonly Pick<EntreeBibliotheque, 'genre'>[], dans: string): Vue {
+  const genres = new Set(entrees.map((e) => e.genre))
+  const pieces = [...genres].filter((g) => PIECES.has(g))
+  if (pieces.length === 0) return { portee: 'recents', filtre: 'tout' }
+  if (genres.size === 1) return { portee: 'recents', filtre: pieces[0]! }
+  return { portee: 'tout', filtre: 'tout', dossier: dans }
+}
+
 /** Combien chaque puce en garderait, dans cette portée : une puce sans rien se grise. */
 export function compterParGenre(entrees: readonly EntreeBibliotheque[]): Record<Filtre, number> {
   const n = { tout: entrees.length, toile: 0, document: 0, arbre: 0, image: 0, lien: 0, fichier: 0 } satisfies Record<Filtre, number>

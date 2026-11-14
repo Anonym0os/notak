@@ -15,6 +15,8 @@ import {
   genere,
   lireAffichage,
   lireVue,
+  parLesPuces,
+  vueDeLArrivee,
 } from './modele'
 
 const entree = (e: Partial<EntreeBibliotheque> & Pick<EntreeBibliotheque, 'tableau'>): EntreeBibliotheque =>
@@ -39,6 +41,39 @@ describe('où et quoi', () => {
     expect(duFiltre('image', TOUTES).map((e) => e.element)).toEqual(['port'])
     expect(duFiltre('tout', TOUTES)).toHaveLength(4)
     expect(compterParGenre(dansLaPortee('favoris', TOUTES))).toEqual({ tout: 2, toile: 1, document: 0, arbre: 0, image: 1, lien: 0, fichier: 0 })
+  })
+})
+
+describe('« Tout »', () => {
+  // « Voyage » porte une page, une photo, un lien et un PDF ; la photo est en favori.
+  const MELEES = [
+    entree({ tableau: 'voyage', vu: 5 }),
+    entree({ tableau: 'voyage', element: 'notes', genre: 'document', vu: 9 }),
+    entree({ tableau: 'voyage', element: 'port', genre: 'image', vu: 8, favori: true }),
+    entree({ tableau: 'voyage', element: 'site', genre: 'lien', vu: 7 }),
+    entree({ tableau: 'voyage', element: 'billets', genre: 'fichier', vu: 6 }),
+  ]
+  const ids = (l: EntreeBibliotheque[]) => l.map((e) => e.element ?? e.tableau)
+
+  it('dans toute la bibliothèque et les récents, garde ce qui s’ouvre ; les photos, liens et fichiers restent sous leur puce', () => {
+    expect(ids(parLesPuces({ portee: 'tout', filtre: 'tout' }, MELEES))).toEqual(['voyage', 'notes'])
+    expect(ids(parLesPuces({ portee: 'recents', filtre: 'tout' }, MELEES))).toEqual(['voyage', 'notes'])
+    expect(ids(parLesPuces({ portee: 'tout', filtre: 'image' }, MELEES))).toEqual(['port'])
+    expect(ids(parLesPuces({ portee: 'recents', filtre: 'fichier' }, MELEES))).toEqual(['billets'])
+    // Les puces comptent toujours tout : « Photos » dit combien il y en a.
+    expect(compterParGenre(MELEES)).toMatchObject({ image: 1, lien: 1, fichier: 1 })
+  })
+
+  it('dans un dossier ou les favoris, montre tout ce qu’on y a rangé ou choisi', () => {
+    expect(ids(parLesPuces({ portee: 'tout', filtre: 'tout', dossier: 'voyage' }, MELEES))).toEqual(['voyage', 'notes', 'port', 'site', 'billets'])
+    expect(ids(parLesPuces({ portee: 'favoris', filtre: 'tout' }, dansLaPortee('favoris', MELEES)))).toEqual(['port'])
+  })
+
+  it('ce qui arrive se montre dans les récents, sous la puce de son genre ; des pièces mêlées, dans la toile qui les a prises', () => {
+    expect(vueDeLArrivee([{ genre: 'document' }, { genre: 'toile' }], 'voyage')).toEqual({ portee: 'recents', filtre: 'tout' })
+    expect(vueDeLArrivee([{ genre: 'image' }, { genre: 'image' }], 'voyage')).toEqual({ portee: 'recents', filtre: 'image' })
+    expect(vueDeLArrivee([{ genre: 'image' }, { genre: 'fichier' }], 'voyage')).toEqual({ portee: 'tout', filtre: 'tout', dossier: 'voyage' })
+    expect(vueDeLArrivee([{ genre: 'image' }, { genre: 'document' }], 'voyage')).toEqual({ portee: 'tout', filtre: 'tout', dossier: 'voyage' })
   })
 })
 
