@@ -478,8 +478,10 @@ const ICONES = {
   alignerHaut: IconLayoutAlignTop,
   alignerCentreV: IconLayoutAlignMiddle,
   alignerBas: IconLayoutAlignBottom,
-  repartirH: IconLayoutDistributeHorizontal,
-  repartirV: IconLayoutDistributeVertical,
+  // Tabler nomme ses icônes de répartition d'après leurs repères : « distribute vertical » dessine deux repères
+  // verticaux et un élément entre eux, c'est-à-dire un écart réparti en largeur.
+  repartirH: IconLayoutDistributeVertical,
+  repartirV: IconLayoutDistributeHorizontal,
   // La mise en forme de la note.
   gras: IconBold,
   italique: IconItalic,
