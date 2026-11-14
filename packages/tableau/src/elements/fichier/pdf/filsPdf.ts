@@ -61,5 +61,39 @@ export function poserFilPdf(c: Fichier, id: Id, fil: Commentaire | null, place?:
   return Object.keys(suite).length > 0 ? { ...sans, fils: suite } : sans
 }
 
+/** Le fichier avec ce fil épinglé ailleurs : une autre page, un autre point. Rien ne change s'il n'existe pas. */
+export function deplacerFilPdf(c: Fichier, id: Id, page: number, x: number, y: number): Fichier {
+  const fil = c.fils?.[id]
+  if (!fil) return c
+  return { ...c, fils: { ...c.fils, [id]: { ...fil, surPage: ancre(page, x, y) } } }
+}
+
+/** Qui a ouvert ce fil : l'auteur de son premier message. */
+export const auteurDuFil = (fil: Commentaire): string | undefined => fil.messages[0]?.auteur.id
+
+/** Ce que la liste dit d'un fil : qui l'a ouvert, quand, et le début de ce qu'il a écrit. */
+export function resumeDuFil(fil: Commentaire, longueur = 90): { auteur: string; date: number; texte: string; reponses: number } {
+  const premier = fil.messages[0]
+  const texte = (premier?.texte ?? '').replace(/\s+/g, ' ').trim()
+  return {
+    auteur: premier?.auteur.nom ?? '',
+    date: premier?.date ?? 0,
+    texte: texte.length > longueur ? `${texte.slice(0, longueur - 1).trimEnd()}…` : texte,
+    reponses: Math.max(0, fil.messages.length - 1),
+  }
+}
+
+/**
+ * Le fil d'avant (`-1`) ou d'après (`1`) dans l'ordre de lecture : à partir du fil ouvert, sinon de la page qu'on lit
+ * (le premier fil de cette page ou d'après, le dernier de cette page ou d'avant). On boucle aux deux bouts.
+ */
+export function filVoisin(fils: readonly FilSurPage[], ouvert: Id | null, pas: 1 | -1, page: number): FilSurPage | undefined {
+  if (fils.length === 0) return undefined
+  const i = ouvert === null ? -1 : fils.findIndex((f) => f.id === ouvert)
+  if (i >= 0) return fils[(i + pas + fils.length) % fils.length]
+  if (pas > 0) return fils.find((f) => f.page >= page) ?? fils[0]
+  return [...fils].reverse().find((f) => f.page <= page) ?? fils[fils.length - 1]
+}
+
 /** Le nombre de messages sur tout le document. */
 export const nombreDeMessages = (fils: readonly FilSurPage[]) => fils.reduce((n, f) => n + f.fil.messages.length, 0)

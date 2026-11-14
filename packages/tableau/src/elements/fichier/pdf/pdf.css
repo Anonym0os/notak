@@ -208,10 +208,18 @@
   white-space: nowrap;
 }
 
+/* Sous la barre : les pages, et à leur droite la liste des commentaires quand on l'ouvre. */
+.notak-pdf-corps {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
 /* La colonne des pages : elle défile, au doigt comme à la molette ; le pincement, lui, est à la visionneuse. */
 .notak-pdf-defile {
   position: relative;
   flex: 1;
+  min-width: 0;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
@@ -302,6 +310,182 @@
   border-left-color: #f4f7fe;
   border-right-width: 0;
   border-left-width: 8px;
+}
+
+/* Une épingle qu'on peut déplacer se prend à la main ; au doigt, la glisser ne fait pas défiler la page. */
+.notak-pdf-epingle[data-deplacable] .notak-epingle-bouton {
+  cursor: grab;
+  touch-action: none;
+}
+
+.notak-pdf-epingle[data-glisse] {
+  z-index: 6;
+}
+
+.notak-pdf-epingle[data-glisse] .notak-epingle-bouton {
+  cursor: grabbing;
+}
+
+/* La liste des commentaires : une colonne de 320 px à droite des pages, sur le fond des cartes du thème. */
+.notak-pdf-fils {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 320px;
+  min-height: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--notak-carte, #fff);
+  color: var(--notak-texte, #323b4a);
+  box-shadow: -1px 0 0 rgb(0 0 0 / 0.08), -4px 0 16px rgb(0 0 0 / 0.18);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.notak-pdf-fils-tete {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 8px 8px 16px;
+  border-bottom: 1px solid rgb(127 127 127 / 0.18);
+}
+
+.notak-pdf-fils-titre {
+  flex: 1;
+  font-weight: 600;
+}
+
+.notak-pdf-fils-compte {
+  margin-left: 4px;
+  color: #8d929a;
+  font-weight: 500;
+}
+
+.notak-pdf-fils-bouton,
+.notak-pdf-fil-resoudre {
+  display: inline-grid;
+  place-items: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.notak-pdf-fils-bouton:hover:not(:disabled),
+.notak-pdf-fil-resoudre:hover {
+  background: rgb(127 127 127 / 0.14);
+}
+
+.notak-pdf-fils-bouton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.notak-pdf-fils-vide {
+  margin: 0;
+  padding: 24px 16px;
+  color: #8d929a;
+}
+
+.notak-pdf-fils-liste {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+}
+
+.notak-pdf-fils-liste > li {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 2px 8px;
+}
+
+.notak-pdf-fils-liste > li[data-courant] .notak-pdf-fil {
+  background: rgb(47 99 247 / 0.12);
+}
+
+.notak-pdf-fils-liste > li[data-resolu] .notak-pdf-fil {
+  opacity: 0.6;
+}
+
+.notak-pdf-fil {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-pdf-fil:hover {
+  background: rgb(127 127 127 / 0.1);
+}
+
+.notak-pdf-fil-ligne {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  color: #8d929a;
+  font-size: 12px;
+}
+
+.notak-pdf-fil-page {
+  flex: none;
+  color: var(--notak-accent, #2f63f7);
+  font-weight: 600;
+}
+
+.notak-pdf-fil-auteur {
+  overflow: hidden;
+  color: var(--notak-texte, #323b4a);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-pdf-fil-texte {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+
+.notak-pdf-fil-resoudre {
+  flex: none;
+  margin-top: 6px;
+  color: #8d929a;
+  font-size: 12px;
+}
+
+/* Au téléphone, la liste prend toute la largeur, sous les pages qu'elle laisse voir à moitié. */
+@media (max-width: 600px) {
+  .notak-pdf-corps {
+    flex-direction: column;
+  }
+
+  .notak-pdf-fils {
+    width: auto;
+    height: 50%;
+    box-shadow: 0 -4px 16px rgb(0 0 0 / 0.18);
+  }
 }
 
 /* En dessin, les épingles s'effacent sous le crayon. */

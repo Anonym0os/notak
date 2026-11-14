@@ -90,10 +90,14 @@ function reactionsDeSoi(avant: unknown, apres: unknown, auteur: string): boolean
 
 /**
  * Un fil n'a changé qu'en ce qu'un commentateur peut y faire : les messages des autres restent tels quels (sauf leurs
- * réactions, pour la part de `auteur`), les nouveaux sont de lui, et ses propres messages sont à lui d'écrire.
+ * réactions, pour la part de `auteur`), les nouveaux sont de lui, et ses propres messages sont à lui d'écrire. Un fil
+ * épinglé sur une page d'un PDF (`surPage`) ne se déplace que par celui qui l'a ouvert (l'auteur de son premier
+ * message) ; pour les autres, c'est écrire.
  */
 function filDeSoi(avant: unknown, apres: unknown, auteur: string): boolean {
   const messages = (f: unknown) => (Array.isArray(objet(f)?.messages) ? (objet(f)!.messages as unknown[]) : [])
+  const a = objet(avant)
+  if (a && objet(apres) && !egal(a.surPage, objet(apres)!.surPage) && auteurDe(messages(avant)[0]) !== auteur) return false
   const apresParId = new Map(messages(apres).map((m) => [objet(m)?.id, m]))
   const avantParId = new Map(messages(avant).map((m) => [objet(m)?.id, m]))
   for (const [id, m] of avantParId) {

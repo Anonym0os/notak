@@ -56,6 +56,28 @@ describe('gesteSurElement', () => {
     expect(gesteSurElement(pdf(), { ...pdf(), contenu: { type: 'arbre', sujets: {}, ...fils([message('m1', 'bob', 'Q')]) } }, 'bob')).toBe('ecriture')
   })
 
+  it('sur un PDF, une épingle se déplace par celui qui a ouvert son fil ; celle d’un autre, il faut pouvoir écrire', () => {
+    const pdf = (fil: object) => ({ id: 'p', x: 0, y: 0, largeur: 340, contenu: { type: 'fichier', fichier: 'f', nom: 'a.pdf', typeMime: 'application/pdf', taille: 1, fils: { f1: fil } } })
+    const fil = (surPage: object, ...messages: unknown[]) => ({ type: 'commentaire', messages, surPage })
+    const ici = { page: 2, x: 0.4, y: 0.3 }
+    const la = { page: 3, x: 0.1, y: 0.9 }
+    const ana = message('m1', 'ana', 'Ce total ?')
+    const bob = message('m2', 'bob', 'Vu')
+    // Ana déplace l'épingle de son fil, même quand Bob y a répondu.
+    expect(gesteSurElement(pdf(fil(ici, ana, bob)), pdf(fil(la, ana, bob)), 'ana')).toBe('commentaire')
+    // Bob, qui n'a fait qu'y répondre, ne la déplace pas en commentateur.
+    expect(gesteSurElement(pdf(fil(ici, ana, bob)), pdf(fil(la, ana, bob)), 'bob')).toBe('ecriture')
+    // Répondre sans la déplacer reste un commentaire.
+    expect(gesteSurElement(pdf(fil(ici, ana)), pdf(fil(ici, ana, bob)), 'bob')).toBe('commentaire')
+    // Le serveur juge pareil : un éditeur la déplace, un commentateur non.
+    const droits = (role: 'commentaire' | 'edition') => ({ role, elements: {} }) as const
+    const t = { titre: '', etiquettes: [], elements: [pdf(fil(ici, ana, bob))] } as unknown as Tableau
+    const deplacer = [{ type: 'contenu' as const, id: 'p', avant: t.elements[0]!.contenu, apres: pdf(fil(la, ana, bob)).contenu }] as unknown as Parameters<typeof pasPermis>[1]
+    expect(pasPermis(t, deplacer, droits('commentaire'), 'bob')).toBe(false)
+    expect(pasPermis(t, deplacer, droits('edition'), 'bob')).toBe(true)
+    expect(pasPermis(t, deplacer, droits('commentaire'), 'ana')).toBe(true)
+  })
+
   it('sur un autre élément, seuls son fil et ses réactions relèvent du commentaire', () => {
     const avant = note('n')
     expect(gesteSurElement(avant, note('n', { commentaire: { type: 'commentaire', messages: [message('m1', 'bob', 'Ici ?')] } }), 'bob')).toBe('commentaire')

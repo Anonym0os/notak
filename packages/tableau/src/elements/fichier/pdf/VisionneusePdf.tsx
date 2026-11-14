@@ -190,6 +190,7 @@ export function VisionneusePdf({
     contexte,
     contenu,
     pret: !!pret && zoom !== null,
+    page: courante + 1,
     // Le point d'un fil (page à partir de 1, hauteur en fraction de la page) vient au tiers haut de la vue.
     montrer: (page, y) => {
       const s = defile.current
@@ -579,6 +580,12 @@ export function VisionneusePdf({
               actif: !!pret,
               presse: commentaires.actif,
             })}
+          {commentaires.visible &&
+            bouton('vueListe', t('pdf.fils.titre'), commentaires.basculerListe, {
+              court: commentaires.nombre > 0 ? `${t('pdf.fils')} (${commentaires.nombre})` : t('pdf.fils'),
+              actif: !!pret,
+              presse: commentaires.liste,
+            })}
           <span className="notak-pdf-sep" role="separator" />
           <a className="notak-pdf-bouton" href={adresse} download={contenu.nom} rel="noopener" aria-label={t('pdf.telecharger.titre')} title={t('pdf.telecharger.titre')}>
             <Icone nom="exporter" taille={18} />
@@ -627,51 +634,54 @@ export function VisionneusePdf({
           {bouton('fermer', t('pdf.fermerRecherche'), fermerRecherche)}
         </div>
       )}
-      <div
-        ref={defile}
-        className="notak-pdf-defile"
-        onScroll={mesurer}
-        onPointerDown={(e) => (fondPresse.current = estFond(e.target, e.currentTarget))}
-        onClick={(e) => {
-          // Un clic à côté des pages ferme, comme sur le voile de l'image en grand ; pas la fin d'une sélection de texte.
-          const presse = fondPresse.current
-          fondPresse.current = false
-          if (presse && !dessin.actif && !commentaires.actif && estFond(e.target, e.currentTarget) && !window.getSelection()?.toString()) fermer()
-        }}
-      >
-        {document_.etat === 'charge' && (
-          <div className="notak-pdf-etat" role="status">
-            <span className="notak-roue" aria-hidden /> {t('pdf.chargement')}
-          </div>
-        )}
-        {document_.etat === 'erreur' && (
-          <div className="notak-pdf-etat" role="alert">
-            {t('pdf.erreur')}
-          </div>
-        )}
-        {pret && zoom !== null && (
-          <div className="notak-pdf-colonne" style={{ height: d.total, minWidth: d.largeur }}>
-            {tranche &&
-              Array.from({ length: tranche.derniere - tranche.premiere + 1 }, (_, k) => tranche.premiere + k).map((i) => (
-                <PagePdf
-                  key={i}
-                  pdfjs={pret.pdfjs}
-                  doc={pret.doc}
-                  index={i}
-                  echelle={echelle}
-                  haut={d.hauts[i]!}
-                  largeur={d.largeurs[i]!}
-                  hauteur={d.hauteurs[i]!}
-                  bouts={boutsParPage.get(i)}
-                  dessous={<CalqueTraits traits={dessin.traitsDe(i + 1)} taille={tailles[i]!} vise={dessin.viseDe(i + 1)} contour={dessin.contour / Math.max(1, d.largeurs[i]!)} />}
-                >
-                  {dessin.saisie(i + 1, tailles[i]!)}
-                  {commentaires.saisie(i + 1)}
-                  {commentaires.epingles(i + 1)}
-                </PagePdf>
-              ))}
-          </div>
-        )}
+      <div className="notak-pdf-corps">
+        <div
+          ref={defile}
+          className="notak-pdf-defile"
+          onScroll={mesurer}
+          onPointerDown={(e) => (fondPresse.current = estFond(e.target, e.currentTarget))}
+          onClick={(e) => {
+            // Un clic à côté des pages ferme, comme sur le voile de l'image en grand ; pas la fin d'une sélection de texte.
+            const presse = fondPresse.current
+            fondPresse.current = false
+            if (presse && !dessin.actif && !commentaires.actif && estFond(e.target, e.currentTarget) && !window.getSelection()?.toString()) fermer()
+          }}
+        >
+          {document_.etat === 'charge' && (
+            <div className="notak-pdf-etat" role="status">
+              <span className="notak-roue" aria-hidden /> {t('pdf.chargement')}
+            </div>
+          )}
+          {document_.etat === 'erreur' && (
+            <div className="notak-pdf-etat" role="alert">
+              {t('pdf.erreur')}
+            </div>
+          )}
+          {pret && zoom !== null && (
+            <div className="notak-pdf-colonne" style={{ height: d.total, minWidth: d.largeur }}>
+              {tranche &&
+                Array.from({ length: tranche.derniere - tranche.premiere + 1 }, (_, k) => tranche.premiere + k).map((i) => (
+                  <PagePdf
+                    key={i}
+                    pdfjs={pret.pdfjs}
+                    doc={pret.doc}
+                    index={i}
+                    echelle={echelle}
+                    haut={d.hauts[i]!}
+                    largeur={d.largeurs[i]!}
+                    hauteur={d.hauteurs[i]!}
+                    bouts={boutsParPage.get(i)}
+                    dessous={<CalqueTraits traits={dessin.traitsDe(i + 1)} taille={tailles[i]!} vise={dessin.viseDe(i + 1)} contour={dessin.contour / Math.max(1, d.largeurs[i]!)} />}
+                  >
+                    {dessin.saisie(i + 1, tailles[i]!)}
+                    {commentaires.saisie(i + 1)}
+                    {commentaires.epingles(i + 1)}
+                  </PagePdf>
+                ))}
+            </div>
+          )}
+        </div>
+        {commentaires.panneau}
       </div>
       {dessin.barre}
       {commentaires.actif && (
