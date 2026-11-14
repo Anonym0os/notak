@@ -4,8 +4,10 @@
 /// La personne peut aussi choisir, dans l'app, un serveur Notak (`acces.rs`) : la fenêtre va alors sur ses pages.
 ///
 /// La coque n'ajoute à la page que ce qu'une page ne sait pas faire seule :
-/// - enregistrer un fichier là où la personne le choisit (un export, une copie `.notak`) : la webview de macOS ne
-///   télécharge rien ; la coque n'écrit qu'au chemin que la personne vient de choisir ;
+/// - enregistrer un fichier là où la personne le choisit (un export, une copie `.notak`) : la coque n'écrit qu'au chemin
+///   que la personne vient de choisir ;
+/// - accepter les téléchargements de la page, que la webview de macOS annule sans quelqu'un pour les prendre : ils vont
+///   dans Téléchargements, et la page montre le fichier dans le Finder (`telechargements.rs`) ;
 /// - ouvrir une pièce jointe dans son application, recevoir une copie `.notak` ouverte depuis le système
 ///   (`fichiers.rs`) ;
 /// - joindre un serveur Notak, et en revenir (`acces.rs`), avec des réglages à elle (`reglages.rs`) ;
@@ -41,6 +43,8 @@ mod mise_a_jour;
 mod navigation;
 mod nuage;
 mod reglages;
+#[cfg(desktop)]
+mod telechargements;
 
 #[cfg(desktop)]
 use std::path::PathBuf;
@@ -237,7 +241,8 @@ fn ouvrir_dehors(app: &AppHandle, cadence: &Cadence, url: &tauri::Url) {
 
 /// La fenêtre de Notak, déclarée dans `tauri.conf.json` mais créée ici, pour la garder chez elle : elle ne va que
 /// sur l'application, le serveur choisi et leurs lecteurs intégrés ; une nouvelle fenêtre demandée par un lien
-/// (`target="_blank"`, `window.open`) s'ouvre dans le navigateur, jamais dans Notak.
+/// (`target="_blank"`, `window.open`) s'ouvre dans le navigateur, jamais dans Notak. Sur un ordinateur, elle accepte
+/// les téléchargements de sa page (`telechargements.rs`).
 fn ouvrir_fenetre(app: &AppHandle, origines: Origines) -> tauri::Result<()> {
     let config = app.config();
     let Some(fenetre) = config.app.windows.iter().find(|f| f.label == "principale") else {
@@ -263,6 +268,8 @@ fn ouvrir_fenetre(app: &AppHandle, origines: Origines) -> tauri::Result<()> {
             ouvrir_dehors(&pour_fenetres, &cadence_fenetres, &url);
             NewWindowResponse::Deny
         });
+    #[cfg(desktop)]
+    let constructeur = constructeur.on_download(telechargements::gerer).initialization_script(telechargements::SCRIPT);
     // Le chargement d'une page de serveur, que suit `acces.rs`.
     let constructeur = constructeur.on_page_load(move |fenetre, chargement| match chargement.event() {
         PageLoadEvent::Started => acces::page_chargee(fenetre.app_handle(), chargement.url()),
@@ -315,6 +322,7 @@ pub fn run() {
         constructeur = constructeur
             .manage(MisesAJour::new(mises_a_jour))
             .manage(Emplacements::default())
+            .manage(telechargements::Telechargements::default())
             .manage(Ouverts::default())
             .manage(fichiers::Ouvertures::default());
     }
@@ -380,6 +388,8 @@ pub fn run() {
             mise_a_jour::preparer_mise_a_jour,
             #[cfg(desktop)]
             mise_a_jour::installer_mise_a_jour,
+            #[cfg(desktop)]
+            telechargements::montrer_telechargement,
             #[cfg(target_os = "macos")]
             capturer_fenetre
         ])

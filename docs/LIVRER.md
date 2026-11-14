@@ -78,9 +78,9 @@ d'elle-même : le système pose `APP_SANDBOX_CONTAINER_ID` dans son environnemen
 - écrit un fichier choisi dans « Enregistrer sous » en place, et non par un voisin renommé : elle n'a droit qu'au fichier,
   pas au dossier.
 
-Ses droits sont dans `Notak.boutique.entitlements` : réseau sortant, fichiers choisis, micro et iCloud. Les données de
-la webview se rangent dans `~/Library/Containers/app.notak.bureau` : une app de bureau construite avant (hors
-sandbox) et celle de TestFlight ne partagent pas leurs toiles locales. Les toiles du dossier iCloud, elles, se
+Ses droits sont dans `Notak.boutique.entitlements` : réseau sortant, fichiers choisis, dossier Téléchargements, micro
+et iCloud. Les données de la webview se rangent dans `~/Library/Containers/app.notak.bureau` : une app de bureau
+construite avant (hors sandbox) et celle de TestFlight ne partagent pas leurs toiles locales. Les toiles du dossier iCloud, elles, se
 retrouvent. Avant de passer de l'une à l'autre, on enregistre une copie `.notak`.
 
 ## Quand ça casse

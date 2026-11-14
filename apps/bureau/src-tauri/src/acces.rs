@@ -62,6 +62,7 @@ pub const DROITS_SERVEUR: &[&str] = &[
     "allow-lire-fichier-ouvert",
     "allow-ecarter-fichier-ouvert",
     "allow-ouvrir-dans-le-navigateur",
+    "allow-montrer-telechargement",
 ];
 
 /// Sur un iPhone ou un iPad : se signaler et revenir aux toiles de l'appareil, ouvrir dans Safari la page d'accord de
@@ -1143,6 +1144,7 @@ mod essais {
             "lire_fichier_ouvert",
             "ecarter_fichier_ouvert",
             "ouvrir_dans_le_navigateur",
+            "montrer_telechargement",
             "plugin:event|listen",
             "plugin:event|unlisten",
             "plugin:window|start_dragging",
@@ -1210,6 +1212,7 @@ mod essais {
             "nuage_ecrire",
             "nuage_supprimer",
             "nuage_telecharger",
+            "montrer_telechargement",
             "plugin:event|listen",
             "plugin:event|unlisten",
             "plugin:window|start_dragging",

@@ -27,6 +27,7 @@ fn main() {
         "nuage_ecrire",
         "nuage_supprimer",
         "nuage_telecharger",
+        "montrer_telechargement",
     ])))
     .unwrap();
 }

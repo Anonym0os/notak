@@ -5,6 +5,7 @@
   Apple exige le cloisonnement ; on n'ouvre que ce dont Notak se sert :
     - le réseau en sortie : un serveur Notak choisi, les lecteurs intégrés, OpenStreetMap ;
     - les fichiers que la personne choisit (Enregistrer sous, ⌘S, Importer, un .notak ouvert du Finder) ;
+    - le dossier Téléchargements, où vont les téléchargements de la page (src/telechargements.rs) ;
     - le micro, pour les notes audio (la phrase est dans Info.plist) ;
     - le dossier iCloud de Notak, le même conteneur que sur l'iPhone et l'iPad (src/nuage.rs).
   Le profil embarqué (`scripts/livrer.ts profil`) doit porter les mêmes ; l'équipe est Silak.
@@ -20,6 +21,8 @@
 	<key>com.apple.security.network.client</key>
 	<true/>
 	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<key>com.apple.security.files.downloads.read-write</key>
 	<true/>
 	<key>com.apple.security.device.audio-input</key>
 	<true/>

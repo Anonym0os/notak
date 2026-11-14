@@ -188,7 +188,17 @@ ne le reçoit pas. Sur iPhone et iPad, `notak://` ne sert encore qu'à revenir d
   l'enregistrer. Cinq au plus en dix secondes, 64 Mio chacune ; sous Windows et macOS, marquées comme venues
   d'Internet (Office les ouvre en mode protégé). Pour la page d'un serveur, la coque demande d'abord, dans une boîte à
   elle qui nomme le fichier et le serveur (« L'ouvrir avec l'application de votre ordinateur ? ») ; une seule boîte à
-  la fois. Un lien `download` de la page passe aussi par « Enregistrer sous ».
+  la fois.
+- **Un téléchargement de la page va dans Téléchargements** (`src/telechargements.rs`) : un lien `download`
+  (l'original d'une image ou d'un fichier, un export de la toile), que WKWebView annulerait sans rien dire faute de
+  quelqu'un pour l'accepter. « nom (1).ext » si le nom est pris, comme dans Safari ; le fichier est marqué venu
+  d'Internet. La page l'annonce (« Enregistré dans Téléchargements »), avec « Afficher dans le Finder »
+  (`montrer_telechargement`, pour un téléchargement de cette page seulement). Seule la page de Notak télécharge, ses
+  fichiers à elle : un `blob:` qu'elle a fait ou une adresse de son origine ; ni un cadre intégré, ni des `data:`, ni
+  une page entre deux. La coque le dit avant tout script (`__NOTAK_TELECHARGEMENTS__`) : une coque d'avant ne le dit
+  pas, et la page d'un serveur plus récent qu'elle repasse par « Enregistrer sous ». Cloisonnée (TestFlight), l'app a
+  le droit `com.apple.security.files.downloads.read-write`. Sur un iPhone ou un iPad, pas de Téléchargements : la page
+  passe par la feuille de partage (`apps/web/src/telechargements.ts`).
 - **Les copies `.notak` s'ouvrent avec Notak** (`bundle.fileAssociations`, type `app.notak.copie`) : un double clic
   dans le Finder (macOS), ou le fichier passé en argument (Windows, Linux). Une seule Notak tourne à la fois
   (`tauri-plugin-single-instance`, sur D-Bus sous Linux) : une seconde lancée passe ses fichiers à la première et
