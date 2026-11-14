@@ -5,7 +5,7 @@ import { LARGEUR_COLONNE, proportionsAffichees, rotationDe } from './geometrie'
 export const PALIERS = [400, 800, 1600] as const
 
 /** Les formats que le serveur réduit ; un SVG n'a pas de pixels, un GIF perdrait son animation. */
-const REDUCTIBLES = new Set(['image/png', 'image/jpeg', 'image/webp'])
+export const REDUCTIBLES: ReadonlySet<string> = new Set(['image/png', 'image/jpeg', 'image/webp'])
 
 /**
  * La largeur, en pixels de l'écran, que prend l'image d'origine tout entière pour remplir son cadre : un recadrage

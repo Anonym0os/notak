@@ -11,8 +11,18 @@ vi.mock('../../avis', () => ({ annoncer: (a: { texte: string }) => void avis.ann
 // Les couleurs demandent un vrai décodage : ici, chaque image en a une, quand `palette.lue` le permet.
 const palette = vi.hoisted(() => ({ lue: Promise.resolve() }))
 vi.mock('./palette', () => ({ lirePalette: vi.fn(async () => (await palette.lue, ['#aa0000'])) }))
+// Réduire une photo demande une vraie toile : ici, la copie réduite est un objet, et son aperçu un petit fichier.
+const reduction = vi.hoisted(() => ({ lues: [] as { taille: number; cote: number }[] }))
+vi.mock('./lecture', async (original) => ({
+  ...(await original<typeof import('./lecture')>()),
+  lireReduite: vi.fn(async (f: Blob, cote: number) => (reduction.lues.push({ taille: f.size, cote }), { toile: f.size })),
+  enApercu: vi.fn(async () => new Blob(['aperçu'], { type: 'image/jpeg' })),
+  viderToile: vi.fn(),
+}))
 
 const { recevoirImages, remplacerImage } = await import('./recepteur')
+const { copieLocale } = await import('../envois')
+const { COTE_APERCU } = await import('./lecture')
 
 /** Les couleurs ne se lisent qu'à l'appel de la fonction rendue. */
 function retenirCouleurs() {
@@ -92,6 +102,29 @@ describe('recevoirImages', () => {
     const { ctx } = contexte()
     expect(await recevoirImages(recus(fichier(octets('GIF89a', [1, 0, 1, 0]), 'anim.gif', 'image/gif', 26 * 1024 * 1024)), { x: 0, y: 0 }, ctx)).toEqual([])
     expect(avis.annonces).toEqual(['« anim.gif » dépasse la taille maximale (25 Mo).'])
+  })
+
+  it('une grande photo se montre réduite le temps de son envoi ; une petite, telle quelle', async () => {
+    reduction.lues = []
+    const montrees = new Map<string, Blob>()
+    const creer = URL.createObjectURL
+    vi.spyOn(URL, 'createObjectURL').mockImplementation((b) => {
+      const a = creer(b as Blob)
+      montrees.set(a, b as Blob)
+      return a
+    })
+    const { ctx } = contexte()
+    // Des envois qui restent en route : l'aperçu sert le temps qu'ils durent.
+    ctx.services.fichiers!.enregistrer = () => new Promise(() => {})
+    const grande = fichier(jpeg(4032, 3024), 'IMG_0001.jpg', 'image/jpeg', 4000)
+    const petite = fichier(jpeg(800, 600), 'petite.jpg', 'image/jpeg', 300)
+    const [g, p] = crees((await recevoirImages(recus(grande, petite), { x: 0, y: 0 }, ctx))!)
+    // La petite se montre aussitôt ; la grande attend son aperçu, qui ne la décode qu'une fois, à la taille voulue.
+    expect(montrees.get(copieLocale(p!.contenu.fichier)!)!.size).toBe(petite.size)
+    await vi.waitFor(() => expect(copieLocale(g!.contenu.fichier)).toBeDefined())
+    expect(montrees.get(copieLocale(g!.contenu.fichier)!)!.size).toBe(new Blob(['aperçu']).size)
+    expect(reduction.lues).toEqual([{ taille: grande.size, cote: COTE_APERCU }])
+    vi.mocked(URL.createObjectURL).mockRestore()
   })
 
   it('laisse les fichiers qui ne sont pas des images au récepteur des fichiers', () => {

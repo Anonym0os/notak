@@ -1,9 +1,9 @@
 import { type Element, type Id, type Image as ContenuImage, type Operation, nouvelId } from '../../coeur/tableau'
 import type { Magasin } from '../../coeur/magasin'
 import { commencerEnvoi, fichierRecu } from '../envois'
-import { lireDimensions, lireTransparence } from './lecture'
+import { COTE_APERCU, aUnApercu, enApercu, lireDimensions, lireReduite, lireTransparence, viderToile } from './lecture'
 import { lirePalette } from './palette'
-import type { ContexteToile } from '../types'
+import type { ContexteToile, DepotFichiers } from '../types'
 import { annoncer } from '../../avis'
 import { imageARemplacer } from './survolDepot'
 import { t, tn } from '../../langue'
@@ -113,19 +113,43 @@ function completerPose(pose: Operation, couleurs: string[]) {
 }
 
 /**
- * Les couleurs dominantes, lues après la naissance : elles demandent de décoder toute la photo (une demi-seconde pour
- * 48 Mpx), et l'image n'a pas à les attendre pour paraître. Une à une. Elles complètent la pose (rétablie, l'image les
- * a encore), et l'image déjà posée les reçoit hors de l'historique, comme la fin d'un envoi.
+ * Les couleurs complètent la pose (rétablie, l'image les a encore), et l'image déjà posée les reçoit hors de
+ * l'historique, comme la fin d'un envoi. Sans attendre : la photo suivante n'a pas à patienter derrière celle-ci.
  */
-async function lireCouleursApres(images: { id: Id; pose: Operation; fichier: Blob; envoi: string }[], magasin: Magasin) {
-  for (const { id, pose, fichier, envoi } of images) {
-    const couleurs = await lirePalette(fichier)
-    if (couleurs.length === 0) continue
-    completerPose(pose, couleurs)
-    // L'image a pu changer entre-temps (remplacée de nouveau, défaite) : on ne colore que celle qu'on a lue.
-    const e = await quandPosee(magasin, id, envoi)
-    if (!e || e.contenu.couleurs) continue
-    magasin.corriger([{ type: 'contenu', id, avant: e.contenu, apres: { ...e.contenu, couleurs } }])
+function poserCouleurs({ id, pose, envoi }: Posee, couleurs: string[], magasin: Magasin) {
+  completerPose(pose, couleurs)
+  // L'image a pu changer entre-temps (remplacée de nouveau, défaite) : on ne colore que celle qu'on a lue.
+  void quandPosee(magasin, id, envoi).then((e) => {
+    if (e && !e.contenu.couleurs) magasin.corriger([{ type: 'contenu', id, avant: e.contenu, apres: { ...e.contenu, couleurs } }])
+  })
+}
+
+/** Une photo posée d'ici : sa pose, le fichier qui part, l'id provisoire de l'envoi, et de quoi lui donner son aperçu. */
+type Posee = { id: Id; pose: Operation; fichier: File; envoi: string; transparente?: boolean | undefined; donnerApercu?: (apercu: Blob | null) => void }
+
+/** Lance l'envoi d'une photo ; une grande attend l'aperçu réduit que `lireApresLaPose` lui fera. */
+function envoyer(l: Lue, depot: DepotFichiers): { envoi: string; donnerApercu?: (apercu: Blob | null) => void } {
+  if (!aUnApercu(l.contenu)) return { envoi: commencerEnvoi(l.fichier, depot) }
+  let donnerApercu = (_: Blob | null) => {}
+  const apercu = new Promise<Blob | null>((fin) => (donnerApercu = fin))
+  return { envoi: commencerEnvoi(l.fichier, depot, { apercu }), donnerApercu }
+}
+
+/**
+ * Ce qui se lit d'une photo après sa naissance, une photo après l'autre (chaque lecture décode toute la photo : deux à
+ * la fois doubleraient la mémoire) : l'aperçu réduit que sa carte montre le temps de l'envoi, au lieu de l'original qui
+ * pèserait 190 Mo une fois décodé pour 48 Mpx ; puis ses couleurs dominantes, qu'elle n'a pas à attendre pour paraître.
+ */
+async function lireApresLaPose(posees: Posee[], magasin: Magasin) {
+  for (const p of posees) {
+    if (p.donnerApercu) {
+      const reduite = await lireReduite(p.fichier, COTE_APERCU)
+      // Sans aperçu (une photo que le navigateur ne réduit pas), la carte montre le fichier lui-même.
+      p.donnerApercu(reduite && (await enApercu(reduite, p.transparente)))
+      if (reduite) viderToile(reduite)
+    }
+    const couleurs = await lirePalette(p.fichier)
+    if (couleurs.length > 0) poserCouleurs(p, couleurs, magasin)
   }
 }
 
@@ -163,15 +187,15 @@ export async function remplacerImage(cible: Element<ContenuImage>, f: File, cont
   if (!depot) return []
   const [lue] = await lireImages([f])
   if (!lue) return []
-  const envoi = commencerEnvoi(lue.fichier, depot)
-  const pose: Operation = { type: 'contenu', id: cible.id, avant: cible.contenu, apres: remplacerContenu(cible.contenu, lue.contenu, envoi) }
-  void lireCouleursApres([{ id: cible.id, pose, fichier: lue.fichier, envoi }], contexte.magasin)
+  const envoi = envoyer(lue, depot)
+  const pose: Operation = { type: 'contenu', id: cible.id, avant: cible.contenu, apres: remplacerContenu(cible.contenu, lue.contenu, envoi.envoi) }
+  void lireApresLaPose([{ id: cible.id, pose, fichier: lue.fichier, transparente: lue.contenu.transparente, ...envoi }], contexte.magasin)
   return [pose]
 }
 
 /**
  * Les images naissent dès que leurs dimensions sont lues (dans l'en-tête, le plus souvent) ; l'envoi suit (voir
- * `envois.ts`), puis leurs couleurs. Plusieurs se rangent en colonnes, dans l'ordre où elles sont arrivées.
+ * `envois.ts`), puis leur aperçu et leurs couleurs. Plusieurs se rangent en colonnes, dans l'ordre où elles sont arrivées.
  */
 async function poserImages(fichiers: File[], ou: { x: number; y: number }, contexte: ContexteToile): Promise<Operation[]> {
   const depot = contexte.services.fichiers
@@ -180,16 +204,17 @@ async function poserImages(fichiers: File[], ou: { x: number; y: number }, conte
   const largeurs = lues.map((l) => largeurInitiale(l.contenu.largeurOrigine))
   const tailles: TailleUG[] = lues.map((l, i) => ({ largeur: largeurs[i]!, hauteur: hauteurPour(largeurs[i]!, l.contenu) }))
   const positions = placerImages(tailles, ou, nombreColonnes(contexte.largeurVue()))
-  const poses = lues.map((l, i) => {
+  const posees = lues.map((l, i): Posee => {
+    const envoi = envoyer(l, depot)
     const element: Element<ContenuImage> = {
       id: nouvelId(),
       x: positions[i]![0],
       y: positions[i]![1],
       largeur: largeurs[i]!,
-      contenu: { ...l.contenu, fichier: commencerEnvoi(l.fichier, depot) },
+      contenu: { ...l.contenu, fichier: envoi.envoi },
     }
-    return { id: element.id, pose: { type: 'creer', element } as Operation, fichier: l.fichier, envoi: element.contenu.fichier }
+    return { id: element.id, pose: { type: 'creer', element }, fichier: l.fichier, transparente: l.contenu.transparente, ...envoi }
   })
-  void lireCouleursApres(poses, contexte.magasin)
-  return poses.map((p) => p.pose)
+  void lireApresLaPose(posees, contexte.magasin)
+  return posees.map((p) => p.pose)
 }

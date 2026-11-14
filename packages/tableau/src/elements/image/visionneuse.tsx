@@ -7,7 +7,7 @@ import type { ContexteToile } from '../types'
 import { variablesDe } from '../surcouche'
 import { ouvrirDehors } from '../fichier/ouverture'
 import { nomTelecharge } from '../fichier/telechargement'
-import { copieLocale, useProgressionEnvoi } from '../envois'
+import { copieLocale, ecouterEnvois, enEnvoi, fichierRecu, useProgressionEnvoi, useTenirCopie } from '../envois'
 import { aUneCarte, miseEnPage } from './geometrie'
 import { annoter } from './modeAnnotation'
 import { type Taille, borneDecalage, borneZoom, carteEnGrand, ordreImages, tailleMontree, voisine } from './navigation'
@@ -35,21 +35,25 @@ export const useImageOuverte = () => useSyncExternalStore(ecouter, imageOuverte)
 /** L'adresse d'un fichier du dépôt, ou `null` s'il manque ; `undefined` le temps de la chercher. */
 function useAdresse(contexte: ContexteToile, fichier: string, connue?: string): string | null | undefined {
   const [adresse, setAdresse] = useState<string | null | undefined>(connue)
+  // Une image qui part encore d'ici se montre depuis sa copie locale : le serveur ne la connaît pas. Une photo qu'on
+  // réduit encore n'en a pas : on l'attend, et l'adresse suit quand elle vient.
+  const locale = useSyncExternalStore(ecouterEnvois, () => copieLocale(fichier))
+  const recu = enEnvoi(fichier) ? fichierRecu(fichier) : fichier
   useEffect(() => {
     let vivant = true
     if (connue) return setAdresse(connue)
-    // Une image qui part encore d'ici se montre depuis sa copie locale : le serveur ne la connaît pas.
-    const locale = copieLocale(fichier)
     if (locale) return setAdresse(locale)
     setAdresse(undefined)
-    contexte.services.fichiers?.adresse(fichier).then(
+    if (recu === undefined) return
+    contexte.services.fichiers?.adresse(recu).then(
       (a) => vivant && setAdresse(a),
       () => vivant && setAdresse(null),
     )
     return () => {
       vivant = false
     }
-  }, [contexte, fichier, connue])
+  }, [contexte, recu, connue, locale])
+  useTenirCopie(adresse)
   return adresse
 }
 
