@@ -2034,6 +2034,14 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       return
     }
     if ((ouvertParAdresse.current === adresseElement && attendu.current !== adresseElement) || lectureSeule) return
+    // L'adresse ne fait que redire ce qu'on vient d'ouvrir ici (un double-clic, Entrée) : rien n'est à attendre. Attendu
+    // quand même, l'élément gardait l'adresse une fois refermé, et le premier changement de la toile le rouvrait.
+    if (enGrandRef.current === adresseElement) {
+      ouvertParAdresse.current = adresseElement
+      annonce.current = adresseElement
+      attendu.current = null
+      return
+    }
     const el = tableau.elements.find((x) => x.id === adresseElement)
     if (!el) return
     ouvertParAdresse.current = adresseElement
