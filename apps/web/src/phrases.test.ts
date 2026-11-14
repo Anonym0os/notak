@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { definirLangue } from '@notak/tableau'
+import { afterEach, describe, expect, it } from 'vitest'
 import type { GroupeActivite } from './api'
-import { nomDuType, phraseDuGroupe } from './phrases'
+import { TYPES_NOMMES, nomDuType, phraseDuGroupe } from './phrases'
 import { quand } from './Activite'
+
+afterEach(() => definirLangue('fr'))
 
 const groupe = (resume: GroupeActivite['resume'], types: string[]): GroupeActivite => ({
   auteur: { id: 'a', nom: 'Ana', couleur: '#000000' },
@@ -17,6 +20,27 @@ describe('phrases de l’activité', () => {
     expect(nomDuType('lien', 1)).toBe('un lien')
     expect(nomDuType('taches', 3)).toBe('3 listes de tâches')
     expect(nomDuType('inconnu', 2)).toBe('2 éléments')
+  })
+
+  it('nomme chaque type que l’activité peut citer : une page, une carte mentale, un dessin, plus « un élément »', () => {
+    expect(phraseDuGroupe(groupe({ commente: 1 }, ['document']))).toBe('a commenté une page')
+    expect(phraseDuGroupe(groupe({ commente: 2 }, ['arbre', 'arbre']))).toBe('a commenté 2 cartes mentales')
+    expect(phraseDuGroupe(groupe({ cree: 1 }, ['dessin']))).toBe('a créé un dessin')
+    expect(nomDuType('croquis', 3)).toBe('3 croquis')
+    expect(nomDuType('lieu', 2)).toBe('2 lieux')
+    for (const langue of ['fr', 'en'] as const) {
+      definirLangue(langue)
+      const element = [nomDuType('', 1), nomDuType('', 2)]
+      for (const type of TYPES_NOMMES) {
+        for (const n of [1, 2]) {
+          const nom = nomDuType(type, n)
+          expect(nom, `${langue} ${type} ${n}`).not.toContain('activite.type')
+          expect(element, `${langue} ${type} ${n}`).not.toContain(nom)
+        }
+      }
+    }
+    definirLangue('en')
+    expect(phraseDuGroupe(groupe({ commente: 1 }, ['document']))).toBe('commented on a page')
   })
 
   it('nomme le type quand il est unique, sinon dit « éléments »', () => {

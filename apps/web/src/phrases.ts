@@ -1,12 +1,36 @@
+import type { TypeContenu } from '@notak/tableau'
 import { t, tn } from './langue'
 import type { GenreActivite, GroupeActivite } from './api'
 
-/** Les types d'élément qu'on sait nommer (accord et article) ; un autre est un « élément ». */
-const TYPES = ['note', 'colonne', 'image', 'lien', 'taches', 'tableau', 'fichier', 'ligne', 'commentaire']
+/**
+ * Chaque type d'élément de la toile, nommé (accord et article) par `activite.type.*` : l'activité peut les citer tous.
+ * Un type ajouté au registre ne compile pas tant qu'il n'a pas son nom ici ; un type que l'app ne connaît pas encore
+ * (d'un serveur plus récent) est un « élément ».
+ */
+const NOMMES: Record<TypeContenu, true> = {
+  arbre: true,
+  clone: true,
+  colonne: true,
+  commentaire: true,
+  croquis: true,
+  dessin: true,
+  document: true,
+  fichier: true,
+  image: true,
+  lien: true,
+  lieu: true,
+  ligne: true,
+  note: true,
+  nuancier: true,
+  table: true,
+  tableau: true,
+  taches: true,
+}
+export const TYPES_NOMMES = Object.keys(NOMMES) as TypeContenu[]
 
 /** « une note », « 3 notes » ; un type inconnu est un élément. */
 export function nomDuType(type: string, n: number): string {
-  return tn(TYPES.includes(type) ? `activite.type.${type}` : 'activite.type.inconnu', n)
+  return tn(Object.hasOwn(NOMMES, type) ? `activite.type.${type}` : 'activite.type.inconnu', n)
 }
 
 const ORDRE = ['cree', 'commente', 'modifie', 'deplace', 'restaure', 'supprime'] as const satisfies readonly Exclude<GenreActivite, 'titre'>[]
