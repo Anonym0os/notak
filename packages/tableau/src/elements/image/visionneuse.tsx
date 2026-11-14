@@ -15,7 +15,7 @@ import { annoter } from './modeAnnotation'
 import { type Taille, borneDecalage, borneZoom, carteEnGrand, ordreImages, tailleMontree, voisine } from './navigation'
 import { adresseALargeur, finesse, largeurEntiereAffichee, palierVisionneuse } from './tailles'
 import { useAdressePrete } from './copies'
-import { AnneauChargement, useBalise, useLent } from './chargement'
+import { AnneauChargement, copieDeCarte, useBalise, useLent } from './chargement'
 import { recadrer } from './Recadreur'
 import { detourerImage } from './Detoureur'
 import { Traits } from './Annotateur'
@@ -37,15 +37,20 @@ const ecouter = (f: () => void) => {
 
 export const useImageOuverte = () => useSyncExternalStore(ecouter, imageOuverte)
 
-/** L'adresse d'un fichier du dépôt, ou `null` s'il manque ; `undefined` le temps de la chercher. */
+/**
+ * L'adresse d'un fichier du dépôt, ou `null` s'il manque ; `undefined` le temps de la chercher. Celle qu'on a trouvée
+ * vaut pour son fichier seul : passé à l'image d'à côté, on ne rend pas l'adresse de la précédente le temps de chercher
+ * la sienne (elle se peindrait sous la nouvelle légende).
+ */
 function useAdresse(contexte: ContexteToile, fichier: string, connue?: string): string | null | undefined {
-  const [adresse, setAdresse] = useState<string | null | undefined>(connue)
+  const [trouvee, setTrouvee] = useState<{ fichier: string; adresse: string | null | undefined }>({ fichier, adresse: connue })
   // Une image qui part encore d'ici se montre depuis sa copie locale : le serveur ne la connaît pas. Une photo qu'on
   // réduit encore n'en a pas : on l'attend, et l'adresse suit quand elle vient.
   const locale = useSyncExternalStore(ecouterEnvois, () => copieLocale(fichier))
   const recu = enEnvoi(fichier) ? fichierRecu(fichier) : fichier
   useEffect(() => {
     let vivant = true
+    const setAdresse = (adresse: string | null | undefined) => setTrouvee({ fichier, adresse })
     if (connue) return setAdresse(connue)
     if (locale) return setAdresse(locale)
     setAdresse(undefined)
@@ -57,7 +62,8 @@ function useAdresse(contexte: ContexteToile, fichier: string, connue?: string): 
     return () => {
       vivant = false
     }
-  }, [contexte, recu, connue, locale])
+  }, [contexte, fichier, recu, connue, locale])
+  const adresse = trouvee.fichier === fichier ? trouvee.adresse : (connue ?? locale)
   useTenirCopie(adresse)
   return adresse
 }
@@ -74,6 +80,22 @@ function useCopieACharger(adresse: string | null | undefined, c: Image, taille: 
   const palier = palierVisionneuse(c, largeurEntiereAffichee(c, taille.largeur), zoom, window.devicePixelRatio || 1)
   if (finesse(palier) > finesse(garde.current.palier)) garde.current.palier = palier
   return adresseALargeur(adresse, garde.current.palier)
+}
+
+/**
+ * L'adresse qu'on peignait en attendant (`attendait`, une attente qui s'est vue) quand la grande prend sa place, pour la
+ * même image : elle reste par-dessus et s'efface (`finir` à la fin de son animation). Rien en passant d'une image à
+ * l'autre, ni pour une copie plus fine que le zoom demande.
+ */
+function useSortante(cle: string, peinte: string | undefined, attendait: boolean) {
+  const [sortante, setSortante] = useState<{ cle: string; adresse: string } | null>(null)
+  const avant = useRef({ cle, peinte, attendait })
+  useLayoutEffect(() => {
+    const a = avant.current
+    avant.current = { cle, peinte, attendait }
+    if (a.cle === cle && a.attendait && !attendait && a.peinte && a.peinte !== peinte) setSortante({ cle, adresse: a.peinte })
+  }, [cle, peinte, attendait])
+  return { adresse: sortante?.cle === cle ? sortante.adresse : undefined, finir: () => setSortante(null) }
 }
 
 /** Un événement de la visionneuse ne remonte pas à la toile : un portail renvoie les siens à ses parents React. */
@@ -135,7 +157,7 @@ function useCarteEnGrand(zone: React.RefObject<HTMLDivElement | null>, legende: 
  * sur le fond ferme, pas sur l'image, la légende ni la barre. Tant qu'elle est ouverte, la toile dessous ne prend aucune
  * touche (`useCouvrirLaToile`).
  */
-export function Visionneuse({ element, adresse: adresseOuverte, apercu, contexte }: { element: Element<Image>; adresse: string; apercu?: string | undefined; contexte: ContexteToile }) {
+export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { element: Element<Image>; adresse: string; contexte: ContexteToile }) {
   const [courantId, setCourantId] = useState(element.id)
   const liste = ordreImages(contexte.magasin.lire().elements)
   const courant = (liste.find((e) => e.id === courantId) ?? element) as Element<Image>
@@ -153,17 +175,19 @@ export function Visionneuse({ element, adresse: adresseOuverte, apercu, contexte
   const taille = useCarteEnGrand(zone, legende, tailleMontree(c), c.legende)
   // L'image se peint depuis une copie à la taille de l'écran ; « Ouvrir » et « Télécharger » gardent l'original.
   const cle = `${courant.id}:${c.fichier}`
-  // En attendant sa grande copie, l'image ouverte montre celle de sa carte (`apercu`, déjà chargée), et un anneau ;
-  // une autre, rien, plutôt qu'un JPEG progressif peint pavé par pavé.
+  // En attendant sa grande copie, l'image montrée (l'ouverte, ou celle où l'on passe) peint celle de sa carte, déjà
+  // chargée, et un anneau ; sans carte chargée, rien, plutôt qu'un JPEG progressif peint pavé par pavé.
   const voulue = useCopieACharger(adresse, c, taille, zoom, cle)
-  const depart = courant.id === element.id ? apercu : undefined
+  const depart = copieDeCarte(courant.id)
   const { adresse: peinte, decodee } = useAdressePrete(voulue, cle, depart)
   const lente = useRef(false)
   const { balise, props: chargement } = useBalise(peinte, lente)
   const cachee = !decodee && balise === 'charge'
-  const attend = cachee || (!!depart && peinte === depart && voulue !== undefined && voulue !== peinte)
+  const attend = cachee || (!!depart && peinte === depart && voulue !== peinte)
   const lent = useLent(attend)
   lente.current = lent
+  // La copie d'attente reste par-dessus la grande, le temps de s'effacer : un fondu, pas un saut.
+  const sortante = useSortante(cle, peinte, attend && lent)
   const page = miseEnPage(c)
   const geste = useRef<{ x: number; y: number; depart: { x: number; y: number } } | null>(null)
   const pret = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -294,7 +318,7 @@ export function Visionneuse({ element, adresse: adresseOuverte, apercu, contexte
     >
       <div ref={zone} className="notak-visionneuse-zone">
         <figure className="notak-visionneuse-figure" data-legende={c.legende ? '' : undefined}>
-          {adresse ? (
+          {adresse !== null ? (
             <div
               ref={figure}
               data-garder
@@ -325,6 +349,7 @@ export function Visionneuse({ element, adresse: adresseOuverte, apercu, contexte
               {/* Le même cadrage que sur la toile : la part recadrée, le quart de tour, les miroirs, puis le dessin. */}
               <div className="notak-image-plan" style={page.plan}>
                 <img {...chargement} className="notak-image" src={peinte} alt="" draggable={false} style={page.image} data-chargement={cachee ? 'cachee' : undefined} data-fondu={lent || undefined} />
+                {sortante.adresse && <img className="notak-image" src={sortante.adresse} alt="" draggable={false} style={page.image} data-sortie onAnimationEnd={sortante.finir} />}
                 {traits && <Traits contenu={c} traits={traits} style={page.image} />}
               </div>
               {attend && lent && envoi === null && <AnneauChargement etat={{ etape: 'conversion' }} />}
@@ -341,7 +366,7 @@ export function Visionneuse({ element, adresse: adresseOuverte, apercu, contexte
           )}
           {c.legende && (
             // De la largeur de l'image, dessous : jamais sur la barre, qui garde la marge du bas.
-            <figcaption ref={legende} data-garder className="notak-visionneuse-legende" style={adresse ? { width: taille?.largeur ?? 0 } : undefined}>
+            <figcaption ref={legende} data-garder className="notak-visionneuse-legende" style={adresse !== null ? { width: taille?.largeur ?? 0 } : undefined}>
               {c.legende}
             </figcaption>
           )}

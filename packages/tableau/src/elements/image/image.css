@@ -198,6 +198,24 @@
   cursor: grabbing;
 }
 
+/* La copie d'attente, par-dessus la grande qui vient de la remplacer, s'efface : un fondu de l'une à l'autre. */
+.notak-visionneuse-image .notak-image[data-sortie] {
+  pointer-events: none;
+  animation: notak-sortie 0.3s ease-out forwards;
+}
+
+@keyframes notak-sortie {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notak-visionneuse-image .notak-image[data-sortie] {
+    display: none;
+  }
+}
+
 /* La grande copie qui se charge sans rien à montrer d'abord : sa place, à peine marquée, et l'anneau au centre. */
 .notak-visionneuse-image:has(.notak-image[data-chargement='cachee']) {
   background: rgb(255 255 255 / 0.08);

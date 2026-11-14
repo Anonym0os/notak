@@ -28,7 +28,7 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
   // détourage, qui lit les pixels, part de l'adresse du fichier.
   const { adresse, decodee, suivre } = useCopieDeCarte(element, contexte, adresseOrigine)
   // Du dépôt à la version nette (envoi, copie du serveur, décodage), la carte montre qu'elle charge.
-  const chargement = useChargementCarte({ fichier: contenu.fichier, adresse, decodee, enRoute })
+  const chargement = useChargementCarte({ id: element.id, fichier: contenu.fichier, adresse, decodee, enRoute })
   // Le cadre suit l'image, ou le cadrage libre qu'un redimensionnement avec Cmd a fixé : l'image le recouvre.
   const proportions = rapportDuCadre(contenu)
   const page = miseEnPage(contenu)
@@ -70,7 +70,7 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
   if (enDetourage && adresseOrigine) return <Detoureur id={element.id} contenu={contenu} adresse={adresseOrigine} contexte={contexte} />
   return (
     <>
-      {enGrand && adresseOrigine && <Visionneuse element={element} adresse={adresseOrigine} apercu={adresse ?? undefined} contexte={contexte} />}
+      {enGrand && adresseOrigine && <Visionneuse element={element} adresse={adresseOrigine} contexte={contexte} />}
       <div ref={suivre} className="notak-image-cadre" style={forme} data-chargement={chargement.voile}>
         {adresse ? (
           <div className="notak-image-plan" style={page.plan}>

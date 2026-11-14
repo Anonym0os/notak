@@ -1,4 +1,4 @@
-import { type SyntheticEvent, useLayoutEffect, useRef, useState } from 'react'
+import { type SyntheticEvent, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { t } from '../../langue'
 import { estCopieLocale, useProgressionEnvoi } from '../envois'
 
@@ -105,15 +105,31 @@ export function useBalise(adresse: string | null | undefined, lente: { readonly 
 }
 
 /**
+ * La copie que la carte de chaque image (par son id) peint entière, déjà chargée : la visionneuse s'y ouvre, et y passe
+ * d'une image à l'autre, en attendant la sienne.
+ */
+const copiesDesCartes = new Map<string, string>()
+export const copieDeCarte = (id: string): string | undefined => copiesDesCartes.get(id)
+
+/**
  * L'état de chargement de la carte d'une image : ce qu'elle montre (`etat`), si l'anneau se voit, et ce que portent
  * son cadre et sa balise. `decodee` : l'adresse peinte a été décodée avant d'être montrée (une copie plus fine, qui
  * prend la place d'une autre) : elle est prête, quoi qu'en dise encore la balise.
  */
-export function useChargementCarte({ fichier, adresse, decodee, enRoute }: { fichier: string; adresse: string | null | undefined; decodee: boolean; enRoute: boolean }) {
+export function useChargementCarte({ id, fichier, adresse, decodee, enRoute }: { id: string; fichier: string; adresse: string | null | undefined; decodee: boolean; enRoute: boolean }) {
   const progression = useProgressionEnvoi(fichier)
   const lente = useRef(false)
   const { balise: lue, props } = useBalise(adresse, lente)
   const balise: EtatBalise = decodee && lue === 'charge' ? 'prete' : lue
+  // Seulement une copie entière : une copie à moitié chargée se peindrait dans la visionneuse pavé par pavé.
+  const entiere = adresse && balise === 'prete' ? adresse : undefined
+  useEffect(() => {
+    if (!entiere) return
+    copiesDesCartes.set(id, entiere)
+    return () => {
+      if (copiesDesCartes.get(id) === entiere) copiesDesCartes.delete(id)
+    }
+  }, [id, entiere])
   const etat = etatChargement({ adresse, enRoute, progression, apercu: estCopieLocale(adresse), balise })
   const lent = useLent(enCours(etat))
   lente.current = lent

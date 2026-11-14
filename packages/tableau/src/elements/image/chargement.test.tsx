@@ -245,9 +245,21 @@ describe('la carte d’une image qui charge', () => {
 })
 
 describe('la visionneuse d’une image dont la grande copie n’est pas encore là', () => {
-  const photo: Element<Image> = { id: 'i1', x: 0, y: 0, largeur: 20, contenu: { type: 'image', fichier: 'f1', largeurOrigine: 8064, hauteurOrigine: 6048, typeMime: 'image/jpeg' } }
-  async function ouvrir(apercu?: string) {
-    // Une fenêtre de 1200 × 900 px sur un écran Retina : la copie de 2400 px.
+  const photo = (id: string, fichier: string, legende: string): Element<Image> => ({
+    id,
+    x: 0,
+    y: 0,
+    largeur: 20,
+    contenu: { type: 'image', fichier, largeurOrigine: 8064, hauteurOrigine: 6048, typeMime: 'image/jpeg', legende },
+  })
+  const port = photo('i1', 'f1', 'Le port')
+  const plage = photo('i2', 'f2', 'La plage')
+
+  /**
+   * Les cartes de ces photos sur la toile, celles de `chargees` avec leur copie entière (400 px sur un écran Retina), et
+   * la visionneuse ouverte sur la première, dans une fenêtre de 1200 × 900 px : la copie de 2400 px.
+   */
+  async function ouvrir(photos: Element<Image>[], chargees: string[]) {
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) {
       return this.classList.contains('notak-visionneuse-zone') ? 1200 : 0
     })
@@ -255,33 +267,108 @@ describe('la visionneuse d’une image dont la grande copie n’est pas encore l
       return this.classList.contains('notak-visionneuse-zone') ? 900 : 0
     })
     vi.spyOn(window, 'devicePixelRatio', 'get').mockReturnValue(2)
-    const contexte = { magasin: creerMagasin({ titre: '', etiquettes: [], elements: [photo] }), services: { lectureSeule: true }, choisir: () => {} } as unknown as ContexteToile
-    await act(async () => racine.render(<Visionneuse element={photo} adresse="/api/fichiers/f1" apercu={apercu} contexte={contexte} />))
+    const contexte = {
+      magasin: creerMagasin({ titre: '', etiquettes: [], elements: photos }),
+      camera: { x: 0, y: 0, echelle: 1 },
+      services: { lectureSeule: true, fichiers: depotServeur() },
+      choisir: () => {},
+      finirEdition: () => {},
+      commencerEdition: () => {},
+    } as unknown as ContexteToile
+    const cartes = photos.map((p) => (
+      <div key={p.id} data-carte={p.id}>
+        <RenduImage element={p} choisie={false} enEdition={false} contexte={contexte} brouillon={() => {}} changer={() => {}} />
+      </div>
+    ))
+    // La même forme aux deux rendus : les cartes restent montées, leurs copies chargées.
+    await act(async () =>
+      racine.render(
+        <>
+          {cartes}
+          {null}
+        </>,
+      ),
+    )
+    for (const id of chargees) chargee(hote.querySelector<HTMLImageElement>(`[data-carte="${id}"] img.notak-image`)!)
+    const [premiere] = photos
+    await act(async () =>
+      racine.render(
+        <>
+          {cartes}
+          <Visionneuse element={premiere!} adresse={`/api/fichiers/${premiere!.contenu.fichier}`} contexte={contexte} />
+        </>,
+      ),
+    )
   }
   const peinte = () => document.querySelector<HTMLImageElement>('.notak-visionneuse-image img')!
+  const sortante = () => document.querySelector<HTMLImageElement>('.notak-visionneuse-image img[data-sortie]')
+  const anneauVu = () => document.querySelector('.notak-visionneuse .notak-image-charge')
+  const legende = () => document.querySelector('.notak-visionneuse-legende')?.textContent
+  const suivante = () => act(async () => document.querySelector<HTMLButtonElement>('.notak-visionneuse-barre button[aria-label="Suivante"]')!.click())
 
-  it('s’ouvre sur la copie de sa carte, avec l’anneau, jusqu’à ce que la grande soit décodée', async () => {
-    await ouvrir('/api/fichiers/f1?l=400')
+  it('s’ouvre sur la copie de sa carte, avec l’anneau, puis passe à la grande, décodée, en fondu', async () => {
+    await ouvrir([port], ['i1'])
     expect(peinte().getAttribute('src')).toBe('/api/fichiers/f1?l=400')
     expect(peinte().dataset.chargement).toBeUndefined()
     expect(decodages.map((d) => d.src)).toEqual([expect.stringMatching(/\/api\/fichiers\/f1\?l=2400$/)])
     await attendre(DELAI_VISIBLE)
-    expect(anneau()!.getAttribute('aria-label')).toBe('Chargement de l’image')
+    expect(anneauVu()!.getAttribute('aria-label')).toBe('Chargement de l’image')
     await act(async () => decodages[0]!.finir())
     expect(peinte().getAttribute('src')).toBe('/api/fichiers/f1?l=2400')
-    expect(anneau()).toBeNull()
+    expect(anneauVu()).toBeNull()
+    // La copie de la carte reste par-dessus le temps de s'effacer : un fondu, pas un saut.
+    expect(sortante()!.getAttribute('src')).toBe('/api/fichiers/f1?l=400')
+    act(() => void sortante()!.dispatchEvent(new Event('animationend', { bubbles: true })))
+    expect(sortante()).toBeNull()
   })
 
   it('sans copie à montrer d’abord, la grande reste cachée tant qu’elle n’est pas entière, puis paraît en fondu', async () => {
-    await ouvrir()
+    await ouvrir([port], [])
     expect(peinte().getAttribute('src')).toBe('/api/fichiers/f1?l=2400')
     expect(peinte().dataset.chargement).toBe('cachee')
     await attendre(DELAI_VISIBLE)
-    expect(anneau()).not.toBeNull()
+    expect(anneauVu()).not.toBeNull()
     chargee(peinte())
     await act(async () => decodages.at(-1)!.finir())
     expect(peinte().dataset.chargement).toBeUndefined()
     expect(peinte().hasAttribute('data-fondu')).toBe(true)
-    expect(anneau()).toBeNull()
+    expect(anneauVu()).toBeNull()
+  })
+
+  it('l’image suivante se montre tout de suite par la copie de sa carte, avec l’anneau, jamais l’ancienne sous sa légende', async () => {
+    // La première, sans copie de carte, s'ouvre sur sa grande copie, chargée.
+    await ouvrir([port, plage], ['i2'])
+    chargee(peinte())
+    expect(peinte().getAttribute('src')).toBe('/api/fichiers/f1?l=2400')
+    await suivante()
+    expect(legende()).toBe('La plage')
+    expect(peinte().getAttribute('src')).toBe('/api/fichiers/f2?l=400')
+    expect(peinte().dataset.chargement).toBeUndefined()
+    expect(decodages.map((d) => d.src).at(-1)).toMatch(/\/api\/fichiers\/f2\?l=2400$/)
+    await attendre(DELAI_VISIBLE)
+    expect(anneauVu()).not.toBeNull()
+    await act(async () => decodages.at(-1)!.finir())
+    expect(peinte().getAttribute('src')).toBe('/api/fichiers/f2?l=2400')
+    expect(sortante()!.getAttribute('src')).toBe('/api/fichiers/f2?l=400')
+    expect(anneauVu()).toBeNull()
+  })
+
+  it('sans copie de sa carte, l’image suivante reste cachée avec l’anneau, jamais l’ancienne, puis paraît en fondu', async () => {
+    await ouvrir([port, plage], [])
+    chargee(peinte())
+    expect(peinte().getAttribute('src')).toBe('/api/fichiers/f1?l=2400')
+    await suivante()
+    expect(legende()).toBe('La plage')
+    expect(peinte().getAttribute('src')).not.toMatch(/f1/)
+    expect(peinte().dataset.chargement).toBe('cachee')
+    expect(document.querySelector('.notak-visionneuse [aria-label="Image introuvable"]')).toBeNull()
+    await attendre(DELAI_VISIBLE)
+    expect(anneauVu()).not.toBeNull()
+    expect(peinte().getAttribute('src')).toBe('/api/fichiers/f2?l=2400')
+    chargee(peinte())
+    await act(async () => decodages.at(-1)!.finir())
+    expect(peinte().dataset.chargement).toBeUndefined()
+    expect(peinte().hasAttribute('data-fondu')).toBe(true)
+    expect(anneauVu()).toBeNull()
   })
 })

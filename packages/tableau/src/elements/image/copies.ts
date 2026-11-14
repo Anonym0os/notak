@@ -62,12 +62,13 @@ function observer(noeud: HTMLElement, f: (vu: boolean) => void): () => void {
  * L'adresse à peindre : la voulue, mais une autre copie du même fichier (`cle`) ne prend la place de celle qu'on voit
  * qu'une fois décodée : l'image ne passe jamais par le vide, et reste nette de ce qu'on a pendant que la suivante
  * arrive. La première adresse d'un fichier, celle d'un autre fichier, se montrent aussitôt ; `depart`, une copie déjà
- * chargée ailleurs (celle de la carte, pour la visionneuse), tient lieu de première. `decodee` : l'adresse peinte est
- * passée par ici décodée, ou était déjà chargée ; sinon elle se charge dans la balise même.
+ * chargée ailleurs (celle de sa carte, pour la visionneuse), tient lieu de première, à l'ouverture comme quand on passe
+ * d'une image à l'autre. `decodee` : l'adresse peinte est passée par ici décodée, ou était déjà chargée ; sinon elle se
+ * charge dans la balise même.
  */
 export function useAdressePrete(voulue: string | undefined, cle: string, depart?: string): { adresse: string | undefined; decodee: boolean } {
-  const [prete, setPrete] = useState<{ cle: string; adresse: string; decodee: boolean } | null>(() => (depart ? { cle, adresse: depart, decodee: true } : null))
-  const garde = prete?.cle === cle ? prete : undefined
+  const [prete, setPrete] = useState<{ cle: string; adresse: string; decodee: boolean } | null>(null)
+  const garde = prete?.cle === cle ? prete : depart ? { cle, adresse: depart, decodee: true } : undefined
   const montree = garde?.adresse
   useEffect(() => {
     if (!voulue || voulue === montree) return
