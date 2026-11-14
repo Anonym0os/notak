@@ -244,7 +244,7 @@ type Suite = { email: string } & ReponsePartage
 
 /**
  * Le panneau, dans l'ordre du « Partager » de Notion : inviter, qui a accès, l'accès général ; puis les liens visiteurs
- * et la protection. `surAccesGeneral` : l'accès général vient de changer.
+ * et la protection, et « Copier le lien » en pied. `surAccesGeneral` : l'accès général vient de changer.
  */
 function Panneau({
   tableau,
@@ -300,6 +300,7 @@ function Panneau({
           {erreur}
         </p>
       )}
+      <CopierLeLien tableau={tableau} general={general} />
     </div>
   )
 }
@@ -367,6 +368,37 @@ function AccesGeneralDuTableau({ tableau, general, changer }: { tableau: string;
   )
 }
 
+/** L'élément ouvert en grand sur ce tableau, d'après l'adresse de la page (`/t/<tableau>/e/<élément>`), ou `null`. */
+function elementRegarde(tableau: string): string | null {
+  const m = /^\/t\/([^/]+)\/e\/([^/]+)\/?$/.exec(location.pathname)
+  return m && decodeURIComponent(m[1]!) === tableau ? decodeURIComponent(m[2]!) : null
+}
+
+/** L'adresse d'une toile, ou d'un élément qu'on y ouvre en grand : elle ne s'ouvre qu'à un compte qui y a accès. */
+export const adresseDuTableau = (tableau: string, element: string | null = null) =>
+  `${location.origin}/t/${encodeURIComponent(tableau)}${element ? `/e/${encodeURIComponent(element)}` : ''}`
+
+/**
+ * « Copier le lien », en bas du panneau comme dans Drive et Notion : l'adresse de la toile (ou de ce qu'on y regarde en
+ * grand), pour qui y a déjà accès ; elle n'ouvre rien à personne d'autre. Le lien visiteur est l'autre porte, pour qui
+ * n'a pas de compte. La copie refusée, l'adresse se montre, à sélectionner.
+ */
+function CopierLeLien({ tableau, general }: { tableau: string; general: AccesGeneral | null }) {
+  const [copie, setCopie] = useState<boolean | null>(null)
+  const element = elementRegarde(tableau)
+  const adresse = adresseDuTableau(tableau, element)
+  const espace = general?.espace && !general.espace.personnel && !general.prive ? general.espace.nom : null
+  return (
+    <div className="partage-pied">
+      <button type="button" className="bouton" onClick={async () => setCopie(await copier(adresse))}>
+        <Icone nom={copie ? 'coche' : 'lien'} taille={16} />
+        {copie ? t('partage.lienCopie') : element ? t('partage.copierLienElement') : t('partage.copierLeLien')}
+      </button>
+      <small className="partage-note">{espace ? t('partage.lienPourEspace', { espace }) : t('partage.lienPourInvites')}</small>
+      {copie === false && <input className="champ" readOnly aria-label={t('partage.adresseToile')} value={adresse} onFocus={(e) => e.target.select()} />}
+    </div>
+  )
+}
 
 /** Ce qu'on peut choisir dans les propositions du champ : une personne de l'entreprise, ou une équipe. */
 type Proposition = { genre: 'personne'; personne: PersonneProposee } | { genre: 'equipe'; id: string; nom: string; espace: string }

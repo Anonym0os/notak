@@ -199,6 +199,29 @@ describe('l’accès général', () => {
     expect(note(boite)).toBe('Dans un espace personnel : seules les personnes invitées l’ouvrent.')
   })
 
+  it('« Copier le lien » donne l’adresse de la toile, ou de l’élément qu’on y regarde en grand, pour qui y a accès', async () => {
+    const ecrire = vi.fn(async (_texte: string) => {})
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: ecrire }, configurable: true })
+    let boite = await ouvrir(() => {})
+    const bouton = () => boite.querySelector<HTMLButtonElement>('.partage-pied button')!
+    expect(bouton().textContent).toBe('Copier le lien')
+    expect(boite.querySelector('.partage-pied small')!.textContent).toContain('Il ouvre la toile aux membres de Silak et aux personnes invitées')
+    await act(async () => bouton().click())
+    expect(ecrire).toHaveBeenLastCalledWith(`${location.origin}/t/t`)
+    expect(bouton().textContent).toBe('Lien copié')
+    act(() => racine.render(<></>))
+
+    // Une page ouverte en grand sur la toile : son lien à elle, et une toile privée ne s'ouvre qu'à ses invités.
+    history.replaceState(null, '', '/t/t/e/page-1')
+    faux.lireAccesGeneral.mockImplementation(async () => ({ ...faux.ouverte, prive: true }))
+    boite = await ouvrir(() => {})
+    expect(bouton().textContent).toBe('Copier le lien de l’élément')
+    expect(boite.querySelector('.partage-pied small')!.textContent).toContain('Il n’ouvre la toile qu’aux personnes qui y ont accès')
+    await act(async () => bouton().click())
+    expect(ecrire).toHaveBeenLastCalledWith(`${location.origin}/t/t/e/page-1`)
+    history.replaceState(null, '', '/')
+  })
+
   it('le bouton « Partager » d’une toile privée porte un cadenas, et son nom le dit', async () => {
     faux.lireAccesGeneral.mockImplementation(async () => ({ ...faux.ouverte, prive: true }))
     await act(async () => racine.render(<Partage tableau="t" moi={MOI} />))
