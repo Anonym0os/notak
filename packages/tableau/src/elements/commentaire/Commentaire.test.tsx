@@ -9,6 +9,7 @@ import '../note'
 import '../decor'
 import { chargerEmojis } from '../decor/emojis'
 import { ouvrirFil } from '../decor/etat'
+import { Decor } from '../decor/Decor'
 import { RenduCommentaire } from './Commentaire'
 import { ajouterMessage, nouveauCommentaire } from './fil'
 import { marquerLu, oublierLus } from './suivi'
@@ -104,6 +105,22 @@ describe('un fil sur la toile', () => {
     rendre()
     expect(hote.querySelector('.notak-commentaire-frappe')?.textContent).toContain('Bob est en train d’écrire')
     expect(hote.querySelector('.notak-commentaire-frappe .notak-commentaire-pastille')?.hasAttribute('data-ecrit')).toBe(true)
+  })
+
+  it('l’épingle ouverte ne réveille pas l’épingle « 0 » du cadre commun : une seule bulle', () => {
+    const { courant } = monde({ replie: true })
+    const contexte = { magasin: creerMagasin({ titre: '', etiquettes: [], elements: [courant()] }), commencerEdition() {}, finirEdition() {}, services: { presence: { moi: () => bob, autres: () => [], ecouter: () => () => {}, signaler() {} } } } as unknown as ContexteToile
+    act(() =>
+      racine.render(
+        <div className="notak-carte">
+          <RenduCommentaire element={courant()} choisie enEdition={false} contexte={contexte} brouillon={() => {}} changer={() => {}} />
+          <Decor element={courant()} contexte={contexte} mode="toile" />
+        </div>,
+      ),
+    )
+    act(() => hote.querySelector<HTMLButtonElement>('.notak-epingle-libre')!.click())
+    expect(hote.querySelectorAll('.notak-fil-attache')).toHaveLength(1)
+    expect([...hote.querySelectorAll('.notak-epingle-compte')].map((n) => n.textContent)).toEqual(['1'])
   })
 
   it('réduit en épingle, il ne montre plus que l’épingle et son compte ; un clic ouvre la bulle', () => {

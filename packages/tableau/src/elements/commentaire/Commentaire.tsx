@@ -10,7 +10,7 @@ import { LIBELLES_COULEUR } from '../note/couleurs'
 import { ouvrirFil, useFilOuvert } from '../decor/etat'
 import { CorpsFil } from './Corps'
 import type { PoigneeCompositeur } from './Compositeur'
-import { EpingleLibre } from './Epingle'
+import { EpingleLibre, cleEpingleLibre } from './Epingle'
 import { peutCommenter } from '../../coeur/droitsElements'
 
 export { Avatar, Ligne } from './Corps'
@@ -215,7 +215,7 @@ export function OutilsCommentaire({ elements, contexte }: PropsOutils<Commentair
           titre={touteEpingle ? t('commentaire.deployerFil') : t('commentaire.epinglerFil')}
           libelle={touteEpingle ? t('commentaire.deployer') : t('commentaire.epingler')}
           onClick={() => {
-            if (!touteEpingle && ouvert && elements.some((e) => e.id === ouvert)) ouvrirFil(null)
+            if (ouvert && elements.some((e) => e.id === ouvert || cleEpingleLibre(e.id) === ouvert)) ouvrirFil(null)
             basculer()
           }}
         />

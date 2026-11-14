@@ -164,13 +164,19 @@ export function aDuNouveau(cle: string, fil: Commentaire | undefined, moi: strin
 }
 
 /**
+ * Ce qui dit la bulle d'une épingle libre ouverte (`ouvrirFil`) : pas son seul identifiant, que le cadre commun de
+ * l'élément lit comme « le fil accroché à cet élément est ouvert », et qui ouvrait par-dessus une épingle « 0 » vide.
+ */
+export const cleEpingleLibre = (id: string) => `epingle:${id}`
+
+/**
  * Un fil réduit en épingle sur la toile : l'élément n'est plus que l'épingle (24 × 29 px, de la couleur du fil), qui
  * se glisse comme tout élément. Un clic l'ouvre en bulle à sa droite ; on la ferme d'Échap, de sa croix ou d'un appui
  * ailleurs. La modifier (double-clic, Entrée) ouvre la bulle, champ en main.
  */
 export function EpingleLibre({ element, enEdition, contexte, changer }: { element: Element<Commentaire>; enEdition: boolean; contexte: ContexteToile; changer(c: Commentaire): void }) {
   const fil = element.contenu
-  const cle = element.id
+  const cle = cleEpingleLibre(element.id)
   const ouvert = useFilOuvert() === cle
   const racine = useRef<HTMLDivElement>(null)
   const jeSuis = (contexte.services.presence?.moi?.() ?? AUTEUR_INCONNU).id
