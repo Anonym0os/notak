@@ -13,8 +13,14 @@ import { typeAffichable } from '../securite'
  */
 const PREFIXE = 'envoi-'
 
-type Envoi = { local: string; fini?: string; echec?: string; envoyes?: number; total?: number }
+/** `local` : la copie qu'on montre en attendant le serveur, absente le temps de la réduire et une fois rendue. */
+type Envoi = { local?: string; fini?: string; echec?: string; envoyes?: number; total?: number }
 const envois = new Map<string, Envoi>()
+/** L'envoi d'où vient chaque copie locale, et le fichier reçu de chaque envoi qui en a encore une. */
+const copies = new Map<string, string>()
+const recus = new Map<string, string>()
+/** Combien d'images montrent la copie locale d'un envoi : tant qu'il y en a, elle reste. */
+const vues = new Map<string, number>()
 const abonnes = new Set<() => void>()
 const prevenir = () => abonnes.forEach((f) => f())
 const ecouter = (f: () => void) => {
@@ -29,11 +35,49 @@ let enRoute = 0
 export const envoisEnCours = () => enRoute
 export const ecouterEnvois = ecouter
 
-/** Lance l'envoi et rend tout de suite l'id provisoire à mettre dans l'élément. */
-export function commencerEnvoi(fichier: Blob, depot: DepotFichiers): string {
+/** Le temps de l'envoi, l'aperçu vient de l'appareil : sous une sorte qui ne s'exécute pas, comme ensuite. */
+function poserCopie(id: string, b: Blob) {
+  const en = envois.get(id)
+  if (!en) return
+  const local = URL.createObjectURL(new Blob([b], { type: typeAffichable(b.type) }))
+  copies.set(local, id)
+  envois.set(id, { ...en, local })
+  prevenir()
+}
+
+/**
+ * La copie locale d'un envoi fini (ou échoué) que plus aucune image ne montre est rendue au navigateur : elle tenait
+ * le fichier en mémoire, jusqu'à 25 Mo pour une photo.
+ */
+function libererSiInutile(id: string) {
+  const en = envois.get(id)
+  if (!en?.local || (!en.fini && !en.echec) || (vues.get(id) ?? 0) > 0) return
+  const { local, ...reste } = en
+  URL.revokeObjectURL(local)
+  copies.delete(local)
+  if (en.fini && recus.get(en.fini) === id) recus.delete(en.fini)
+  envois.set(id, reste)
+  prevenir()
+}
+/** Un peu plus tard, dans la même tâche : une image qui se remonte aussitôt (le double rendu de React) la retient d'abord. */
+const libererPlusTard = (id: string) => queueMicrotask(() => libererSiInutile(id))
+
+/**
+ * Lance l'envoi et rend tout de suite l'id provisoire à mettre dans l'élément. `apercu` : ce qu'il faut montrer à la
+ * place du fichier (une photo réduite), qui arrive plus tard ; `null`, ou un échec, montre le fichier lui-même.
+ */
+export function commencerEnvoi(fichier: Blob, depot: DepotFichiers, options: { apercu?: Promise<Blob | null> } = {}): string {
   const id = PREFIXE + crypto.randomUUID()
-  // Le temps de l'envoi, l'aperçu vient de l'appareil : sous une sorte qui ne s'exécute pas, comme ensuite.
-  envois.set(id, { local: URL.createObjectURL(new Blob([fichier], { type: typeAffichable(fichier.type) })) })
+  envois.set(id, {})
+  if (!options.apercu) poserCopie(id, fichier)
+  else {
+    const montrer = (apercu: Blob | null) => {
+      // Reçu ou perdu entre-temps : plus personne n'attend d'aperçu.
+      const en = envois.get(id)
+      if (en && !en.fini && !en.echec) poserCopie(id, apercu ?? fichier)
+    }
+    options.apercu.then(montrer, () => montrer(null))
+  }
   enRoute++
   prevenir()
   depot
@@ -46,8 +90,12 @@ export function commencerEnvoi(fichier: Blob, depot: DepotFichiers): string {
     .then(
     (fini) => {
       enRoute--
-      envois.set(id, { ...envois.get(id)!, fini })
+      const en = envois.get(id)!
+      // La carte qui prend son vrai fichier garde l'aperçu jusqu'à ce que la vraie image soit là.
+      if (en.local) recus.set(fini, id)
+      envois.set(id, { ...en, fini })
       prevenir()
+      libererPlusTard(id)
     },
     (e: unknown) => {
       enRoute--
@@ -55,9 +103,29 @@ export function commencerEnvoi(fichier: Blob, depot: DepotFichiers): string {
       const cause = e instanceof Error ? e.message : t('envois.impossible')
       envois.set(id, { ...envois.get(id)!, echec: t('envois.echec', { nom, cause: `${cause.charAt(0).toLowerCase()}${cause.slice(1)}` }) })
       prevenir()
+      libererPlusTard(id)
     },
   )
   return id
+}
+
+/**
+ * Tient la copie locale que montre `adresse`, si elle en est une : une image qui l'affiche la garde, et quand la
+ * dernière passe à la vraie adresse (ou s'en va), la copie d'un envoi fini est rendue au navigateur. Tenue avant que
+ * le navigateur ne peigne : rien ne la rend entre l'image posée et sa lecture.
+ */
+export function useTenirCopie(adresse: string | null | undefined) {
+  useLayoutEffect(() => {
+    const id = adresse ? copies.get(adresse) : undefined
+    if (!id) return
+    vues.set(id, (vues.get(id) ?? 0) + 1)
+    return () => {
+      const n = (vues.get(id) ?? 1) - 1
+      if (n > 0) vues.set(id, n)
+      else vues.delete(id)
+      libererPlusTard(id)
+    }
+  }, [adresse])
 }
 
 /**
@@ -93,8 +161,14 @@ export function suivreEnvois(magasin: Magasin, elements: readonly Element[]) {
 /** Le vrai fichier d'un envoi parti d'ici, une fois reçu par le serveur ; `undefined` avant, ou s'il n'est pas d'ici. */
 export const fichierRecu = (fichier: string): string | undefined => (enEnvoi(fichier) ? envois.get(fichier)?.fini : undefined)
 
-/** La copie locale d'un fichier en cours d'envoi, pour le montrer sans attendre le serveur ; `undefined` s'il n'est pas d'ici. */
+/**
+ * La copie locale d'un fichier en cours d'envoi, pour le montrer sans attendre le serveur ; `undefined` s'il n'est pas
+ * d'ici, ou si sa copie n'est pas encore prête (une photo qu'on réduit) ou déjà rendue.
+ */
 export const copieLocale = (fichier: string): string | undefined => (enEnvoi(fichier) ? envois.get(fichier)?.local : undefined)
+
+/** La copie locale d'un envoi parti d'ici, depuis l'id provisoire du fichier ou celui qu'il a reçu, tant qu'elle n'est pas rendue. */
+const copieDe = (fichier: string): string | undefined => envois.get(enEnvoi(fichier) ? fichier : (recus.get(fichier) ?? ''))?.local
 
 /** Où en est l'envoi de ce fichier : `null` s'il n'est pas en route, sinon la part envoyée (0 à 1), ou `-1` si on ne la connaît pas. */
 export function progressionEnvoi(fichier: string): number | null {
@@ -122,12 +196,16 @@ export function useFichier<C extends Contenu & { fichier: string }>(element: Ele
   const envoi = useEnvoi(fichier)
   const depot = contexte.services.fichiers
   const reel = envoi?.fini ?? (enEnvoi(fichier) ? null : fichier)
+  // Celle de l'envoi, ou de l'envoi dont l'élément a reçu son fichier : la carte corrigée la montre encore.
+  const locale = useSyncExternalStore(ecouter, () => copieDe(fichier))
   const [adresse, setAdresse] = useState<string | null | undefined>(undefined)
 
+  // `reel` suffit : l'élément qui prend son vrai fichier à la fin de l'envoi garde l'adresse déjà trouvée, sans
+  // repasser par une carte vide.
   useLayoutEffect(() => {
     let vivant = true
     setAdresse(undefined)
-    if (!fichier || !reel) return // Le fantôme d'un outil, ou un envoi pas encore reçu.
+    if (!reel) return // Le fantôme d'un outil, ou un envoi pas encore reçu.
     if (!depot) return setAdresse(null)
     depot.adresse(reel).then(
       (a) => vivant && setAdresse(a),
@@ -136,7 +214,7 @@ export function useFichier<C extends Contenu & { fichier: string }>(element: Ele
     return () => {
       vivant = false
     }
-  }, [depot, fichier, reel])
+  }, [depot, reel])
 
   const issue: Issue = envoi?.fini ? { fini: envoi.fini } : envoi?.echec ? { echec: envoi.echec } : null
   const cle = issue && ('fini' in issue ? issue.fini : issue.echec)
@@ -156,5 +234,7 @@ export function useFichier<C extends Contenu & { fichier: string }>(element: Ele
   }, [cle, fichier, element.id])
 
   // La copie locale tant que la vraie adresse n'est pas là : l'image ne clignote pas au passage.
-  return { adresse: envoi?.local && !adresse ? envoi.local : adresse, enRoute: enEnvoi(fichier) && !envoi?.echec }
+  const montree = locale && !adresse ? locale : adresse
+  useTenirCopie(montree)
+  return { adresse: montree, enRoute: enEnvoi(fichier) && !envoi?.echec }
 }

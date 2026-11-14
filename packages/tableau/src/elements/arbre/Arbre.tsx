@@ -8,6 +8,7 @@ import { POLICE, type Mesure, brancheDe, habitDe, mesureDeSujet, souligne, unifo
 import { fondDe, themeDeArbre } from './themes'
 import { Dessin, type Glisses, RepereDepot } from './Dessin'
 import { EpinglesCarte } from './Epingles'
+import { prendreFil } from '../tableau/montrer'
 import { exporterCartes, sujetCarte } from './exporter'
 import { ouvrirExport } from '../../export/sujet'
 import { BarreBas } from './BarreBas'
@@ -1214,6 +1215,14 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     const r = surface.current?.getBoundingClientRect()
     if (b && r && !plan) setCamera((c) => ({ ...c, x: r.width / 2 - (b.x + b.l / 2) * c.z, y: r.height / 2 - (b.y + b.h / 2) * c.z }))
   }
+  // Arrivé par une notification qui parle du fil d'un sujet : la carte s'y centre, une fois montée, et son fil s'ouvre.
+  useEffect(() => {
+    if (!montee) return
+    const sujet = prendreFil(id)
+    if (!sujet || !lecture.sujets.has(sujet)) return
+    aller(sujet)
+    setFilDe(sujet)
+  }, [montee]) // eslint-disable-line react-hooks/exhaustive-deps
   const basculerGauche = () => setGauche((g) => (g ? null : { onglet: 'plan' }))
   const lancerPresentation = () => {
     setPlan(false)

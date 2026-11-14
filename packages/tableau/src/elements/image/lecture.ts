@@ -1,4 +1,6 @@
+import type { Image as ContenuImage } from '../../coeur/tableau'
 import { lireEnteteDe } from './entete'
+import { REDUCTIBLES } from './tailles'
 
 /**
  * Les dimensions d'une image en pixels, telle qu'on la voit (une photo tournée par son EXIF l'est aussi ici), ou
@@ -72,4 +74,67 @@ export async function lireTransparence(fichier: Blob): Promise<boolean | undefin
   } finally {
     URL.revokeObjectURL(adresse)
   }
+}
+
+/**
+ * Le plus grand côté de l'aperçu d'une photo qu'on envoie : net sur sa carte (340 px de large à 100 %, le double de
+ * pixels sur un écran Retina), et 3 Mo une fois décodé, au lieu de 190 pour une photo de 48 Mpx.
+ */
+export const COTE_APERCU = 1024
+
+/** Cette image se montre réduite le temps de son envoi : plus grande que l'aperçu, dans un format qui se réduit. */
+export const aUnApercu = (c: Pick<ContenuImage, 'typeMime' | 'largeurOrigine' | 'hauteurOrigine'>) =>
+  REDUCTIBLES.has(c.typeMime ?? '') && Math.max(c.largeurOrigine, c.hauteurOrigine) > COTE_APERCU
+
+/** Safari garde la mémoire d'une toile tant qu'elle a une taille : vidée, elle la rend aussitôt. */
+export function viderToile(toile: HTMLCanvasElement) {
+  toile.width = toile.height = 0
+}
+
+/**
+ * Une copie de l'image, son plus grand côté à `cote` pixels au plus, dans une toile (à vider après usage, voir
+ * `viderToile`). Le navigateur décode la photo une fois, hors du fil principal, puis la relâche tout de suite : vingt
+ * photos de 48 Mpx lues de suite n'attendent pas le ramasse-miettes pour rendre leurs 190 Mo. `null` si elle ne se lit
+ * pas.
+ */
+export async function lireReduite(fichier: Blob, cote: number): Promise<HTMLCanvasElement | null> {
+  let adresse: string | null = null
+  let img: HTMLImageElement | null = null
+  let toile: HTMLCanvasElement | null = null
+  try {
+    adresse = URL.createObjectURL(fichier)
+    img = new Image()
+    img.src = adresse
+    await img.decode()
+    const [l, h] = [img.naturalWidth, img.naturalHeight]
+    if (!l || !h) return null
+    const k = Math.min(1, cote / Math.max(l, h))
+    toile = document.createElement('canvas')
+    toile.width = Math.max(1, Math.round(l * k))
+    toile.height = Math.max(1, Math.round(h * k))
+    const ctx = toile.getContext('2d')
+    if (!ctx) return null
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(img, 0, 0, toile.width, toile.height)
+    const reduite = toile
+    toile = null
+    return reduite
+  } catch {
+    return null
+  } finally {
+    if (adresse) URL.revokeObjectURL(adresse)
+    img?.removeAttribute('src')
+    if (toile) viderToile(toile)
+  }
+}
+
+/** La copie réduite en fichier à montrer : un JPEG, ou un PNG pour une image qui laisse (ou peut laisser) voir à travers. */
+export function enApercu(toile: HTMLCanvasElement, transparente: boolean | undefined): Promise<Blob | null> {
+  return new Promise((fin) => {
+    try {
+      toile.toBlob(fin, transparente === false ? 'image/jpeg' : 'image/png', 0.85)
+    } catch {
+      fin(null)
+    }
+  })
 }

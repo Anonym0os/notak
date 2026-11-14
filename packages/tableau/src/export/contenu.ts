@@ -105,8 +105,31 @@ const imbrique = (v: unknown): NoeudTexte | null => {
   return d ? deplier(aplatir(d)) : null
 }
 
-/** Tout le texte qu'on peut chercher dans un élément (comme la recherche de la toile). */
+/** Le texte des messages d'un fil, chacun sous le nom de son auteur. */
+const texteDuFil = (fil: unknown): string => {
+  const messages = doc(fil) ? (fil as { messages?: unknown }).messages : undefined
+  return (Array.isArray(messages) ? (messages as ({ auteur?: { nom?: unknown }; texte?: unknown } | null)[]) : [])
+    .map((m) => `${chaine(m?.auteur?.nom)}\n${chaine(m?.texte)}`)
+    .join('\n')
+}
+
+/**
+ * Le texte des fils de discussion d'un élément, hors de l'épingle (elle-même un fil) : celui qu'il porte, ceux de la
+ * marge de son texte, ceux des sujets d'une carte mentale. On les cherche comme on cherche une épingle.
+ */
+export function texteDesFils(e: ElementLu): string {
+  const marge = doc(e.contenu.fils) && !Array.isArray(e.contenu.fils) ? Object.values(e.contenu.fils as Record<string, unknown>) : []
+  return [e.commentaire, ...marge].map(texteDuFil).filter(Boolean).join('\n')
+}
+
+/** Tout le texte qu'on peut chercher dans un élément (comme la recherche de la toile), ses fils de discussion compris. */
 export function texteCherchable(e: ElementLu, titreDe: (id: string) => string | undefined): string {
+  const propre = texteDuContenu(e, titreDe)
+  const fils = e.contenu.type === 'commentaire' ? '' : texteDesFils(e)
+  return fils ? [propre, fils].filter(Boolean).join('\n') : propre
+}
+
+function texteDuContenu(e: ElementLu, titreDe: (id: string) => string | undefined): string {
   const c = e.contenu
   const apercu = (c.apercu ?? {}) as Record<string, unknown>
   switch (c.type) {
@@ -140,9 +163,7 @@ export function texteCherchable(e: ElementLu, titreDe: (id: string) => string | 
         .filter(Boolean)
         .join('\n')
     case 'commentaire':
-      return ((c.messages as { auteur?: { nom?: string }; texte?: string }[] | undefined) ?? [])
-        .map((m) => `${chaine(m.auteur?.nom)}\n${chaine(m.texte)}`)
-        .join('\n')
+      return texteDuFil(c)
     default:
       return ''
   }

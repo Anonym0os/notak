@@ -7,10 +7,11 @@ import type { ContexteToile } from '../types'
 import { variablesDe } from '../surcouche'
 import { ouvrirDehors } from '../fichier/ouverture'
 import { nomTelecharge } from '../fichier/telechargement'
-import { copieLocale, useProgressionEnvoi } from '../envois'
+import { copieLocale, ecouterEnvois, enEnvoi, fichierRecu, useProgressionEnvoi, useTenirCopie } from '../envois'
 import { aUneCarte, miseEnPage } from './geometrie'
 import { annoter } from './modeAnnotation'
 import { type Taille, borneDecalage, borneZoom, carteEnGrand, ordreImages, tailleMontree, voisine } from './navigation'
+import { adresseALargeur, finesse, largeurEntiereAffichee, palierVisionneuse } from './tailles'
 import { recadrer } from './Recadreur'
 import { detourerImage } from './Detoureur'
 import { Traits } from './Annotateur'
@@ -35,22 +36,66 @@ export const useImageOuverte = () => useSyncExternalStore(ecouter, imageOuverte)
 /** L'adresse d'un fichier du dépôt, ou `null` s'il manque ; `undefined` le temps de la chercher. */
 function useAdresse(contexte: ContexteToile, fichier: string, connue?: string): string | null | undefined {
   const [adresse, setAdresse] = useState<string | null | undefined>(connue)
+  // Une image qui part encore d'ici se montre depuis sa copie locale : le serveur ne la connaît pas. Une photo qu'on
+  // réduit encore n'en a pas : on l'attend, et l'adresse suit quand elle vient.
+  const locale = useSyncExternalStore(ecouterEnvois, () => copieLocale(fichier))
+  const recu = enEnvoi(fichier) ? fichierRecu(fichier) : fichier
   useEffect(() => {
     let vivant = true
     if (connue) return setAdresse(connue)
-    // Une image qui part encore d'ici se montre depuis sa copie locale : le serveur ne la connaît pas.
-    const locale = copieLocale(fichier)
     if (locale) return setAdresse(locale)
     setAdresse(undefined)
-    contexte.services.fichiers?.adresse(fichier).then(
+    if (recu === undefined) return
+    contexte.services.fichiers?.adresse(recu).then(
       (a) => vivant && setAdresse(a),
       () => vivant && setAdresse(null),
     )
     return () => {
       vivant = false
     }
-  }, [contexte, fichier, connue])
+  }, [contexte, recu, connue, locale])
+  useTenirCopie(adresse)
   return adresse
+}
+
+/**
+ * La copie à charger pour l'image montrée (voir `palierVisionneuse`), jamais plus petite que celle déjà chargée pour la
+ * même image (`cle`) : la plus fine est là, et le zoom qui recule ne redemande rien. Une copie locale (un envoi en
+ * route, l'édition locale) n'a pas d'autre taille : elle se montre telle quelle.
+ */
+function useCopieACharger(adresse: string | null | undefined, c: Image, taille: Taille | null, zoom: number, cle: string): string | undefined {
+  const garde = useRef({ cle: '', palier: 0 as number | null })
+  if (garde.current.cle !== cle) garde.current = { cle, palier: 0 }
+  if (!adresse || !taille) return undefined
+  const palier = palierVisionneuse(c, largeurEntiereAffichee(c, taille.largeur), zoom, window.devicePixelRatio || 1)
+  if (finesse(palier) > finesse(garde.current.palier)) garde.current.palier = palier
+  return adresseALargeur(adresse, garde.current.palier)
+}
+
+/**
+ * L'adresse à peindre : la voulue, mais une plus fine (l'original qu'un zoom demande) ne prend la place de la copie
+ * qu'une fois décodée : l'image ne passe jamais par le vide, et le zoom reste net de ce qu'on a. Une autre image
+ * (`cle`) se montre aussitôt.
+ */
+function useAdressePrete(voulue: string | undefined, cle: string): string | undefined {
+  const [prete, setPrete] = useState<{ cle: string; adresse: string } | null>(null)
+  const montree = prete?.cle === cle ? prete.adresse : undefined
+  useEffect(() => {
+    if (!voulue || voulue === montree) return
+    if (!montree) return setPrete({ cle, adresse: voulue })
+    let vivant = true
+    const img = new Image()
+    img.src = voulue
+    // Illisible, l'original n'efface pas la copie qu'on voit.
+    img.decode().then(
+      () => vivant && setPrete({ cle, adresse: voulue }),
+      () => {},
+    )
+    return () => {
+      vivant = false
+    }
+  }, [voulue, montree, cle])
+  return montree ?? voulue
 }
 
 /** Un événement de la visionneuse ne remonte pas à la toile : un portail renvoie les siens à ses parents React. */
@@ -124,6 +169,9 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
   const legende = useRef<HTMLElement>(null)
   const couleurs = useCouleursToile(ancre)
   const taille = useCarteEnGrand(zone, legende, tailleMontree(c), c.legende)
+  // L'image se peint depuis une copie à la taille de l'écran ; « Ouvrir » et « Télécharger » gardent l'original.
+  const cle = `${courant.id}:${c.fichier}`
+  const peinte = useAdressePrete(useCopieACharger(adresse, c, taille, zoom, cle), cle)
   const page = miseEnPage(c)
   const geste = useRef<{ x: number; y: number; depart: { x: number; y: number } } | null>(null)
   const pret = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -198,6 +246,11 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
     ouvrirImage(null)
     apres()
   }
+  // Un outil qu'on termine soi-même (valider, annuler, enregistrer) rend la visionneuse sur l'image qu'on y a ouverte.
+  const depuisIci = () => {
+    const id = courant.id
+    return { retour: () => ouvrirImage(id) }
+  }
   const outil = (icone: NomIcone, libelle: string, onClick: () => void, actif = true) => (
     <button type="button" className="notak-visionneuse-outil" aria-label={libelle} title={libelle} disabled={!actif} onClick={onClick}>
       <Icone nom={icone} taille={16} />
@@ -260,7 +313,7 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
             >
               {/* Le même cadrage que sur la toile : la part recadrée, le quart de tour, les miroirs, puis le dessin. */}
               <div className="notak-image-plan" style={page.plan}>
-                <img className="notak-image" src={adresse} alt="" draggable={false} style={page.image} />
+                <img className="notak-image" src={peinte} alt="" draggable={false} style={page.image} />
                 {traits && <Traits contenu={c} traits={traits} style={page.image} />}
               </div>
             </div>
@@ -288,9 +341,9 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
             {t('visionneuse.envoi')}
           </span>
         )}
-        {envoi === null && modifiable && texte(t('visionneuse.dessiner'), () => sortir(() => annoter(courant.id)))}
-        {envoi === null && modifiable && texte(t('visionneuse.modifier'), () => sortir(() => recadrer(courant.id)))}
-        {envoi === null && modifiable && !!contexte.services.fichiers && aUneCarte({ ...c, fondBlanc: false }) && texte(t('visionneuse.fond'), () => sortir(() => detourerImage(courant.id)))}
+        {envoi === null && modifiable && texte(t('visionneuse.dessiner'), () => sortir(() => annoter(courant.id, depuisIci())))}
+        {envoi === null && modifiable && texte(t('visionneuse.modifier'), () => sortir(() => recadrer(courant.id, depuisIci())))}
+        {envoi === null && modifiable && !!contexte.services.fichiers && aUneCarte({ ...c, fondBlanc: false }) && texte(t('visionneuse.fond'), () => sortir(() => detourerImage(courant.id, depuisIci())))}
         {envoi === null && modifiable && <span className="notak-visionneuse-sep" role="separator" />}
         {envoi === null && plusieurs && outil('precedent', t('visionneuse.precedent'), () => aller(-1))}
         {envoi === null && plusieurs && outil('suivant', t('visionneuse.suivant'), () => aller(1))}

@@ -1,19 +1,20 @@
 import * as Y from 'yjs'
 import type { Base, EntreeIndex } from './base.ts'
-import { type TableauLu, idsDeFichiers, lireEtat, lireTableau, resumesDuTableau, texteCherchable } from './contenu.ts'
+import { type TableauLu, idsDeFichiers, lireEtat, lireTableau, resumesDuTableau, texteCherchable, texteDesFils } from './contenu.ts'
 import { type ChangementDeCartes, changementDeCartes } from './rattachements.ts'
 import { nomDuDocument } from './synchro.ts'
 
 /**
- * Ce qu'on sait chercher dans un tableau : son titre, puis le texte de chaque élément qui en a. La corbeille
- * n'en fait pas partie. Une carte de tableau imbriqué n'ajoute rien : ce tableau a son propre titre dans l'index.
+ * Ce qu'on sait chercher dans un tableau : son titre, puis le texte de chaque élément qui en a, ses fils de discussion
+ * compris. La corbeille n'en fait pas partie. Une carte de tableau imbriqué n'ajoute que le fil qu'on lui a accroché :
+ * ce tableau a son propre titre dans l'index.
  */
 export function entreesDIndex(tableau: TableauLu): EntreeIndex[] {
   const entrees: EntreeIndex[] = []
   if (tableau.titre.trim()) entrees.push({ element: '', texte: tableau.titre.trim() })
   for (const e of tableau.elements) {
-    if (e.corbeille !== undefined || e.contenu.type === 'tableau') continue
-    const texte = texteCherchable(e, () => undefined).trim()
+    if (e.corbeille !== undefined) continue
+    const texte = (e.contenu.type === 'tableau' ? texteDesFils(e) : texteCherchable(e, () => undefined)).trim()
     if (texte) entrees.push({ element: e.id, texte })
   }
   return entrees

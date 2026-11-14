@@ -15,6 +15,7 @@ import { Visionneuse, useImageOuverte } from './visionneuse'
 import { useDepotSurImage } from './survolDepot'
 import { t } from '../../langue'
 import { BoutonOutil } from '../../BoutonOutil'
+import { fermerMenus } from '../../menuUnique'
 import { Icone } from '../../icones'
 import { LARGEUR_LEGENDE_MIN, afficherLegendes } from './legendes'
 
@@ -208,6 +209,12 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
     )
   }
   const el = elements[0]!
+  // Un outil qui s'ouvre sur l'image (dessin, recadrage, détourage) referme le « ••• » d'où on l'a pris : le tiroir
+  // resterait ouvert par-dessus l'image qu'on règle.
+  const ouvrirOutil = (ouvrir: () => void) => () => {
+    fermerMenus()
+    ouvrir()
+  }
   const dessin = useAnnotation()
   const enDessin = elements.length === 1 && dessin.id === el.id && !contexte.services.lectureSeule
   const enDetourage = useDetourageOuvert() === el.id
@@ -234,7 +241,7 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
           titre={t('image.dessiner.titre')}
           libelle={el.contenu.traits?.length ? t('image.modifierDessin') : t('image.dessinerDessus')}
           actif={enDessin}
-          onClick={() => annoter(enDessin ? null : el.id)}
+          onClick={ouvrirOutil(() => annoter(enDessin ? null : el.id))}
         />
       )}
       {!contexte.services.lectureSeule && (
@@ -244,7 +251,7 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
         </>
       )}
       {!contexte.services.lectureSeule && <BoutonOutil icone="pivoterGauche" secondaire titre={t('image.pivoter.titre')} libelle={t('image.pivoter')} onClick={pivoterTout} />}
-      {seul && <BoutonOutil icone="recadrer" secondaire titre={t('image.recadrer.titre')} libelle={t('image.recadrer')} actif={!!el.contenu.recadrage} onClick={() => recadrer(el.id)} />}
+      {seul && <BoutonOutil icone="recadrer" secondaire titre={t('image.recadrer.titre')} libelle={t('image.recadrer')} actif={!!el.contenu.recadrage} onClick={ouvrirOutil(() => recadrer(el.id))} />}
       {seul && !!contexte.services.fichiers && (
         <BoutonOutil
           icone="detourer"
@@ -252,7 +259,7 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
           titre={t('image.detourer.titre')}
           libelle={t('image.detourer')}
           actif={enDetourage || !!el.contenu.original}
-          onClick={() => detourerImage(enDetourage ? null : el.id)}
+          onClick={ouvrirOutil(() => detourerImage(enDetourage ? null : el.id))}
         />
       )}
       {seul && !!el.contenu.original && (

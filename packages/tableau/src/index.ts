@@ -30,7 +30,7 @@ export {
   toilesPortees,
 } from './rangement'
 export { importerSurLaToile } from './importation'
-export { demanderAMontrer, montrerDemande } from './elements/tableau/montrer'
+export { demanderAMontrer, demanderLeFil, filDemande, montrerDemande } from './elements/tableau/montrer'
 export { type DetailImport, EST_UN_TEXTE, EVENEMENT_IMPORT } from './recevoirImport'
 export { BoutonIlot, FiletIlot, Ilot } from './Ilots'
 export { FilDAriane, type GenreNiveau, type Niveau, usePlaceDuFil } from './FilDAriane'

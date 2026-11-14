@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { chercher, normaliser } from './recherche'
-import { type Element, nouvelleColonne, nouvelleNote } from './tableau'
+import { type Commentaire, type Element, type Note, nouvelleColonne, nouvelleNote } from './tableau'
 
 describe('recherche', () => {
   const colonne = nouvelleColonne(0, 0, 'Été 2026')
@@ -41,5 +41,19 @@ describe('recherche', () => {
 
   it('ne trouve rien sans requête', () => {
     expect(chercher(tout, '  ', titre)).toEqual([])
+  })
+
+  it('trouve un commentaire où qu’il soit : accroché à une carte, dans la marge d’une note, sur un sujet de carte', () => {
+    const fil = (texte: string): Commentaire => ({ type: 'commentaire', messages: [{ id: texte, auteur: { id: 'bob', nom: 'Bob' }, date: 1, texte }] })
+    const accroche: Element = { ...nouvelleNote(0, 90, 'Budget'), commentaire: fil('Trop juste') }
+    const note = nouvelleNote(0, 120, 'Programme')
+    const enMarge: Element = { ...note, contenu: { ...(note.contenu as Note), fils: { f1: fil('Et le dimanche ?') } } }
+    const carte: Element = { id: 'A', x: 0, y: 150, largeur: 40, contenu: { type: 'arbre', sujets: {}, fils: { s1: fil('Ce sujet manque') } } }
+    const avec = [...tout, accroche, enMarge, carte]
+    expect(chercher(avec, 'trop juste', titre).map((e) => e.id)).toEqual([accroche.id])
+    expect(chercher(avec, 'dimanche', titre).map((e) => e.id)).toEqual([enMarge.id])
+    expect(chercher(avec, 'sujet manque', titre).map((e) => e.id)).toEqual(['A'])
+    // Le nom de qui a écrit se cherche aussi, comme dans une épingle.
+    expect(chercher(avec, 'bob', titre).map((e) => e.id)).toEqual([accroche.id, enMarge.id, 'A'])
   })
 })

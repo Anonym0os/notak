@@ -984,6 +984,11 @@ export interface Notification {
   tableau: string
   titreTableau: string
   element: string
+  /**
+   * Pour un commentaire : son fil, dans `element` ; vide pour une épingle ou le fil accroché à l'élément, sinon la clé
+   * du passage commenté (marge d'une note ou d'un document) ou le sujet d'une carte mentale. Absent d'un serveur d'avant.
+   */
+  fil?: string
   extrait: string
   instant: number
   lu: boolean

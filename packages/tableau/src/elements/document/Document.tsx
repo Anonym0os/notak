@@ -1,6 +1,7 @@
 import { type Editor, EditorContent, getSchema, useEditor } from '@tiptap/react'
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
 import { type ReactNode, type RefObject, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { prendreFil } from '../tableau/montrer'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { type Commentaire, type DocumentTexte, type Element as ElementTableau, type Id, type NoeudTexte, type PageDocument, nouvelId } from '../../coeur/tableau'
 import { type Fils, MARQUE_FIL, avecFil, filsVivants, sansPassagesMuets } from '../note/fils'
@@ -576,6 +577,15 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
       poser({ texte, fils: filsVivants(dernier.current.fils, texte) })
     },
   })
+  // Arrivé par une notification qui parle du fil d'un passage : la page descend jusqu'à lui, et son fil s'ouvre.
+  useEffect(() => {
+    if (!editeur) return
+    const fil = prendreFil(id)
+    if (!fil) return
+    setOuvert(fil)
+    const passage = [...editeur.view.dom.querySelectorAll<HTMLElement>('[data-fil], [data-fil-bloc]')].find((n) => n.dataset.fil === fil || n.dataset.filBloc === fil)
+    passage?.scrollIntoView?.({ block: 'center' })
+  }, [editeur, id])
   const peutCommenter = !contexte.services.lectureSeule
   // Dans un passage déjà commenté : on ouvre son fil. Sinon, le passage choisi reçoit un fil neuf.
   commenterRef.current = () => {

@@ -147,6 +147,11 @@ export interface NouvelleNotification {
   genre: GenreNotification
   tableau: string
   element: string
+  /**
+   * Pour un commentaire : son fil, dans l'élément qui le porte (`FilsLus` d'`activite.ts`) ; vide pour une épingle ou
+   * le fil accroché à l'élément. C'est là que mène la notification.
+   */
+  fil?: string
   auteur: string
   extrait: string
   instant: number
@@ -157,8 +162,10 @@ export interface NouvelleNotification {
  * reconnaît à son fil, à son auteur et à son texte, coupé comme chacune le coupe.
  */
 export interface Citation {
-  /** Le fil. */
+  /** L'élément qui porte le fil : l'épingle elle-même, ou la carte, la note, le document, la carte mentale. */
   element: string
+  /** Le fil, dans cet élément (`NouvelleNotification.fil`). */
+  fil: string
   auteur: string
   /** Comme une ligne d'activité le cite. */
   libelle: string
@@ -166,8 +173,9 @@ export interface Citation {
   extrait: string
 }
 
-export interface LigneNotification extends Omit<NouvelleNotification, 'auteur' | 'destinataire'> {
+export interface LigneNotification extends Omit<NouvelleNotification, 'auteur' | 'destinataire' | 'fil'> {
   id: number
+  fil: string
   auteur: { id: string; nom: string; couleur: string }
   lu: boolean
 }
@@ -403,6 +411,11 @@ export interface Base {
   retirerCitation(tableau: string, c: Citation): void
   /** Un message récrit : ce qui le citait le cite dans sa nouvelle version. */
   remplacerCitation(tableau: string, c: Citation, nouvelle: Pick<Citation, 'libelle' | 'extrait'>): void
+  /**
+   * Un message passé dans un autre fil (une épingle lâchée sur une carte, un fil glissé d'une carte à l'autre) : ce qui
+   * le citait mène là où il se lit maintenant.
+   */
+  deplacerCitation(tableau: string, c: Citation, vers: { element: string; fil: string; typeElement: string }): void
 
   /**
    * Remplace tout ce qu'on sait chercher dans ce tableau (`element` vide : le titre du tableau), et la liste des
@@ -1100,11 +1113,12 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
         if (Number(renouvelle.changes) > 0) return
       }
       executer(
-        'INSERT INTO notifications (destinataire,genre,tableau,element,auteur,extrait,instant) VALUES (?,?,?,?,?,?,?)',
+        'INSERT INTO notifications (destinataire,genre,tableau,element,fil,auteur,extrait,instant) VALUES (?,?,?,?,?,?,?,?)',
         n.destinataire,
         n.genre,
         n.tableau,
         n.element,
+        n.fil ?? '',
         n.auteur,
         n.extrait,
         n.instant,
@@ -1119,7 +1133,7 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
     notifications: (destinataire, limite) =>
       (
         tous(
-          `SELECT n.id, n.genre, n.tableau, n.element, n.extrait, n.instant, n.lu,
+          `SELECT n.id, n.genre, n.tableau, n.element, n.fil, n.extrait, n.instant, n.lu,
                   u.id AS auteurId, u.nom AS auteurNom, u.couleur AS auteurCouleur
            FROM notifications n JOIN utilisateurs u ON u.id = n.auteur
            WHERE n.destinataire = ? ORDER BY n.id DESC LIMIT ?`,
@@ -1155,9 +1169,10 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
         c.libelle,
       )
       executer(
-        "DELETE FROM notifications WHERE tableau = ? AND element = ? AND auteur = ? AND genre IN ('commentaire', 'mention') AND extrait = ?",
+        "DELETE FROM notifications WHERE tableau = ? AND element = ? AND fil = ? AND auteur = ? AND genre IN ('commentaire', 'mention') AND extrait = ?",
         tableau,
         c.element,
+        c.fil,
         c.auteur,
         c.extrait,
       )
@@ -1172,10 +1187,32 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
         c.libelle,
       )
       executer(
-        "UPDATE notifications SET extrait = ? WHERE tableau = ? AND element = ? AND auteur = ? AND genre IN ('commentaire', 'mention') AND extrait = ?",
+        "UPDATE notifications SET extrait = ? WHERE tableau = ? AND element = ? AND fil = ? AND auteur = ? AND genre IN ('commentaire', 'mention') AND extrait = ?",
         nouvelle.extrait,
         tableau,
         c.element,
+        c.fil,
+        c.auteur,
+        c.extrait,
+      )
+    },
+    deplacerCitation(tableau, c, vers) {
+      executer(
+        "UPDATE activite SET element = ?, type_element = ? WHERE tableau = ? AND element = ? AND auteur = ? AND genre = 'commente' AND libelle = ?",
+        vers.element,
+        vers.typeElement,
+        tableau,
+        c.element,
+        c.auteur,
+        c.libelle,
+      )
+      executer(
+        "UPDATE notifications SET element = ?, fil = ? WHERE tableau = ? AND element = ? AND fil = ? AND auteur = ? AND genre IN ('commentaire', 'mention') AND extrait = ?",
+        vers.element,
+        vers.fil,
+        tableau,
+        c.element,
+        c.fil,
         c.auteur,
         c.extrait,
       )

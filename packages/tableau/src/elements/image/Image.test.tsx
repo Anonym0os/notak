@@ -1,14 +1,18 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs'
-import { act } from 'react'
+import { act, useEffect, useState } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { ContexteOutils } from '../../BoutonOutil'
 import { creerMagasin } from '../../coeur/magasin'
 import type { Element, Image } from '../../coeur/tableau'
+import { useMenu } from '../../menuUnique'
 import { definition } from '../registre'
 import type { ContexteToile } from '../types'
 import './index'
-import { RenduImage } from './Image'
+import { OutilsImage, RenduImage } from './Image'
+import { recadrer, useRecadrageOuvert } from './Recadreur'
+import { detourerImage, useDetourageOuvert } from './Detoureur'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -100,5 +104,41 @@ describe('la carte d’une image', () => {
     expect(sansFond({ ...base, typeMime: 'image/png', transparente: true })).toBe(true)
     expect(sansFond({ ...base, typeMime: 'image/png', transparente: true, fondBlanc: true })).toBe(false)
     expect(def.retraitPx?.(base)).toBe(2)
+  })
+})
+
+describe('les outils de l’image dans le « ••• »', () => {
+  /** Le tiroir « ••• » de la barre de gauche, ouvert, où se rangent les outils secondaires de l'image. */
+  function Tiroir({ element, etat }: { element: Element<Image>; etat: { ouvert?: boolean; recadrage?: string | null; detourage?: string | null } }) {
+    const [ouvert, setOuvert, ancre] = useMenu()
+    const [plus, setPlus] = useState<HTMLElement | null>(null)
+    useEffect(() => setOuvert(true), []) // eslint-disable-line react-hooks/exhaustive-deps
+    etat.ouvert = ouvert
+    etat.recadrage = useRecadrageOuvert()
+    etat.detourage = useDetourageOuvert()
+    return (
+      <div ref={ancre}>
+        <div className="tiroir" ref={setPlus} />
+        <ContexteOutils.Provider value={{ aGauche: true, plus }}>
+          <OutilsImage elements={[element]} contexte={contexte()} />
+        </ContexteOutils.Provider>
+      </div>
+    )
+  }
+
+  it.each([['Recadrer'], ['Détourer']])('« %s » ouvre son outil et referme le tiroir', async (libelle) => {
+    const element: Element<Image> = { id: 'i1', x: 0, y: 0, largeur: 20, contenu: { type: 'image', fichier: 'f1', largeurOrigine: 300, hauteurOrigine: 200, typeMime: 'image/jpeg' } }
+    const etat: { ouvert?: boolean; recadrage?: string | null; detourage?: string | null } = {}
+    await act(async () => {
+      racine.render(<Tiroir element={element} etat={etat} />)
+    })
+    expect(etat.ouvert).toBe(true)
+    act(() => hote.querySelector<HTMLButtonElement>(`.tiroir button[aria-label="${libelle}"]`)!.click())
+    expect(etat.ouvert).toBe(false)
+    expect(libelle === 'Recadrer' ? etat.recadrage : etat.detourage).toBe('i1')
+    act(() => {
+      recadrer(null)
+      detourerImage(null)
+    })
   })
 })

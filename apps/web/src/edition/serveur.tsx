@@ -37,7 +37,7 @@ import { PagePartage, PageRapide } from '../Arrivees'
 import { PageEnvoyer } from '../Envoyer'
 import { PageEspaces } from '../Espaces'
 import { Activite } from '../Activite'
-import { Cloche } from '../Cloche'
+import { Cloche, elementDuFilDemande } from '../Cloche'
 import { PageBibliotheque } from '../Bibliotheque'
 import { Compte, CompteTelephone } from '../Compte'
 import { EcranConnexion } from '../connexion'
@@ -441,8 +441,9 @@ function Espace({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
         services={servicesIci}
         adresse={adresse}
         bibliotheque={() => allerA('/')}
-        dossier={(id, o) => allerA(adresseDuDossier(id), o)}
         espacesDEquipe={equipes}
+        // Une notification qui mène au fil d'une page rangée dans un dossier : la liste l'ouvre, et la page son fil.
+        dossier={(id, o) => allerA(adresseDuDossier(id, elementDuFilDemande()), o)}
         actions={(courant, ouvrir) => (
           <>
             <BullesDecouverte espace={espace} tableau={courant} compte={moi.id} />

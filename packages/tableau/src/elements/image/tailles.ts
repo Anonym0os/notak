@@ -5,7 +5,7 @@ import { LARGEUR_COLONNE, proportionsAffichees, rotationDe } from './geometrie'
 export const PALIERS = [400, 800, 1600] as const
 
 /** Les formats que le serveur réduit ; un SVG n'a pas de pixels, un GIF perdrait son animation. */
-const REDUCTIBLES = new Set(['image/png', 'image/jpeg', 'image/webp'])
+export const REDUCTIBLES: ReadonlySet<string> = new Set(['image/png', 'image/jpeg', 'image/webp'])
 
 /**
  * La largeur, en pixels de l'écran, que prend l'image d'origine tout entière pour remplir son cadre : un recadrage
@@ -29,6 +29,18 @@ export function palierPour(c: Image, largeurEntierePx: number, densite: number):
   const palier = PALIERS.find((p) => p >= besoin)
   if (palier === undefined || palier >= c.largeurOrigine) return null
   return palier
+}
+
+/**
+ * La copie que charge la visionneuse : celle qui couvre l'écran (la place de l'image entière, son zoom, la densité),
+ * ou la plus grande que le serveur fabrique quand l'écran en voudrait plus, tant qu'on ne zoome pas ; l'original
+ * (`null`) quand on zoome au-delà de ce qu'elle couvre, ou qu'aucune copie n'y gagnerait (petite image, GIF, SVG).
+ * Une photo de 48 Mpx s'ouvre ainsi sur 300 Ko au lieu de 20 Mo.
+ */
+export function palierVisionneuse(c: Image, largeurEntierePx: number, zoom: number, densite: number): number | null {
+  const palier = palierPour(c, largeurEntierePx * zoom, densite)
+  if (palier !== null || zoom > 1) return palier
+  return palierPour(c, PALIERS[PALIERS.length - 1]!, 1)
 }
 
 /** Les paliers se comparent par leur finesse : l'original (`null`) est le plus fin. */

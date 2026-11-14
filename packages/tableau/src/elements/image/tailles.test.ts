@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Image } from '../../coeur/tableau'
-import { adresseALargeur, finesse, largeurCadrePx, largeurEntiereAffichee, palierPour } from './tailles'
+import { adresseALargeur, finesse, largeurCadrePx, largeurEntiereAffichee, palierPour, palierVisionneuse } from './tailles'
 
 const image = (reste: Partial<Image> = {}): Image => ({ type: 'image', fichier: 'f', largeurOrigine: 4000, hauteurOrigine: 3000, ...reste })
 
@@ -30,6 +30,27 @@ describe('palierPour', () => {
     expect(palierPour(image({ typeMime: 'image/svg+xml' }), 100, 1)).toBeNull()
     expect(palierPour(image({ typeMime: 'image/gif' }), 100, 1)).toBeNull()
     expect(palierPour(image({ typeMime: 'image/jpeg' }), 100, 1)).toBe(400)
+  })
+})
+
+describe('palierVisionneuse', () => {
+  const photo = image({ largeurOrigine: 8064, hauteurOrigine: 6048, typeMime: 'image/jpeg' })
+  it('ouvre la photo sur la copie à la taille de l’écran', () => {
+    expect(palierVisionneuse(photo, 390, 1, 3)).toBe(1600)
+    expect(palierVisionneuse(photo, 700, 1, 1)).toBe(800)
+  })
+  it('sans zoom, la plus grande copie suffit même quand l’écran en voudrait plus : l’original attend qu’on zoome', () => {
+    expect(palierVisionneuse(photo, 1200, 1, 2)).toBe(1600)
+    expect(palierVisionneuse(photo, 1200, 1.25, 2)).toBeNull()
+  })
+  it('un zoom que la copie couvre encore ne charge pas l’original', () => {
+    expect(palierVisionneuse(photo, 390, 1.25, 3)).toBe(1600)
+    expect(palierVisionneuse(photo, 390, 1.5, 3)).toBeNull()
+  })
+  it('une petite image, un GIF ou un SVG s’ouvrent tels quels', () => {
+    expect(palierVisionneuse(image({ largeurOrigine: 1200, typeMime: 'image/png' }), 1200, 1, 2)).toBeNull()
+    expect(palierVisionneuse(image({ typeMime: 'image/gif' }), 1200, 1, 2)).toBeNull()
+    expect(palierVisionneuse(image({ typeMime: 'image/svg+xml' }), 300, 1, 1)).toBeNull()
   })
 })
 

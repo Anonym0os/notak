@@ -87,6 +87,12 @@ describe('notifications', () => {
     expect((await lire(bob)).nonLues).toBe(1)
   })
 
+  it('une notification de commentaire dit l’élément et le fil où l’on a écrit : la cloche y mène', async () => {
+    m.base.noterNotification({ destinataire: cleo.utilisateur.id, genre: 'mention', tableau: 'tableau-un', element: 'doc', fil: 'f1', auteur: ana.utilisateur.id, extrait: 'Et toi ?', instant: 7000 })
+    expect((await lire(cleo)).notifications[0]).toMatchObject({ genre: 'mention', element: 'doc', fil: 'f1' })
+    m.base.marquerLues(cleo.utilisateur.id, null)
+  })
+
   it('refuse une demande mal formée', async () => {
     expect((await marquer({}, bob)).status).toBe(400)
     expect((await marquer({ ids: ['x'] }, bob)).status).toBe(400)
