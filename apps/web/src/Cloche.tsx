@@ -12,7 +12,14 @@ const TEXTES: Record<GenreNotification, (n: Notification) => string> = {
   mention: (n) => t('cloche.mention', { nom: n.auteur.nom, tableau: n.titreTableau || t('commun.sansTitre') }),
   modification: (n) => t('cloche.modification', { nom: n.auteur.nom, tableau: n.titreTableau || t('commun.sansTitre') }),
   partage: (n) => t('cloche.partage', { nom: n.auteur.nom, tableau: n.titreTableau || t('commun.sansTitre') }),
+  reaction: (n) => t('cloche.reaction', { nom: n.auteur.nom, emojis: (n.emojis ?? []).join(' '), tableau: n.titreTableau || t('commun.sansTitre') }),
 }
+
+/** Ce que dit une notification ; `null` pour un genre que l'app ne sait pas dire (d'un serveur plus récent). */
+export const texteDe = (n: Notification): string | null => (Object.hasOwn(TEXTES, n.genre) ? TEXTES[n.genre](n) : null)
+
+/** Ce qui parle d'un message : un commentaire, une mention, une réaction. La notification mène à son fil. */
+const DANS_UN_FIL: readonly GenreNotification[] = ['commentaire', 'mention', 'reaction']
 
 /**
  * Les notifications du compte : relues toutes les 30 s, et dès que leur liste s'ouvre (`ouvert`). `lire` les marque
@@ -59,12 +66,12 @@ export function useNotifications(ouvert: boolean) {
 export type Notifications = ReturnType<typeof useNotifications>
 
 /**
- * Où mène une notification : son tableau, et pour un commentaire ou une mention, le fil où on l'a écrit, comme chez
- * Notion, qui ouvre la page sur la discussion. La toile se pose sur l'élément qui le porte (l'épingle, la carte, la note)
- * et ouvre le fil ; un document ou une carte mentale s'ouvrent en grand, sur le passage ou le sujet.
+ * Où mène une notification : son tableau, et pour un commentaire, une mention ou une réaction, le fil du message, comme
+ * chez Notion, qui ouvre la page sur la discussion. La toile se pose sur l'élément qui le porte (l'épingle, la carte, la
+ * note) et ouvre le fil ; un document ou une carte mentale s'ouvrent en grand, sur le passage ou le sujet.
  */
 export function suivreNotification(n: Notification, ouvrir: (tableau: string) => void) {
-  if ((n.genre === 'commentaire' || n.genre === 'mention') && n.element) demanderLeFil(n.element, n.fil ?? '')
+  if (DANS_UN_FIL.includes(n.genre) && n.element) demanderLeFil(n.element, n.fil ?? '')
   ouvrir(n.tableau)
 }
 
@@ -79,6 +86,11 @@ export function elementDuFilDemande(): string | null {
 
 /** La tête (« Tout marquer comme lu ») et la liste ; toucher une notification la lit et y mène (`suivreNotification`). */
 function ListeDesNotifications({ notifications: { liste, erreur, lire, nonLues }, aller }: { notifications: Notifications; aller(n: Notification): void }) {
+  // Un genre que l'app ne sait pas dire ne se montre pas, plutôt que de casser la liste.
+  const montrees = liste?.notifications.flatMap((n) => {
+    const texte = texteDe(n)
+    return texte === null ? [] : [{ n, texte }]
+  })
   return (
     <>
       <div className="app-panneau-tete">
@@ -87,14 +99,14 @@ function ListeDesNotifications({ notifications: { liste, erreur, lire, nonLues }
           {t('cloche.toutLu')}
         </button>
       </div>
-      {((erreur && !liste) || liste?.notifications.length === 0) && (
+      {((erreur && !liste) || montrees?.length === 0) && (
         <p className="app-panneau-vide">
           <Icone nom="cloche" taille={22} trait={1.5} />
           {erreur && !liste ? t('cloche.indisponibles') : t('cloche.rien')}
         </p>
       )}
       <ul className="cloche-liste">
-        {liste?.notifications.map((n) => (
+        {montrees?.map(({ n, texte }) => (
           <li key={n.id} data-lu={n.lu || undefined}>
             <button
               type="button"
@@ -105,7 +117,7 @@ function ListeDesNotifications({ notifications: { liste, erreur, lire, nonLues }
             >
               <PastillePersonne nom={n.auteur.nom} couleur={n.auteur.couleur} titre="" />
               <span className="cloche-texte">
-                <span>{TEXTES[n.genre](n)}</span>
+                <span>{texte}</span>
                 {n.extrait && n.genre !== 'partage' && <small className="activite-elements">{n.extrait}</small>}
                 <small>{quand(n.instant)}</small>
               </span>

@@ -976,7 +976,8 @@ export async function lireActivite(tableau: string, depuis?: number): Promise<Ac
   return (await r.json()) as ActiviteTableau
 }
 
-export type GenreNotification = 'commentaire' | 'mention' | 'modification' | 'partage'
+/** `reaction` : quelqu'un a réagi à un de vos messages, que l'extrait cite. */
+export type GenreNotification = 'commentaire' | 'mention' | 'modification' | 'partage' | 'reaction'
 
 export interface Notification {
   id: number
@@ -985,11 +986,14 @@ export interface Notification {
   titreTableau: string
   element: string
   /**
-   * Pour un commentaire : son fil, dans `element` ; vide pour une épingle ou le fil accroché à l'élément, sinon la clé
-   * du passage commenté (marge d'une note ou d'un document) ou le sujet d'une carte mentale. Absent d'un serveur d'avant.
+   * Pour un commentaire ou une réaction : le fil, dans `element` ; vide pour une épingle ou le fil accroché à l'élément,
+   * sinon la clé du passage commenté (marge d'une note ou d'un document) ou le sujet d'une carte mentale. Absent d'un
+   * serveur d'avant.
    */
   fil?: string
   extrait: string
+  /** Pour une réaction : les émojis posés. */
+  emojis?: string[]
   instant: number
   lu: boolean
   auteur: Personne

@@ -547,6 +547,16 @@ CREATE INDEX envois_a_faire ON envois(prochain) WHERE livre IS NULL AND prochain
       db.exec('DELETE FROM recherche_etat;')
     },
   },
+  {
+    version: 16,
+    nom: 'une réaction prévient l’auteur du message',
+    appliquer(db) {
+      // Les émojis qu'une notification de réaction dit, séparés par une espace (« 👍 🎉 ») : son extrait cite le message,
+      // comme celui d'un commentaire, pour que la suppression ou la correction du message l'atteignent de même.
+      const colonnes = db.prepare('PRAGMA table_info(notifications)').all() as { name: string }[]
+      if (!colonnes.some((c) => c.name === 'emojis')) db.exec(`ALTER TABLE notifications ADD COLUMN emojis TEXT NOT NULL DEFAULT '';`)
+    },
+  },
 ]
 
 /**

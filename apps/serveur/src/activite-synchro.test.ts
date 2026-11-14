@@ -314,24 +314,128 @@ describe('où qu’on commente, le fil prévient et se cite de même', () => {
     base.fermer()
   })
 
-  it('une réaction, un fil résolu, un message corrigé ou retiré ne font sonner la cloche de personne', async () => {
-    const { base, ouvrir, ana } = await tableau()
-    const m1 = message('m1', 'ana', 'Qui vient ?')
-    const m2 = message('m2', 'ana', 'À revoir')
-    await ana.transact((doc) => {
-      poser(doc, { type: 'commentaire', messages: [m1, message('m3', 'ana', 'Moi')] }, { id: 'epingle' })
-      changer(doc, 'note', (e) => ({ ...e, commentaire: fil(m2) }))
+  /** Les notifications de réaction d'un compte : où, quel message elles citent, quels émojis, de qui, lues ou non. */
+  const reactions = (base: Base, qui: string) =>
+    base
+      .notifications(qui, 50)
+      .filter((n) => n.genre === 'reaction')
+      .map((n) => [n.element, n.fil, n.extrait, n.emojis, n.auteur.id, n.lu])
+  /** Ce que la personne pose ou retire sur ce message, dans l'élément ou le sujet qui porte son fil, d'un seul geste. */
+  const reagir = (doc: Y.Doc, ou: string, id: string, reactions: Record<string, string[]>) => {
+    const avec = (f: { messages: { id: string }[] }) => ({ ...f, messages: f.messages.map((m) => (m.id === id ? { ...m, reactions } : m)) })
+    const arbres = doc.getMap<{ messages: { id: string }[] }>('arbres')
+    if (ou.startsWith('sujet:')) return void arbres.set(cleSujet(ou.slice(6)), avec(arbres.get(cleSujet(ou.slice(6)))!))
+    const [element, cle] = ou.split('/') as [string, string | undefined]
+    changer(doc, element, (e) => {
+      if (e.contenu.type === 'commentaire') return { ...e, contenu: avec(e.contenu as never) }
+      if (cle === undefined) return { ...e, commentaire: avec(e.commentaire as never) }
+      const fils = e.contenu.fils as Record<string, { messages: { id: string }[] }>
+      return { ...e, contenu: { ...e.contenu, fils: { ...fils, [cle]: avec(fils[cle]!) } } }
     })
+  }
+  /** Les fils d'Ana, un par endroit où l'on commente : une épingle, le fil de la note, la marge du document, un sujet. */
+  async function filsDAna() {
+    const m = await tableau()
+    await m.ana.transact((doc) => {
+      poser(doc, { type: 'commentaire', messages: [message('m1', 'ana', 'Qui vient ?')] }, { id: 'epingle' })
+      changer(doc, 'note', (e) => ({ ...e, commentaire: fil(message('m2', 'ana', 'À revoir')) }))
+      changer(doc, 'doc', (e) => ({ ...e, contenu: { ...e.contenu, fils: { f1: fil(message('m3', 'ana', 'Et le dimanche ?')) } } }))
+      doc.getMap('arbres').set(cleSujet('s1'), fil(message('m4', 'ana', 'Ce sujet manque')))
+    })
+    return m
+  }
+
+  it('une réaction prévient l’auteur du message, et lui seul, où que soit son fil ; elle ne modifie rien', async () => {
+    const { base, ouvrir, ana } = await filsDAna()
     const bob = await ouvrir('bob')
-    const epingle = (contenu: Record<string, unknown>) => (doc: Y.Doc) => changer(doc, 'epingle', (e) => ({ ...e, contenu: { ...e.contenu, ...contenu } }))
-    await bob.transact(epingle({ messages: [{ ...m1, reactions: { '👍': ['bob'] } }, message('m3', 'ana', 'Moi')] }))
-    await bob.transact(epingle({ resolu: true, replie: true }))
-    await bob.transact((doc) => changer(doc, 'note', (e) => ({ ...e, commentaire: fil({ ...m2, reactions: { '🎉': ['bob'] } }) })))
-    await ana.transact(epingle({ messages: [{ ...m1, texte: 'Qui vient samedi ?' }] }))
-    for (const qui of ['ana', 'bob', 'cleo']) {
-      expect(base.notifications(qui, 50).filter((n) => n.genre === 'modification' && ['epingle', 'note'].includes(n.element)), qui).toEqual([])
-    }
+    await bob.transact((doc) => reagir(doc, 'epingle', 'm1', { '👍': ['bob'] }))
+    await bob.transact((doc) => reagir(doc, 'note', 'm2', { '🎉': ['bob'] }))
+    await bob.transact((doc) => reagir(doc, 'doc/f1', 'm3', { '❤️': ['bob'] }))
+    await bob.transact((doc) => reagir(doc, 'sujet:s1', 'm4', { '👀': ['bob'] }))
+    expect(reactions(base, 'ana')).toEqual([
+      ['carte', 's1', 'Ce sujet manque', ['👀'], 'bob', false],
+      ['doc', 'f1', 'Et le dimanche ?', ['❤️'], 'bob', false],
+      ['note', '', 'À revoir', ['🎉'], 'bob', false],
+      ['epingle', '', 'Qui vient ?', ['👍'], 'bob', false],
+    ])
+    // Ni Cléo, qui tient le fil sans l'avoir écrit, ni Bob ; et rien de tout cela n'est une modification du tableau.
+    for (const qui of ['bob', 'cleo']) expect(reactions(base, qui), qui).toEqual([])
+    expect(base.notifications('ana', 50).filter((n) => n.genre !== 'reaction')).toEqual([])
     expect(base.activite('tableau-act-1', 50).filter((a) => a.auteur.id === 'bob')).toEqual([])
+    // Résoudre, replier, corriger son message : personne n'en sait rien.
+    await bob.transact((doc) => changer(doc, 'epingle', (e) => ({ ...e, contenu: { ...e.contenu, resolu: true, replie: true } })))
+    for (const qui of ['ana', 'bob', 'cleo']) expect(base.notifications(qui, 50).filter((n) => ['epingle', 'note'].includes(n.element) && n.genre !== 'reaction'), qui).toEqual([])
+    await bob.disconnect()
+    await ana.disconnect()
+    base.fermer()
+  })
+
+  it('on ne se prévient pas soi-même, ni pour un autre : seul ce que l’acteur pose compte', async () => {
+    const { base, ouvrir, ana } = await filsDAna()
+    await ana.transact((doc) => reagir(doc, 'epingle', 'm1', { '👍': ['ana'] }))
+    expect(reactions(base, 'ana')).toEqual([])
+    // Une écriture de Bob qui rend la réaction de Cléo (d'après un état ancien) : seule celle de Bob prévient.
+    const bob = await ouvrir('bob')
+    await bob.transact((doc) => reagir(doc, 'note', 'm2', { '🎉': ['bob', 'cleo'] }))
+    expect(reactions(base, 'ana')).toEqual([['note', '', 'À revoir', ['🎉'], 'bob', false]])
+    // Le message d'une personne qui ne lit plus le tableau : elle n'en sait rien.
+    base.retirerAcces('tableau-act-1', 'cleo')
+    await bob.transact((doc) => changer(doc, 'epingle', (e) => ({ ...e, contenu: { ...e.contenu, messages: [...(e.contenu.messages as unknown[]), message('m5', 'cleo', 'Moi')] } })))
+    await bob.transact((doc) => reagir(doc, 'epingle', 'm5', { '👍': ['bob'] }))
+    expect(reactions(base, 'cleo')).toEqual([])
+    await bob.disconnect()
+    await ana.disconnect()
+    base.fermer()
+  })
+
+  it('des réactions rapprochées au même message n’en font qu’une ; retirée, une réaction ne se lit plus ; lue, la suivante en refait une', async () => {
+    const { base, ouvrir, ana } = await filsDAna()
+    const bob = await ouvrir('bob')
+    await bob.transact((doc) => reagir(doc, 'epingle', 'm1', { '👍': ['bob'] }))
+    await bob.transact((doc) => reagir(doc, 'epingle', 'm1', { '👍': ['bob'], '🎉': ['bob'] }))
+    expect(reactions(base, 'ana')).toEqual([['epingle', '', 'Qui vient ?', ['👍', '🎉'], 'bob', false]])
+    // Retirer ne prévient pas : la notification ne dit plus que ce qui reste, et part quand il ne reste rien.
+    await bob.transact((doc) => reagir(doc, 'epingle', 'm1', { '🎉': ['bob'] }))
+    expect(reactions(base, 'ana')).toEqual([['epingle', '', 'Qui vient ?', ['🎉'], 'bob', false]])
+    await bob.transact((doc) => reagir(doc, 'epingle', 'm1', {}))
+    expect(reactions(base, 'ana')).toEqual([])
+    await bob.transact((doc) => reagir(doc, 'epingle', 'm1', { '👍': ['bob'] }))
+    base.marquerLues('ana', null)
+    await bob.transact((doc) => reagir(doc, 'epingle', 'm1', { '👍': ['bob'], '❤️': ['bob'] }))
+    // Cléo réagit au même message, Bob à un autre : chacun la sienne.
+    const cleo = await ouvrir('cleo')
+    await cleo.transact((doc) => reagir(doc, 'epingle', 'm1', { '👍': ['bob', 'cleo'], '❤️': ['bob'] }))
+    await bob.transact((doc) => reagir(doc, 'note', 'm2', { '👍': ['bob'] }))
+    expect(reactions(base, 'ana')).toEqual([
+      ['note', '', 'À revoir', ['👍'], 'bob', false],
+      ['epingle', '', 'Qui vient ?', ['👍'], 'cleo', false],
+      ['epingle', '', 'Qui vient ?', ['❤️'], 'bob', false],
+      ['epingle', '', 'Qui vient ?', ['👍'], 'bob', true],
+    ])
+    await cleo.disconnect()
+    await bob.disconnect()
+    await ana.disconnect()
+    base.fermer()
+  })
+
+  it('une réaction suit son message : récrit, elle le cite de nouveau ; déplacé, elle le suit ; supprimé, elle part', async () => {
+    const { base, ouvrir, ana } = await filsDAna()
+    const bob = await ouvrir('bob')
+    await bob.transact((doc) => reagir(doc, 'epingle', 'm1', { '👍': ['bob'] }))
+    const m1 = { ...message('m1', 'ana', 'Qui vient samedi ?'), reactions: { '👍': ['bob'] } }
+    await ana.transact((doc) => changer(doc, 'epingle', (e) => ({ ...e, contenu: { ...e.contenu, messages: [m1] } })))
+    expect(reactions(base, 'ana')).toEqual([['epingle', '', 'Qui vient samedi ?', ['👍'], 'bob', false]])
+    // `attacherFil` : l'épingle quitte la toile et la note reprend son fil ; Bob y réagit encore, ce qui la renouvelle.
+    await ana.transact((doc) => {
+      doc.getMap('elements').delete('epingle')
+      changer(doc, 'note', (e) => ({ ...e, commentaire: fil(m1, message('m2', 'ana', 'À revoir')) }))
+    })
+    expect(reactions(base, 'ana')).toEqual([['note', '', 'Qui vient samedi ?', ['👍'], 'bob', false]])
+    await bob.transact((doc) => reagir(doc, 'note', 'm1', { '👍': ['bob'], '🎉': ['bob'] }))
+    expect(reactions(base, 'ana')).toEqual([['note', '', 'Qui vient samedi ?', ['👍', '🎉'], 'bob', false]])
+    await ana.transact((doc) => changer(doc, 'note', (e) => ({ ...e, commentaire: fil(message('m2', 'ana', 'À revoir')) })))
+    expect(reactions(base, 'ana')).toEqual([])
+    expect(JSON.stringify(base.notifications('ana', 50))).not.toContain('samedi')
     await bob.disconnect()
     await ana.disconnect()
     base.fermer()

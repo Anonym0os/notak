@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { demanderAMontrer, filDemande, montrerDemande } from '@notak/tableau'
 import type { GenreNotification, Notification } from './api'
-import { elementDuFilDemande, suivreNotification } from './Cloche'
+import { elementDuFilDemande, suivreNotification, texteDe } from './Cloche'
 
 const notification = (genre: GenreNotification, element: string, fil?: string): Notification => ({
   id: 1,
@@ -31,6 +31,13 @@ describe('où mène une notification', () => {
     expect(filDemande('epingle')).toBe('')
   })
 
+  it('une réaction mène au fil du message, comme un commentaire', () => {
+    const ouvrir = vi.fn()
+    suivreNotification(notification('reaction', 'carte', 's1'), ouvrir)
+    expect(ouvrir).toHaveBeenCalledWith('tableau-voyage')
+    expect(filDemande('carte')).toBe('s1')
+  })
+
   it('une modification ou un partage ouvrent leur tableau, sans rien viser dedans', () => {
     const ouvrir = vi.fn()
     suivreNotification(notification('modification', 'note'), ouvrir)
@@ -45,5 +52,16 @@ describe('où mène une notification', () => {
     // « Afficher dans sa toile », la recherche : une demande de montrer sans fil ne passe pas par là.
     demanderAMontrer('note')
     expect(elementDuFilDemande()).toBeNull()
+  })
+})
+
+describe('ce que dit une notification', () => {
+  it('une réaction dit qui a réagi, de quels émojis, à votre commentaire, et dans quel tableau', () => {
+    expect(texteDe({ ...notification('reaction', 'epingle'), emojis: ['👍', '🎉'] })).toBe('Bob a réagi 👍 🎉 à votre commentaire dans « Voyage »')
+  })
+
+  it('un genre que l’app ne sait pas dire, d’un serveur plus récent, ne se montre pas', () => {
+    expect(texteDe({ ...notification('commentaire', 'note'), genre: 'echeance' as GenreNotification })).toBeNull()
+    expect(texteDe(notification('commentaire', 'note'))).toBe('Bob a commenté dans « Voyage »')
   })
 })

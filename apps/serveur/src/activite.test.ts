@@ -48,7 +48,10 @@ describe('comparer deux états d’un élément', () => {
       id: 'c', x: 0, y: 0, largeur: 28, plan: 'a', contenu: { type: 'commentaire', messages: messages.length ? messages : [m1], ...champs },
     })
     for (const champs of [{ resolu: true }, { replie: true }, { couleur: 'jaune' }]) expect(changementsDe('c', fil(), fil(champs))).toEqual([])
-    expect(changementsDe('c', fil(), fil({}, { ...m1, reactions: { '👍': ['bob'] } }))).toEqual([])
+    // Y réagir est une réaction au message, que l'auteur apprendra : pas une modification.
+    expect(changementsDe('c', fil(), fil({}, { ...m1, reactions: { '👍': ['bob'] } }))).toEqual([
+      { genre: 'reaction', element: 'c', fil: '', typeElement: 'commentaire', libelle: '', reactions: [{ message: 'm1', auteur: 'ana', texte: 'Bonjour', personne: 'bob', avant: [], apres: ['👍'] }] },
+    ])
     // La déplacer, la jeter, la remettre restent des gestes sur la toile.
     expect(changementsDe('c', fil(), { ...fil(), x: 30 })).toMatchObject([{ genre: 'deplace' }])
     expect(changementsDe('c', { ...fil(), corbeille: 5 }, fil())).toMatchObject([{ genre: 'restaure' }])
@@ -75,6 +78,23 @@ describe('comparer deux états d’un élément', () => {
     expect(perimes(fil({}, m1), fil({}, { ...m1, texte: ' Bonjour ', reactions: { '👍': ['bob'] } }))).toEqual([])
   })
 
+  it('une réaction dit, message par message, les émojis de chacun avant et après ; un message neuf ou parti n’en dit rien', () => {
+    const fil = (...messages: Record<string, unknown>[]) => ({ id: 'c', x: 0, y: 0, largeur: 28, plan: 'a', contenu: { type: 'commentaire', messages } })
+    const m1 = { id: 'm1', texte: 'Qui vient ?', auteur: { id: 'ana' } }
+    const m2 = { id: 'm2', texte: 'Moi', auteur: { id: 'bob' } }
+    const reactions = (avant: Record<string, unknown>, apres: Record<string, unknown>) => changementsDe('c', avant, apres).flatMap((c) => c.reactions ?? [])
+    // Bob change 👍 pour 🎉 sur le message d'Ana, Cléo retire le sien : chacun pour soi, avant et après.
+    expect(reactions(fil({ ...m1, reactions: { '👍': ['bob', 'cleo'] } }), fil({ ...m1, reactions: { '🎉': ['bob'] } }))).toEqual([
+      { message: 'm1', auteur: 'ana', texte: 'Qui vient ?', personne: 'bob', avant: ['👍'], apres: ['🎉'] },
+      { message: 'm1', auteur: 'ana', texte: 'Qui vient ?', personne: 'cleo', avant: ['👍'], apres: [] },
+    ])
+    // Les mêmes émojis dans un autre ordre ne changent rien.
+    expect(reactions(fil({ ...m1, reactions: { '👍': ['bob'], '🎉': ['bob'] } }), fil({ ...m1, reactions: { '🎉': ['bob'], '👍': ['bob'] } }))).toEqual([])
+    // Une réponse qui arrive avec ses réactions, ou un message qui part avec les siennes : rien.
+    expect(reactions(fil(m1), fil(m1, { ...m2, reactions: { '👍': ['ana'] } }))).toEqual([])
+    expect(reactions(fil(m1, { ...m2, reactions: { '👍': ['ana'] } }), fil(m1))).toEqual([])
+  })
+
   it('où qu’on commente, le fil se suit de même : accroché à une carte, dans la marge d’une note ou d’un document', () => {
     const m1 = { id: 'm1', texte: 'Bonjour', auteur: { id: 'ana' } }
     const m2 = { id: 'm2', texte: 'Salut @Bob', auteur: { id: 'bob' } }
@@ -92,10 +112,11 @@ describe('comparer deux états d’un élément', () => {
     expect(changementsDe('n', enMarge('document', { f1: fil(m1) }), enMarge('document', { f1: fil(m1, m2) }))).toMatchObject([
       { genre: 'commente', fil: 'f1', typeElement: 'document', participants: ['ana'] },
     ])
-    // Une réaction, où qu'elle soit, ne change rien.
+    // Une réaction, où qu'elle soit, est une réaction au message de son fil : elle ne modifie pas la note.
     const reagi = { ...m1, reactions: { '👍': ['bob'] } }
-    expect(changementsDe('n', accroche(m1), accroche(reagi))).toEqual([])
-    expect(changementsDe('n', enMarge('note', { f1: fil(m1) }), enMarge('note', { f1: fil(reagi) }))).toEqual([])
+    const reaction = { personne: 'bob', auteur: 'ana', texte: 'Bonjour', avant: [], apres: ['👍'] }
+    expect(changementsDe('n', accroche(m1), accroche(reagi))).toMatchObject([{ genre: 'reaction', element: 'n', fil: '', typeElement: 'note', reactions: [reaction] }])
+    expect(changementsDe('n', enMarge('note', { f1: fil(m1) }), enMarge('note', { f1: fil(reagi) }))).toMatchObject([{ genre: 'reaction', fil: 'f1', reactions: [reaction] }])
     // Le texte qui change, lui, reste une modification, à côté du commentaire.
     const corrige = { ...enMarge('note', { f1: fil(m1, m2) }), contenu: { type: 'note', texte: texte('Idée bis'), fils: { f1: fil(m1, m2) } } }
     expect(changementsDe('n', enMarge('note', { f1: fil(m1) }), corrige).map((c) => c.genre)).toEqual(['modifie', 'commente'])
@@ -161,7 +182,7 @@ describe('observer un document', () => {
     expect(sansDoublons([dans('f1', ['ana']), dans('f2', ['bob'])]).map((c) => [c.fil, c.participants])).toEqual([['f1', ['ana']], ['f2', ['bob']]])
   })
 
-  it('le fil d’un sujet de carte mentale vit à part : y écrire commente la carte, y réagir n’est rien', () => {
+  it('le fil d’un sujet de carte mentale vit à part : y écrire commente la carte, y réagir est une réaction au message', () => {
     const doc = new Y.Doc()
     doc.getMap('elements').set('carte', { id: 'carte', x: 0, y: 0, largeur: 40, plan: 'a', contenu: { type: 'arbre', sujets: {} } })
     const arbres = doc.getMap('arbres')
@@ -171,7 +192,9 @@ describe('observer un document', () => {
     arbres.set(cle('fils', 's1'), { type: 'commentaire', messages: [m1] })
     expect(suivi.ramasser()).toMatchObject([{ genre: 'commente', element: 'carte', fil: 's1', typeElement: 'arbre', libelle: 'Ce sujet manque' }])
     arbres.set(cle('fils', 's1'), { type: 'commentaire', messages: [{ ...m1, reactions: { '👍': ['bob'] } }] })
-    expect(suivi.ramasser()).toEqual([])
+    expect(suivi.ramasser()).toEqual([
+      { genre: 'reaction', element: 'carte', fil: 's1', typeElement: 'arbre', libelle: '', reactions: [{ message: 'm1', auteur: 'ana', texte: 'Ce sujet manque', personne: 'bob', avant: [], apres: ['👍'] }] },
+    ])
     // Un sujet qu'on renomme, lui, modifie la carte.
     arbres.set(cle('sujets', 's1'), { ordre: 'a', titre: 'Sujet' })
     expect(suivi.ramasser()).toMatchObject([{ genre: 'modifie', element: 'carte' }])
@@ -181,6 +204,16 @@ describe('observer un document', () => {
     expect(suivi.ramasser()).toMatchObject([{ genre: 'supprime' }, { genre: 'fil', fil: 's1', perimes: [{ id: 'm1' }] }])
     doc.getMap('elements').set('carte', carte)
     expect(suivi.ramasser()).toMatchObject([{ genre: 'restaure' }])
+  })
+
+  it('une rafale de réactions va, pour chacun sur chaque message, du premier état au dernier', () => {
+    const reaction = (personne: string, avant: string[], apres: string[], message = 'm1'): Changement => ({
+      genre: 'reaction', element: 'c', fil: '', typeElement: 'commentaire', libelle: '', reactions: [{ message, auteur: 'ana', texte: 'Qui vient ?', personne, avant, apres }],
+    })
+    expect(sansDoublons([reaction('bob', [], ['👍']), reaction('bob', ['👍'], ['👍', '🎉'])])).toMatchObject([{ reactions: [{ personne: 'bob', avant: [], apres: ['👍', '🎉'] }] }])
+    // Posé puis retiré : il n'en reste rien ; un autre message, ou une autre personne, gardent les leurs.
+    expect(sansDoublons([reaction('bob', [], ['👍']), reaction('cleo', [], ['🎉']), reaction('bob', ['👍'], [])])).toMatchObject([{ reactions: [{ personne: 'cleo', apres: ['🎉'] }] }])
+    expect(sansDoublons([reaction('bob', [], ['👍']), reaction('bob', [], ['👍'], 'm2')])[0]!.reactions).toHaveLength(2)
   })
 
   it('un message n’est neuf qu’une fois : passé d’un fil à un autre, ou revenu, il ne prévient plus', () => {

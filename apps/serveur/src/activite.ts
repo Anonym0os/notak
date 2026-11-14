@@ -22,10 +22,11 @@ const EXTRAIT_MAX = 140
 type Stocke = Record<string, unknown>
 
 /**
- * Ce que relève une mise à jour : un geste de l'activité, ou `fil` : un fil de discussion a changé sans message neuf
- * (un message corrigé ou retiré). Celui-là ne se note nulle part ; il ne sert qu'à tenir justes les citations.
+ * Ce que relève une mise à jour : un geste de l'activité ; `fil` : un fil de discussion a changé sans message neuf (un
+ * message corrigé ou retiré) ; `reaction` : on a posé ou retiré des réactions sur ses messages. Ces deux-là ne se
+ * notent pas dans l'activité : le premier tient justes les citations, le second prévient l'auteur du message.
  */
-export type GenreChangement = GenreActivite | 'fil'
+export type GenreChangement = GenreActivite | 'fil' | 'reaction'
 
 export interface Changement {
   genre: GenreChangement
@@ -44,6 +45,20 @@ export interface Changement {
    * récrits, ou partis avec leur fil. `noter` retire, récrit ou déplace ces citations.
    */
   perimes?: MessagePerime[]
+  /** Pour une réaction : les émojis de chacun qui ont changé, message par message. */
+  reactions?: ReactionChangee[]
+}
+
+/** Les émojis d'une personne sur un message, avant et après un changement. */
+export interface ReactionChangee {
+  /** Le message : son identifiant, son auteur (à qui la réaction s'adresse), son texte (que la notification cite). */
+  message: string
+  auteur: string
+  texte: string
+  /** Qui réagit. */
+  personne: string
+  avant: string[]
+  apres: string[]
 }
 
 export interface MessagePerime {
@@ -86,6 +101,8 @@ interface MessageLu {
   id: string
   texte: string
   auteur: string
+  /** Les émojis de chacun sur ce message (`Message.reactions` les range par émoji). */
+  reactions: Map<string, string[]>
 }
 
 /**
@@ -95,18 +112,38 @@ interface MessageLu {
  */
 export type FilsLus = Map<string, MessageLu[]>
 
+const estDico = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+
+function reactionsParPersonne(brut: unknown): Map<string, string[]> {
+  const parPersonne = new Map<string, string[]>()
+  for (const [emoji, gens] of estDico(brut) ? Object.entries(brut) : []) {
+    for (const p of Array.isArray(gens) ? gens : []) if (typeof p === 'string' && p) parPersonne.set(p, [...(parPersonne.get(p) ?? []), emoji])
+  }
+  return parPersonne
+}
+
 const messagesDe = (fil: unknown): MessageLu[] => {
   const brut = fil && typeof fil === 'object' ? (fil as { messages?: unknown }).messages : undefined
   return Array.isArray(brut)
-    ? (brut as ({ id?: unknown; texte?: unknown; auteur?: { id?: unknown } } | null)[]).map((m) => ({
+    ? (brut as ({ id?: unknown; texte?: unknown; auteur?: { id?: unknown }; reactions?: unknown } | null)[]).map((m) => ({
         id: chaine(m?.id),
         texte: chaine(m?.texte),
         auteur: chaine(m?.auteur?.id),
+        reactions: reactionsParPersonne(m?.reactions),
       }))
     : []
 }
 
-const estDico = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+const memesEmojis = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((e) => b.includes(e))
+
+/** Ce que chacun a changé de ses réactions à un message resté dans son fil. */
+function reactionsChangees(avant: MessageLu, apres: MessageLu): ReactionChangee[] {
+  return [...new Set([...avant.reactions.keys(), ...apres.reactions.keys()])].flatMap((personne) => {
+    const a = avant.reactions.get(personne) ?? []
+    const b = apres.reactions.get(personne) ?? []
+    return memesEmojis(a, b) ? [] : [{ message: apres.id, auteur: apres.auteur, texte: apres.texte, personne, avant: a, apres: b }]
+  })
+}
 
 /** Les fils d'un dictionnaire de fils (`Note.fils`, `DocumentTexte.fils`, `Arbre.fils`), par clé. */
 const filsDuDico = (dico: unknown): FilsLus => new Map(estDico(dico) ? Object.entries(dico).map(([cle, fil]) => [cle, messagesDe(fil)]) : [])
@@ -140,8 +177,9 @@ function filsDesSujets(arbres: Y.Map<unknown>, carte: string): FilsLus {
 
 /**
  * Ce qui a changé d'un état des fils d'un élément à l'autre, fil par fil : les messages arrivés (`commente`, avec qui
- * y avait déjà écrit), et ceux qui ne disent plus ce qu'on a pu citer d'eux (`perimes`), supprimés, récrits ou partis.
- * Rien d'autre n'en sort : une réaction, un fil résolu, replié ou recoloré ne changent rien à ce qui s'y est dit.
+ * y avait déjà écrit), ceux qui ne disent plus ce qu'on a pu citer d'eux (`perimes`), supprimés, récrits ou partis, et
+ * les réactions posées ou retirées sur ceux qui y restent (`reaction`). Rien d'autre n'en sort : un fil résolu, replié
+ * ou recoloré ne change rien à ce qui s'y est dit.
  */
 export function differenceDesFils(element: string, typeElement: string, avant: FilsLus, apres: FilsLus): Changement[] {
   const sortie: Changement[] = []
@@ -165,6 +203,12 @@ export function differenceDesFils(element: string, typeElement: string, avant: F
         participants: [...new Set(anciens.map((m) => m.auteur).filter(Boolean))],
       })
     } else if (perimes.length > 0) sortie.push({ genre: 'fil', ...commun, libelle: '' })
+    // Un message neuf ou parti n'apporte ni n'emporte de réaction : il n'était pas là, ou n'y est plus.
+    const reactions = anciens.flatMap((m) => {
+      const reste = restants.get(m.id)
+      return reste ? reactionsChangees(m, reste) : []
+    })
+    if (reactions.length > 0) sortie.push({ genre: 'reaction', element, typeElement, fil, libelle: '', reactions })
   }
   return sortie
 }
@@ -268,7 +312,7 @@ export function observer(doc: Y.Doc): { ramasser(): Changement[] } {
     }
   })
   // Les sujets d'une carte mentale vivent aussi à part, dans `arbres` : une carte touchée compte une fois par passage.
-  // Le fil d'un sujet n'est pas la carte : y écrire est un commentaire, y réagir n'est rien.
+  // Le fil d'un sujet n'est pas la carte : y écrire est un commentaire, y réagir une réaction, comme partout.
   arbres.observe((evenement) => {
     const cartes = new Set<string>()
     for (const [cle, change] of evenement.changes.keys) {
@@ -312,7 +356,8 @@ export function observer(doc: Y.Doc): { ramasser(): Changement[] } {
 /**
  * Un changement par élément, par fil et par genre : une rafale de frappes n'en fait qu'un. Les messages arrivés et ceux
  * qui ne disent plus la même chose s'additionnent, dans l'ordre : un message récrit deux fois l'est jusqu'à sa dernière
- * version.
+ * version. Les réactions de chacun à un message vont de ce qu'elles étaient avant la rafale à ce qu'elles sont après :
+ * un émoji posé puis retiré n'y est plus.
  */
 export function sansDoublons(changements: readonly Changement[]): Changement[] {
   const dernier = new Map<string, Changement>()
@@ -321,9 +366,20 @@ export function sansDoublons(changements: readonly Changement[]): Changement[] {
     const avant = dernier.get(cle)
     const fondu = avant?.messages ? { ...c, messages: [...avant.messages, ...(c.messages ?? [])], participants: avant.participants } : c
     const perimes = [...(avant?.perimes ?? []), ...(c.perimes ?? [])]
-    dernier.set(cle, perimes.length > 0 ? { ...fondu, perimes } : fondu)
+    const reactions = avant?.reactions ? fondreReactions(avant.reactions, c.reactions ?? []) : c.reactions
+    dernier.set(cle, { ...fondu, ...(perimes.length > 0 ? { perimes } : {}), ...(reactions ? { reactions } : {}) })
   }
   return [...dernier.values()]
+}
+
+function fondreReactions(avant: readonly ReactionChangee[], ensuite: readonly ReactionChangee[]): ReactionChangee[] {
+  const parCle = new Map(avant.map((r) => [`${r.message}|${r.personne}`, r]))
+  for (const r of ensuite) {
+    const cle = `${r.message}|${r.personne}`
+    const deja = parCle.get(cle)
+    parCle.set(cle, deja ? { ...r, avant: deja.avant } : r)
+  }
+  return [...parCle.values()].filter((r) => !memesEmojis(r.avant, r.apres))
 }
 
 /** Où se lit un message : son fil, dans l'élément qui le porte. */
@@ -408,10 +464,11 @@ export function mentionnes(texte: string, candidats: readonly { id: string; nom:
 /**
  * Les notifications que ces changements font naître chez les autres membres du tableau. Un commentaire, où qu'il soit
  * (une épingle, le fil d'une carte, la marge d'une note ou d'un document, un sujet de carte mentale), prévient ceux qui
- * ont écrit dans son fil, ceux qui tiennent le tableau, et ceux qu'il nomme. Ce qui touche un fil sans y écrire (une
- * réaction, un fil résolu ou replié, un message corrigé ou retiré) ne prévient personne : la boîte de réception de
- * Notion reçoit les mentions, les réponses à ses commentaires et, si on l'a demandé, les commentaires d'une page, et
- * aucun de ces petits gestes n'y sonne chez tous les membres.
+ * ont écrit dans son fil, ceux qui tiennent le tableau, et ceux qu'il nomme. Une réaction prévient l'auteur du message,
+ * et lui seul. Le reste de ce qui touche un fil sans y écrire (une réaction retirée, un fil résolu ou replié, un message
+ * corrigé ou retiré) ne prévient personne : la boîte de réception de Notion reçoit les mentions, les réponses à ses
+ * commentaires et, si on l'a demandé, les commentaires d'une page, et aucun de ces petits gestes n'y sonne chez tous
+ * les membres.
  */
 export function notificationsDe(
   base: Base,
@@ -440,6 +497,24 @@ export function notificationsDe(
         // Le fil parle à ceux qui y ont écrit et à ceux qui tiennent le tableau.
         const voisins = new Set([...(c.participants ?? []).filter((id) => autres.includes(id)), ...proprietaires])
         for (const id of voisins) if (!cites.has(id)) notifier(id, 'commentaire', c, m.texte)
+      }
+    } else if (c.genre === 'reaction') {
+      for (const r of c.reactions ?? []) {
+        const poses = r.apres.filter((e) => !r.avant.includes(e))
+        // Seul ce que l'acteur pose est son geste (une écriture d'après un état ancien peut en rendre d'autres) ; on ne
+        // se prévient pas soi-même, et un auteur qui ne lit plus le tableau n'en sait rien.
+        if (poses.length === 0 || r.personne !== acteur || !autres.includes(r.auteur)) continue
+        sortie.push({
+          destinataire: r.auteur,
+          genre: 'reaction',
+          tableau,
+          element: c.element,
+          fil: c.fil ?? '',
+          auteur: acteur,
+          extrait: court(r.texte, EXTRAIT_MAX),
+          emojis: poses,
+          instant,
+        })
       }
     } else if (c.genre === 'deplace' || c.genre === 'fil') {
       continue
@@ -482,23 +557,25 @@ export function suivreActivite(base: Base, maintenant: () => number): SuiviActiv
       // Où se lit chaque message, maintenant : de quoi suivre un fil déplacé, et reconnaître un texte encore dit.
       const places = changements.some((c) => c.perimes) ? messagesDuDocument(doc) : null
       const qui = acteur && base.utilisateurParId(acteur.id) ? acteur : undefined
-      if (!qui && !changements.some((c) => c.perimes)) return
+      if (!qui && !changements.some((c) => c.perimes || c.reactions)) return
       const instant = maintenant()
       base.transaction(() => {
         if (qui) {
           for (const c of changements) {
-            if (c.genre === 'fil') continue
+            if (c.genre === 'fil' || c.genre === 'reaction') continue
             base.noterActivite(
               { tableau, auteur: qui.id, genre: c.genre, element: c.element, typeElement: c.typeElement, libelle: c.libelle, instant },
               FENETRE_FUSION,
             )
           }
+          // Des modifications d'une même personne, ou ses réactions rapprochées à un même message, n'en font qu'une.
           for (const n of notificationsDe(base, tableau, qui.id, changements, instant)) {
-            base.noterNotification(n, n.genre === 'modification' ? FUSION_NOTIFICATION : undefined)
+            base.noterNotification(n, n.genre === 'modification' || n.genre === 'reaction' ? FUSION_NOTIFICATION : undefined)
           }
         }
         // Après ce qui vient d'être cité : un message écrit puis supprimé dans la même rafale ne reste pas cité.
         if (places) tenirLesCitations(base, tableau, places, changements)
+        oublierLesReactionsRetirees(base, tableau, changements)
       })
     },
   }
@@ -521,6 +598,20 @@ function tenirLesCitations(base: Base, tableau: string, places: ReadonlyMap<stri
       else if (ditEncore(places, c.element, p.auteur, p.texte)) continue
       else if (p.nouveau === undefined) base.retirerCitation(tableau, citation)
       else base.remplacerCitation(tableau, citation, { libelle: court(p.nouveau, LIBELLE_MAX), extrait: court(p.nouveau, EXTRAIT_MAX) })
+    }
+  }
+}
+
+/**
+ * Une réaction retirée ne se lit plus dans la cloche : celle qui la disait l'oublie, et part si elle n'en disait pas
+ * d'autre. Qui que ce soit qui l'ait retirée : c'est ce que dit le document.
+ */
+function oublierLesReactionsRetirees(base: Base, tableau: string, changements: readonly Changement[]) {
+  for (const c of changements) {
+    for (const r of c.reactions ?? []) {
+      const retires = r.avant.filter((e) => !r.apres.includes(e))
+      if (retires.length === 0) continue
+      base.retirerReactions(tableau, { element: c.element, fil: c.fil ?? '', destinataire: r.auteur, auteur: r.personne, extrait: court(r.texte, EXTRAIT_MAX) }, retires)
     }
   }
 }

@@ -140,7 +140,8 @@ export interface LigneActivite extends Omit<NouvelleActivite, 'auteur'> {
   auteur: { id: string; nom: string; couleur: string }
 }
 
-export type GenreNotification = 'commentaire' | 'mention' | 'modification' | 'partage'
+/** `reaction` : quelqu'un a réagi à un message du destinataire, que l'extrait cite. */
+export type GenreNotification = 'commentaire' | 'mention' | 'modification' | 'partage' | 'reaction'
 
 export interface NouvelleNotification {
   destinataire: string
@@ -148,13 +149,26 @@ export interface NouvelleNotification {
   tableau: string
   element: string
   /**
-   * Pour un commentaire : son fil, dans l'élément qui le porte (`FilsLus` d'`activite.ts`) ; vide pour une épingle ou
-   * le fil accroché à l'élément. C'est là que mène la notification.
+   * Pour un commentaire ou une réaction : le fil, dans l'élément qui le porte (`FilsLus` d'`activite.ts`) ; vide pour
+   * une épingle ou le fil accroché à l'élément. C'est là que mène la notification.
    */
   fil?: string
   auteur: string
   extrait: string
+  /** Pour une réaction : les émojis posés. */
+  emojis?: string[]
   instant: number
+}
+
+/** Les notifications de réaction d'une personne à un message : le fil, qui l'a écrit, son texte cité, qui a réagi. */
+export interface ReactionsCitees {
+  element: string
+  fil: string
+  /** L'auteur du message, à qui la réaction s'adresse. */
+  destinataire: string
+  /** Qui a réagi. */
+  auteur: string
+  extrait: string
 }
 
 /**
@@ -392,9 +406,15 @@ export interface Base {
 
   /**
    * Ajoute une notification. Avec `fusionner` (ms), une notification non lue du même genre, sur le même tableau,
-   * du même auteur et au même destinataire, notée dans cette fenêtre, est renouvelée au lieu d'être doublée.
+   * du même auteur et au même destinataire, notée dans cette fenêtre, est renouvelée au lieu d'être doublée ; pour une
+   * réaction, il faut aussi le même message, et la notification dit alors tous les émojis posés.
    */
   noterNotification(n: NouvelleNotification, fusionner?: number): void
+  /**
+   * Ces émojis ont été retirés d'un message : les notifications de réaction qui les disaient, lues ou non, ne les
+   * disent plus, et partent quand elles n'en disent plus aucun. On n'apprend pas une réaction qui n'est plus.
+   */
+  retirerReactions(tableau: string, r: ReactionsCitees, emojis: readonly string[]): void
   /** Les notifications d'un compte, la plus récente d'abord. */
   notifications(destinataire: string, limite: number): LigneNotification[]
   nonLues(destinataire: string): number
@@ -470,6 +490,15 @@ export const NOTIFICATIONS_GARDEES = 200
 
 
 type Ligne = Record<string, unknown>
+
+/** Les émojis d'une notification de réaction, gardés séparés par une espace : aucun émoji n'en contient. */
+const emojisDe = (brut: unknown): string[] => (typeof brut === 'string' ? brut.split(' ').filter(Boolean) : [])
+
+/**
+ * Les notifications qui citent un message de cet auteur (deux fois en paramètre) : ce qu'il y a écrit, ou une réaction
+ * qu'on lui a faite.
+ */
+const DU_MESSAGE = "((genre IN ('commentaire', 'mention') AND auteur = ?) OR (genre = 'reaction' AND destinataire = ?))"
 
 /** Les premiers octets d'un état chiffré (`NKC1`), pour en trouver un en SQL. */
 const MAGIE_CHIFFRE = new TextEncoder().encode('NKC1')
@@ -1096,7 +1125,27 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
       ).map(({ auteurId, auteurNom, auteurCouleur, ...reste }) => ({ ...reste, auteur: { id: auteurId, nom: auteurNom, couleur: auteurCouleur } })),
 
     noterNotification(n, fusionner) {
-      if (fusionner !== undefined) {
+      if (fusionner !== undefined && n.genre === 'reaction') {
+        // La même personne réagit encore au même message (le fil, son auteur, son texte cité) : la notification qui
+        // le disait, non lue, dit ses nouveaux émojis avec les autres.
+        const deja = un(
+          `SELECT id, emojis FROM notifications
+           WHERE destinataire = ? AND genre = 'reaction' AND tableau = ? AND element = ? AND fil = ? AND auteur = ? AND extrait = ?
+             AND lu = 0 AND instant >= ? ORDER BY id DESC LIMIT 1`,
+          n.destinataire,
+          n.tableau,
+          n.element,
+          n.fil ?? '',
+          n.auteur,
+          n.extrait,
+          n.instant - fusionner,
+        )
+        if (deja) {
+          const emojis = [...new Set([...emojisDe(deja.emojis), ...(n.emojis ?? [])])]
+          executer('UPDATE notifications SET instant = ?, emojis = ? WHERE id = ?', n.instant, emojis.join(' '), Number(deja.id))
+          return
+        }
+      } else if (fusionner !== undefined) {
         const renouvelle = executer(
           `UPDATE notifications SET instant = ?, extrait = ?, element = ? WHERE id = (
              SELECT id FROM notifications
@@ -1113,7 +1162,7 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
         if (Number(renouvelle.changes) > 0) return
       }
       executer(
-        'INSERT INTO notifications (destinataire,genre,tableau,element,fil,auteur,extrait,instant) VALUES (?,?,?,?,?,?,?,?)',
+        'INSERT INTO notifications (destinataire,genre,tableau,element,fil,auteur,extrait,emojis,instant) VALUES (?,?,?,?,?,?,?,?,?)',
         n.destinataire,
         n.genre,
         n.tableau,
@@ -1121,6 +1170,7 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
         n.fil ?? '',
         n.auteur,
         n.extrait,
+        (n.emojis ?? []).join(' '),
         n.instant,
       )
       executer(
@@ -1130,18 +1180,36 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
         NOTIFICATIONS_GARDEES,
       )
     },
+    retirerReactions(tableau, r, emojis) {
+      const lignes = tous(
+        `SELECT id, emojis FROM notifications
+         WHERE genre = 'reaction' AND tableau = ? AND element = ? AND fil = ? AND destinataire = ? AND auteur = ? AND extrait = ?`,
+        tableau,
+        r.element,
+        r.fil,
+        r.destinataire,
+        r.auteur,
+        r.extrait,
+      )
+      for (const l of lignes) {
+        const restent = emojisDe(l.emojis).filter((e) => !emojis.includes(e))
+        if (restent.length === 0) executer('DELETE FROM notifications WHERE id = ?', Number(l.id))
+        else executer('UPDATE notifications SET emojis = ? WHERE id = ?', restent.join(' '), Number(l.id))
+      }
+    },
     notifications: (destinataire, limite) =>
       (
         tous(
-          `SELECT n.id, n.genre, n.tableau, n.element, n.fil, n.extrait, n.instant, n.lu,
+          `SELECT n.id, n.genre, n.tableau, n.element, n.fil, n.extrait, n.emojis, n.instant, n.lu,
                   u.id AS auteurId, u.nom AS auteurNom, u.couleur AS auteurCouleur
            FROM notifications n JOIN utilisateurs u ON u.id = n.auteur
            WHERE n.destinataire = ? ORDER BY n.id DESC LIMIT ?`,
           destinataire,
           limite,
-        ) as unknown as (Omit<LigneNotification, 'auteur' | 'lu'> & { lu: number; auteurId: string; auteurNom: string; auteurCouleur: string })[]
-      ).map(({ auteurId, auteurNom, auteurCouleur, lu, ...reste }) => ({
+        ) as unknown as (Omit<LigneNotification, 'auteur' | 'lu' | 'emojis'> & { lu: number; emojis: string; auteurId: string; auteurNom: string; auteurCouleur: string })[]
+      ).map(({ auteurId, auteurNom, auteurCouleur, lu, emojis, ...reste }) => ({
         ...reste,
+        ...(reste.genre === 'reaction' ? { emojis: emojisDe(emojis) } : {}),
         lu: lu === 1,
         auteur: { id: auteurId, nom: auteurNom, couleur: auteurCouleur },
       })),
@@ -1159,7 +1227,8 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
         ).changes,
       )
     },
-    // Seules ces lignes citent un message : `commente` dans l'activité, `commentaire` et `mention` dans les notifications.
+    // Seules ces lignes citent un message : `commente` dans l'activité ; dans les notifications, `commentaire` et `mention`,
+    // qui viennent de son auteur, et `reaction`, qui lui est adressée (`DU_MESSAGE`).
     retirerCitation(tableau, c) {
       executer(
         "UPDATE activite SET libelle = '' WHERE tableau = ? AND element = ? AND auteur = ? AND genre = 'commente' AND libelle = ?",
@@ -1169,12 +1238,13 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
         c.libelle,
       )
       executer(
-        "DELETE FROM notifications WHERE tableau = ? AND element = ? AND fil = ? AND auteur = ? AND genre IN ('commentaire', 'mention') AND extrait = ?",
+        `DELETE FROM notifications WHERE tableau = ? AND element = ? AND fil = ? AND extrait = ? AND ${DU_MESSAGE}`,
         tableau,
         c.element,
         c.fil,
-        c.auteur,
         c.extrait,
+        c.auteur,
+        c.auteur,
       )
     },
     remplacerCitation(tableau, c, nouvelle) {
@@ -1187,13 +1257,14 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
         c.libelle,
       )
       executer(
-        "UPDATE notifications SET extrait = ? WHERE tableau = ? AND element = ? AND fil = ? AND auteur = ? AND genre IN ('commentaire', 'mention') AND extrait = ?",
+        `UPDATE notifications SET extrait = ? WHERE tableau = ? AND element = ? AND fil = ? AND extrait = ? AND ${DU_MESSAGE}`,
         nouvelle.extrait,
         tableau,
         c.element,
         c.fil,
-        c.auteur,
         c.extrait,
+        c.auteur,
+        c.auteur,
       )
     },
     deplacerCitation(tableau, c, vers) {
@@ -1207,14 +1278,15 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
         c.libelle,
       )
       executer(
-        "UPDATE notifications SET element = ?, fil = ? WHERE tableau = ? AND element = ? AND fil = ? AND auteur = ? AND genre IN ('commentaire', 'mention') AND extrait = ?",
+        `UPDATE notifications SET element = ?, fil = ? WHERE tableau = ? AND element = ? AND fil = ? AND extrait = ? AND ${DU_MESSAGE}`,
         vers.element,
         vers.fil,
         tableau,
         c.element,
         c.fil,
-        c.auteur,
         c.extrait,
+        c.auteur,
+        c.auteur,
       )
     },
   }
