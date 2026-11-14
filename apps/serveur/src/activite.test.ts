@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
-import { comparer, mentionnes, observer, regrouper, sansDoublons } from './activite.ts'
+import { type Changement, changementsDe, comparer, mentionnes, observer, regrouper, sansDoublons, sansLesDejaVus } from './activite.ts'
 import type { LigneActivite } from './base.ts'
 import { texte } from './essai.ts'
 
@@ -36,11 +36,11 @@ describe('comparer deux états d’un élément', () => {
     })
     const m1 = { id: 'm1', texte: 'Bonjour', auteur: { id: 'ana' } }
     const m2 = { id: 'm2', texte: 'Salut @Bob', auteur: { id: 'bob' } }
-    expect(comparer('c', undefined, fil())).toBeNull()
-    expect(comparer('c', undefined, fil(m1))).toMatchObject({ genre: 'commente', messages: [{ texte: 'Bonjour' }], participants: [] })
-    expect(comparer('c', fil(), fil(m1))).toMatchObject({ genre: 'commente', messages: [{ texte: 'Bonjour' }], participants: [] })
-    expect(comparer('c', fil(m1), fil(m1, m2))).toMatchObject({ genre: 'commente', libelle: 'Salut @Bob', participants: ['ana'] })
-    expect(comparer('c', fil(m1), { ...fil(m1), contenu: { type: 'commentaire', messages: [m1], resolu: true } })).toMatchObject({ genre: 'modifie' })
+    expect(changementsDe('c', undefined, fil())).toEqual([])
+    expect(changementsDe('c', undefined, fil(m1))).toMatchObject([{ genre: 'commente', fil: '', typeElement: 'commentaire', messages: [{ texte: 'Bonjour' }], participants: [] }])
+    expect(changementsDe('c', fil(), fil(m1))).toMatchObject([{ genre: 'commente', messages: [{ texte: 'Bonjour' }], participants: [] }])
+    expect(changementsDe('c', fil(m1), fil(m1, m2))).toMatchObject([{ genre: 'commente', libelle: 'Salut @Bob', participants: ['ana'] }])
+    expect(changementsDe('c', fil(m1), { ...fil(m1), contenu: { type: 'commentaire', messages: [m1], resolu: true } })).toMatchObject([{ genre: 'modifie' }])
   })
 
   it('un fil dit quels messages ne disent plus ce qu’on a pu citer d’eux : supprimés, récrits, ou partis avec lui', () => {
@@ -49,19 +49,52 @@ describe('comparer deux états d’un élément', () => {
     })
     const m1 = { id: 'm1', texte: 'Bonjour', auteur: { id: 'ana' } }
     const m2 = { id: 'm2', texte: 'Je regrette', auteur: { id: 'bob' } }
-    expect(comparer('c', fil({}, m1, m2), fil({}, m1))).toMatchObject({ genre: 'modifie', perimes: [{ auteur: 'bob', texte: 'Je regrette' }] })
-    expect(comparer('c', fil({}, m1, m2), fil({}, m1, { ...m2, texte: 'Je nuance' }))?.perimes).toEqual([{ auteur: 'bob', texte: 'Je regrette', nouveau: 'Je nuance' }])
+    const perimes = (avant: Record<string, unknown> | undefined, apres: Record<string, unknown> | undefined) => changementsDe('c', avant, apres).flatMap((c) => c.perimes ?? [])
+    expect(changementsDe('c', fil({}, m1, m2), fil({}, m1))).toMatchObject([{ genre: 'modifie' }, { genre: 'fil', perimes: [{ id: 'm2', auteur: 'bob', texte: 'Je regrette' }] }])
+    expect(perimes(fil({}, m1, m2), fil({}, m1, { ...m2, texte: 'Je nuance' }))).toEqual([{ id: 'm2', auteur: 'bob', texte: 'Je regrette', nouveau: 'Je nuance' }])
     // Jeté ou retiré, le fil emporte tous ses messages ; déjà jeté, il n'a plus rien à dire.
     const tous = [{ auteur: 'ana', texte: 'Bonjour' }, { auteur: 'bob', texte: 'Je regrette' }]
-    expect(comparer('c', fil({}, m1, m2), fil({ corbeille: 5 }, m1, m2))).toMatchObject({ genre: 'supprime', perimes: tous })
-    expect(comparer('c', fil({}, m1, m2), undefined)).toMatchObject({ genre: 'supprime', perimes: tous })
-    expect(comparer('c', fil({ corbeille: 5 }, m1), undefined)).toBeNull()
+    expect(changementsDe('c', fil({}, m1, m2), fil({ corbeille: 5 }, m1, m2))).toMatchObject([{ genre: 'supprime' }, { genre: 'fil', perimes: tous }])
+    expect(changementsDe('c', fil({}, m1, m2), undefined)).toMatchObject([{ genre: 'supprime' }, { genre: 'fil', perimes: tous }])
+    expect(changementsDe('c', fil({ corbeille: 5 }, m1), undefined)).toEqual([])
+    // Remis de la corbeille, il ne redit rien : on ne prévient pas deux fois.
+    expect(changementsDe('c', fil({ corbeille: 5 }, m1), fil({}, m1))).toMatchObject([{ genre: 'restaure' }])
     // Une réponse, une réaction, des espaces en plus : ce qu'on a cité se dit toujours.
-    expect(comparer('c', fil({}, m1), fil({}, m1, m2))?.perimes).toBeUndefined()
-    expect(comparer('c', fil({}, m1), fil({}, { ...m1, texte: ' Bonjour ', reactions: { '👍': ['bob'] } }))?.perimes).toBeUndefined()
-    // Les fils de la marge d'une note ne sont cités ni par l'activité ni par les notifications : rien à retirer.
-    const enMarge = { ...note('Idée'), contenu: { type: 'note', texte: texte('Idée'), fils: { f: { type: 'commentaire', messages: [m2] } } } }
-    expect(comparer('n', enMarge, undefined)?.perimes).toBeUndefined()
+    expect(perimes(fil({}, m1), fil({}, m1, m2))).toEqual([])
+    expect(perimes(fil({}, m1), fil({}, { ...m1, texte: ' Bonjour ', reactions: { '👍': ['bob'] } }))).toEqual([])
+  })
+
+  it('où qu’on commente, le fil se suit de même : accroché à une carte, dans la marge d’une note ou d’un document', () => {
+    const m1 = { id: 'm1', texte: 'Bonjour', auteur: { id: 'ana' } }
+    const m2 = { id: 'm2', texte: 'Salut @Bob', auteur: { id: 'bob' } }
+    const fil = (...messages: Record<string, unknown>[]) => ({ type: 'commentaire', messages })
+    const accroche = (...messages: Record<string, unknown>[]) => note('Idée', { commentaire: fil(...messages) })
+    const enMarge = (type: 'note' | 'document', fils: Record<string, unknown>) =>
+      note('Idée', { contenu: { type, ...(type === 'document' ? { titre: 'Plan' } : {}), texte: texte('Idée'), fils } })
+
+    // Le premier message d'un fil accroché est un commentaire de la carte ; la carte elle-même n'a pas changé.
+    expect(changementsDe('n', note('Idée'), accroche(m1))).toMatchObject([{ genre: 'commente', element: 'n', fil: '', typeElement: 'note', libelle: 'Bonjour', participants: [] }])
+    expect(changementsDe('n', accroche(m1), accroche(m1, m2))).toMatchObject([{ genre: 'commente', fil: '', participants: ['ana'] }])
+    // Dans la marge, chaque fil a sa clé, et ses participants ; écrire dans un fil ne modifie pas la note.
+    const deux = { f1: fil(m1), f2: fil() }
+    expect(changementsDe('n', enMarge('note', deux), enMarge('note', { ...deux, f2: fil(m2) }))).toMatchObject([{ genre: 'commente', fil: 'f2', typeElement: 'note', participants: [] }])
+    expect(changementsDe('n', enMarge('document', { f1: fil(m1) }), enMarge('document', { f1: fil(m1, m2) }))).toMatchObject([
+      { genre: 'commente', fil: 'f1', typeElement: 'document', participants: ['ana'] },
+    ])
+    // Une réaction, où qu'elle soit, ne change rien.
+    const reagi = { ...m1, reactions: { '👍': ['bob'] } }
+    expect(changementsDe('n', accroche(m1), accroche(reagi))).toEqual([])
+    expect(changementsDe('n', enMarge('note', { f1: fil(m1) }), enMarge('note', { f1: fil(reagi) }))).toEqual([])
+    // Le texte qui change, lui, reste une modification, à côté du commentaire.
+    const corrige = { ...enMarge('note', { f1: fil(m1, m2) }), contenu: { type: 'note', texte: texte('Idée bis'), fils: { f1: fil(m1, m2) } } }
+    expect(changementsDe('n', enMarge('note', { f1: fil(m1) }), corrige).map((c) => c.genre)).toEqual(['modifie', 'commente'])
+    // Jetée, la note emporte tous ses fils, celui qu'elle porte comme ceux de sa marge.
+    const tout = { ...enMarge('note', { f1: fil(m2) }), commentaire: fil(m1) }
+    expect(changementsDe('n', tout, { ...tout, corbeille: 5 })).toMatchObject([
+      { genre: 'supprime' },
+      { genre: 'fil', fil: '', perimes: [{ id: 'm1' }] },
+      { genre: 'fil', fil: 'f1', perimes: [{ id: 'm2' }] },
+    ])
   })
 })
 
@@ -105,13 +138,50 @@ describe('observer un document', () => {
   })
 
   it('une rafale garde, dans l’ordre, tout ce qui ne se dit plus', () => {
-    const parti = (texte: string) => ({ genre: 'modifie' as const, element: 'c', typeElement: 'commentaire', libelle: '', perimes: [{ auteur: 'bob', texte }] })
-    expect(sansDoublons([parti('A'), { genre: 'modifie', element: 'c', typeElement: 'commentaire', libelle: '' }, parti('B')])).toMatchObject([
+    const parti = (texte: string): Changement => ({ genre: 'fil', element: 'c', fil: '', typeElement: 'commentaire', libelle: '', perimes: [{ id: texte, auteur: 'bob', texte }] })
+    expect(sansDoublons([parti('A'), { genre: 'fil', element: 'c', fil: '', typeElement: 'commentaire', libelle: '' }, parti('B')])).toMatchObject([
       { perimes: [{ texte: 'A' }, { texte: 'B' }] },
     ])
     // Récrit deux fois, il l'est jusqu'à sa dernière version.
-    const recrit = (texte: string, nouveau: string) => ({ ...parti(texte), perimes: [{ auteur: 'bob', texte, nouveau }] })
+    const recrit = (texte: string, nouveau: string): Changement => ({ ...parti(texte), perimes: [{ id: 'm', auteur: 'bob', texte, nouveau }] })
     expect(sansDoublons([recrit('A', 'B'), recrit('B', 'C')])).toMatchObject([{ perimes: [{ texte: 'A', nouveau: 'B' }, { texte: 'B', nouveau: 'C' }] }])
+    // Deux fils d'une même note ne se mêlent pas : chacun garde ses messages et ses participants.
+    const dans = (fil: string, participants: string[]): Changement => ({ genre: 'commente', element: 'n', fil, typeElement: 'note', libelle: fil, messages: [{ id: fil, texte: fil }], participants })
+    expect(sansDoublons([dans('f1', ['ana']), dans('f2', ['bob'])]).map((c) => [c.fil, c.participants])).toEqual([['f1', ['ana']], ['f2', ['bob']]])
+  })
+
+  it('le fil d’un sujet de carte mentale vit à part : y écrire commente la carte, y réagir n’est rien', () => {
+    const doc = new Y.Doc()
+    doc.getMap('elements').set('carte', { id: 'carte', x: 0, y: 0, largeur: 40, plan: 'a', contenu: { type: 'arbre', sujets: {} } })
+    const arbres = doc.getMap('arbres')
+    const cle = (champ: string, id: string) => ['carte', champ, id].join('\u001f')
+    const m1 = { id: 'm1', texte: 'Ce sujet manque', auteur: { id: 'ana' } }
+    const suivi = observer(doc)
+    arbres.set(cle('fils', 's1'), { type: 'commentaire', messages: [m1] })
+    expect(suivi.ramasser()).toMatchObject([{ genre: 'commente', element: 'carte', fil: 's1', typeElement: 'arbre', libelle: 'Ce sujet manque' }])
+    arbres.set(cle('fils', 's1'), { type: 'commentaire', messages: [{ ...m1, reactions: { '👍': ['bob'] } }] })
+    expect(suivi.ramasser()).toEqual([])
+    // Un sujet qu'on renomme, lui, modifie la carte.
+    arbres.set(cle('sujets', 's1'), { ordre: 'a', titre: 'Sujet' })
+    expect(suivi.ramasser()).toMatchObject([{ genre: 'modifie', element: 'carte' }])
+    // Jetée, la carte emporte les fils de ses sujets ; remise, elle ne redit rien.
+    const carte = doc.getMap<Record<string, unknown>>('elements').get('carte')!
+    doc.getMap('elements').set('carte', { ...carte, corbeille: 5 })
+    expect(suivi.ramasser()).toMatchObject([{ genre: 'supprime' }, { genre: 'fil', fil: 's1', perimes: [{ id: 'm1' }] }])
+    doc.getMap('elements').set('carte', carte)
+    expect(suivi.ramasser()).toMatchObject([{ genre: 'restaure' }])
+  })
+
+  it('un message n’est neuf qu’une fois : passé d’un fil à un autre, ou revenu, il ne prévient plus', () => {
+    const arrive: Changement = { genre: 'commente', element: 'n', fil: '', typeElement: 'note', libelle: 'B', messages: [{ id: 'm1', texte: 'A' }, { id: 'm2', texte: 'B' }], participants: [] }
+    const part: Changement = { genre: 'fil', element: 'epingle', fil: '', typeElement: 'commentaire', libelle: '', perimes: [{ id: 'm1', auteur: 'ana', texte: 'A' }] }
+    const vus = new Set(['m1'])
+    // m1 vient de l'épingle : il n'est pas neuf ; m2, si, et ne le sera plus.
+    expect(sansLesDejaVus([arrive, part], vus)).toMatchObject([{ genre: 'commente', libelle: 'B', messages: [{ id: 'm2' }] }, part])
+    expect([...vus]).toEqual(['m1', 'm2'])
+    // Rien de neuf du tout : il ne reste que ce qui a quitté le fil.
+    expect(sansLesDejaVus([{ ...arrive, perimes: part.perimes }], vus)).toMatchObject([{ genre: 'fil', libelle: '', perimes: part.perimes }])
+    expect(sansLesDejaVus([arrive], vus)).toEqual([])
   })
 })
 

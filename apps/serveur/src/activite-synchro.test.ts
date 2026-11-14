@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
 import { suivreActivite } from './activite.ts'
 import { type Base, ouvrirBase } from './base.ts'
-import { authEssai, autorisationEssai, poser, poserUtilisateur } from './essai.ts'
+import { authEssai, autorisationEssai, poser, poserUtilisateur, texte } from './essai.ts'
 import { creerHocuspocus, nomDuDocument } from './synchro.ts'
 
 // Deux personnes sur un tableau partagé : ce que l'une écrit par la synchro laisse son activité et prévient l'autre.
@@ -219,6 +219,122 @@ describe('un message supprimé ou récrit ne se lit plus ailleurs dans ce qu’i
     messages(doc, () => [])
     suivi.noter('tableau-act-1', doc, undefined)
     expect(notes(base, 'ana')).toEqual([])
+    base.fermer()
+  })
+})
+
+describe('où qu’on commente, le fil prévient et se cite de même', () => {
+  /** Le tableau d'Ana, où Bob écrit et que Cléo commente ; une note, un document et une carte mentale y sont posés. */
+  async function tableau() {
+    const m = monde()
+    poserUtilisateur(m.base, { id: 'cleo', email: 'cleo@exemple.fr', nom: 'Cléo Durand', couleur: '#336699', racine: 'racine-cleo' })
+    m.base.definirAcces({ tableau: 'tableau-act-1', utilisateur: 'cleo', role: 'commentaire' })
+    const ana = await m.ouvrir('ana')
+    await ana.transact((doc) => {
+      poser(doc, { type: 'note', texte: texte('Budget du voyage') }, { id: 'note' })
+      poser(doc, { type: 'document', titre: 'Programme', texte: texte('Jour 1 : Lisbonne') }, { id: 'doc' })
+      poser(doc, { type: 'arbre', sujets: {} }, { id: 'carte' })
+    })
+    return { ...m, ana }
+  }
+  const message = (id: string, auteur: string, texte: string) => ({ id, auteur: { id: auteur, nom: auteur }, date: 1, texte })
+  const fil = (...messages: unknown[]) => ({ type: 'commentaire', messages })
+  type Stocke = Record<string, unknown> & { contenu: Record<string, unknown> }
+  const changer = (doc: Y.Doc, id: string, f: (e: Stocke) => Stocke) => {
+    const elements = doc.getMap<Stocke>('elements')
+    elements.set(id, f(elements.get(id)!))
+  }
+  const cleSujet = (id: string) => ['carte', 'fils', id].join('\u001f')
+  /** Les notifications de commentaires d'un compte : de quoi, où, et ce qu'elles citent. */
+  const notes = (base: Base, qui: string) =>
+    base
+      .notifications(qui, 50)
+      .filter((n) => n.genre !== 'modification')
+      .map((n) => [n.genre, n.element, n.fil, n.extrait])
+  const commentes = (base: Base) => base.activite('tableau-act-1', 50).filter((a) => a.genre === 'commente').map((a) => [a.auteur.id, a.element, a.typeElement, a.libelle])
+
+  it('le fil accroché à une note prévient le propriétaire et les cités, et l’activité dit qu’on a commenté la note', async () => {
+    const { base, ouvrir, ana } = await tableau()
+    const bob = await ouvrir('bob')
+    await bob.transact((doc) => changer(doc, 'note', (e) => ({ ...e, commentaire: fil(message('m1', 'bob', 'Trop juste, @Cléo ?')) })))
+    expect(notes(base, 'ana')).toEqual([['commentaire', 'note', '', 'Trop juste, @Cléo ?']])
+    expect(notes(base, 'cleo')).toEqual([['mention', 'note', '', 'Trop juste, @Cléo ?']])
+    expect(commentes(base)).toEqual([['bob', 'note', 'note', 'Trop juste, @Cléo ?']])
+    // Ana répond : Bob, qui a écrit dans ce fil, l'apprend.
+    await ana.transact((doc) => changer(doc, 'note', (e) => ({ ...e, commentaire: fil(message('m1', 'bob', 'Trop juste, @Cléo ?'), message('m2', 'ana', 'On rajoute 200 €')) })))
+    expect(notes(base, 'bob')).toEqual([['commentaire', 'note', '', 'On rajoute 200 €']])
+    await bob.disconnect()
+    await ana.disconnect()
+    base.fermer()
+  })
+
+  it('la marge d’un document et le sujet d’une carte préviennent aussi, chacun nommant son fil, sans dire qu’on a modifié', async () => {
+    const { base, ouvrir, ana } = await tableau()
+    const modifications = () => base.notifications('ana', 50).filter((n) => n.genre === 'modification').length
+    const bob = await ouvrir('bob')
+    await bob.transact((doc) => changer(doc, 'doc', (e) => ({ ...e, contenu: { ...e.contenu, fils: { f1: fil(message('m1', 'bob', 'Et le dimanche ?')) } } })))
+    await bob.transact((doc) => doc.getMap('arbres').set(cleSujet('s1'), fil(message('m2', 'bob', 'Ce sujet manque'))))
+    expect(notes(base, 'ana')).toEqual([
+      ['commentaire', 'carte', 's1', 'Ce sujet manque'],
+      ['commentaire', 'doc', 'f1', 'Et le dimanche ?'],
+    ])
+    expect(modifications()).toBe(0)
+    expect(commentes(base)).toEqual([
+      ['bob', 'carte', 'arbre', 'Ce sujet manque'],
+      ['bob', 'doc', 'document', 'Et le dimanche ?'],
+    ])
+    // Cléo répond dans la marge : Bob y avait écrit, et Ana tient le tableau.
+    const cleo = await ouvrir('cleo')
+    await cleo.transact((doc) => changer(doc, 'doc', (e) => ({ ...e, contenu: { ...e.contenu, fils: { f1: fil(message('m1', 'bob', 'Et le dimanche ?'), message('m3', 'cleo', 'Repos')) } } })))
+    expect(notes(base, 'bob')).toEqual([['commentaire', 'doc', 'f1', 'Repos']])
+    expect(notes(base, 'ana')[0]).toEqual(['commentaire', 'doc', 'f1', 'Repos'])
+    await bob.disconnect()
+    await cleo.disconnect()
+    await ana.disconnect()
+    base.fermer()
+  })
+
+  it('un message retiré de la marge ou d’un sujet, ou parti avec sa note, ne se lit plus nulle part', async () => {
+    const { base, ouvrir, ana } = await tableau()
+    const bob = await ouvrir('bob')
+    await bob.transact((doc) => changer(doc, 'doc', (e) => ({ ...e, contenu: { ...e.contenu, fils: { f1: fil(message('m1', 'bob', 'Phrase bancale')) } } })))
+    await bob.transact((doc) => doc.getMap('arbres').set(cleSujet('s1'), fil(message('m2', 'bob', 'Sujet en trop'))))
+    await bob.transact((doc) => changer(doc, 'note', (e) => ({ ...e, commentaire: fil(message('m3', 'bob', 'Chiffre faux')) })))
+    expect(notes(base, 'ana')).toHaveLength(3)
+    await bob.transact((doc) => changer(doc, 'doc', (e) => ({ ...e, contenu: { ...e.contenu, fils: { f1: fil() } } })))
+    await bob.transact((doc) => doc.getMap('arbres').delete(cleSujet('s1')))
+    await ana.transact((doc) => changer(doc, 'note', (e) => ({ ...e, corbeille: 5 })))
+    const partout = JSON.stringify([base.activite('tableau-act-1', 50), base.notifications('ana', 50)])
+    for (const mot of ['bancale', 'en trop', 'faux']) expect(partout).not.toContain(mot)
+    // Annuler la suppression rend le message au fil, pas une seconde notification.
+    await bob.transact((doc) => changer(doc, 'doc', (e) => ({ ...e, contenu: { ...e.contenu, fils: { f1: fil(message('m1', 'bob', 'Phrase bancale')) } } })))
+    expect(notes(base, 'ana')).toEqual([])
+    await bob.disconnect()
+    await ana.disconnect()
+    base.fermer()
+  })
+
+  it('une épingle lâchée sur une note ne prévient pas une seconde fois : ce qui la citait mène à la note', async () => {
+    const { base, ouvrir, ana } = await tableau()
+    const bob = await ouvrir('bob')
+    const m1 = message('m1', 'bob', 'À vérifier')
+    await bob.transact((doc) => void poser(doc, { type: 'commentaire', messages: [m1] }, { id: 'epingle' }))
+    expect(notes(base, 'ana')).toEqual([['commentaire', 'epingle', '', 'À vérifier']])
+    // `attacherFil` : l'épingle quitte la toile et la note reprend son fil, d'un seul pas.
+    await bob.transact((doc) => {
+      doc.getMap('elements').delete('epingle')
+      changer(doc, 'note', (e) => ({ ...e, commentaire: { ...fil(m1), epingle: { x: 10, y: 10 } } }))
+    })
+    expect(notes(base, 'ana')).toEqual([['commentaire', 'note', '', 'À vérifier']])
+    expect(commentes(base)).toEqual([['bob', 'note', 'note', 'À vérifier']])
+    // Glissé de la note au document, il suit encore.
+    await bob.transact((doc) => {
+      changer(doc, 'note', ({ commentaire: _, ...e }) => e as Stocke)
+      changer(doc, 'doc', (e) => ({ ...e, commentaire: fil(m1) }))
+    })
+    expect(notes(base, 'ana')).toEqual([['commentaire', 'doc', '', 'À vérifier']])
+    await bob.disconnect()
+    await ana.disconnect()
     base.fermer()
   })
 })

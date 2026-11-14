@@ -532,6 +532,17 @@ CREATE INDEX envois_a_faire ON envois(prochain) WHERE livre IS NULL AND prochain
       db.exec('DELETE FROM recherche_etat;')
     },
   },
+  {
+    version: 15,
+    nom: 'le fil dont parle une notification',
+    appliquer(db) {
+      db.exec(`
+-- Le fil d'un commentaire, dans l'élément qui le porte : vide pour une épingle ou le fil accroché à l'élément, la clé
+-- du passage commenté dans la marge d'une note ou d'un document, le sujet d'une carte mentale. La notification y mène.
+ALTER TABLE notifications ADD COLUMN fil TEXT NOT NULL DEFAULT '';
+`)
+    },
+  },
 ]
 
 /**
