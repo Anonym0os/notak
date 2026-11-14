@@ -59,17 +59,11 @@ export interface Vue {
 export const estDossier = (e: Pick<EntreeBibliotheque, 'element' | 'resume'>) => e.element === null && e.resume.genre === 'toile' && e.resume.dossier === true
 
 /**
- * Un dossier qu'un outil rattaché a posé (celui d'une de ses fiches, ou celui qui les range, « Clients ») : il reste où
- * l'outil l'a mis, comme les fiches chez lui, et le serveur refuse de le ranger ailleurs. On range dedans ce qu'on veut.
+ * Un dossier qu'un outil rattaché a généré (celui d'une de ses fiches, ou celui qui les range, « Clients ») : il reste
+ * tel que l'outil l'a fait, là où il l'a mis, comme les fiches chez lui. Ni déplacé, ni renommé, ni jeté, ni montré en
+ * toile : le serveur le refuse aussi. On range dedans ce qu'on veut.
  */
-export const immobile = (e: Pick<EntreeBibliotheque, 'element' | 'outil'>) => e.element === null && e.outil !== undefined
-
-/**
- * Le dossier qui range ceux d'un outil (posé par lui, sans fiche à lui) ne part pas non plus à la corbeille : il y
- * emporterait le dossier de chaque fiche, que l'outil lirait jeté sans en être prévenu, et qu'aucune fiche ne saurait
- * remettre. Celui d'une fiche, si : l'outil l'apprend, et la fiche le remet.
- */
-export const regroupeUnOutil = (e: Pick<EntreeBibliotheque, 'element' | 'outil' | 'fiche'>) => immobile(e) && e.fiche === undefined
+export const genere = (e: Pick<EntreeBibliotheque, 'element' | 'outil'>) => e.element === null && e.outil !== undefined
 
 /** Ce qu'une toile porte directement : les toiles qu'elle range, et ses pages, cartes, photos, liens et fichiers. */
 export const contenuDuDossier = (id: string, entrees: readonly EntreeBibliotheque[]) => entrees.filter((e) => e.dans === id && !(e.element === null && e.tableau === id))
@@ -90,10 +84,11 @@ export function filDAriane(id: string, entrees: readonly EntreeBibliotheque[], r
   return fil
 }
 
-/** Un nœud de l'arbre des dossiers de la colonne. */
+/** Un nœud de l'arbre des dossiers de la colonne ; `outil` : celui qui l'a généré, que la ligne nomme. */
 export interface NoeudDossier {
   id: string
   titre: string
+  outil?: string
   enfants: NoeudDossier[]
 }
 
@@ -113,7 +108,7 @@ export function arbreDesDossiers(entrees: readonly EntreeBibliotheque[], racine:
     (sous.get(haut) ?? [])
       .filter((e) => !vus.has(e.tableau))
       .sort(parTitre)
-      .map((e) => ({ id: e.tableau, titre: e.titre, enfants: batir(e.tableau, new Set([...vus, e.tableau])) }))
+      .map((e) => ({ id: e.tableau, titre: e.titre, ...(e.outil ? { outil: e.outil } : {}), enfants: batir(e.tableau, new Set([...vus, e.tableau])) }))
   return batir(racine, new Set([racine]))
 }
 

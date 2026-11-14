@@ -15,7 +15,7 @@ import { creerLimiteur } from './debit.ts'
 import { creerExpiration } from './echeances.ts'
 import { indexerLesAbsents } from './indexation.ts'
 import type { Instance } from './instance.ts'
-import { type SourceRattachement, suivreLesDossiers, viderLaFile } from './rattachements.ts'
+import { type SourceRattachement, gardeDesDossiers, suivreLesDossiers, viderLaFile } from './rattachements.ts'
 import { type Verificateur, creerVerificateur } from './misesAJour.ts'
 import { brancherSynchro, creerHocuspocus, nomDuDocument } from './synchro.ts'
 import { VERSION_NOTAK } from '../../../packages/tableau/src/version.ts'
@@ -148,9 +148,18 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     misesAJour,
   })
 
-  // Les gestes des personnes sur les dossiers rattachés à un autre outil, vus à l'enregistrement (`suivreLesDossiers`).
+  // Les gestes des personnes sur les dossiers rattachés à un autre outil, vus à l'enregistrement (`suivreLesDossiers`) ;
+  // ceux qui modifieraient un dossier qu'il a généré sont annulés à l'arrivée (`gardeDesDossiers`).
   const sources = options.rattachements ?? []
-  hocuspocus = creerHocuspocus(base, auth, autorisation, Date.now, expirer, suivreLesDossiers({ base, sources: () => sources, maintenant: Date.now }))
+  hocuspocus = creerHocuspocus(
+    base,
+    auth,
+    autorisation,
+    Date.now,
+    expirer,
+    suivreLesDossiers({ base, sources: () => sources, maintenant: Date.now }),
+    gardeDesDossiers({ base, sources: () => sources }),
+  )
   // Ce que Notak doit dire aux outils part toutes les quinze secondes, un passage à la fois.
   let envoiEnCours = false
   const envois = setInterval(() => {

@@ -11,10 +11,9 @@ import {
   ecrireAffichage,
   estDossier,
   filDAriane,
-  immobile,
+  genere,
   lireAffichage,
   lireVue,
-  regroupeUnOutil,
 } from './modele'
 
 const entree = (e: Partial<EntreeBibliotheque> & Pick<EntreeBibliotheque, 'tableau'>): EntreeBibliotheque =>
@@ -104,17 +103,23 @@ describe('les dossiers', () => {
     expect(plat(arbreDesDossiers(MONDE, 'accueil'))).toEqual(['Archives', 'Projets', '  Plans', '  Voyage'])
   })
 
-  it('ceux qu’un outil a posés restent en place ; celui qui range les autres ne se jette pas', () => {
-    const clients = dossier('clients', 'accueil', 'Clients')
-    const POSES = [
-      { ...clients, outil: 'Silak' },
+  it('ceux qu’un outil a générés se reconnaissent, et l’arbre de la colonne le nomme', () => {
+    const GENERES = [
+      { ...dossier('clients', 'accueil', 'Clients'), outil: 'Silak' },
       { ...dossier('dupont', 'clients', 'Dupont'), outil: 'Silak', fiche: { nom: 'Silak' } },
       dossier('mien', 'clients', 'À moi'),
-      // Ce que porte la toile d'un dossier posé, lui, se range où l'on veut.
+      // Ce que porte la toile d'un dossier généré, lui, se change et se range où l'on veut.
       { ...entree({ tableau: 'dupont', element: 'devis', genre: 'document', dans: 'dupont' }), outil: 'Silak' },
     ]
-    expect(POSES.map(immobile)).toEqual([true, true, false, false])
-    expect(POSES.map(regroupeUnOutil)).toEqual([true, false, false, false])
+    expect(GENERES.map(genere)).toEqual([true, true, false, false])
+    const [clients] = arbreDesDossiers(GENERES, 'accueil')
+    expect([clients!.outil, clients!.enfants.map((n) => [n.titre, n.outil])]).toEqual([
+      'Silak',
+      [
+        ['À moi', undefined],
+        ['Dupont', 'Silak'],
+      ],
+    ])
   })
 
   it('l’adresse d’un dossier', () => {

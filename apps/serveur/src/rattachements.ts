@@ -4,6 +4,7 @@ import { nouvelId, planApres } from './arrivee.ts'
 import { normaliserOrigine } from './auth.ts'
 import type { Base, Rattachement } from './base.ts'
 import type { ElementLu } from './contenu.ts'
+import type { Garde } from './controle.ts'
 
 /**
  * Une source de rattachements (`NOTAK_RATTACHEMENTS`) : un autre outil, dont chaque fiche (un client, un projet…) peut
@@ -127,17 +128,37 @@ export function dossierDeLaSource(sources: readonly SourceRattachement[], r: Pic
 }
 
 /**
- * Les dossiers qu'un outil a posés et qui comptent pour lui (celui de chaque fiche, et celui qui les range), avec le nom
- * de l'outil : ils restent où il les a mis, comme ses fiches chez lui. Un ancien, qu'il ne lit plus, se range comme un
- * autre dossier.
+ * Les dossiers qu'un outil a générés et qui comptent pour lui (celui de chaque fiche, et celui qui les range), avec le
+ * nom de l'outil : ils restent tels qu'il les a faits, là où il les a mis, comme ses fiches chez lui. On range dedans ce
+ * qu'on veut. Un ancien, qu'il ne lit plus, redevient un dossier comme un autre.
  */
-export function dossiersPoses(sources: readonly SourceRattachement[], rattachements: readonly Pick<Rattachement, 'source' | 'espace' | 'tableau'>[]): Map<string, string> {
+export function dossiersGeneres(sources: readonly SourceRattachement[], rattachements: readonly Pick<Rattachement, 'source' | 'espace' | 'tableau'>[]): Map<string, string> {
   return new Map(
     rattachements.flatMap((r) => {
       const s = sources.find((x) => x.source === r.source)
       return s && dossierDeLaSource(sources, r) ? [[r.tableau, s.nom] as const] : []
     }),
   )
+}
+
+/**
+ * Ce que la synchro garde d'un document, lu à son ouverture : le dossier généré qu'il est (son `meta`), et les cartes
+ * de dossiers générés qu'il porte. `null` : il n'a rien à garder, et ses mises à jour passent sans contrôle. Ce qu'un
+ * outil demande, et ce que Notak fait lui-même, ne passe pas par là.
+ */
+export function gardeDesDossiers(o: { base: Base; sources: () => readonly SourceRattachement[] }): (tableau: string) => Garde | null {
+  const genere = (id: string) => dossiersGeneres(o.sources(), o.base.rattachementsDe([id])).has(id)
+  return (tableau) => {
+    const sources = o.sources()
+    if (sources.length === 0) return null
+    const ligne = o.base.contenus([tableau]).find((l) => l.genre === 'toile')
+    const lu = ligne ? (JSON.parse(ligne.resume) as { cartes?: string[]; jetees?: string[] }) : {}
+    const portees = [...(lu.cartes ?? []), ...(lu.jetees ?? [])]
+    const generes = dossiersGeneres(sources, o.base.rattachementsDe([tableau, ...portees]))
+    if (!generes.has(tableau) && !portees.some((id) => generes.has(id))) return null
+    // La carte se juge à chaque geste : un dossier généré depuis l'ouverture (une fiche neuve) est gardé aussitôt.
+    return { meta: generes.has(tableau), carte: genere }
+  }
 }
 
 /** Le titre d'un dossier : sans blancs autour, borné, et à défaut la clé de la fiche. */

@@ -16,7 +16,7 @@ import type { BilanRangement, EntreeBibliotheque } from '../api'
 import type { BilanImport } from '../importation'
 import { t, tn } from '../langue'
 import type { Correctif } from './correctifs'
-import { immobile, regroupeUnOutil } from './modele'
+import { genere } from './modele'
 import { cleDe, porteuseDe } from './selection'
 
 /**
@@ -59,15 +59,15 @@ async function placesDe(espace: EspaceRangement, entrees: readonly EntreeBibliot
 
 const rien = (): Resultat => ({ texte: t('biblio.annonce.rien'), correctifs: [] })
 
-/** Ce qu'on dit des dossiers qu'un outil a posés, restés où il les a mis : rien s'il n'y en a pas. */
-export function resteEnPlace(laisses: readonly EntreeBibliotheque[]): string {
+/** Ce qu'on dit des dossiers qu'un outil a générés, laissés tels quels par un geste : rien s'il n'y en a pas. */
+export function resteTelQuel(laisses: readonly EntreeBibliotheque[]): string {
   const premier = laisses[0]
   if (!premier) return ''
-  return tn('biblio.pose.reste', laisses.length, { titre: premier.titre || t('commun.sansTitre'), outil: premier.outil ?? '' })
+  return tn('biblio.genere.reste', laisses.length, { titre: premier.titre || t('commun.sansTitre'), outil: premier.outil ?? '' })
 }
 
-/** Le texte d'un geste, suivi de ce qui n'a pas bougé ; ce dernier seul quand rien d'autre n'a été fait. */
-const avecLaisses = (texte: string, laisses: readonly EntreeBibliotheque[]): string => [texte, resteEnPlace(laisses)].filter(Boolean).join('. ')
+/** Le texte d'un geste, suivi de ce qui n'a pas changé ; ce dernier seul quand rien d'autre n'a été fait. */
+const avecLaisses = (texte: string, laisses: readonly EntreeBibliotheque[]): string => [texte, resteTelQuel(laisses)].filter(Boolean).join('. ')
 
 const CHAMPS_BILAN = ['nouveaux', 'perdus', 'permanents', 'liensOuverts', 'liensEteints'] as const
 
@@ -83,8 +83,8 @@ export const changeQuelqueChose = (b: BilanRangement) => CHAMPS_BILAN.some((c) =
 /**
  * Déplace ces entrées dans la toile `vers`. Ranger une toile ailleurs change qui voit ce qu'elle contient : le serveur
  * fait d'abord le bilan (qui y gagne ou y perd l'accès, les accès qui deviennent permanents, les liens de visiteurs
- * qui s'ouvrent ou s'éteignent), et `confirmer` le demande. Rend `null` si l'on renonce. Un dossier qu'un outil a posé
- * reste où il est, et l'avis le dit.
+ * qui s'ouvrent ou s'éteignent), et `confirmer` le demande. Rend `null` si l'on renonce. Un dossier qu'un outil a
+ * généré reste où il est, et l'avis le dit.
  */
 export async function deplacerEntrees(
   o: Outils,
@@ -92,9 +92,9 @@ export async function deplacerEntrees(
   vers: { id: string; titre: string },
   confirmer: (bilan: BilanRangement) => Promise<boolean>,
 ): Promise<Resultat | null> {
-  const laisses = entrees.filter(immobile)
-  const mobiles = entrees.filter((e) => !immobile(e) && porteuseDe(e) !== vers.id && !(e.element === null && e.tableau === vers.id))
-  if (mobiles.length === 0) return laisses.length > 0 ? { texte: resteEnPlace(laisses), correctifs: [] } : rien()
+  const laisses = entrees.filter(genere)
+  const mobiles = entrees.filter((e) => !genere(e) && porteuseDe(e) !== vers.id && !(e.element === null && e.tableau === vers.id))
+  if (mobiles.length === 0) return laisses.length > 0 ? { texte: resteTelQuel(laisses), correctifs: [] } : rien()
   const toiles = mobiles.filter((e) => e.element === null)
   const essais = await Promise.all(toiles.map((e) => o.rangerToile(e.tableau, vers.id, { essai: true })))
   const bilan = bilanDe(essais)
@@ -133,7 +133,7 @@ export async function deplacerEntrees(
 
 /**
  * Range ces entrées dans une toile neuve, posée sur `ou` (le « nouveau dossier avec la sélection » du Finder). Un
- * dossier qu'un outil a posé n'y va pas : il reste où il est, et l'avis le dit.
+ * dossier qu'un outil a généré n'y va pas : il reste où il est, et l'avis le dit.
  */
 export async function rangerDansUneNeuve(
   o: Outils,
@@ -141,8 +141,8 @@ export async function rangerDansUneNeuve(
   ou: { id: string; titre: string },
   confirmer: (bilan: BilanRangement) => Promise<boolean>,
 ): Promise<(Resultat & { toile: string }) | null> {
-  const laisses = choisies.filter(immobile)
-  const entrees = choisies.filter((e) => !immobile(e))
+  const laisses = choisies.filter(genere)
+  const entrees = choisies.filter((e) => !genere(e))
   if (entrees.length === 0) return null
   const toiles = entrees.filter((e) => e.element === null)
   const essais = await Promise.all(toiles.filter((e) => e.dans !== ou.id).map((e) => o.rangerToile(e.tableau, ou.id, { essai: true })))
@@ -242,19 +242,19 @@ export async function rangerLesRestes(o: Outils, dossier: { id: string; titre: s
 }
 
 /**
- * Met ces entrées à la corbeille de la toile qui les porte ; une toile y part avec ce qu'elle contient. Le dossier qui
- * range ceux d'un outil n'y va pas (`regroupeUnOutil`), et l'avis le dit.
+ * Met ces entrées à la corbeille de la toile qui les porte ; une toile y part avec ce qu'elle contient. Un dossier
+ * qu'un outil a généré n'y va pas : c'est l'outil qui l'y met, s'il le veut. L'avis le dit.
  */
 export async function jeterEntrees(o: Outils, choisies: readonly EntreeBibliotheque[], toutes: readonly EntreeBibliotheque[]): Promise<Resultat> {
-  const laisses = choisies.filter(regroupeUnOutil)
-  const entrees = choisies.filter((e) => !regroupeUnOutil(e))
+  const laisses = choisies.filter(genere)
+  const entrees = choisies.filter((e) => !genere(e))
   const places = await placesDe(o.espace, entrees)
   const voulues = entrees.flatMap((e, i) => (places[i] ? [{ e, place: places[i]! }] : []))
   const j = jeter(
     o.espace,
     voulues.map((x) => x.place),
   )
-  if (j.nombre === 0) return laisses.length > 0 ? { texte: resteEnPlace(laisses), correctifs: [] } : rien()
+  if (j.nombre === 0) return laisses.length > 0 ? { texte: resteTelQuel(laisses), correctifs: [] } : rien()
   // Ce que contiennent les toiles jetées disparaît avec elles.
   const parties = new Set(voulues.flatMap((x) => (x.e.element === null ? [x.e.tableau] : [])))
   for (let ajoute = true; ajoute; ) {

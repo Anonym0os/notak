@@ -55,7 +55,7 @@ import {
   importerEntrees,
   rangerDansUneNeuve,
   rangerLesRestes,
-  resteEnPlace,
+  resteTelQuel,
   restesDe,
   renommerEntree,
 } from './bibliotheque/actions'
@@ -97,8 +97,7 @@ import {
   duFiltre,
   estDossier,
   filDAriane,
-  immobile,
-  regroupeUnOutil,
+  genere,
   ecrireAffichage,
   adresseDuDossier,
   elementDeLAdresse,
@@ -826,8 +825,8 @@ function BibliothequeBureau({
     if (!outils || es.length === 0) return
     // Le nom de la toile neuve se tape aussitôt : au doigt, le clavier doit monter dans le geste.
     preparerClavier()
-    // La toile neuve va là où tout ce qui part était (ce qu'un outil a posé reste), sinon sur l'accueil.
-    const partent = es.filter((e) => !immobile(e))
+    // La toile neuve va là où tout ce qui part était (ce qu'un outil a généré reste), sinon sur l'accueil.
+    const partent = es.filter((e) => !genere(e))
     const ou = partent.length > 0 && partent.every((e) => porteuseDe(e) === porteuseDe(partent[0]!)) ? (porteuseDe(partent[0]!) ?? outils.espace.racine) : outils.espace.racine
     // Comme le « nouveau dossier avec la sélection » du Finder : la toile neuve est choisie, son nom prêt à changer.
     void executer(rangerDansUneNeuve(outils, es, { id: ou, titre: titreToile(ou) }, confirmerOuverture(nomDe(es), ou))).then((r) => {
@@ -908,11 +907,15 @@ function BibliothequeBureau({
     // Au doigt, l'appui long mène aussi au choix de plusieurs, comme dans Fichiers : la tuile tenue y est déjà.
     if (ecranAuDoigt() && !modeChoix) l.push({ libelle: t('biblio.choisir'), icone: 'menuSelectionner', faire: () => setModeChoix(true) })
     l.push(null)
+    // Un dossier qu'un outil a généré ne change pas : ses gestes restent au menu, éteints, et sa tuile nomme l'outil.
+    const fige = une !== null && genere(une)
+    const tousFiges = es.length > 0 && es.every(genere)
     if (une && ecrit)
       l.push({
         libelle: t('biblio.menu.renommer'),
         icone: 'renommer',
         raccourci: 'F2',
+        desactive: fige,
         faire: () => {
           preparerClavier()
           setRenommage({ cle: cleDe(une) })
@@ -928,19 +931,17 @@ function BibliothequeBureau({
     if (une?.element === null && ecrit)
       l.push(
         estDossier(une)
-          ? { libelle: t('biblio.menu.enToile'), icone: 'tableau', faire: () => montrerEnDossierCe(une, false) }
-          : { libelle: t('biblio.menu.enDossier'), icone: 'dossier', faire: () => montrerEnDossierCe(une, true) },
+          ? { libelle: t('biblio.menu.enToile'), icone: 'tableau', desactive: fige, faire: () => montrerEnDossierCe(une, false) }
+          : { libelle: t('biblio.menu.enDossier'), icone: 'dossier', desactive: fige, faire: () => montrerEnDossierCe(une, true) },
       )
     l.push(null)
-    // Ce qu'un outil a posé reste où il l'a mis : la ligne le dit, à la place de « Déplacer vers… ».
-    const poses = es.length > 0 && es.every(immobile)
-    if (ecrit && poses) l.push({ libelle: t('biblio.menu.pose', { outil: es[0]!.outil! }), icone: 'verrou', desactive: true, faire: () => {} })
-    else if (ecrit) l.push({ libelle: t('biblio.menu.deplacer'), icone: 'dossier', faire: () => setFenetre({ type: 'deplacer', cles }) })
-    if (ecrit && es.length > 1 && !poses) l.push({ libelle: t('biblio.menu.neuveAvec'), icone: 'ajouter', faire: () => rangerDansNeuveCes(es) })
+    // Choisis avec d'autres, ils restent tels quels, et l'avis le dit ; seuls, le geste s'éteint.
+    if (ecrit) l.push({ libelle: t('biblio.menu.deplacer'), icone: 'dossier', desactive: tousFiges, faire: () => setFenetre({ type: 'deplacer', cles }) })
+    if (ecrit && es.length > 1) l.push({ libelle: t('biblio.menu.neuveAvec'), icone: 'ajouter', desactive: tousFiges, faire: () => rangerDansNeuveCes(es) })
     l.push({ libelle: t(es.length > 1 ? 'biblio.menu.liens' : 'biblio.menu.lien'), icone: 'lien', faire: () => copierLiens(es) })
     if (une?.element === null && partage) l.push({ libelle: t('biblio.menu.partager'), icone: 'partager', faire: () => setFenetre({ type: 'partage', tableau: une.tableau }) })
     l.push(null)
-    if (ecrit && !es.every(regroupeUnOutil)) l.push({ libelle: t('biblio.menu.corbeille'), icone: 'corbeille', raccourci: '⌫', danger: true, faire: () => jeterCes(es) })
+    if (ecrit) l.push({ libelle: t('biblio.menu.corbeille'), icone: 'corbeille', raccourci: '⌫', danger: true, desactive: tousFiges, faire: () => jeterCes(es) })
     return l
   }
   const sousMenuCreer = (dans?: string): EntreeMenu[] =>
@@ -969,6 +970,7 @@ function BibliothequeBureau({
           {
             libelle: t(sousDossier(dans) ? 'biblio.menu.renommerDossier' : 'biblio.menu.renommerToile'),
             icone: 'renommer' as const,
+            desactive: genere(parCle.get(`${dans}/`) ?? { element: null }),
             faire: () => {
               preparerClavier()
               setRenommage({ dossier: dans })
@@ -1090,7 +1092,7 @@ function BibliothequeBureau({
     const depart = { x: ev.clientX, y: ev.clientY }
     const pointeur = { y: ev.clientY }
     let courant: Glisse | null = null
-    /** Les dossiers qu'un outil a posés, choisis avec ce qu'on glisse : ils restent, et l'avis le dira. */
+    /** Les dossiers qu'un outil a générés, choisis avec ce qu'on glisse : ils restent, et l'avis le dira. */
     let laisses: string[] = []
     let arretDefilement = () => {}
     const viser = (x: number, y: number) => {
@@ -1108,13 +1110,13 @@ function BibliothequeBureau({
         const prises = s.choisies.has(cle) ? o.filter((c) => s.choisies.has(c)) : [cle]
         const estPose = (c: string) => {
           const x = p.get(c)
-          return x !== undefined && immobile(x)
+          return x !== undefined && genere(x)
         }
         laisses = prises.filter(estPose)
         // Rien ne se décolle qui ne puisse partir : on le dit tout de suite, au lieu d'un glisser qui ne mène nulle part.
         if (laisses.length === prises.length) {
           fin()
-          annoncer({ texte: resteEnPlace(laisses.flatMap((c) => p.get(c) ?? [])) })
+          annoncer({ texte: resteTelQuel(laisses.flatMap((c) => p.get(c) ?? [])) })
           return
         }
         courant = { cles: prises.filter((c) => !estPose(c)), x: e.clientX, y: e.clientY, cible: null }
@@ -1274,7 +1276,7 @@ function BibliothequeBureau({
     } else if (e.key === 'Enter' && une && !cible.closest('a, button')) {
       e.preventDefault()
       ouvrir(une)
-    } else if (e.key === 'F2' && une && outils) {
+    } else if (e.key === 'F2' && une && outils && !genere(une)) {
       e.preventDefault()
       setRenommage({ cle: cleDe(une) })
     } else if (e.key === 'Escape' && (sel.choisies.size > 0 || modeChoix)) {
@@ -1785,8 +1787,8 @@ function BibliothequeBureau({
       )}
       {fenetre?.type === 'deplacer' && espace && toutes && (
         <DeplacerVers
-          // Ce qu'un outil a posé reste : ni compté, ni exclu des toiles où ranger le reste ; l'avis le dira.
-          entrees={entreesDes(fenetre.cles).filter((e) => !immobile(e))}
+          // Ce qu'un outil a généré reste : ni compté, ni exclu des toiles où ranger le reste ; l'avis le dira.
+          entrees={entreesDes(fenetre.cles).filter((e) => !genere(e))}
           toutes={toutes}
           accueil={{ id: espace.racine, titre: titreAccueil || t('biblio.accueil') }}
           fermer={() => setFenetre(null)}
@@ -2179,7 +2181,7 @@ function Tuile({
       data-survol-depot={survolee || undefined}
       data-arrivee={arrivee || undefined}
       data-glissee={glissee || undefined}
-      aria-label={titreDe(e)}
+      aria-label={e.outil ? `${titreDe(e)}, ${t('biblio.genere', { outil: e.outil })}` : titreDe(e)}
       data-coche={coche || undefined}
       data-genre={e.genre}
     >
@@ -2196,6 +2198,11 @@ function Tuile({
       )}
       {renommer ? (
         <ChampRenommer valeur={e.titre} valider={valider} annuler={annuler} />
+      ) : e.outil ? (
+        <span className="biblio-tuile-titre" data-genere>
+          <span className="biblio-tuile-nom">{titreDe(e)}</span>
+          <MarqueOutil outil={e.outil} />
+        </span>
       ) : (
         <span className="biblio-tuile-titre">{titreDe(e)}</span>
       )}
@@ -2204,6 +2211,18 @@ function Tuile({
         <span>{detail ?? (e.ou && !parDossier ? t('biblio.dans', { toile: e.ou }) : genreDe(e))}</span>
       </span>
     </li>
+  )
+}
+
+/**
+ * La marque d'un dossier qu'un outil rattaché a généré, à la suite de son titre : le nom de l'outil. Elle dit d'un coup
+ * d'œil qu'il ne se modifie pas d'ici, et qui l'a fait ; un verrou se lirait, dans Notak, « protégé par un mot de passe ».
+ */
+function MarqueOutil({ outil }: { outil: string }) {
+  return (
+    <span className="biblio-genere" title={t('biblio.genere', { outil })}>
+      {outil}
+    </span>
   )
 }
 
@@ -2252,6 +2271,7 @@ function ArbreDossiers({
               >
                 <Icone nom="dossier" taille={18} />
                 <span>{n.titre || t('commun.sansTitre')}</span>
+                {n.outil && <MarqueOutil outil={n.outil} />}
               </button>
             </div>
             {ouvert && n.enfants.length > 0 && <ArbreDossiers noeuds={n.enfants} courant={courant} deplies={deplies} survol={survol} parcourir={parcourir} basculer={basculer} profondeur={profondeur + 1} />}

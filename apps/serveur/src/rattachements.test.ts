@@ -1,8 +1,14 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import WebSocket from 'ws'
 import * as Y from 'yjs'
-import { type Compte, type Monde, monde, poser, texte } from './essai.ts'
+import { type Compte, type Monde, monde, openfgaEssai, poser, texte } from './essai.ts'
 import { indexerDocument } from './indexation.ts'
 import { type SourceRattachement, adresseDeLaFiche, sourcesDe } from './rattachements.ts'
+import { demarrer } from './serveur.ts'
 import { nomDuDocument } from './synchro.ts'
 
 const CRM: SourceRattachement = { source: 'crm', nom: 'Mon CRM', dossier: 'Clients', origine: 'https://crm.exemple.fr' }
@@ -145,7 +151,7 @@ describe('les dossiers des fiches d’un autre outil', () => {
     ] as const) {
       for (const essai of [true, false]) {
         const r = await ranger(id, { parent, essai })
-        expect([r.status, ((await r.json()) as { code: string }).code]).toEqual([400, 'dossier_pose'])
+        expect([r.status, ((await r.json()) as { code: string }).code]).toEqual([400, 'dossier_genere'])
       }
     }
     expect([m.base.tableau(dupont)!.parent, m.base.tableau(clients)!.parent]).toEqual([clients, accueil])
@@ -409,4 +415,74 @@ describe('une source qui nomme son espace après coup range les anciens dossiers
     await bibliotheque(ana)
     expect(m.base.tableauxDeLEspace(equipe)).toHaveLength(avant)
   })
+})
+
+describe('de bout en bout, par la synchro', () => {
+  it('un dossier généré ne se renomme, ne se jette ni ne se retire : le serveur l’annule ; ranger dedans passe', async () => {
+    const dossier = mkdtempSync(join(tmpdir(), 'notak-rattachements-'))
+    const serveur = await demarrer({ port: 0, dossier, secret: 'un-secret-d-essai-assez-long-pour-better-auth', openfga: openfgaEssai(), rattachements: [CRM] })
+    const origine = `http://localhost:${serveur.port}`
+    const fermer: (() => void)[] = []
+    try {
+      const appeler = (chemin: string, cookie?: string, corps?: unknown) =>
+        fetch(origine + chemin, {
+          ...(corps === undefined ? {} : { method: 'POST', body: JSON.stringify(corps) }),
+          headers: { origin: origine, 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
+        })
+      const inscription = await appeler('/api/auth/sign-up/email', undefined, { email: 'ana@exemple.fr', password: 'motdepasse', name: 'Ana' })
+      const ana = inscription.headers.get('set-cookie')!.split(';')[0]!
+      const dupont = ((await (await appeler('/api/rattachements/crm/societe:1', ana, { titre: 'Dupont' })).json()) as { tableau: string }).tableau
+      const entrees = (await (await appeler('/api/bibliotheque', ana)).json()) as Entree[]
+      const clients = entrees.find((e) => e.titre === 'Clients' && e.element === null)!.tableau
+      const ouvrir = (tableau: string) =>
+        new Promise<Y.Doc>((resoudre, rejeter) => {
+          const doc = new Y.Doc()
+          const Ws = class extends WebSocket {
+            constructor(url: string, protocoles?: string | string[]) {
+              super(url, protocoles, { headers: { cookie: ana, origin: origine } })
+            }
+          }
+          const socket = new HocuspocusProviderWebsocket({ url: `${origine.replace(/^http/, 'ws')}/sync`, WebSocketPolyfill: Ws as never })
+          const provider = new HocuspocusProvider({
+            websocketProvider: socket,
+            name: nomDuDocument(tableau),
+            document: doc,
+            onSynced: () => resoudre(doc),
+            onAuthenticationFailed: () => rejeter(new Error('refusé')),
+          })
+          provider.attach()
+          fermer.push(() => {
+            provider.destroy()
+            socket.destroy()
+          })
+        })
+      const attendre = async (vrai: () => boolean) => {
+        for (let i = 0; i < 100 && !vrai(); i++) await new Promise((r) => setTimeout(r, 30))
+        expect(vrai()).toBe(true)
+      }
+      type Carte = { contenu: { cible?: string }; corbeille?: number }
+      const carte = (d: Y.Doc) => [...d.getMap<Carte>('elements').entries()].find(([, e]) => e.contenu.cible === dupont)!
+
+      // Ana possède les deux. Renommé, le dossier reprend son titre ; ce qu'elle y range reste.
+      const d = await ouvrir(dupont)
+      d.getMap('meta').set('titre', 'Volé')
+      d.getMap('elements').set('n1', { id: 'n1', x: 0, y: 0, largeur: 200, plan: 'a0', contenu: { type: 'note', texte: { type: 'doc', content: [] } } })
+      await attendre(() => d.getMap('meta').get('titre') === 'Dupont')
+      // Sa carte, dans « Clients » : jetée, puis retirée, elle revient chaque fois.
+      const c = await ouvrir(clients)
+      const [id, e] = carte(c)
+      c.getMap('elements').set(id, { ...e, corbeille: 1 })
+      await attendre(() => carte(c)[1].corbeille === undefined)
+      c.getMap('elements').delete(id)
+      await attendre(() => c.getMap('elements').has(id))
+      // Relu d'ailleurs : le titre d'origine, la note rangée, et le dossier toujours là pour l'outil.
+      const relu = await ouvrir(dupont)
+      expect([relu.getMap('meta').get('titre'), relu.getMap('elements').has('n1')]).toEqual(['Dupont', true])
+      expect(((await (await appeler('/api/rattachements/crm/societe:1', ana)).json()) as { etat: string }).etat).toBe('present')
+    } finally {
+      for (const f of fermer) f()
+      await serveur.fermer()
+      rmSync(dossier, { recursive: true, force: true })
+    }
+  }, 30_000)
 })

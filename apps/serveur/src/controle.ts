@@ -114,17 +114,52 @@ export function changementsPermis(c: Changements, droits: DroitsTableau, auteur:
 }
 
 /**
- * Contrôle une mise à jour reçue d'une connexion : appliquée sous une origine suivie, puis annulée si elle n'est pas
- * permise. Rend vrai si elle a été gardée. `origine` doit être un objet propre à cet appel.
+ * Ce qu'aucune connexion ne change, quels que soient ses droits : les dossiers qu'un outil rattaché a générés
+ * (`gardeDesDossiers`). Le document d'un tel dossier garde son `meta` (titre, couleur, fond, montré en dossier…) ; sa
+ * carte, là où elle est, ne part pas, ne va pas à la corbeille et ne change pas : seule sa place sur la toile bouge. Il
+ * ne s'en pose pas une seconde (un raccourci, si). Ce qu'on range dedans reste libre.
  */
-export function controler(doc: Y.Doc, miseAJour: Uint8Array, droits: DroitsTableau, auteur: string, origine: object): boolean {
+export interface Garde {
+  /** Ce document est celui d'un dossier généré. */
+  meta: boolean
+  /** Cette toile est un dossier généré. */
+  carte(cible: string): boolean
+}
+
+/** Ce qui ne dit que la place d'une carte sur sa toile. */
+const PLACE = new Set(['x', 'y', 'largeur', 'hauteur', 'plan', 'parent', 'ordre'])
+
+const carteGardee = (valeur: unknown, garde: Garde): boolean => {
+  const c = (valeur as { contenu?: { type?: unknown; cible?: unknown; raccourci?: unknown } } | undefined)?.contenu
+  return c?.type === 'tableau' && typeof c.cible === 'string' && !c.raccourci && garde.carte(c.cible)
+}
+
+const placeSeule = (avant: unknown, apres: unknown): boolean => {
+  if (typeof avant !== 'object' || typeof apres !== 'object' || !avant || !apres) return false
+  const [a, p] = [avant as Record<string, unknown>, apres as Record<string, unknown>]
+  return [...new Set([...Object.keys(a), ...Object.keys(p)])].every((cle) => PLACE.has(cle) || JSON.stringify(a[cle]) === JSON.stringify(p[cle]))
+}
+
+/** Ces changements laissent-ils intact ce que la garde protège ? */
+export function gardeRespectee(c: Changements, garde: Garde): boolean {
+  if (garde.meta && c.meta) return false
+  for (const { avant, apres } of c.elements.values()) if ((carteGardee(avant, garde) || carteGardee(apres, garde)) && !placeSeule(avant, apres)) return false
+  return true
+}
+
+/**
+ * Contrôle une mise à jour reçue d'une connexion : appliquée sous une origine suivie, puis annulée si elle n'est pas
+ * permise, ou si elle touche à ce que `garde` protège. Rend vrai si elle a été gardée. `origine` doit être un objet
+ * propre à cet appel.
+ */
+export function controler(doc: Y.Doc, miseAJour: Uint8Array, droits: DroitsTableau, auteur: string, origine: object, garde?: Garde): boolean {
   const suivi = new Y.UndoManager(
     [...CARTES, ARBRES].map((nom) => doc.getMap(nom)),
     { trackedOrigins: new Set([origine]), captureTimeout: 0 },
   )
   try {
     const c = appliquerEnRelevant(doc, miseAJour, origine)
-    if (changementsPermis(c, droits, auteur)) return true
+    if (changementsPermis(c, droits, auteur) && (!garde || gardeRespectee(c, garde))) return true
     suivi.undo()
     return false
   } finally {

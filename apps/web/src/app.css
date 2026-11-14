@@ -3436,6 +3436,34 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   white-space: nowrap;
 }
 
+/*
+ * Un dossier qu'un outil rattaché a généré porte le nom de l'outil à la suite de son titre, dans la tuile, la liste et
+ * l'arbre de la colonne : on voit d'un coup d'œil qu'il ne se modifie pas d'ici. Le titre se rogne, le nom reste.
+ */
+.biblio-tuile-titre[data-genere] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.biblio-tuile-titre[data-genere] .biblio-tuile-nom {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.biblio-genere {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 9%, transparent);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+  opacity: 0.72;
+}
+
 .biblio-tuile-ou {
   display: flex;
   align-items: center;
@@ -4203,6 +4231,11 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   flex: 1;
   min-width: 0;
   padding-left: 4px;
+}
+
+/* Dans l'arbre, la marque d'un dossier généré se range au bout de la ligne, comme les nombres des rubriques. */
+.biblio-arbre-ligne .biblio-genere {
+  margin-left: auto;
 }
 
 .biblio-arbre-chevron {

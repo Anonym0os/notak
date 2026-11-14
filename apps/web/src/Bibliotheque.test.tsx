@@ -565,9 +565,9 @@ describe('les gestes', () => {
     })
   })
 
-  describe('les dossiers qu’un outil a posés', () => {
+  describe('les dossiers qu’un outil a générés', () => {
     /** « Voyage » range les dossiers de « Mon CRM » ; « atelier » est celui d'une de ses fiches. */
-    const POSES = TOUTES.map((e) =>
+    const GENERES = TOUTES.map((e) =>
       e.element !== null
         ? e
         : e.tableau === 'voyage'
@@ -582,7 +582,7 @@ describe('les gestes', () => {
       await act(async () =>
         racine.render(
           <PageBibliotheque
-            charger={async () => POSES}
+            charger={async () => GENERES}
             espace={espace}
             rangerToile={async (toile, parent, options) => (appels.push([toile, parent, options ?? {}]), { nouveaux: 0, perdus: 0, permanents: 0, liensOuverts: 0, liensEteints: 0, fait: !options?.essai })}
             definirFavori={async () => {}}
@@ -591,43 +591,57 @@ describe('les gestes', () => {
       )
       return espace
     }
-    const libelles = (el: Element) => menu(el).map((b) => b.querySelector('.notak-e-libelle')!.textContent)
+    /** Les lignes du menu, et celles qui sont éteintes. */
+    const lignes = (el: Element) => {
+      const boutons = menu(el)
+      const nom = (b: HTMLButtonElement) => b.querySelector('.notak-e-libelle')!.textContent
+      return { toutes: boutons.map(nom), eteintes: boutons.filter((b) => b.disabled).map(nom) }
+    }
     const avis = () => hote.querySelector('.notak-avis')!.textContent
     const fermerMenu = () => touche('Escape')
 
-    it('restent où l’outil les a mis : ni menu, ni glisser, ni barre ne les déplacent ; celui qui range les autres ne se jette pas', async () => {
+    it('portent le nom de l’outil, dans la tuile et dans l’arbre de la colonne', async () => {
+      await monter()
+      expect(tuile('atelier/').querySelector('.biblio-tuile-titre .biblio-genere')!.textContent).toBe('Mon CRM')
+      expect(tuile('atelier/').getAttribute('aria-label')).toBe('atelier, Généré par Mon CRM')
+      expect(tuile('budget/').querySelector('.biblio-genere')).toBeNull()
+      expect([...hote.querySelectorAll('.biblio-arbre .biblio-rubrique')].map((b) => [b.querySelector('span')!.textContent, b.querySelector('.biblio-genere')?.textContent])).toEqual([
+        ['atelier', 'Mon CRM'],
+        ['Voyage', 'Mon CRM'],
+      ])
+    })
+
+    it('ne se modifient d’aucune façon : le menu éteint ses gestes, F2, ⌫, le glisser et la barre n’y font rien', async () => {
       const espace = await monter()
-      // Le dossier d'une fiche : la ligne dit où il reste ; il se jette (l'outil l'apprend, sa fiche le remet).
-      expect(libelles(tuile('atelier/'))).toEqual(expect.arrayContaining(['Reste où Mon CRM l’a mis', 'Mettre à la corbeille']))
-      expect(libelles(tuile('atelier/'))).not.toContain('Déplacer vers…')
-      expect(entree('Reste où Mon CRM l’a mis').disabled).toBe(true)
-      fermerMenu()
-      // Celui qui les range ne part pas à la corbeille : il y emporterait chaque fiche, à l'insu de l'outil.
-      expect(libelles(tuile('voyage/'))).toContain('Reste où Mon CRM l’a mis')
-      expect(libelles(tuile('voyage/'))).not.toContain('Mettre à la corbeille')
-      fermerMenu()
+      for (const cle of ['atelier/', 'voyage/']) {
+        const { toutes, eteintes } = lignes(tuile(cle))
+        expect(eteintes).toEqual(['Renommer', 'Afficher comme toile', 'Déplacer vers…', 'Mettre à la corbeille'])
+        // Ce qui ne le change pas reste : l'ouvrir, le copier, le mettre en favori, copier son lien.
+        expect(toutes).toEqual(expect.arrayContaining(['Ouvrir', 'Dupliquer', 'Copier le lien']))
+        fermerMenu()
+      }
       appuyer(tuile('voyage/'))
+      touche('F2')
+      expect(hote.querySelector('.biblio-renommer')).toBeNull()
       await act(async () => touche('Backspace'))
       expect(tuile('voyage/')).not.toBeNull()
       expect(espace.tableau('racine')!.elements.find((e) => e.id === 'c-voyage')!.corbeille).toBeUndefined()
-      expect(avis()).toContain('« Voyage » reste où Mon CRM l’a mis.')
+      expect(avis()).toContain('« Voyage » est généré par Mon CRM : il reste tel quel.')
       // Glissé, il ne se décolle pas : l'avis le dit tout de suite, et rien ne part au serveur.
       act(() => void tuile('atelier/').dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 10, clientY: 10 })))
       act(() => void window.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 60, clientY: 40 })))
       expect(hote.querySelector('.biblio-fantome')).toBeNull()
-      expect(avis()).toContain('« atelier » reste où Mon CRM l’a mis.')
+      expect(avis()).toContain('« atelier » est généré par Mon CRM : il reste tel quel.')
       act(() => void window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true })))
-      // Choisis ensemble, la barre ne les déplace pas, et dit pourquoi ; la fiche, elle, se jette.
+      // Choisis ensemble, la barre retient « Déplacer » et la corbeille, et son infobulle dit pourquoi.
       appuyer(tuile('voyage/'))
       appuyer(tuile('atelier/'), { metaKey: true })
-      const bouton = (debut: string) => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-barre-choix button')].find((b) => b.getAttribute('aria-label')?.startsWith(debut))
-      expect(bouton('Reste où Mon CRM')?.getAttribute('aria-disabled')).toBe('true')
-      expect(bouton('Déplacer')).toBeUndefined()
-      expect(bouton('Mettre à la corbeille')?.disabled).toBe(false)
+      const retenus = [...hote.querySelectorAll<HTMLButtonElement>('.biblio-barre-choix button[aria-disabled="true"]')].map((b) => b.getAttribute('aria-label'))
+      expect(retenus).toEqual(['Généré par Mon CRM', 'Généré par Mon CRM'])
       expect(appels).toEqual([])
     })
 
-    it('choisis avec d’autres, ils restent et l’avis le dit ; on range dedans ce qu’on veut', async () => {
+    it('choisis avec d’autres, ils restent tels quels et l’avis le dit ; on range dedans ce qu’on veut', async () => {
       history.replaceState(null, '', '/?vue=tout')
       const espace = await monter()
       appuyer(tuile('voyage/plan'))
@@ -639,7 +653,7 @@ describe('les gestes', () => {
       await act(async () => [...hote.querySelectorAll<HTMLElement>('.biblio-deplacer-liste li')].find((li) => li.textContent?.startsWith('Budget'))!.click())
       expect(espace.tableau('budget')!.elements.some((e) => e.contenu.type === 'arbre')).toBe(true)
       expect(espace.tableau('racine')!.elements.some((e) => e.id === 'c-atelier')).toBe(true)
-      expect(avis()).toContain('Déplacé dans « Budget ». « atelier » reste où Mon CRM l’a mis.')
+      expect(avis()).toContain('Déplacé dans « Budget ». « atelier » est généré par Mon CRM : il reste tel quel.')
       // Le dossier d'une fiche prend ce qu'on y range.
       touche('Escape')
       menu(tuile('voyage/notes'))
