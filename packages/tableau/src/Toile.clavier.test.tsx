@@ -156,6 +156,20 @@ describe('le zoom au clavier, sur toute disposition', () => {
     await laisserDire()
     expect(vues).toEqual([])
   })
+
+  it('⇧⌘0 ne remet pas le zoom à 100 % : dans une note, c’est « Texte normal »', async () => {
+    const vues: number[] = []
+    const { taper } = await monter([], {}, (c) => vues.push(c.echelle))
+    taper('-', { code: 'Equal', keyCode: 189, metaKey: true })
+    await laisserDire()
+    const dezoome = vues.at(-1)
+    expect(dezoome).toBeLessThan(1)
+    // QWERTY donne « ) » sous Maj, AZERTY « 0 » : ni l'un ni l'autre ne touche à la vue.
+    taper(')', { code: 'Digit0', keyCode: 48, metaKey: true, shiftKey: true })
+    taper('0', { code: 'Digit0', keyCode: 48, metaKey: true, shiftKey: true })
+    await laisserDire()
+    expect(vues.at(-1)).toBe(dezoome)
+  })
 })
 
 describe('le clavier revient à la toile après une barre ou un menu', () => {

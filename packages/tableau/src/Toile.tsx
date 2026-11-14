@@ -2141,7 +2141,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       e.preventDefault()
       return zoomerVers(cam.cranDessous(camera.echelle, min))
     }
-    if (cmd && chiffreDe(e) === 0) {
+    // ⌘0 seul : sous Maj, c'est « Texte normal » d'une note qu'on écrit, et la vue ne doit pas bouger avec.
+    if (cmd && !e.shiftKey && chiffreDe(e) === 0) {
       e.preventDefault()
       return zoomerVers(1)
     }
