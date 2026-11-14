@@ -2108,6 +2108,20 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (fils.length > 0) magasin.faire(fils.map((x): Operation => ({ type: 'supprimer', element: x })))
   }
 
+  /**
+   * Après un clic dans la toile, ses barres et ses menus compris, le clavier lui revient s'il n'est plus nulle part : le
+   * bouton choisi est parti avec son menu (Aligner, Répartir…) ou s'est grisé, et le focus serait tombé sur la page, loin
+   * de Suppr, des flèches et de Cmd+Z. Ce qui tient le focus le garde : un champ que l'action vient d'ouvrir, un bouton
+   * resté là (dont la toile lit quand même les touches). La frame suivante laisse l'action poser le sien d'abord.
+   */
+  const rendreLeClavier = () =>
+    requestAnimationFrame(() => {
+      const div = racine.current
+      const actif = document.activeElement
+      const perdu = !actif || actif === document.body || !actif.isConnected || (actif instanceof HTMLButtonElement && actif.disabled)
+      if (perdu && div?.isConnected) div.focus({ preventScroll: true })
+    })
+
   const clavier = (e: React.KeyboardEvent) => {
     // DESSIN-LIBRE : le clavier appartient à la couche de dessin (Suppr, flèches, Cmd+Z n'agissent plus sur le tableau).
     if (toileSuspendue(racine.current)) return
@@ -3495,6 +3509,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       style={styleRacine}
       onKeyDown={clavier}
       onKeyUp={relacherEspace}
+      onClickCapture={rendreLeClavier}
       onBlur={() => setEspace(false)}
       onPointerDown={appui}
       onPointerMove={mouvement}

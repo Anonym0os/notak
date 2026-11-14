@@ -157,3 +157,43 @@ describe('le zoom au clavier, sur toute disposition', () => {
     expect(vues).toEqual([])
   })
 })
+
+describe('le clavier revient à la toile après une barre ou un menu', () => {
+  const frame = () => act(async () => void (await new Promise((r) => requestAnimationFrame(r))))
+
+  it('Aligner, puis « Aligner à gauche » : le menu parti avec son bouton, la toile reprend le clavier', async () => {
+    const a = nouvelleNote(0, 0, 'a')
+    const b = nouvelleNote(30, 20, 'b')
+    const { taper, toile, place } = await monter([a, b], { barreAGauche: true })
+    toutChoisir(taper)
+    await act(async () => {})
+    const aligner = [...hote.querySelectorAll<HTMLButtonElement>('nav[data-selection] button')].find((x) => x.textContent === 'Aligner')!
+    act(() => aligner.click())
+    const gauche = hote.querySelector<HTMLButtonElement>('button[aria-label="Aligner à gauche"]')!
+    // Chrome donne le focus au bouton cliqué ; le menu, en se fermant, l'emporte.
+    gauche.focus()
+    act(() => gauche.click())
+    expect(hote.querySelector('button[aria-label="Aligner à gauche"]')).toBeNull()
+    await frame()
+    expect(document.activeElement).toBe(toile)
+    // La touche suivante va bien à la toile : la flèche déplace la sélection.
+    act(() => void document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
+    expect([place(a.id)?.[0], place(b.id)?.[0]]).toEqual([1, 31])
+  })
+
+  it('un champ que l’action vient d’ouvrir garde le focus, un bouton resté là aussi', async () => {
+    const { toile } = await monter([nouvelleNote(0, 0, 'a')])
+    const champ = document.createElement('input')
+    const ouvre = document.createElement('button')
+    const reste = document.createElement('button')
+    toile.append(champ, ouvre, reste)
+    ouvre.addEventListener('click', () => champ.focus())
+    act(() => ouvre.click())
+    await frame()
+    expect(document.activeElement).toBe(champ)
+    reste.focus()
+    act(() => reste.click())
+    await frame()
+    expect(document.activeElement).toBe(reste)
+  })
+})
