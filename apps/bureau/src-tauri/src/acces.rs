@@ -622,6 +622,12 @@ pub async fn annuler_jonction(app: AppHandle, webview: Webview, garde: State<'_,
 /// Chaque passage a son jeton, et seul le dernier posé mène quelque part : le minuteur ou la page vide d'un passage
 /// révolu ne touche pas à celui d'après. Un passage se pose sous le verrou de la visite, avec le serveur qu'il rejoint
 /// ou qu'il quitte (`commencer_visite`, `abandonner`) : le dernier posé va toujours là où la garde le laisse aller.
+///
+/// Ses deux pas remplacent l'entrée de l'historique de la fenêtre au lieu d'en ajouter une (`remplacer_la_page`) : la
+/// page vide prend la place de la page quittée, puis la page d'arrivée la sienne. Sans cela, un retour depuis la
+/// première page du serveur (le geste du bord sur l'iPhone et l'iPad) tombait sur la page vide, une page blanche d'où
+/// rien ne ramène ; un retour de plus visait la porte, que la garde refuse tant que le serveur est là, et l'iPhone
+/// laissait son aperçu à l'écran (« Connexion à… », sans fin).
 #[derive(Default)]
 pub struct Passage(Mutex<EnRoute>);
 
@@ -684,7 +690,7 @@ fn partir(app: &AppHandle, jeton: u64) -> Result<(), Erreur> {
     if passage.courant() != Some(jeton) {
         return Ok(());
     }
-    if let Err(e) = fenetre(app).and_then(|f| f.navigate(Url::parse("about:blank").expect("adresse fixe")).map_err(Erreur::echec)) {
+    if let Err(e) = fenetre(app).and_then(|f| remplacer_la_page(&f, &Url::parse(PAGE_VIDE).expect("adresse fixe"))) {
         passage.finir(jeton);
         return Err(e);
     }
@@ -712,9 +718,32 @@ fn continuer(app: &AppHandle, jeton: u64) {
         eprintln!("Notak : la fenêtre n'a plus nulle part où aller");
         return;
     };
-    if let Err(e) = fenetre(app).and_then(|f| f.navigate(vers).map_err(Erreur::echec)) {
+    let aller = fenetre(app).and_then(|f| {
+        if f.url().is_ok_and(|u| u.as_str() == PAGE_VIDE) {
+            remplacer_la_page(&f, &vers)
+        } else {
+            // La page d'avant n'a pas cédé la place (une page qui ne répond plus) : la fenêtre part quand même, par une
+            // navigation ordinaire, qui ajoute son entrée.
+            f.navigate(vers).map_err(Erreur::echec)
+        }
+    });
+    if let Err(e) = aller {
         eprintln!("Notak : la fenêtre n'a pas pu changer de page ({e:?})");
     }
+}
+
+const PAGE_VIDE: &str = "about:blank";
+
+/// La fenêtre va à `vers` à la place de sa page dans l'historique (`location.replace`), là où `navigate` ajouterait
+/// une entrée. Le script de la coque passe même sous la CSP de la page, et une page ne redéfinit pas `location.replace`.
+fn remplacer_la_page(fenetre: &tauri::WebviewWindow, vers: &Url) -> Result<(), Erreur> {
+    fenetre.eval(script_de_remplacement(vers)).map_err(Erreur::echec)
+}
+
+/// `location.replace("…")`, l'adresse écrite en chaîne JSON, qui est aussi une chaîne de JavaScript : rien de ce
+/// qu'elle porte ne sort de ses guillemets.
+fn script_de_remplacement(vers: &Url) -> String {
+    format!("location.replace({})", Value::from(vers.as_str()))
 }
 
 /// Où mène un passage qui s'achève : là où il allait, si la garde l'y laisse encore. Sinon (son serveur quitté sans que
@@ -1291,6 +1320,19 @@ mod essais {
         // Une jonction abandonnée avant de partir ne pose aucun passage.
         assert_eq!(a.commencer_visite(&p, ICI, racine(ICI), vu), None);
         assert!(!p.en_cours());
+    }
+
+    #[test]
+    fn le_passage_remplace_la_page_au_lieu_d_en_ajouter_une() {
+        let script = |s: &str| script_de_remplacement(&Url::parse(s).unwrap());
+        assert_eq!(script(PAGE_VIDE), r#"location.replace("about:blank")"#);
+        assert_eq!(script("https://notak.exemple.fr/"), r#"location.replace("https://notak.exemple.fr/")"#);
+        assert_eq!(script("tauri://localhost/?acces&erreur=muette"), r#"location.replace("tauri://localhost/?acces&erreur=muette")"#);
+        // Ce que l'adresse porte reste dans sa chaîne : la page d'un lien `notak://` n'en sort pas pour devenir du script.
+        let lien = Url::parse(r#"https://notak.exemple.fr/t/a"b'c\d?x=");alert(1);//#y"z"#).unwrap();
+        let ecrit = script_de_remplacement(&lien);
+        let argument = ecrit.strip_prefix("location.replace(").and_then(|r| r.strip_suffix(')')).unwrap();
+        assert_eq!(serde_json::from_str::<String>(argument).unwrap(), lien.as_str(), "une seule chaîne, l'adresse entière : {ecrit}");
     }
 
     #[test]

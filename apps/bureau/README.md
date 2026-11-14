@@ -153,7 +153,9 @@ ne le reçoit pas. Sur iPhone et iPad, `notak://` ne sert encore qu'à revenir d
   passage a son jeton, et seul le dernier posé mène quelque part : le minuteur d'un passage révolu n'écourte pas le
   suivant. Il se pose sous le même verrou que le serveur qu'il rejoint ou quitte : une annulation qui croise une
   jonction ramène toujours la fenêtre, et un passage dont la destination n'est plus permise mène à l'écran d'accès,
-  jamais sur la page vide.
+  jamais sur la page vide. Ses deux pas **remplacent** l'entrée de l'historique (`location.replace`, par un script de la
+  coque) au lieu d'en ajouter une : un retour depuis la première page du serveur ne tombe plus sur la page vide (une
+  page blanche, vue sur l'iPhone au geste du bord) ni, un retour plus loin, sur la porte.
 - **Les mises à jour** (`src/mise_a_jour.rs`, `docs/MISES-A-JOUR.md`) : 60 s pour lire `latest.json`, 15 min pour
   télécharger le paquet (85 Mo pour l'AppImage). Une réponse « à jour » vaut cinq heures pour les recherches
   automatiques : une page qui se charge (passer des toiles d'ici au serveur, recharger) ne redemande pas à GitHub ;
