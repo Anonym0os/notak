@@ -90,6 +90,9 @@ export function suivreEnvois(magasin: Magasin, elements: readonly Element[]) {
   voir()
 }
 
+/** Le vrai fichier d'un envoi parti d'ici, une fois reçu par le serveur ; `undefined` avant, ou s'il n'est pas d'ici. */
+export const fichierRecu = (fichier: string): string | undefined => (enEnvoi(fichier) ? envois.get(fichier)?.fini : undefined)
+
 /** La copie locale d'un fichier en cours d'envoi, pour le montrer sans attendre le serveur ; `undefined` s'il n'est pas d'ici. */
 export const copieLocale = (fichier: string): string | undefined => (enEnvoi(fichier) ? envois.get(fichier)?.local : undefined)
 

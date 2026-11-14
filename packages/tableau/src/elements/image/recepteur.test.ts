@@ -84,16 +84,32 @@ describe('recevoirImages', () => {
     const { ctx } = contexte()
     expect(recevoirImages(recus(new File(['%PDF'], 'a.pdf', { type: 'application/pdf' })), { x: 0, y: 0 }, ctx)).toBeNull()
   })
+
+  it('lit les couleurs après la naissance, hors de l’historique : défaire la pose la retire d’un seul pas', async () => {
+    const { ctx, magasin } = contexte()
+    const ops = (await recevoirImages(recus(fichier(jpeg(800, 600), 'a.jpg', 'image/jpeg')), { x: 0, y: 0 }, ctx))!
+    const [e] = crees(ops)
+    expect(e!.contenu.couleurs).toBeUndefined()
+    // La toile pose ce que rendent les récepteurs un peu plus tard : les couleurs attendent l'élément.
+    await new Promise((fin) => setTimeout(fin, 5))
+    magasin.faire(ops)
+    await vi.waitFor(() => expect((magasin.lire().elements[0]!.contenu as Image).couleurs).toEqual(['#aa0000']))
+    expect(magasin.annuler()).toBe(true)
+    expect(magasin.lire().elements).toEqual([])
+  })
 })
 
 describe('remplacerImage', () => {
   it('le nouveau fichier prend la place de l’ancien : même place, même largeur, même légende, ses propres proportions', async () => {
-    const { ctx } = contexte()
+    const { ctx, magasin } = contexte()
     const ancienne: Element<Image> = { id: 'img', x: 5, y: 6, largeur: 20, contenu: { type: 'image', fichier: 'f', largeurOrigine: 400, hauteurOrigine: 300, legende: 'Plage', couleurs: ['#000000'] } }
+    magasin.faire([{ type: 'creer', element: ancienne }])
     const ops = await remplacerImage(ancienne, fichier(jpeg(4032, 3024, { orientation: 6 }), 'IMG_0010.jpg', 'image/jpeg'), ctx)
     expect(ops).toHaveLength(1)
     const apres = (ops[0] as Extract<Operation, { type: 'contenu' }>).apres as Image
-    expect([apres.largeurOrigine, apres.hauteurOrigine, apres.legende, apres.couleurs]).toEqual([3024, 4032, 'Plage', ['#aa0000']])
+    expect([apres.largeurOrigine, apres.hauteurOrigine, apres.legende, apres.couleurs]).toEqual([3024, 4032, 'Plage', undefined])
+    magasin.faire(ops)
+    await vi.waitFor(() => expect((magasin.lire().elements[0]!.contenu as Image).couleurs).toEqual(['#aa0000']))
   })
 
   it('une photo refusée ne remplace rien', async () => {

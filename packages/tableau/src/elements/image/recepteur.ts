@@ -1,5 +1,6 @@
-import { type Element, type Image as ContenuImage, type Operation, nouvelId } from '../../coeur/tableau'
-import { commencerEnvoi } from '../envois'
+import { type Element, type Id, type Image as ContenuImage, type Operation, nouvelId } from '../../coeur/tableau'
+import type { Magasin } from '../../coeur/magasin'
+import { commencerEnvoi, fichierRecu } from '../envois'
 import { lireDimensions, lireTransparence } from './lecture'
 import { lirePalette } from './palette'
 import type { ContexteToile } from '../types'
@@ -37,7 +38,6 @@ async function lireImage(f: File): Promise<Lue | { refus: Refus }> {
     const d = entete ?? (await lireDimensions(fichier))
     if (!d) return { refus: 'illisible' }
     const transparente = await lireTransparence(fichier)
-    const couleurs = await lirePalette(fichier)
     return {
       fichier,
       contenu: {
@@ -46,7 +46,6 @@ async function lireImage(f: File): Promise<Lue | { refus: Refus }> {
         hauteurOrigine: d.hauteur,
         typeMime: fichier.type,
         ...(transparente !== undefined ? { transparente } : {}),
-        ...(couleurs.length > 0 ? { couleurs } : {}),
       },
     }
   } catch {
@@ -67,6 +66,49 @@ async function lireImages(fichiers: File[]): Promise<Lue[]> {
   }
   annoncerRefus(refus)
   return lues
+}
+
+/**
+ * Attend que l'image porte ce fichier : la toile pose ce que rendent les récepteurs quand tous ont répondu (une image
+ * remplacée garde l'ancien jusque-là). `undefined` si elle a changé d'ici là, ou n'est jamais venue.
+ */
+function quandPosee(magasin: Magasin, id: Id, envoi: string, delai = 10_000): Promise<Element<ContenuImage> | undefined> {
+  const trouver = () => {
+    const e = magasin.lire().elements.find((x) => x.id === id)
+    const f = e?.contenu.type === 'image' ? e.contenu.fichier : undefined
+    return f !== undefined && (f === envoi || f === fichierRecu(envoi)) ? (e as Element<ContenuImage>) : undefined
+  }
+  const deja = trouver()
+  if (deja) return Promise.resolve(deja)
+  return new Promise((fin) => {
+    let arreter = () => {}
+    const minuteur = setTimeout(() => {
+      arreter()
+      fin(undefined)
+    }, delai)
+    arreter = magasin.ecouter(() => {
+      const e = trouver()
+      if (!e) return
+      clearTimeout(minuteur)
+      arreter()
+      fin(e)
+    })
+  })
+}
+
+/**
+ * Les couleurs dominantes, lues après la naissance : elles demandent de décoder toute la photo (une demi-seconde pour
+ * 48 Mpx), et l'image n'a pas à les attendre pour paraître. Une à une, et hors de l'historique, comme la fin d'un envoi.
+ */
+async function lireCouleursApres(images: { id: Id; fichier: Blob; envoi: string }[], magasin: Magasin) {
+  for (const { id, fichier, envoi } of images) {
+    const couleurs = await lirePalette(fichier)
+    if (couleurs.length === 0) continue
+    // L'image a pu changer entre-temps (remplacée de nouveau, défaite) : on ne colore que celle qu'on a lue.
+    const e = await quandPosee(magasin, id, envoi)
+    if (!e || e.contenu.couleurs) continue
+    magasin.corriger([{ type: 'contenu', id, avant: e.contenu, apres: { ...e.contenu, couleurs } }])
+  }
 }
 
 export function recevoirImages(donnees: DataTransfer, ou: { x: number; y: number }, contexte: ContexteToile) {
@@ -103,13 +145,15 @@ export async function remplacerImage(cible: Element<ContenuImage>, f: File, cont
   if (!depot) return []
   const [lue] = await lireImages([f])
   if (!lue) return []
-  const apres = remplacerContenu(cible.contenu, lue.contenu, commencerEnvoi(lue.fichier, depot))
+  const envoi = commencerEnvoi(lue.fichier, depot)
+  const apres = remplacerContenu(cible.contenu, lue.contenu, envoi)
+  void lireCouleursApres([{ id: cible.id, fichier: lue.fichier, envoi }], contexte.magasin)
   return [{ type: 'contenu', id: cible.id, avant: cible.contenu, apres }]
 }
 
 /**
- * Les images naissent dès qu'elles sont lues ; l'envoi suit (voir `envois.ts`). Plusieurs se rangent en colonnes, dans
- * l'ordre où elles sont arrivées.
+ * Les images naissent dès que leurs dimensions sont lues (dans l'en-tête, le plus souvent) ; l'envoi suit (voir
+ * `envois.ts`), puis leurs couleurs. Plusieurs se rangent en colonnes, dans l'ordre où elles sont arrivées.
  */
 async function poserImages(fichiers: File[], ou: { x: number; y: number }, contexte: ContexteToile): Promise<Operation[]> {
   const depot = contexte.services.fichiers
@@ -125,5 +169,9 @@ async function poserImages(fichiers: File[], ou: { x: number; y: number }, conte
     largeur: largeurs[i]!,
     contenu: { ...l.contenu, fichier: commencerEnvoi(l.fichier, depot) },
   }))
+  void lireCouleursApres(
+    elements.map((e, i) => ({ id: e.id, fichier: lues[i]!.fichier, envoi: e.contenu.fichier })),
+    contexte.magasin,
+  )
   return elements.map((element) => ({ type: 'creer' as const, element }))
 }
