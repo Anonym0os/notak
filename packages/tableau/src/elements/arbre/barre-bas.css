@@ -22,9 +22,9 @@
   height: 36px;
   padding: 4px;
   border-radius: 24px;
-  background: var(--notak-arbre-verre);
-  backdrop-filter: blur(13px) saturate(300%);
-  box-shadow: var(--notak-arbre-ombre);
+  /* La surface des îlots, comme les pilules de la carte (fenetre.css). */
+  background: var(--notak-ilot-fond);
+  box-shadow: var(--notak-ilot-ombre);
   font-size: 12px;
   line-height: 16px;
   letter-spacing: 0.48px;

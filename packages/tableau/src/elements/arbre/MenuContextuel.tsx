@@ -11,7 +11,7 @@ interface Props {
   /**
    * Le bouton qui ouvre le menu (le « + » de la barre) : le menu s'ouvre à son bord gauche, 6 px sous lui (au-dessus s'il
    * n'a pas la place dessous), sans jamais le recouvrir ; un clic sur ce bouton ne le ferme pas (le bouton s'en charge).
-   * Le menu se pose alors dans la fenêtre de la carte, hors de la pilule : son flou voit la carte, pas la pilule.
+   * Le menu se pose alors dans la fenêtre de la carte, hors de la pilule : il a la surface pleine des menus de la toile.
    */
   ancre?: HTMLElement | null
   items: Item[]

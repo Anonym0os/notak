@@ -11,7 +11,6 @@
   --notak-arbre-appui: color-mix(in srgb, var(--notak-arbre-texte) 12%, transparent);
   --notak-arbre-plein: color-mix(in srgb, var(--notak-arbre-texte) 85%, var(--notak-arbre-fond));
   --notak-arbre-ombre: inset 1px 1px 2px rgb(255 255 255 / 0.4), inset 0.5px 0.5px 1px rgb(255 255 255 / 0.7), 0 6px 20px rgb(0 0 0 / 0.06), 0 0 4px rgb(0 0 0 / 0.04);
-  --notak-arbre-verre: color-mix(in srgb, var(--notak-arbre-fond) 70%, transparent);
   --notak-arbre-largeur-cote: 268px;
   /* Les îlots de la barre du haut (ilots.css), aux couleurs de la carte, avec l'ombre de ses pilules. */
   --notak-ilot-fond: color-mix(in srgb, var(--notak-arbre-fond) 88%, transparent);
@@ -50,13 +49,22 @@
   box-shadow: none;
 }
 
-/* Ce qui flotte sur la carte : blanc, arrondi, une ombre légère. */
+/*
+ * Ce qui flotte sur la carte (la barre d'outils, celle du sujet, les pastilles du bas) : la surface des îlots, ceux de
+ * la toile comme ceux de cette barre du haut (ilots.css), leur fond à 88 % et leur ombre, arrondie. Un verre à 70 %
+ * laissait voir la carte au travers, sans le flou qui l'aurait rendu net : « juste une opacité réduite ».
+ */
 .notak-arbre-pilule,
 .notak-arbre-pastille {
-  background: var(--notak-arbre-verre);
-  box-shadow: var(--notak-arbre-ombre);
+  background: var(--notak-ilot-fond);
+  box-shadow: var(--notak-ilot-ombre);
   border-radius: 24px;
-  backdrop-filter: blur(13px) saturate(300%);
+}
+
+/* En sombre, comme les îlots : un fond à peine plus clair que la toile, et un anneau d'un pixel au lieu de l'ombre. */
+[data-theme='sombre'] :is(.notak-arbre-pilule, .notak-arbre-pastille, .notak-arbre-bas-pastille) {
+  --notak-ilot-fond: color-mix(in oklab, var(--notak-fond, #1b1e23), white 6%);
+  --notak-ilot-ombre: 0 0 0 1px rgb(255 255 255 / 0.1);
 }
 
 .notak-arbre-pastille {
