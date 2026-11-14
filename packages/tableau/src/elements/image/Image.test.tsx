@@ -80,8 +80,9 @@ describe('la carte d’une image', () => {
     // Le haut de la photo suit l'arrondi de la carte (un habillage en donne un) ; tout le tour quand rien ne la suit.
     expect(regle(".notak-carte[data-type='image'] > .notak-image-cadre")).toMatch(/border-top-left-radius: inherit;[\s\S]*border-top-right-radius: inherit;/)
     expect(regle(".notak-carte[data-type='image']:not(:has(> .notak-legende)) > .notak-image-cadre")).toMatch(/border-radius: inherit;/)
-    // En édition, le filet passe dedans : son arrondi perd les 2 px dont il rentre.
-    expect(regle(".notak-carte[data-type='image'][data-edition]:not([data-sans-fond])::before")).toMatch(/calc\(var\(--notak-rayon-carte, 0px\) - 2px\)/)
+    // En édition, le filet passe dedans et son arrondi perd les 2 px dont il rentre : la règle de toutes les cartes
+    // (toile.css), qu'aucune règle de l'image ne redit.
+    expect(css).not.toContain("[data-edition]:not([data-sans-fond])::before")
     // Sans carte (une image transparente), ni arrondi ni rognure.
     expect(regle(".notak-carte[data-type='image'][data-sans-fond]")).toMatch(/border-radius: 0;/)
     // La barre de couleur vit dans le cadre, rognée avec lui, et laisse le `::after` de la carte à l'ombre du glisser.

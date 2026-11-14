@@ -44,14 +44,6 @@
 }
 
 /*
- * En écrivant la légende, le filet passe à l'intérieur du bord (2 px plus bas, 2 px plus à gauche…) : son arrondi
- * perd ces 2 px pour que son bord extérieur épouse encore celui de la carte.
- */
-.notak-carte[data-type='image'][data-edition]:not([data-sans-fond])::before {
-  border-radius: max(0px, calc(var(--notak-rayon-carte, 0px) - 2px));
-}
-
-/*
  * La barre de couleur : 5 px en haut de l'image, au lieu d'une teinte sur la carte. Dans le cadre, elle est rognée
  * par son arrondi ; et l'ombre du glisser garde pour elle le `::after` de la carte.
  */

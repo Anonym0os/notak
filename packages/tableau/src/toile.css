@@ -112,7 +112,8 @@
   min-height: 0;
 }
 
-/* Le filet de sélection : 2 px à l'extérieur de la carte, coins carrés ; en édition il se resserre de 2 px en glissant. */
+/* Le filet de sélection : 2 px à l'extérieur de la carte, à son arrondi (carré sans habillage) ; en édition il se resserre
+   de 2 px en glissant. */
 .notak-carte:not([data-sans-fond], [data-type='tableau'])::before {
   content: '';
   position: absolute;
@@ -121,7 +122,10 @@
   z-index: 1;
   box-shadow: 0 0 0 2px transparent;
   pointer-events: none;
-  transition: inset 0.1s ease-out;
+  /* L'arrondi glisse avec le filet : de la sélection à l'édition, il reste parallèle au bord de la carte. */
+  transition:
+    inset 0.1s ease-out,
+    border-radius 0.1s ease-out;
 }
 
 .notak-carte[data-choisie]:not([data-sans-fond], [data-type='tableau'])::before {
@@ -149,13 +153,16 @@
   box-shadow: var(--notak-ombre);
 }
 
-/* En édition, le contour se resserre de 2 px (en 0,1 s) : il passe du dehors au dedans du bord, on voit qu'on écrit dedans. */
+/* En édition, le contour se resserre de 2 px (en 0,1 s) : il passe du dehors au dedans du bord, on voit qu'on écrit dedans.
+   Rentré de 2 px, son arrondi en perd autant : son bord extérieur épouse encore l'arrondi de la carte (celui d'un
+   habillage, 10 px chez Silak), au lieu de s'en écarter aux coins. Les cartes qui ont un filet ont toutes cet arrondi. */
 .notak-carte[data-edition]:not([data-sans-fond], [data-type='tableau']) {
   box-shadow: none;
 }
 
 .notak-carte[data-edition]:not([data-sans-fond], [data-type='tableau'])::before {
   inset: 2px;
+  border-radius: max(0px, calc(var(--notak-rayon-carte, 0px) - 2px));
   box-shadow: 0 0 0 2px var(--notak-selection);
 }
 
