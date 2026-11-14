@@ -30,7 +30,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
 } from 'react'
 import {
   type BilanRangement,
@@ -119,7 +118,6 @@ import {
   type GenreLigne,
   LigneDoigt,
   Passages,
-  VedetteAccueil,
   quand,
   useAuTelephone,
   useBienvenue,
@@ -253,14 +251,16 @@ export function sectionsParDate(entrees: readonly EntreeBibliotheque[], maintena
 
 /**
  * Les tuiles rangées par dossier : une section par toile qui les porte, titrée de son nom, la plus récemment ouverte
- * d'abord. Ce dont on ne lit pas la toile (un partage venu d'ailleurs) va à part, en dernier.
+ * d'abord ; ce qui est à la racine, sous le nom de l'espace (`racine`). Ce dont on ne lit pas la toile (un partage venu
+ * d'ailleurs) va à part, en dernier.
  */
-export function sectionsParDossier(entrees: readonly EntreeBibliotheque[]): Section[] {
+export function sectionsParDossier(entrees: readonly EntreeBibliotheque[], racine?: { id: string; titre: string }): Section[] {
   const parDossier = new Map<string, Section>()
+  const titreDuDossier = (e: EntreeBibliotheque) => (racine && e.dans === racine.id ? racine.titre : e.ou || t('commun.sansTitre'))
   for (const e of [...entrees].sort(parOuverture)) {
     const cle = e.dans ?? ''
     let s = parDossier.get(cle)
-    if (!s) parDossier.set(cle, (s = { cle: `dossier:${cle}`, titre: e.dans ? e.ou || t('commun.sansTitre') : t('biblio.sansDossier'), dans: e.dans, entrees: [] }))
+    if (!s) parDossier.set(cle, (s = { cle: `dossier:${cle}`, titre: e.dans ? titreDuDossier(e) : t('biblio.sansDossier'), dans: e.dans, entrees: [] }))
     s.entrees.push(e)
   }
   const recent = (s: Section) => s.entrees[0]?.vu ?? -1
@@ -315,7 +315,7 @@ function ecrireTri(tri: Tri) {
   }
 }
 
-/** Ce que la page demande à l'espace : de quoi lire le titre de l'accueil, créer, et ranger. */
+/** Ce que la page demande à l'espace : de quoi lire l'accueil, créer, et ranger. */
 type EspaceBibliotheque = EspaceRangement
 
 /** Une fenêtre ouverte par-dessus la page. */
@@ -356,7 +356,7 @@ const VIGNETTES_SERVEUR: SourceVignettes = {
 /** Le pointeur à moins de tant de pixels du haut ou du bas de la page la fait défiler, pendant un cadre ou un glisser. */
 const BORD_DEFILEMENT = 48
 
-/** Crée sur une toile de l'espace (l'accueil, sans `dans`) ; rend où aller. */
+/** Crée sur une toile de l'espace (à la racine, sans `dans`) ; rend où aller. */
 const creerDansLEspace = (espace: EspaceBibliotheque | undefined) => async (genre: GenreNeuf, dans?: string) => {
   const ou = dans ?? espace!.racine
   await quandPretes(espace!, [ou])
@@ -373,12 +373,12 @@ export interface Bienvenue {
   lignes: readonly { icone: NomIcone; texte: string }[]
 }
 
-/** Celle d'un serveur : l'accueil, le « + », et le rond du compte quand il est là. */
+/** Celle d'un serveur : les toiles, le « + », et le rond du compte quand il est là. */
 const bienvenueServeur = (compte: boolean): Bienvenue => ({
   cle: CLE_BIENVENUE_SERVEUR,
   titre: t('biblio.bienvenue.serveur.titre'),
   lignes: [
-    { icone: 'maison', texte: t('biblio.bienvenue.accueil') },
+    { icone: 'bibliotheque', texte: t('biblio.bienvenue.toiles') },
     { icone: 'ajouter', texte: t('biblio.bienvenue.creer') },
     ...(compte ? [{ icone: 'compte' as const, texte: t('biblio.bienvenue.serveur.compte') }] : []),
   ],
@@ -432,7 +432,7 @@ function BibliothequeBureau({
   fenetres?: FenetresNotak
   /** Les notifications et le compte, que l'application prête à la barre. */
   compte?: ReactNode
-  /** Crée sur une toile (l'accueil, sans `dans`) ; rend où aller. */
+  /** Crée sur une toile (à la racine, sans `dans`) ; rend où aller. */
   creer?: (genre: GenreNeuf, dans?: string) => Promise<{ tableau: string; element: string | null }>
   rangerToile?: Outils['rangerToile']
   definirFavori?: Outils['definirFavori']
@@ -489,7 +489,11 @@ function BibliothequeBureau({
   const nav = useRef<HTMLElement>(null)
   const corps = useRef<HTMLElement>(null)
   const minuteurs = useRef(new Set<ReturnType<typeof setTimeout>>())
-  const titreAccueil = useSyncExternalStore(espace?.ecouter ?? (() => () => {}), () => (espace ? espace.tableau(espace.racine)?.titre : '') ?? '')
+  /**
+   * La racine des toiles se nomme comme l'espace, et non comme la toile d'accueil qui la tient en coulisse : on y crée et
+   * on y range, comme à la racine d'un Drive, sans croire qu'elle est une toile de plus.
+   */
+  const nomRacine = t('biblio.racine')
 
   /**
    * La page est-elle encore là ? Une lecture peut finir après qu'on a ouvert une toile (le catalogue de l'appareil lit
@@ -614,7 +618,7 @@ function BibliothequeBureau({
   // Toute la bibliothèque, sans puce ni recherche, triée par date : son accueil, en rubriques.
   const accueilDeLaBibliotheque = portee === 'tout' && filtre === 'tout' && !dossier && !cherche && triVu === 'date'
   const sections =
-    triVu === 'dossier' ? sectionsParDossier(visibles) : accueilDeLaBibliotheque ? sectionsDeLAccueil(visibles, telephone ? PAR_RUBRIQUE_TELEPHONE : PAR_RUBRIQUE) : sectionsParDate(visibles)
+    triVu === 'dossier' ? sectionsParDossier(visibles, espace ? { id: espace.racine, titre: nomRacine } : undefined) : accueilDeLaBibliotheque ? sectionsDeLAccueil(visibles, telephone ? PAR_RUBRIQUE_TELEPHONE : PAR_RUBRIQUE) : sectionsParDate(visibles)
   // Au téléphone, on crée par le « + » du haut : pas de tuile qui crée.
   const neuf = cherche || telephone ? undefined : neufDe(vue)
 
@@ -649,7 +653,7 @@ function BibliothequeBureau({
   useEffect(() => setSel((s) => garder(s, cleOrdre ? cleOrdre.split('|') : [])), [cleOrdre])
 
   const outils: Outils | null = espace ? { espace, rangerToile, definirFavori } : null
-  const titreToile = (id: string) => (espace && id === espace.racine ? titreAccueil || t('biblio.accueil') : parCle.get(`${id}/`)?.titre || t('commun.sansTitre'))
+  const titreToile = (id: string) => (espace && id === espace.racine ? nomRacine : parCle.get(`${id}/`)?.titre || t('commun.sansTitre'))
   /**
    * Ce qu'on ouvre d'ici arrive avec le chemin des dossiers où il est rangé (`parent` : pour une toile qu'on vient d'y
    * créer) : la barre de la toile le redit, et chaque maillon mène à sa liste, au lieu de croire qu'on vient de l'accueil.
@@ -659,9 +663,13 @@ function BibliothequeBureau({
     const c = parent ? [...filDAriane(parent, toutes, espace.racine), tableau] : filDAriane(tableau, toutes, espace.racine)
     for (let i = 1; i < c.length; i++) espace.entrer(c[i]!, c[i - 1]!)
   }
-  /** Un dossier autre que l'accueil : il ne se montre jamais en toile, ni ce qu'il porte sur la sienne. */
-  const sousDossier = (id: string | null | undefined): boolean => {
-    if (!id || id === espace?.racine) return false
+  /**
+   * Une toile qui se montre en dossier : elle ne s'ouvre jamais en toile, ni ce qu'elle porte sur la sienne. La racine en
+   * est une : la toile d'accueil qui la tient ne s'ouvre que par la ligne de ce qu'elle seule montre (`ligneDeLaRacine`).
+   */
+  const enDossier = (id: string | null | undefined): boolean => {
+    if (!id) return false
+    if (id === espace?.racine) return true
     const e = parCle.get(`${id}/`)
     return !!e && estDossier(e)
   }
@@ -744,7 +752,7 @@ function BibliothequeBureau({
     // Rien ne les ouvre en grand, qui le noterait : on le dit ici.
     void noterVu(e)
     // Rangés dans un dossier, ils s'ouvrent seuls ; posés sur une toile, sur elle.
-    if (sousDossier(e.tableau)) return ouvrirSeul(e)
+    if (enDossier(e.tableau)) return ouvrirSeul(e)
     afficherDansSaToile(e, e.tableau)
   }
   /** La photo ou le fichier qu'un dossier range, ouvert seul dans la fenêtre des fichiers. */
@@ -830,7 +838,7 @@ function BibliothequeBureau({
     if (!outils || es.length === 0) return
     // Le nom de la toile neuve se tape aussitôt : au doigt, le clavier doit monter dans le geste.
     preparerClavier()
-    // La toile neuve va là où tout ce qui part était (ce qu'un outil a généré reste), sinon sur l'accueil.
+    // La toile neuve va là où tout ce qui part était (ce qu'un outil a généré reste), sinon à la racine.
     const partent = es.filter((e) => !genere(e))
     const ou = partent.length > 0 && partent.every((e) => porteuseDe(e) === porteuseDe(partent[0]!)) ? (porteuseDe(partent[0]!) ?? outils.espace.racine) : outils.espace.racine
     // Comme le « nouveau dossier avec la sélection » du Finder : la toile neuve est choisie, son nom prêt à changer.
@@ -842,7 +850,7 @@ function BibliothequeBureau({
       setRenommage({ cle })
     })
   }
-  /** Un dossier neuf, là où l'on est (l'accueil, ou le dossier du clic droit) : on le voit choisi, son nom prêt à changer. */
+  /** Un dossier neuf, là où l'on est (la racine, ou le dossier du clic droit) : on le voit choisi, son nom prêt à changer. */
   const nouveauDossier = (dans?: string) => {
     if (!outils) return
     preparerClavier()
@@ -899,7 +907,7 @@ function BibliothequeBureau({
   const copierLiens = (es: EntreeBibliotheque[]) => {
     // Un dossier et ce qu'il range n'ont d'adresse que dans la bibliothèque ; une page ou une carte, la leur, en grand.
     const adresse = (e: EntreeBibliotheque) =>
-      estDossier(e) ? adresseDuDossier(e.tableau) : e.element && !EN_GRAND.has(e.genre) && sousDossier(e.tableau) ? adresseDuDossier(e.tableau, e.element) : adresseDe(e)
+      estDossier(e) ? adresseDuDossier(e.tableau) : e.element && !EN_GRAND.has(e.genre) && enDossier(e.tableau) ? adresseDuDossier(e.tableau, e.element) : adresseDe(e)
     void navigator.clipboard?.writeText(es.map((e) => (e.resume.genre === 'lien' ? e.resume.url : `${location.origin}${adresse(e)}`)).join('\n')).then(
       () => annoncer({ texte: t(es.length > 1 ? 'biblio.annonce.liens' : 'biblio.annonce.lien') }),
       () => {},
@@ -922,7 +930,7 @@ function BibliothequeBureau({
       const url = une.resume.url
       l.push({ libelle: t('biblio.menu.ouvrirLien'), icone: 'ouvrir', faire: () => ouvrirDehors(url) })
     }
-    if (porteuse && !sousDossier(porteuse)) l.push({ libelle: t('biblio.menu.afficher'), icone: 'tableau', faire: () => afficherDansSaToile(une!, porteuse) })
+    if (porteuse && !enDossier(porteuse)) l.push({ libelle: t('biblio.menu.afficher'), icone: 'tableau', faire: () => afficherDansSaToile(une!, porteuse) })
     // Au doigt, l'appui long mène aussi au choix de plusieurs, comme dans Fichiers : la tuile tenue y est déjà.
     if (ecranAuDoigt() && !modeChoix) l.push({ libelle: t('biblio.choisir'), icone: 'menuSelectionner', faire: () => setModeChoix(true) })
     l.push(null)
@@ -977,21 +985,26 @@ function BibliothequeBureau({
   ]
   const menuDuDossier = (dans: string): EntreeMenu[] => [
     { libelle: t('biblio.menu.parcourir'), icone: 'dossier', faire: () => parcourir(dans) },
-    ...(sousDossier(dans) ? [] : [{ libelle: t('biblio.menu.ouvrirToile'), icone: 'ouvrir' as const, faire: () => allerA(`/t/${encodeURIComponent(dans)}`) }]),
+    ...(enDossier(dans) ? [] : [{ libelle: t('biblio.menu.ouvrirToile'), icone: 'ouvrir' as const, faire: () => allerA(`/t/${encodeURIComponent(dans)}`) }]),
     ...(espace
       ? [
           { libelle: t('biblio.menu.creerIci'), icone: 'ajouter' as const, sous: sousMenuCreer(dans), faire: () => {} },
           { libelle: t('biblio.menu.nouveauDossier'), icone: 'dossier' as const, faire: () => nouveauDossier(dans) },
-          null,
-          {
-            libelle: t(sousDossier(dans) ? 'biblio.menu.renommerDossier' : 'biblio.menu.renommerToile'),
-            icone: 'renommer' as const,
-            desactive: genere(parCle.get(`${dans}/`) ?? { element: null }),
-            faire: () => {
-              preparerClavier()
-              setRenommage({ dossier: dans })
-            },
-          },
+          // La racine porte le nom de l'espace, pas un titre à elle ; un dossier qu'un outil a généré ne se renomme pas.
+          ...(dans === espace.racine
+            ? []
+            : [
+                null,
+                {
+                  libelle: t(enDossier(dans) ? 'biblio.menu.renommerDossier' : 'biblio.menu.renommerToile'),
+                  icone: 'renommer' as const,
+                  desactive: genere(parCle.get(`${dans}/`) ?? { element: null }),
+                  faire: () => {
+                    preparerClavier()
+                    setRenommage({ dossier: dans })
+                  },
+                },
+              ]),
         ]
       : []),
   ]
@@ -1322,11 +1335,20 @@ function BibliothequeBureau({
 
   // ---- Des fichiers de la machine ----
 
-  /** Importe ces fichiers sur la toile `dans` : l'accueil, ou la toile (tuile, dossier) sur laquelle on les lâche. */
+  /**
+   * « Voir », après un import : la toile qui l'a pris, centrée sur lui ; dans un dossier (la racine comprise), qui n'a pas
+   * de toile à montrer, il s'ouvre seul, comme sa tuile.
+   */
+  const voirImporte = (dans: string) => (element: string) => {
+    const e = etat.current.parCle.get(`${dans}/${element}`)
+    if (e && enDossier(dans)) return ouvrir(e)
+    afficherDansSaToile({ tableau: dans, element }, dans)
+  }
+  /** Importe ces fichiers sur la toile `dans` : la racine, ou la toile (tuile, dossier) sur laquelle on les lâche. */
   const importerIci = (fichiers: File[], dans: string) => {
     if (!outils || !importer || fichiers.length === 0) return
     setImportEnCours(fichiers.length)
-    void executer(importerEntrees(outils, importer, fichiers, { id: dans, titre: titreToile(dans) }, (element) => afficherDansSaToile({ tableau: dans, element }, dans)))
+    void executer(importerEntrees(outils, importer, fichiers, { id: dans, titre: titreToile(dans) }, voirImporte(dans)))
       .then((r) => r && montrerArrivee(r.entrees, dans))
       .finally(() => setImportEnCours(0))
   }
@@ -1382,7 +1404,7 @@ function BibliothequeBureau({
   }, [toutes, dossier]) // une fois, à l’arrivée de la liste
   const importerCourant = useRef(importerIci)
   importerCourant.current = importerIci
-  // Fichier › Importer… dans Notak de bureau : dans le dossier qu'on parcourt, sinon sur l'accueil, comme un fichier lâché sur le fond.
+  // Fichier › Importer… dans Notak de bureau : dans le dossier qu'on parcourt, sinon à la racine, comme un fichier lâché sur le fond.
   const ciblePage = useRef<string | null>(null)
   ciblePage.current = dossier
   useEffect(() => (espace ? ecouterImportBureau((f) => importerCourant.current(f, ciblePage.current ?? espace.racine)) : undefined), [espace])
@@ -1419,7 +1441,7 @@ function BibliothequeBureau({
   /** Ce que dit une vue vide : le genre de la puce s'il y en a une, sinon le dossier qu'on parcourt, sinon la portée. */
   const vide = (): { texte: string; aide: string } =>
     filtre !== 'tout'
-      ? { texte: t(`biblio.vide.${PLURIEL[filtre]}`), aide: portee === 'tout' && !dossier ? t(`biblio.vide.${PLURIEL[filtre]}.aide`) : t('biblio.vide.filtre.aide') }
+      ? { texte: t(`biblio.vide.${PLURIEL[filtre]}`), aide: portee === 'tout' && !dossier ? t(`biblio.vide.${PLURIEL[filtre]}.aide`, { espace: nomRacine }) : t('biblio.vide.filtre.aide') }
       : dossier
         ? { texte: t('biblio.vide.dossier'), aide: t('biblio.vide.dossier.aide') }
         : { texte: t(`biblio.vide.${portee}`), aide: t(`biblio.vide.${portee}.aide`) }
@@ -1472,11 +1494,6 @@ function BibliothequeBureau({
 
   /** L'accueil de la bibliothèque : ni portée, ni puce, ni dossier. */
   const accueilDeLaVue = portee === 'tout' && filtre === 'tout' && !dossier
-  /** Ce que porte la page, pour la vedette de l'accueil : toutes les toiles, pages et cartes mentales. */
-  const nombresDeLAccueil = useMemo(() => {
-    const l = toutes ?? []
-    return { toiles: l.filter((e) => e.genre === 'toile').length, documents: l.filter((e) => e.genre === 'document').length, cartes: l.filter((e) => e.genre === 'arbre').length }
-  }, [toutes])
   /** Le plan de la toile d'accueil, lu sur elle (la bibliothèque ne la compte pas parmi ses entrées). */
   const [versionAccueil, setVersionAccueil] = useState(0)
   useEffect(() => {
@@ -1500,18 +1517,18 @@ function BibliothequeBureau({
     // `versionAccueil` n'est pas lu : il dit que l'accueil a changé, et qu'il faut le relire.
   }, [espace, versionAccueil])
   /**
-   * Hors téléphone, la toile d'accueil en tête des récents comme de tout : la colonne ne la montrait que parmi les
-   * dossiers, où elle se parcourt sans s'ouvrir, et la colonne d'un iPad en portrait est un tiroir fermé.
+   * Ce que la toile d'accueil porte d'à elle et qu'aucune tuile ne montre : des notes, des formes, ce qu'envoie le
+   * téléphone dans ses non triés. Ses toiles, pages, cartes mentales et pièces ont leurs tuiles, à la racine.
    */
-  const vedetteEnTete = !telephone && !!espace && !dossier && !cherche && filtre === 'tout' && (portee === 'tout' || portee === 'recents')
+  const restesAccueil = resumeAccueil ? restesDe({ resume: resumeAccueil }) + (resumeAccueil.nonTries ?? 0) : 0
   /** Sous une tuile au doigt : la toile qui la porte, sauf l'accueil, qui porte tout ; sinon quand on l'a ouverte. */
   const detailAuDoigt = (e: EntreeBibliotheque) => (e.ou && e.dans !== espace?.racine ? t('biblio.dans', { toile: e.ou }) : quand(e.vu))
   const genreLigne = (e: EntreeBibliotheque): GenreLigne => (estDossier(e) ? 'dossier' : e.genre)
   /**
-   * Rien encore : de quoi commencer, au lieu d'une toile déjà remplie. Au téléphone, un accueil où l'on a déjà posé
-   * quelque chose reste en vedette, même sans autre toile.
+   * Rien encore : de quoi commencer, au lieu d'une toile déjà remplie. Un accueil où l'on a déjà posé des notes n'est
+   * pas un premier pas : la ligne de la racine les dit.
    */
-  const premierPas = !!toutes && toutes.length === 0 && !cherche && !(resumeAccueil && resumeAccueil.boites.length > 0)
+  const premierPas = !!toutes && toutes.length === 0 && !cherche && restesAccueil === 0
 
   /**
    * La rangée des filtres au doigt, qui glisse : « Tout » (l'accueil), puis où (récents, favoris, partages) et quoi
@@ -1620,7 +1637,7 @@ function BibliothequeBureau({
   // La toile d'un dossier qui porte encore ce qu'aucune tuile ne montre (des notes d'avant qu'il soit un dossier) : on
   // le dit, et on propose de le mettre dans une toile du dossier, plutôt que de le laisser invisible.
   const entreeDuDossier = dossier ? parCle.get(`${dossier}/`) : undefined
-  const restes = dossier && entreeDuDossier && sousDossier(dossier) && !cherche && outils && !restesRanges.has(dossier) ? restesDe(entreeDuDossier) : 0
+  const restes = dossier && entreeDuDossier && enDossier(dossier) && !cherche && outils && !restesRanges.has(dossier) ? restesDe(entreeDuDossier) : 0
   const rangerCesRestes = (d: string) => {
     if (!outils) return
     setRestesRanges((x) => new Set([...x, d]))
@@ -1633,6 +1650,17 @@ function BibliothequeBureau({
       <button type="button" className="bouton" onClick={() => rangerCesRestes(dossier)}>
         {t('biblio.restes.ranger')}
       </button>
+    </div>
+  )
+  // La toile d'accueil ne se montre plus : vide, elle n'a rien à montrer. Si elle porte encore ce qu'aucune tuile ne
+  // montre, une ligne le dit en tête de la racine et de la bibliothèque, et mène à elle.
+  const ligneDeLaRacine = restesAccueil > 0 && espace && !cherche && (dossier === espace.racine || (!dossier && portee === 'tout' && filtre === 'tout')) && (
+    <div className="biblio-restes" role="note">
+      <Icone nom="tableau" taille={16} />
+      <p>{tn('biblio.restes.racine', restesAccueil, { espace: nomRacine })}</p>
+      <a className="bouton" href={accueil} onClick={(e) => surLien(e, accueil)}>
+        {t('biblio.menu.ouvrirToile')}
+      </a>
     </div>
   )
 
@@ -1648,6 +1676,7 @@ function BibliothequeBureau({
         onContextMenu={surMenu}
       >
         {ligneDesRestes}
+        {ligneDeLaRacine}
         {erreur ? (
           <div className="biblio-vide" role="alert">
             <p>{erreur}</p>
@@ -1685,9 +1714,6 @@ function BibliothequeBureau({
           </div>
         ) : (
           <>
-            {vedetteEnTete && espace && (
-              <VedetteAccueil titre={titreAccueil || t('biblio.accueil')} resume={resumeAccueil} nombres={nombresDeLAccueil} onClick={() => allerA(accueil)} />
-            )}
             {(sections.length > 0 || cherche ? sections : [{ cle: 'vide', titre: '', entrees: [] } as Section]).map((s, i) => (
               <section key={s.cle} className="biblio-section" aria-label={s.titre || undefined} data-rail={(accueilDeLaBibliotheque && s.cle === 'reprendre') || undefined}>
                 {s.titre && (
@@ -1696,7 +1722,7 @@ function BibliothequeBureau({
                     data-depot={s.dans || undefined}
                     data-survol-depot={(s.dans && survolDepot === s.dans) || undefined}
                   >
-                    {s.dans !== undefined && <Icone nom={s.dans ? 'tableau' : 'equipe'} taille={15} />}
+                    {s.dans !== undefined && <Icone nom={!s.dans ? 'equipe' : s.dans === espace?.racine ? 'maison' : enDossier(s.dans) ? 'dossier' : 'tableau'} taille={15} />}
                     {s.dans && renommage && 'dossier' in renommage && renommage.dossier === s.dans ? (
                       <ChampRenommer
                         valeur={s.titre}
@@ -1743,7 +1769,7 @@ function BibliothequeBureau({
                             <Icone nom="ajouter" taille={36} trait={1.2} />
                           </span>
                           <span className="biblio-tuile-titre">{t(`biblio.neuf.${neuf}`)}</span>
-                          <span className="biblio-tuile-ou">{dossier && dossier !== espace?.racine ? t('biblio.neuf.aideDans', { toile: titreToile(dossier) }) : t('biblio.neuf.aide')}</span>
+                          <span className="biblio-tuile-ou">{t('biblio.neuf.aideDans', { toile: dossier ? titreToile(dossier) : nomRacine })}</span>
                         </button>
                       )}
                     </li>
@@ -1762,7 +1788,7 @@ function BibliothequeBureau({
                         glissee={glissees.has(cle)}
                         survolee={e.element === null && survolDepot === e.tableau}
                         arrivee={arrivees.has(cleDe(e))}
-                        {...(telephone ? { detail: detailAuDoigt(e) } : {})}
+                        {...(telephone ? { detail: detailAuDoigt(e) } : e.dans && e.dans === espace?.racine ? { detail: genreDe(e) } : {})}
                         renommer={renommage !== null && 'cle' in renommage && renommage.cle === cle}
                         valider={(titre) => {
                           void renommerCe(e, titre)
@@ -1811,7 +1837,7 @@ function BibliothequeBureau({
           // Ce qu'un outil a généré reste : ni compté, ni exclu des toiles où ranger le reste ; l'avis le dira.
           entrees={entreesDes(fenetre.cles).filter((e) => !genere(e))}
           toutes={toutes}
-          accueil={{ id: espace.racine, titre: titreAccueil || t('biblio.accueil') }}
+          accueil={{ id: espace.racine, titre: nomRacine }}
           fermer={() => setFenetre(null)}
           choisir={(vers) => {
             const es = entreesDes(fenetre.cles)
@@ -1850,10 +1876,7 @@ function BibliothequeBureau({
           ) : (
             <>
               {bienvenueAMontrer && accueilDeLaVue && espace && toutes && !premierPas && (
-                <CarteBienvenue titre={carteBienvenue.titre} lignes={carteBienvenue.lignes} partir={() => allerA(accueil)} fermer={fermerBienvenue} />
-              )}
-              {accueilDeLaVue && espace && toutes && !premierPas && (
-                <VedetteAccueil titre={titreAccueil || t('biblio.accueil')} resume={resumeAccueil} nombres={nombresDeLAccueil} onClick={() => allerA(accueil)} />
+                <CarteBienvenue titre={carteBienvenue.titre} lignes={carteBienvenue.lignes} fermer={fermerBienvenue} />
               )}
               {toutes && !premierPas && filtresAuDoigt()}
               {dossier && (
@@ -1862,7 +1885,7 @@ function BibliothequeBureau({
                     <Icone nom="precedent" taille={16} trait={2} />
                     <span>{fil.length > 0 ? titreToile(fil[fil.length - 1]!) : t('biblio.titre')}</span>
                   </button>
-                  {!sousDossier(dossier) && (
+                  {!enDossier(dossier) && (
                     <a className="biblio-locale-voir" href={`/t/${encodeURIComponent(dossier)}`} onClick={(e) => surLien(e, `/t/${encodeURIComponent(dossier)}`)}>
                       {t('biblio.menu.ouvrirToile')}
                     </a>
@@ -1942,14 +1965,14 @@ function BibliothequeBureau({
             <span className="biblio-maison" aria-hidden>
               <Icone nom="maison" taille={12} trait={2.4} />
             </span>
-            <span>{titreAccueil || t('biblio.accueil')}</span>
+            <span>{nomRacine}</span>
           </button>
         ) : (
           <a className="biblio-rubrique" href={accueil} onClick={(e) => surLien(e, accueil)}>
             <span className="biblio-maison" aria-hidden>
               <Icone nom="maison" taille={12} trait={2.4} />
             </span>
-            <span>{t('biblio.accueil')}</span>
+            <span>{nomRacine}</span>
           </a>
         )}
         {espace && arbre.length > 0 && (
@@ -2036,7 +2059,7 @@ function BibliothequeBureau({
         )}
         <div className="biblio-tete-droite">
           {dossier && !cherche && !(modeChoix || choisies.length > 1) && fiche?.adresse && <Ilot className="biblio-ouvrir-toile">{lienFiche('biblio-ouvrir-toile-lien', true)}</Ilot>}
-          {dossier && !sousDossier(dossier) && !cherche && !(modeChoix || choisies.length > 1) && (
+          {dossier && !enDossier(dossier) && !cherche && !(modeChoix || choisies.length > 1) && (
             <Ilot className="biblio-ouvrir-toile">
               <a className="biblio-ouvrir-toile-lien" href={`/t/${encodeURIComponent(dossier)}`} onClick={(e) => surLien(e, `/t/${encodeURIComponent(dossier)}`)}>
                 <Icone nom="tableau" taille={16} />
@@ -2118,7 +2141,7 @@ function BibliothequeBureau({
   )
 }
 
-/** Le menu du bouton « Nouveau » : une toile, une carte mentale ou un document, posés sur l'accueil. */
+/** Le menu du bouton « Nouveau » : une toile, une carte mentale ou un document, à la racine ou dans le dossier qu'on parcourt. */
 function MenuNeuf({ creer, dossier, fermer }: { creer(genre: GenreNeuf): void; dossier?: () => void; fermer(): void }) {
   const menu = useRef<HTMLDivElement>(null)
   useEffect(() => {

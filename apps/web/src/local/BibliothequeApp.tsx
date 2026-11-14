@@ -57,7 +57,7 @@ function Contenu({ el, importer, rangement, fenetres }: Parameters<typeof Biblio
     cle: CLE_BIENVENUE,
     titre: t('biblio.bienvenue.titre'),
     lignes: [
-      { icone: 'maison', texte: t('biblio.bienvenue.accueil') },
+      { icone: 'bibliotheque', texte: t('biblio.bienvenue.toiles') },
       { icone: 'ajouter', texte: t('biblio.bienvenue.creer') },
       avecCompte ? { icone: 'compte', texte: t('biblio.bienvenue.compte') } : { icone: 'reglages', texte: t('biblio.bienvenue.reglages') },
     ],

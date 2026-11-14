@@ -5323,7 +5323,7 @@ button.biblio-arbre-chevron:hover {
 
 /*
  * La bibliothèque au téléphone, son cadre et ses pièces au doigt (bibliotheque/AuDoigt.tsx) : un grand titre et le
- * « + », la recherche, la toile d'accueil en vedette, la rangée des filtres, comme les tableaux de Savee et les
+ * « + », la recherche, la rangée des filtres, comme les tableaux de Savee et les
  * « Recently viewed » de Fresha. La recherche replie le grand titre, comme celle des Notes d'iOS. Les sections et les
  * tuiles sont celles de toutes les largeurs (`.biblio-unie`, plus bas).
  */
@@ -5493,67 +5493,6 @@ button.biblio-arbre-chevron:hover {
   max-width: 120px;
   padding: 0 2px 0 12px;
   opacity: 1;
-}
-
-/* La toile d'accueil, en vedette : son plan sur toute la largeur, son nom et ce qu'elle porte. */
-.biblio-locale-vedette {
-  display: block;
-  width: 100%;
-  margin: 4px 0 28px;
-  padding: 0;
-  border: 0;
-  background: none;
-  text-align: left;
-}
-
-.biblio-locale-vedette-plan {
-  display: block;
-  overflow: hidden;
-  border-radius: 16px;
-  background: var(--notak-carte);
-  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.05);
-  transition: transform 0.15s ease;
-}
-
-.biblio-locale-vedette-plan .biblio-vignette {
-  aspect-ratio: auto;
-  height: 160px;
-  margin: 0;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.biblio-locale-vedette-vide {
-  display: grid;
-  place-items: center;
-  height: 160px;
-  color: var(--biblio-discret);
-  font-size: 14px;
-}
-
-.biblio-locale-vedette-texte {
-  display: grid;
-  gap: 2px;
-  padding: 10px 2px 0;
-}
-
-.biblio-locale-vedette-titre {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 26px;
-}
-
-.biblio-locale-vedette-titre svg {
-  color: var(--notak-accent, #2f6feb);
-}
-
-.biblio-locale-vedette:active .biblio-locale-vedette-plan {
-  transform: scale(0.97);
-  transition: transform 0.1s ease;
 }
 
 .biblio-locale-resultats h2 {
