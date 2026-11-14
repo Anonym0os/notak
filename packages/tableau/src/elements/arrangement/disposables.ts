@@ -6,12 +6,13 @@ import type { ContexteToile } from '../types'
 
 /**
  * Les éléments posés librement sur la toile (ni rangés en colonne), avec leur rectangle. Une ligne libre (aucun bout
- * accroché) compte par la boîte de son trait ; une ligne accrochée est ignorée.
+ * accroché) compte par la boîte de son trait ; une ligne accrochée est ignorée. Un élément verrouillé aussi : sa
+ * position ne bouge pas, et l'arrangement l'ignore, comme chez Milanote.
  */
 export function disposables(elements: Iterable<Element>, contexte: ContexteToile): Disposable[] {
   const res: Disposable[] = []
   for (const e of elements) {
-    if (e.parent) continue
+    if (e.parent || e.verrou) continue
     if (e.contenu.type === 'ligne') {
       const { depart, arrivee } = e.contenu
       if ('x' in depart && 'x' in arrivee) {
