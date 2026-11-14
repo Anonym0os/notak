@@ -76,7 +76,7 @@ import type { CibleBord } from './coeur/pointeurs'
 import { lignesDeTrace } from './trace'
 import { personneAJour } from './personne'
 import { usePublierVue } from './vueZoom'
-import { lettreDe } from './touches'
+import { chiffreDe, lettreDe, signeParmi } from './touches'
 
 type Geste =
   | {
@@ -2116,15 +2116,18 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     // La lettre que porte la touche, sur toute disposition (`lettreDe`) ; sous Alt, ces raccourcis-là n'en ont pas.
     const touche = e.altKey ? '' : (lettreDe(e) ?? '')
     const min = cam.echelleMin(contenu(), vue)
-    if (cmd && (e.key === '=' || e.key === '+' || e.code === 'Equal')) {
+    // Le zoom au signe tapé, pas à la place QWERTY de la touche : en AZERTY, « - » est là où QWERTY met « = », et
+    // ⌘− zoomait. ⌘0 sur la touche du zéro, que le Mac français tape ⌘à.
+    const zoom = cmd ? signeParmi(e, ['=', '+', '-']) : null
+    if (zoom === '=' || zoom === '+') {
       e.preventDefault()
       return zoomerVers(cam.cranDessus(camera.echelle, min))
     }
-    if (cmd && (e.key === '-' || e.code === 'Minus')) {
+    if (zoom === '-') {
       e.preventDefault()
       return zoomerVers(cam.cranDessous(camera.echelle, min))
     }
-    if (cmd && (e.key === '0' || e.code === 'Digit0')) {
+    if (cmd && chiffreDe(e) === 0) {
       e.preventDefault()
       return zoomerVers(1)
     }
@@ -2177,8 +2180,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       e.preventDefault()
       return collerStyle()
     }
-    // Les non triés : Cmd+\ ouvre le panneau, Alt+` y met la sélection (`code`, car Alt change `key` sur Mac).
-    if (cmd && e.code === 'Backslash') {
+    // Les non triés : Cmd+\ ouvre le panneau (la barre telle qu'on la tape, ⌘⌥⇧: sur un Mac en AZERTY, ou à sa place
+    // QWERTY), Alt+` y met la sélection (`code`, car Alt change `key` sur Mac, et l'accent grave d'un Mac français est
+    // une touche morte qui ne dit pas son signe).
+    if (cmd && signeParmi(e, ['\\'])) {
       e.preventDefault()
       return setNonTriesOuvert((o) => !o)
     }

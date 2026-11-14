@@ -38,9 +38,9 @@ afterEach(() => {
 })
 
 /** La toile de ces éléments, montée ; on lui parle au clavier comme quand elle a le focus. */
-async function monter(elements: Element[], services: Services = {}) {
+async function monter(elements: Element[], services: Services = {}, surCamera?: (c: { echelle: number }) => void) {
   const magasin = creerMagasin({ titre: '', etiquettes: [], elements })
-  act(() => racine.render(<Toile magasin={magasin} services={services} />))
+  act(() => racine.render(<Toile magasin={magasin} services={services} {...(surCamera ? { surCamera } : {})} />))
   await act(async () => {})
   const toile = hote.querySelector<HTMLElement>('.notak-toile')!
   const taper = (key: string, mods: KeyboardEventInit = {}) =>
@@ -127,5 +127,33 @@ describe('un commentateur, à la touche Supprimer', () => {
     toutChoisir(taper)
     taper('Delete')
     expect(magasin.lire().elements).toHaveLength(1)
+  })
+})
+
+describe('le zoom au clavier, sur toute disposition', () => {
+  /** La toile dit sa vue un instant après le geste : on attend qu'elle l'ait dite. */
+  const laisserDire = () => act(async () => void (await new Promise((r) => setTimeout(r, 350))))
+
+  it('en AZERTY, ⌘− dézoome (sa touche est la place QWERTY de « = »), ⌘= zoome, ⌘à revient à 100 %', async () => {
+    const vues: number[] = []
+    const { taper } = await monter([], {}, (c) => vues.push(c.echelle))
+    taper('-', { code: 'Equal', keyCode: 189, metaKey: true })
+    await laisserDire()
+    expect(vues.at(-1)).toBeLessThan(1)
+    taper('à', { code: 'Digit0', keyCode: 48, metaKey: true })
+    await laisserDire()
+    expect(vues.at(-1)).toBe(1)
+    // « = » est à la place QWERTY de la barre oblique.
+    taper('=', { code: 'Slash', keyCode: 187, metaKey: true })
+    await laisserDire()
+    expect(vues.at(-1)).toBeGreaterThan(1)
+  })
+
+  it('en AZERTY, ⌘) ne dézoome plus : la touche que QWERTY place à « - » donne une parenthèse', async () => {
+    const vues: number[] = []
+    const { taper } = await monter([], {}, (c) => vues.push(c.echelle))
+    taper(')', { code: 'Minus', keyCode: 219, metaKey: true })
+    await laisserDire()
+    expect(vues).toEqual([])
   })
 })
