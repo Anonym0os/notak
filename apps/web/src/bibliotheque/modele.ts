@@ -179,6 +179,13 @@ export function lireVue(recherche: string): { portee: Portee | null; filtre: Fil
   return { portee: (PORTEES as readonly string[]).includes(vue) ? (vue as Portee) : null, filtre, ...(dossier ? { dossier } : {}) }
 }
 
+/**
+ * Deux vues au même endroit : le même dossier, ou, hors des dossiers, la même portée. Changer d'endroit (entrer dans un
+ * dossier, en sortir par le fil ou la colonne) fait un pas d'historique, que « précédent » défait, comme dans le Finder ;
+ * changer de puce au même endroit ne fait que régler la vue, et l'historique ne s'en encombre pas.
+ */
+export const memeEndroit = (a: Vue, b: Vue): boolean => (a.dossier || b.dossier ? a.dossier === b.dossier : a.portee === b.portee)
+
 /** L'adresse d'une vue : `/` pour les récents sans filtre, sinon ce qui la redit ; un dossier, `?dossier=<id>`. */
 export function adresseDeLaVue({ portee, filtre, dossier }: Vue): string {
   const p = new URLSearchParams()

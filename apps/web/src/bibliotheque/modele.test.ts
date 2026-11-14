@@ -15,6 +15,7 @@ import {
   genere,
   lireAffichage,
   lireVue,
+  memeEndroit,
   parLesPuces,
   vueDeLArrivee,
 } from './modele'
@@ -184,5 +185,14 @@ describe('les dossiers', () => {
     expect(adresseDeLaVue({ portee: 'tout', filtre: 'tout', dossier: 'voyage' })).toBe('/?dossier=voyage')
     expect(adresseDeLaVue({ portee: 'tout', filtre: 'image', dossier: 'voyage' })).toBe('/?dossier=voyage&type=image')
     expect(lireVue('?dossier=voyage&type=image')).toEqual({ portee: null, filtre: 'image', dossier: 'voyage' })
+  })
+
+  it('changer de dossier ou de rubrique change d’endroit ; changer de puce, non', () => {
+    const recents = { portee: 'recents', filtre: 'tout' } as const
+    expect(memeEndroit(recents, { portee: 'recents', filtre: 'image' })).toBe(true)
+    expect(memeEndroit(recents, { portee: 'favoris', filtre: 'tout' })).toBe(false)
+    expect(memeEndroit(recents, { ...recents, dossier: 'voyage' })).toBe(false)
+    expect(memeEndroit({ ...recents, dossier: 'voyage' }, { portee: 'tout', filtre: 'toile', dossier: 'voyage' })).toBe(true)
+    expect(memeEndroit({ ...recents, dossier: 'voyage' }, { ...recents, dossier: 'projets' })).toBe(false)
   })
 })

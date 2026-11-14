@@ -106,6 +106,7 @@ import {
   elementDeLAdresse,
   lireAffichage,
   lireVue,
+  memeEndroit,
   vueDeLArrivee,
 } from './bibliotheque/modele'
 import { BarreChoix } from './bibliotheque/BarreChoix'
@@ -680,15 +681,19 @@ function BibliothequeBureau({
 
   /**
    * Change de vue : la portée (la colonne), le filtre (les puces), le dossier qu'on parcourt ; l'adresse la redit.
-   * Choisir une portée quitte le dossier ; changer de puce le garde.
+   * Choisir une portée quitte le dossier ; changer de puce le garde. Changer d'endroit (un dossier, une rubrique de la
+   * colonne) fait un pas d'historique, que « précédent » défait (`memeEndroit`) ; une puce ne fait que réécrire
+   * l'adresse. `pas` en décide autrement : « Tout voir » mène à une autre vue, les filtres au doigt règlent celle-ci.
    */
-  const choisirVue = (v: Partial<Omit<Vue, 'dossier'>> & { dossier?: string | null }) => {
+  const choisirVue = (v: Partial<Omit<Vue, 'dossier'>> & { dossier?: string | null }, pas?: boolean) => {
     const d = v.dossier !== undefined ? v.dossier : v.portee ? null : dossier
     const apres: Vue = { portee: v.portee ?? portee, filtre: v.filtre ?? filtre, ...(d ? { dossier: d } : {}) }
     setChoisie(apres.portee)
     setFiltre(apres.filtre)
     setDossier(d)
-    history.replaceState(null, '', adresseDeLaVue(apres))
+    const adresse = adresseDeLaVue(apres)
+    if ((pas ?? !memeEndroit(vue, apres)) && adresse !== location.pathname + location.search) history.pushState(null, '', adresse)
+    else history.replaceState(history.state, '', adresse)
   }
   /** Une rubrique de la colonne : on quitte la recherche, et le tiroir se referme sur la vue choisie. */
   const choisir = (r: Portee) => {
@@ -708,6 +713,47 @@ function BibliothequeBureau({
     setDeplies((d) => new Set([...d, ...(toutes ? filDAriane(id, toutes, espace?.racine ?? null) : [])]))
     corps.current?.scrollTo?.({ top: 0 })
   }
+  /**
+   * Précédent et suivant (les boutons de la souris, ⌘[, ceux du navigateur, le geste du bord sur l'iPhone) : la vue que
+   * redit l'adresse, sans recharger, et ce qui s'y rattache (ses parents dépliés dans la colonne, rien de cherché ni de
+   * choisi d'avant). Le dossier d'où l'on revient y est choisi, là où il se montre, comme dans le Finder.
+   */
+  const retablir = useRef(() => {})
+  retablir.current = () => {
+    const lue = lireVue(location.search)
+    const quitte = dossier
+    setRequete('')
+    setRechercheOuverte(false)
+    setTiroir(false)
+    setMenu(null)
+    setMenuNeuf(false)
+    setRenommage(null)
+    setChoisie(lue.portee)
+    setFiltre(lue.filtre)
+    setDossier(lue.dossier ?? null)
+    if (lue.dossier && toutes) setDeplies((d) => new Set([...d, ...filDAriane(lue.dossier!, toutes, espace?.racine ?? null)]))
+    // Au téléphone, une tuile ne se choisit pas d'un toucher : rien n'y reste surligné.
+    const cle = quitte && !telephone ? `${quitte}/` : null
+    setSel(cle ? { choisies: new Set([cle]), ancre: cle } : RIEN)
+    setCourante(cle)
+    corps.current?.scrollTo?.({ top: 0 })
+    if (cle) plusTard(() => tuileDe(cle)?.scrollIntoView?.({ block: 'nearest' }), 60)
+  }
+  useEffect(() => {
+    // Un retour qui mène hors de la bibliothèque (une toile) la démonte : il n'a pas de vue à y rétablir. Ses adresses
+    // sont celles de `adresseDeLaVue`, ou celle où elle s'est ouverte (`/bibliotheque`, que l'application récrit).
+    const ici = location.pathname
+    const surRetour = () => (location.pathname === '/' || location.pathname === ici) && retablir.current()
+    window.addEventListener('popstate', surRetour)
+    return () => window.removeEventListener('popstate', surRetour)
+  }, [])
+  // Arrivé dans un dossier (par son adresse, ou de retour d'une toile), la colonne le montre, ses parents dépliés.
+  const deplieALArrivee = useRef(false)
+  useEffect(() => {
+    if (!toutes || deplieALArrivee.current) return
+    deplieALArrivee.current = true
+    if (dossier) setDeplies((d) => new Set([...d, ...filDAriane(dossier, toutes, espace?.racine ?? null)]))
+  }, [toutes]) // une fois, à l'arrivée de la liste
   const afficher = (a: Affichage) => {
     setAffichage(a)
     ecrireAffichage(a)
@@ -1542,19 +1588,21 @@ function BibliothequeBureau({
 
   /**
    * La rangée des filtres au doigt, qui glisse : « Tout » (l'accueil), puis où (récents, favoris, partages) et quoi
-   * (un genre), qui se combinent ; un filtre touché une seconde fois se retire.
+   * (un genre), qui se combinent ; un filtre touché une seconde fois se retire. Ce sont des filtres : ils règlent la vue
+   * sans faire de pas d'historique, sauf à sortir du dossier qu'on parcourt, que le geste du bord fait retrouver.
    */
   const filtresAuDoigt = () => {
     const portees: Portee[] = partages ? ['recents', 'favoris', 'partages'] : ['recents', 'favoris']
+    const sortir = dossier !== null
     return (
       <nav className="biblio-locale-filtres" aria-label={t('biblio.telephone.filtres')}>
-        <button type="button" className="biblio-locale-filtre" data-rubrique="tout" aria-pressed={accueilDeLaVue} onClick={() => choisirVue({ portee: 'tout', filtre: 'tout', dossier: null })}>
+        <button type="button" className="biblio-locale-filtre" data-rubrique="tout" aria-pressed={accueilDeLaVue} onClick={() => choisirVue({ portee: 'tout', filtre: 'tout', dossier: null }, sortir)}>
           {t('biblio.telephone.tout')}
         </button>
         {portees.map((r) => {
           const actif = !dossier && portee === r
           return (
-            <button key={r} type="button" className="biblio-locale-filtre" data-rubrique={r} aria-pressed={actif} onClick={() => choisirVue({ portee: actif ? 'tout' : r })}>
+            <button key={r} type="button" className="biblio-locale-filtre" data-rubrique={r} aria-pressed={actif} onClick={() => choisirVue({ portee: actif ? 'tout' : r }, sortir)}>
               {t(`biblio.rubrique.${r}`)}
               {combien(r) > 0 && <small>{combien(r)}</small>}
             </button>
@@ -1754,7 +1802,7 @@ function BibliothequeBureau({
                       s.titre
                     )}
                     {s.voir && (
-                      <button type="button" className="biblio-voir" onClick={() => choisirVue(s.voir!)}>
+                      <button type="button" className="biblio-voir" onClick={() => choisirVue(s.voir!, true)}>
                         {t('biblio.toutVoir')}
                         <Icone nom="chevronDroite" taille={13} trait={2} />
                       </button>

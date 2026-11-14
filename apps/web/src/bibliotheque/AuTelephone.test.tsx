@@ -251,6 +251,30 @@ describe('sur un serveur', () => {
     expect(location.search).toBe('?dossier=racine')
   })
 
+  it('entrer dans un dossier fait un pas que le geste du bord défait ; les filtres règlent la vue sans en faire, sauf à sortir du dossier', async () => {
+    const avecDossier = TOUTES.map((e) => (e.tableau === 'voyage' && e.element === null ? { ...e, dans: 'racine', resume: { ...e.resume, dossier: true as const } } : e))
+    await ouvrir({ charger: async () => avecDossier })
+    const retour = () =>
+      act(async () => {
+        history.back()
+        await new Promise((fin) => setTimeout(fin, 20))
+      })
+    act(() => filtre('Favoris').click())
+    act(() => hote.querySelector<HTMLElement>('[data-cle="voyage/"]')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+    act(() => filtre('Cartes mentales').click())
+    expect(location.search).toBe('?dossier=voyage&type=arbre')
+    // « Récents » sort du dossier : un pas, que le retour défait.
+    act(() => filtre('Récents').click())
+    expect(location.search).toBe('?type=arbre')
+    await retour()
+    expect([location.search, hote.querySelector('.biblio-telephone h1')!.textContent]).toEqual(['?dossier=voyage&type=arbre', 'Voyage'])
+    // Au doigt, rien ne reste surligné du dossier d'où l'on revient.
+    await retour()
+    expect(location.search).toBe('?vue=favoris')
+    expect(filtre('Favoris').getAttribute('aria-pressed')).toBe('true')
+    expect(hote.querySelector('[aria-selected="true"]')).toBeNull()
+  })
+
   it('le dossier d’une fiche d’un autre outil y mène aussi à sa fiche', async () => {
     const avecFiche = TOUTES.map((e) =>
       e.tableau === 'voyage' && e.element === null ? { ...e, dans: 'racine', resume: { ...e.resume, dossier: true as const }, fiche: { nom: 'Mon CRM', adresse: 'https://crm.exemple.fr/s/42' } } : e,

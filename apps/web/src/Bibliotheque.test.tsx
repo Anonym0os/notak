@@ -499,6 +499,9 @@ describe('les gestes', () => {
   describe('les dossiers', () => {
     /** « Voyage » se montre en dossier ; il porte la carte « Plan » et une page. */
     const AVEC_DOSSIER = TOUTES.map((e) => (e.tableau === 'voyage' && e.element === null ? { ...e, resume: { ...e.resume, dossier: true as const } } : e))
+    /** Et il range un dossier, « Étape ». */
+    const VOYAGE = AVEC_DOSSIER.find((e) => e.tableau === 'voyage' && e.element === null)!
+    const PROFOND = [...AVEC_DOSSIER, { ...VOYAGE, tableau: 'etape', titre: 'Étape', ou: 'Voyage', dans: 'voyage', vu: null, favori: false, resume: { ...VOYAGE.resume, titre: 'Étape' } }]
 
     it('un dossier s’ouvre ici, en liste de ce qu’il porte, avec son chemin et sans toile à ouvrir ; ce qu’on crée y va', async () => {
       history.replaceState(null, '', '/')
@@ -604,6 +607,53 @@ describe('les gestes', () => {
       act(() => [...hote.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.dataset.rubrique === 'favoris')!.click())
       expect(location.search).toBe('?vue=favoris')
       expect(hote.querySelector('.biblio-fil')).toBeNull()
+    })
+
+    it('entrer dans un dossier, en sortir par le fil ou la colonne fait un pas : précédent et suivant y ramènent sans relire la page, le dossier quitté choisi ; une puce n’en fait pas', async () => {
+      history.replaceState(null, '', '/?vue=tout')
+      const charger = vi.fn(async () => PROFOND)
+      await act(async () => racine.render(<PageBibliotheque charger={charger} espace={monde()} />))
+      const pas = (sens: 'back' | 'forward') =>
+        act(async () => {
+          history[sens]()
+          await new Promise((fin) => setTimeout(fin, 20))
+        })
+      const titre = () => hote.querySelector('h1')!.textContent
+      const puce = (nom: string) => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-puce')].find((b) => b.textContent?.startsWith(nom))!
+      act(() => tuile('voyage/').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+      // Une puce règle la vue où l'on est : l'adresse le redit, sans pas de plus.
+      act(() => puce('Cartes mentales').click())
+      expect(location.search).toBe('?dossier=voyage&type=arbre')
+      act(() => puce('Tout').click())
+      act(() => tuile('etape/').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+      expect([location.search, titre()]).toEqual(['?dossier=etape', 'Étape'])
+      await pas('back')
+      expect([location.search, titre()]).toEqual(['?dossier=voyage', 'Voyage'])
+      expect(choisies()).toEqual(['etape/'])
+      await pas('back')
+      expect([location.search, titre()]).toEqual(['?vue=tout', 'Bibliothèque'])
+      expect(choisies()).toEqual(['voyage/'])
+      await pas('forward')
+      await pas('forward')
+      expect(titre()).toBe('Étape')
+      // La colonne montre où l'on est revenu, ses parents dépliés.
+      expect(hote.querySelector('.biblio-arbre [aria-current="page"]')!.textContent).toBe('Étape')
+      // Le fil, puis la colonne : deux pas encore, que précédent défait un à un.
+      act(() => hote.querySelector<HTMLButtonElement>('.biblio-fil .notak-fil-segment[data-genre="accueil"]')!.click())
+      expect(location.search).toBe('?dossier=racine')
+      act(() => [...hote.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.dataset.rubrique === 'favoris')!.click())
+      expect(location.search).toBe('?vue=favoris')
+      await pas('back')
+      expect(titre()).toBe('Mon espace')
+      await pas('back')
+      expect(titre()).toBe('Étape')
+      expect(charger).toHaveBeenCalledOnce()
+    })
+
+    it('arrivé dans un dossier par son adresse, la colonne le montre, ses parents dépliés', async () => {
+      history.replaceState(null, '', '/?dossier=etape')
+      await act(async () => racine.render(<PageBibliotheque charger={async () => PROFOND} espace={monde()} />))
+      expect(hote.querySelector('.biblio-arbre [aria-current="page"]')!.textContent).toBe('Étape')
     })
 
     it('glisser dans un dossier : la tuile qui crée devient celle qui remonte au parent, en grille comme en liste', async () => {
