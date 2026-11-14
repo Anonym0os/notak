@@ -76,6 +76,7 @@ import type { CibleBord } from './coeur/pointeurs'
 import { lignesDeTrace } from './trace'
 import { personneAJour } from './personne'
 import { usePublierVue } from './vueZoom'
+import { lettreDe } from './touches'
 
 type Geste =
   | {
@@ -2112,7 +2113,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (toileSuspendue(racine.current)) return
     if (e.key === 'Escape' && annulerGlisser()) return e.preventDefault()
     const cmd = e.metaKey || e.ctrlKey
-    const touche = e.key.toLowerCase()
+    // La lettre que porte la touche, sur toute disposition (`lettreDe`) ; sous Alt, ces raccourcis-là n'en ont pas.
+    const touche = e.altKey ? '' : (lettreDe(e) ?? '')
     const min = cam.echelleMin(contenu(), vue)
     if (cmd && (e.key === '=' || e.key === '+' || e.code === 'Equal')) {
       e.preventDefault()
@@ -2169,8 +2171,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (!cmd && touche === 'z' && !e.repeat) ajuster()
       return
     }
-    // Cmd+Alt+V : le style de l'élément copié (sa couleur, sa largeur pour un même type) passe à la sélection.
-    if (cmd && e.altKey && e.code === 'KeyV') {
+    // Cmd+Alt+V : le style de l'élément copié (sa couleur, sa largeur pour un même type) passe à la sélection. Alt change
+    // `key` sur Mac : la lettre se lit sur la touche, telle qu'elle est marquée.
+    if (cmd && e.altKey && lettreDe(e) === 'v') {
       e.preventDefault()
       return collerStyle()
     }
