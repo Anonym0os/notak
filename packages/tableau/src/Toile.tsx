@@ -24,7 +24,7 @@ import { type Hauteur, hauteurTiree, memeHauteur } from './coeur/hauteur'
 import { CANEVAS, type Fond, NOMS_CANEVAS, estLibre, estNomme, estSombre, fondParDefaut, fondRange, pointsAllumes } from './coeur/fond'
 import { creerLimiteur } from './coeur/limiteur'
 import { type Magasin, enLectureSeule, sansCorbeille } from './coeur/magasin'
-import { aFiltrer, filtrerMagasin, peutCommenter } from './coeur/droitsElements'
+import { aFiltrer, filtrerMagasin, peutCommenter, peutSupprimerMessage } from './coeur/droitsElements'
 import { largeurDoubleClic, largeurMinDe, largeurTiree } from './coeur/largeur'
 import { type Cible, type Deplace, cleEntre, clesEntre, comparerOrdre, indexInsertion, pasDeDepot } from './coeur/ordre'
 import { cliquer, lasso } from './coeur/selection'
@@ -2094,6 +2094,19 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     )
   }
 
+  /**
+   * Les fils choisis dont chaque message peut être supprimé par qui commente (`peutSupprimerMessage` : les siens),
+   * retirés d'un seul pas, leur dernier message compris, comme quand le menu « ⋯ » vide le fil : il n'a pas de
+   * corbeille, et Cmd+Z les rend entiers. Le reste de la sélection demeure, un fil verrouillé aussi.
+   */
+  const retirerSesFils = (ids: ReadonlySet<Id>) => {
+    const moi = services.presence?.moi?.()?.id ?? ''
+    const fils = tableau.elements.filter(
+      (x) => ids.has(x.id) && !x.verrou && x.contenu.type === 'commentaire' && x.contenu.messages.every((m) => peutSupprimerMessage(services, x.id, m.auteur.id, moi)),
+    )
+    if (fils.length > 0) magasin.faire(fils.map((x): Operation => ({ type: 'supprimer', element: x })))
+  }
+
   const clavier = (e: React.KeyboardEvent) => {
     // DESSIN-LIBRE : le clavier appartient à la couche de dessin (Suppr, flèches, Cmd+Z n'agissent plus sur le tableau).
     if (toileSuspendue(racine.current)) return
@@ -2141,6 +2154,18 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         return setSelection(new Set(tableau.elements.filter((x) => !x.parent).map((x) => x.id)))
       }
       if (e.key === 'Escape') return setSelection(new Set())
+      // Qui commente supprime à la touche ce que le menu « ⋯ » de ses messages lui laisse supprimer, et Cmd+Z le rend.
+      if (!fermeeAEcriture()) {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault()
+          return retirerSesFils(selection)
+        }
+        if (cmd && (touche === 'z' || touche === 'y')) {
+          e.preventDefault()
+          if (e.shiftKey || touche === 'y') return void (magasin.retablir() || services.retablirNavigation?.())
+          return void (magasin.annuler() || services.annulerNavigation?.())
+        }
+      }
       if (!cmd && touche === 'z' && !e.repeat) ajuster()
       return
     }
