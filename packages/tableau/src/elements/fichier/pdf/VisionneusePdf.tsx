@@ -6,6 +6,7 @@ import { Icone, type NomIcone } from '../../../icones'
 import { t } from '../../../langue'
 import type { ContexteToile } from '../../types'
 import { useThemeDeLaToile } from '../../image/barreOutil'
+import { refuserLeDepot, useCouvrirLaToile, useTenirLaPlaceEnPartant } from '../../enGrand'
 import { moteurPdf } from '../apercuPdf'
 import { ouvrirDehors } from '../ouverture'
 import { type MoteurPdf, PagePdf } from './PagePdf'
@@ -127,6 +128,10 @@ export function VisionneusePdf({
   const ancre = useRef<HTMLSpanElement>(null)
   const theme = useThemeDeLaToile(ancre)
   const racine = useRef<HTMLDivElement>(null)
+  // Tant qu'elle est ouverte, la toile dessous ne prend aucune touche ; fermée sous le pointeur, elle garde sa place le
+  // temps du geste ; un fichier lâché dessus ne se pose pas derrière (`enGrand.ts`).
+  useCouvrirLaToile()
+  const enPartant = useTenirLaPlaceEnPartant()
   const defile = useRef<HTMLDivElement>(null)
   const document_ = useDocumentPdf(adresse)
   const pret = document_.etat === 'pret' ? document_ : null
@@ -433,8 +438,8 @@ export function VisionneusePdf({
     if (!estSaisie(e.target) && commentaires.clavier(e)) return
     if (k === 'Escape') return faire(() => (recherche ? fermerRecherche() : fermer()))
     if (estSaisie(e.target)) return
-    // ⌘Z et ⌘⇧Z défont et refont ici comme sur la toile : un dessin enregistré, par exemple.
-    if (cmd && k.toLowerCase() === 'z' && contexte && dessin.autorise) return faire(() => void (e.shiftKey ? contexte.magasin.retablir() : contexte.magasin.annuler()))
+    // ⌘Z ne défait rien ici hors du dessin (qui a le sien) : rien derrière la visionneuse ne bouge sans qu'on le voie.
+    if (cmd && k.toLowerCase() === 'z') return faire(() => {})
     if (e.shiftKey && !cmd && !e.altKey && k.toLowerCase() === 'd' && dessin.autorise && pret) return faire(commencerDessin)
     if (cmd || e.altKey) return
     const s = defile.current
@@ -453,13 +458,15 @@ export function VisionneusePdf({
     if (k === 'End') return faire(() => allerA(etat.current.d.hauts.length - 1))
   }
 
-  // Une bulle de commentaire refermée rend le focus à la page : la visionneuse le reprend, et la touche avec lui, avant
-  // que la toile dessous ne la lise (Espace, Échap).
+  // Le focus resté sur la toile (le double-clic qui ouvre le PDF l'y laisse) ou rendu à la page (une bulle de
+  // commentaire refermée) : la visionneuse le reprend, et la touche avec lui. La toile, couverte, n'en lit aucune.
   const clavierActuel = useRef(clavier)
   clavierActuel.current = clavier
   useEffect(() => {
     const repli = (e: KeyboardEvent) => {
-      if (e.target !== document.body && e.target !== document.documentElement) return
+      const cible = e.target
+      const dessous = cible === document.body || cible === document.documentElement || (cible instanceof Element && !!cible.closest('.notak-espace, .notak-toile'))
+      if (!dessous || (cible instanceof Node && racine.current?.contains(cible))) return
       racine.current?.focus({ preventScroll: true })
       clavierActuel.current(e as unknown as ToucheReact)
     }
@@ -497,12 +504,15 @@ export function VisionneusePdf({
       style={theme ?? undefined}
       onKeyDown={clavier}
       onKeyUp={clos}
+      {...enPartant}
       onPointerDown={clos}
       onPointerMove={clos}
       onPointerUp={clos}
+      onPointerCancel={clos}
       onClick={clos}
       onDoubleClick={clos}
       onContextMenu={clos}
+      {...refuserLeDepot}
     >
       <div className="notak-pdf-barre" role="toolbar" aria-label={t('pdf.barre')}>
         <div className="notak-pdf-groupe notak-pdf-titre-groupe">

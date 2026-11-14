@@ -87,7 +87,26 @@ describe('dessiner sur un PDF', () => {
     expect(traitsMontres()).toBe(1)
   })
 
-  it('l’enregistrement est un pas de l’historique : ⌘Z dans la visionneuse le défait, ⌘⇧Z le refait', async () => {
+  it('en dessin, ⌘Z défait le dernier trait du brouillon, et rien d’autre', async () => {
+    const m = await ouvrir()
+    await touche('D', { shiftKey: true })
+    const couche = document.querySelector('.notak-pdf-page[data-page="1"] .notak-pdf-saisie')!
+    pointeur(couche, 'pointerdown', 40, 40)
+    pointeur(couche, 'pointerup', 80, 40)
+    pointeur(couche, 'pointerdown', 40, 200)
+    pointeur(couche, 'pointerup', 80, 200)
+    expect(traitsMontres()).toBe(2)
+    await touche('z', { metaKey: true })
+    expect(traitsMontres()).toBe(1)
+    expect(m.peutAnnuler()).toBe(false)
+    await touche('z', { metaKey: true, shiftKey: true })
+    expect(traitsMontres()).toBe(2)
+    // Abandonné, le brouillon ne s'écrit pas en partant.
+    await touche('Escape')
+    expect(annotations(m)).toBeUndefined()
+  })
+
+  it('l’enregistrement est un pas de l’historique de la toile ; ⌘Z dans la visionneuse, lui, n’y défait rien', async () => {
     const m = await ouvrir()
     await touche('D', { shiftKey: true })
     const couche = document.querySelector('.notak-pdf-page[data-page="1"] .notak-pdf-saisie')!
@@ -96,9 +115,12 @@ describe('dessiner sur un PDF', () => {
     await touche('s', { metaKey: true })
     expect(annotations(m)?.['1']).toHaveLength(1)
     await touche('z', { metaKey: true })
+    expect(annotations(m)?.['1']).toHaveLength(1)
+    // Revenu sur la toile, son annuler le défait d'un pas, son rétablir le refait.
+    act(() => void m.annuler())
     expect(annotations(m)).toBeUndefined()
     expect(traitsMontres()).toBe(0)
-    await touche('z', { metaKey: true, shiftKey: true })
+    act(() => void m.retablir())
     expect(annotations(m)?.['1']).toHaveLength(1)
   })
 

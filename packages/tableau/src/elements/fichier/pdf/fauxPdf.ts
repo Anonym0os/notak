@@ -39,7 +39,8 @@ const pdfjs = {
   }),
 }
 
-export const moduleFaux = { moteurPdf: async () => pdfjs }
+/** Le module `apercuPdf` tel que les essais le voient : le faux moteur, et une carte sans aperçu de première page. */
+export const moduleFaux = { moteurPdf: async () => pdfjs, useApercuPdf: () => ({ etat: 'manque' as const }), DELAI_APERCU_MS: 60_000 }
 
 /** jsdom ne mesure rien : la vue fait 1000 × 800 px, une page 400 × 566 px, et une toile ne se dessine pas. */
 export function mesuresFausses(): () => void {
