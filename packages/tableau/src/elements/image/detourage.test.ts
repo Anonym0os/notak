@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Image } from '../../coeur/tableau'
-import { type Pixels, avecDetourage, couleurDuBord, detourer, sansDetourage } from './detourage'
+import { COTE_DETOURAGE, PIXELS_DETOURAGE, type Pixels, avecDetourage, cotesBornes, couleurDuBord, detourer, sansDetourage } from './detourage'
 
 /** Une petite image en mémoire : `ImageData` n'existe pas ici, sa forme suffit. */
 function image(largeur: number, hauteur: number, couleur: (x: number, y: number) => [number, number, number]): Pixels {
@@ -75,9 +75,43 @@ describe('detourer', () => {
     expect(r.retires).toBeLessThan(64)
   })
 
+  it('le fond retiré devient noir transparent : sa couleur n’alourdit plus le PNG', () => {
+    const r = detourer(image(10, 10, carre), 20)
+    expect([...r.data.slice(0, 4)]).toEqual([0, 0, 0, 0])
+  })
+
+  it('un grand fond uni part en entier, sans déborder sa pile', () => {
+    const r = detourer(image(400, 300, (x, y) => (x > 150 && x < 250 && y > 100 && y < 200 ? ROUGE : BLANC)), 20)
+    expect(alpha(r, 400, 0, 0)).toBe(0)
+    expect(alpha(r, 400, 399, 299)).toBe(0)
+    expect(alpha(r, 400, 200, 150)).toBe(255)
+  })
+
   it('ne casse pas sur une image vide ou d’un pixel', () => {
     expect(detourer({ data: new Uint8ClampedArray(0), width: 0, height: 0 }, 20).retires).toBe(0)
     expect(detourer(image(1, 1, () => BLANC), 20).retires).toBe(1)
+  })
+})
+
+describe('cotesBornes', () => {
+  it('ramène une très grande photo sous les bornes, proportions gardées', () => {
+    const { largeur, hauteur } = cotesBornes(8000, 6000)
+    expect(Math.max(largeur, hauteur)).toBeLessThanOrEqual(COTE_DETOURAGE)
+    expect(largeur * hauteur).toBeLessThanOrEqual(PIXELS_DETOURAGE * 1.001)
+    expect(largeur / hauteur).toBeCloseTo(8000 / 6000, 2)
+  })
+  it('borne aussi le nombre de pixels d’une image carrée', () => {
+    const { largeur, hauteur } = cotesBornes(2560, 2560)
+    expect(largeur * hauteur).toBeLessThanOrEqual(PIXELS_DETOURAGE * 1.001)
+  })
+  it('n’agrandit jamais une petite image', () => {
+    expect(cotesBornes(640, 480)).toEqual({ largeur: 640, hauteur: 480 })
+  })
+  it('sert aussi à l’aperçu, à une autre borne', () => {
+    expect(cotesBornes(4000, 3000, 480, Infinity)).toEqual({ largeur: 480, hauteur: 360 })
+  })
+  it('une taille illisible ne fait pas un canevas vide', () => {
+    expect(cotesBornes(0, Number.NaN)).toEqual({ largeur: 1, hauteur: 1 })
   })
 })
 

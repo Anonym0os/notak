@@ -2,18 +2,33 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import type { Id, Image } from '../../coeur/tableau'
 import { commencerEnvoi } from '../envois'
 import type { ContexteToile } from '../types'
-import { TOLERANCE_DEFAUT, TOLERANCE_MAX, avecDetourage, detourer } from './detourage'
-import { miseEnPage, proportionsAffichees } from './geometrie'
+import { TOLERANCE_DEFAUT, TOLERANCE_MAX, avecDetourage, cotesBornes, detourer } from './detourage'
+import { TAILLE_MAX, miseEnPage, proportionsAffichees } from './geometrie'
+import { adresseALargeur, palierPour } from './tailles'
+import { Traits } from './Annotateur'
+import { BarreOutil, useAmenerALaVue } from './barreOutil'
 import { t } from '../../langue'
 
-/** L'image dont on règle le détourage, une seule à la fois. */
+/** L'image dont on règle le détourage, une seule à la fois, et où revenir quand on le termine (la visionneuse). */
 let ouvert: Id | null = null
+let retour: (() => void) | undefined
 const ecouteurs = new Set<() => void>()
 
-export function detourerImage(id: Id | null) {
+/**
+ * Ouvre le détourage de cette image, ou le ferme (`null`). `depuis.retour` : ce qui l'a ouvert, à rouvrir quand on
+ * le termine soi-même (valider, annuler) ; pas quand il se ferme parce qu'on a choisi autre chose.
+ */
+export function detourerImage(id: Id | null, depuis?: { retour?: () => void }) {
   if (ouvert === id) return
   ouvert = id
+  retour = id === null ? undefined : depuis?.retour
   for (const f of ecouteurs) f()
+}
+/** Valider ou annuler : le détourage se ferme, et l'on revient d'où on l'a ouvert. */
+function terminer() {
+  const revenir = retour
+  detourerImage(null)
+  revenir?.()
 }
 const ecouter = (f: () => void) => {
   ecouteurs.add(f)
@@ -23,26 +38,62 @@ export const useDetourageOuvert = () => useSyncExternalStore(ecouter, () => ouve
 
 /** Le côté le plus long de l'aperçu : assez pour juger le contour, assez court pour suivre le curseur. */
 const COTE_APERCU = 480
-/** Le côté le plus long du PNG qu'on envoie : au-delà, l'image est réduite. */
-const COTE_MAX = 4096
+/** Un PNG trop lourd pour le dépôt est refait plus petit, au plus tant de fois. */
+const ESSAIS_REDUITS = 3
 
-/** Le fichier dessiné dans un canevas, réduit pour que son plus long côté ne dépasse pas `cote`. */
-async function dessiner(adresse: string, cote: number): Promise<HTMLCanvasElement> {
-  const bitmap = await createImageBitmap(await (await fetch(adresse)).blob())
-  const k = Math.min(1, cote / Math.max(bitmap.width, bitmap.height))
+/**
+ * Le fichier dessiné dans un canevas aux côtés que `cotes` donne pour les siens. Le navigateur est prié de le décoder
+ * déjà réduit (`resizeWidth`) : une photo de 48 Mpx décodée en entier pèse 200 Mo, et un iPad lâche la page.
+ */
+async function dessiner(adresse: string, cotes: (largeur: number, hauteur: number) => { largeur: number; hauteur: number }, connues?: { largeur: number; hauteur: number }): Promise<HTMLCanvasElement> {
+  const fichier = await (await fetch(adresse)).blob()
+  const voulues = connues && cotes(connues.largeur, connues.hauteur)
+  let bitmap: ImageBitmap
+  try {
+    // La seule largeur : la hauteur suit les proportions du fichier, même si celles qu'on croyait connaître mentent.
+    bitmap = voulues && voulues.largeur < connues.largeur ? await createImageBitmap(fichier, { resizeWidth: voulues.largeur, resizeQuality: 'high' }) : await createImageBitmap(fichier)
+  } catch {
+    bitmap = await createImageBitmap(fichier)
+  }
+  const { largeur, hauteur } = cotes(bitmap.width, bitmap.height)
   const canevas = document.createElement('canvas')
-  canevas.width = Math.max(1, Math.round(bitmap.width * k))
-  canevas.height = Math.max(1, Math.round(bitmap.height * k))
-  canevas.getContext('2d', { willReadFrequently: true })!.drawImage(bitmap, 0, 0, canevas.width, canevas.height)
+  canevas.width = largeur
+  canevas.height = hauteur
+  const ctx = canevas.getContext('2d', { willReadFrequently: true })!
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(bitmap, 0, 0, largeur, hauteur)
   bitmap.close()
   return canevas
 }
 
+/** Le même canevas, réduit de `k`. */
+function reduire(source: HTMLCanvasElement, k: number): HTMLCanvasElement {
+  const c = document.createElement('canvas')
+  c.width = Math.max(1, Math.round(source.width * k))
+  c.height = Math.max(1, Math.round(source.height * k))
+  const ctx = c.getContext('2d')!
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(source, 0, 0, c.width, c.height)
+  return c
+}
+
 const lirePixels = (c: HTMLCanvasElement) => c.getContext('2d')!.getImageData(0, 0, c.width, c.height)
+const enPng = (c: HTMLCanvasElement) => new Promise<Blob | null>((fin) => c.toBlob(fin, 'image/png'))
+/**
+ * Laisse la page se peindre (« Détourage… ») avant un calcul qui la tient. Une page cachée ne peint plus : le délai
+ * borne l'attente, le détourage ne reste pas suspendu jusqu'au retour de l'onglet.
+ */
+const souffler = () =>
+  new Promise<void>((fin) => {
+    const borne = setTimeout(fin, 50)
+    requestAnimationFrame(() => setTimeout(() => (clearTimeout(borne), fin()), 0))
+  })
 
 /**
- * L'image montrée sur un damier, son fond déjà retiré, avec un curseur de tolérance. Entrée valide, Échap annule.
- * Le fichier de départ est l'original quand l'image a déjà été détourée : on règle toujours depuis la photo.
+ * L'image montrée sur un damier, son fond déjà retiré, avec un curseur de tolérance dans la barre du bas (hors du zoom,
+ * au thème de la toile). Entrée valide, Échap annule. Le fichier de départ est l'original quand l'image a déjà été
+ * détourée : on règle toujours depuis la photo. L'aperçu se lit sur une copie réduite que le serveur fabrique quand il
+ * le peut : une très grande photo ne se télécharge pas en entier pour 480 px.
  */
 export function Detoureur({ id, contenu, adresse, contexte }: { id: Id; contenu: Image; adresse: string; contexte: ContexteToile }) {
   const [tolerance, setTolerance] = useState(TOLERANCE_DEFAUT)
@@ -50,8 +101,19 @@ export function Detoureur({ id, contenu, adresse, contexte }: { id: Id; contenu:
   const [travail, setTravail] = useState(false)
   const [echec, setEchec] = useState(false)
   const toile = useRef<HTMLCanvasElement>(null)
+  const racine = useRef<HTMLDivElement>(null)
+  // Fermé pendant le calcul (Échap, autre image choisie) : le résultat n'est pas posé après coup.
+  const ferme = useRef(false)
   const depot = contexte.services.fichiers
   const page = miseEnPage(contenu, true)
+  useAmenerALaVue(racine, contexte, true)
+  useEffect(() => {
+    // Remis à faux au montage : en développement, React démonte et remonte une fois pour voir.
+    ferme.current = false
+    return () => {
+      ferme.current = true
+    }
+  }, [])
 
   // L'aperçu part de la photo d'avant le détourage, s'il y en a un.
   const [adresseSource, setAdresseSource] = useState<string | null | undefined>(contenu.original ? undefined : adresse)
@@ -69,18 +131,29 @@ export function Detoureur({ id, contenu, adresse, contexte }: { id: Id; contenu:
     }
   }, [original, adresse, depot])
 
+  // Ce que l'on sait du fichier de départ sans le lire : ses côtés, son format (pour la copie réduite du serveur).
+  const depart: Image = contenu.original ? { ...contenu, ...contenu.original } : contenu
+  const connues = { largeur: depart.largeurOrigine, hauteur: depart.hauteurOrigine }
+  const palierApercu = palierPour(depart, COTE_APERCU, 1)
+
   useEffect(() => {
     if (!adresseSource) return void (adresseSource === null && setSource(null))
     let vivant = true
     setSource(undefined)
-    dessiner(adresseSource, COTE_APERCU).then(
-      (c) => vivant && setSource(lirePixels(c)),
-      () => vivant && setSource(null),
-    )
+    const apercu = (l: number, h: number) => cotesBornes(l, h, COTE_APERCU, Number.POSITIVE_INFINITY)
+    dessiner(adresseALargeur(adresseSource, palierApercu), apercu, connues)
+      // La copie réduite manque (un serveur qui ne la fait pas) : l'original fera l'aperçu.
+      .catch(() => dessiner(adresseSource, apercu, connues))
+      .then(
+        (c) => vivant && setSource(lirePixels(c)),
+        () => vivant && setSource(null),
+      )
     return () => {
       vivant = false
     }
-  }, [adresseSource])
+    // Les côtés connus ne changent qu'avec le fichier.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adresseSource, palierApercu])
 
   const resultat = useMemo(() => (source ? detourer(source, tolerance) : null), [source, tolerance])
   useEffect(() => {
@@ -92,20 +165,29 @@ export function Detoureur({ id, contenu, adresse, contexte }: { id: Id; contenu:
   }, [source, resultat])
 
   const valider = async () => {
-    if (!depot || !adresseSource || travail) return
+    if (!depot || !adresseSource || travail || !resultat || resultat.retires === 0) return
     setTravail(true)
     setEchec(false)
     try {
-      const plein = await dessiner(adresseSource, COTE_MAX)
+      await souffler()
+      let plein = await dessiner(adresseSource, (l, h) => cotesBornes(l, h), connues)
+      if (ferme.current) return
       const pixels = lirePixels(plein)
       plein.getContext('2d')!.putImageData(new ImageData(detourer(pixels, tolerance).data, plein.width, plein.height), 0, 0)
-      const png = await new Promise<Blob | null>((fin) => plein.toBlob(fin, 'image/png'))
-      if (!png) throw new Error('PNG')
+      let png = await enPng(plein)
+      // Au-delà de ce qu'un fichier peut peser, le dépôt le refuserait et l'image resterait cassée : plus petit.
+      for (let essai = 0; png && png.size > TAILLE_MAX && essai < ESSAIS_REDUITS; essai++) {
+        plein = reduire(plein, Math.sqrt(TAILLE_MAX / png.size) * 0.9)
+        png = await enPng(plein)
+      }
+      if (!png || png.size > TAILLE_MAX) throw new Error('PNG')
+      if (ferme.current) return
       const fichier = commencerEnvoi(png, depot)
       const apres = avecDetourage(contenu, fichier, { largeur: plein.width, hauteur: plein.height })
       contexte.magasin.faire([{ type: 'contenu', id, avant: contenu, apres }])
-      detourerImage(null)
+      terminer()
     } catch {
+      if (ferme.current) return
       setTravail(false)
       setEchec(true)
     }
@@ -117,18 +199,19 @@ export function Detoureur({ id, contenu, adresse, contexte }: { id: Id; contenu:
     const touche = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' && e.key !== 'Enter') return
       // Dans le curseur, Entrée valide aussi ; ailleurs (un bouton) on laisse faire le bouton.
-      if (e.key === 'Enter' && (e.target as HTMLElement | null)?.closest('button')) return
+      if (e.key === 'Enter' && (e.target as HTMLElement | null)?.closest?.('button')) return
       e.preventDefault()
       e.stopPropagation()
       if (e.key === 'Enter') void valide.current()
-      else detourerImage(null)
+      else terminer()
     }
     document.addEventListener('keydown', touche, true)
     return () => document.removeEventListener('keydown', touche, true)
   }, [])
 
+  const note = echec ? t('detourage.impossible') : resultat && resultat.retires === 0 ? t('detourage.rien') : null
   return (
-    <div className="notak-recadreur notak-detoureur" onPointerDown={(e) => e.stopPropagation()}>
+    <div ref={racine} className="notak-recadreur notak-detoureur" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
       <div className="notak-image-cadre notak-damier" style={{ aspectRatio: String(proportionsAffichees(contenu, true)) }}>
         <div className="notak-image-plan" style={page.plan}>
           {source === null ? (
@@ -138,31 +221,43 @@ export function Detoureur({ id, contenu, adresse, contexte }: { id: Id; contenu:
           ) : (
             <canvas ref={toile} className="notak-image" style={page.image} />
           )}
+          {contenu.traits && contenu.traits.length > 0 && <Traits contenu={contenu} traits={contenu.traits} style={page.image} />}
         </div>
-        {source === undefined && <span className="notak-roue" role="status" aria-label={t('detourage.lecture')} />}
+        {(source === undefined || travail) && <span className="notak-roue" role="status" aria-label={t(travail ? 'detourage.encours' : 'detourage.lecture')} />}
       </div>
-      <label className="notak-detoureur-reglage">
-        <span>{t('detourage.tolerance')}</span>
-        <input
-          type="range"
-          min={0}
-          max={TOLERANCE_MAX}
-          value={tolerance}
-          aria-label={t('detourage.toleranceDetail')}
-          onChange={(e) => setTolerance(Number(e.target.value))}
-        />
-        <output>{tolerance}</output>
-      </label>
-      {resultat && resultat.retires === 0 && <p className="notak-detoureur-note">{t('detourage.rien')}</p>}
-      {echec && <p className="notak-detoureur-note">{t('detourage.impossible')}</p>}
-      <div className="notak-recadreur-actions">
-        <button type="button" disabled={!depot || !resultat || resultat.retires === 0 || travail} onClick={() => void valider()}>
-          {travail ? t('detourage.encours') : t('recadreur.valider')}
-        </button>
-        <button type="button" onClick={() => detourerImage(null)}>
+      <BarreOutil etiquette={t('image.detourer')} className="notak-outil-image-barre">
+        {note && (
+          <span className="notak-outil-image-note" role="status">
+            {note}
+          </span>
+        )}
+        <label className="notak-detoureur-reglage">
+          <span>{t('detourage.tolerance')}</span>
+          <input
+            type="range"
+            min={0}
+            max={TOLERANCE_MAX}
+            value={tolerance}
+            disabled={travail}
+            aria-label={t('detourage.toleranceDetail')}
+            onChange={(e) => setTolerance(Number(e.target.value))}
+          />
+          <output>{tolerance}</output>
+        </label>
+        <span className="notak-croquis-espace" />
+        <button type="button" className="notak-croquis-texte" title="Esc" onClick={terminer}>
           {t('commun.annuler')}
         </button>
-      </div>
+        <button
+          type="button"
+          className="notak-croquis-texte notak-croquis-enregistrer"
+          title="↵"
+          disabled={!depot || !resultat || resultat.retires === 0 || travail}
+          onClick={() => void valider()}
+        >
+          {travail ? t('detourage.encours') : t('recadreur.valider')}
+        </button>
+      </BarreOutil>
     </div>
   )
 }
