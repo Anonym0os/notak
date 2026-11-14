@@ -27,7 +27,11 @@ export const enOperations = (ds: Deplacement[], elements: readonly Element[] = [
     return { type: 'contenu', id: d.id, avant: c, apres: { ...c, depart: bout(c.depart), arrivee: bout(c.arrivee) } }
   })
 
-/** Alt+lettre aligne ; Cmd+Alt+Maj+H ou V répartit. On lit `code`, car Alt change `key` sur Mac. */
+/**
+ * Alt+lettre aligne ; Cmd+Alt+Maj+H ou V répartit. On lit `code`, car Alt change `key` sur Mac. Le raccourci est pris
+ * dès que la sélection a de quoi s'arranger, même quand rien ne bouge (déjà aligné, rangée répartie en hauteur) :
+ * laissé au navigateur, ⌥⇧⌘V y devient « Coller et adapter le style », et Alt+D, sous Windows, la barre d'adresse.
+ */
 export const raccourciArrangement: Raccourci = (e, contexte) => {
   if (!e.altKey) return false
   const cmd = e.metaKey || e.ctrlKey
@@ -36,9 +40,9 @@ export const raccourciArrangement: Raccourci = (e, contexte) => {
   if (!aligne && !repartit) return false
 
   const items = selectionDisposable(contexte)
-  if (items.length < (aligne ? MIN_ALIGNER : MIN_REPARTIR)) return false
+  if (items.length === 0) return false
+  if (items.length < (aligne ? MIN_ALIGNER : MIN_REPARTIR)) return true
   const pas = enOperations(aligne ? aligner(items, aligne) : repartir(items, e.code === 'KeyH' ? 'horizontal' : 'vertical'), contexte.magasin.lire().elements)
-  if (pas.length === 0) return false
-  contexte.magasin.faire(pas)
+  if (pas.length > 0) contexte.magasin.faire(pas)
   return true
 }
