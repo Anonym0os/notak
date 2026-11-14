@@ -2384,7 +2384,8 @@ export function creerApp(ctx: Contexte): Hono {
 
   /**
    * Remet à sa place le dossier d'une fiche, jeté à la corbeille (le bouton « Le remettre » de `/relier`) : il faut
-   * pouvoir écrire là où il se range. L'outil en est prévenu, au nom de la personne.
+   * pouvoir écrire là où il se range. Le dossier de l'outil, jeté depuis la toile d'accueil, le cachait avec les autres :
+   * il revient aussi. L'outil en est prévenu, au nom de la personne.
    */
   app.post('/api/rattachements/:source/:cle/remettre', async (c) => {
     const f = await ficheDemandee(c)
@@ -2396,6 +2397,12 @@ export function creerApp(ctx: Contexte): Hono {
       if (etat.etat !== 'corbeille' || !r) return c.json({ ...etat, source: source.nom, dossier: source.dossier }, 200)
       const porteur = porteurDe(r.tableau)
       if (!porteur || !auMoins(await roleSur(u.id, porteur), 'edition')) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
+      const range = base.rattachement(espace, source.source, '')
+      if (range && (await etatDuDossier(u, range)).etat === 'corbeille') {
+        const sonPorteur = porteurDe(range.tableau)
+        if (!sonPorteur || !auMoins(await roleSur(u.id, sonPorteur), 'edition')) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
+        await remettreLeDossier(range.tableau, u)
+      }
       // La table d'abord : l'enregistrement qui suit n'y voit plus rien à suivre, et l'outil n'est prévenu qu'une fois.
       base.marquerCorbeille(r, null, null)
       await remettreLeDossier(r.tableau, u)

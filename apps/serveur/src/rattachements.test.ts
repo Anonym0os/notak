@@ -254,7 +254,7 @@ describe('les dossiers des fiches d’un autre outil', () => {
     const premier = ((await lire(ana, 'societe:1')).corps as { tableau: string }).tableau
     const clients = m.base.tableau(premier)!.parent!
     const accueil = ana.utilisateur.racine
-    // « Clients » jeté depuis l'accueil, comme le fait la bibliothèque : ce qu'il range part avec lui.
+    // « Clients » jeté depuis la toile d'accueil (la bibliothèque ne le jette plus) : ce qu'il range part avec lui.
     const doc = new Y.Doc()
     Y.applyUpdate(doc, m.base.document(nomDuDocument(accueil))!)
     const elements = doc.getMap<Record<string, unknown>>('elements')
@@ -273,6 +273,25 @@ describe('les dossiers des fiches d’un autre outil', () => {
     const bibliotheque = (await (await m.appeler('/api/bibliotheque', { compte: ana })).json()) as Entree[]
     expect(bibliotheque.filter((e) => e.titre === 'Clients' && e.element === null)).toHaveLength(1)
     expect((await lire(ana, 'societe:1')).corps).toMatchObject({ etat: 'present', tableau: premier })
+  })
+
+  it('le dossier de l’outil jeté cache ceux des fiches : « Le remettre » d’une fiche le ramène avec elle', async () => {
+    const premier = ((await lire(ana, 'societe:1')).corps as { tableau: string }).tableau
+    const clients = m.base.tableau(premier)!.parent!
+    const accueil = ana.utilisateur.racine
+    const doc = new Y.Doc()
+    Y.applyUpdate(doc, m.base.document(nomDuDocument(accueil))!)
+    const elements = doc.getMap<Record<string, unknown>>('elements')
+    for (const [id, e] of elements) if ((e.contenu as { cible?: string }).cible === clients) elements.set(id, { ...e, corbeille: 2 })
+    m.base.enregistrerDocument(nomDuDocument(accueil), Y.encodeStateAsUpdate(doc))
+    indexerDocument(m.base, accueil, doc)
+    expect((await lire(ana, 'societe:1')).corps).toMatchObject({ etat: 'corbeille', tableau: premier })
+
+    const r = await m.appeler(`/api/rattachements/crm/societe:1/remettre`, { compte: ana, json: {} })
+    expect(r.status).toBe(200)
+    expect(await r.json()).toMatchObject({ etat: 'present', tableau: premier })
+    expect(meta(accueil).elements.find((e) => e.contenu.cible === clients)).not.toHaveProperty('corbeille')
+    expect(cartesVers(accueil, clients)).toHaveLength(1)
   })
 })
 
