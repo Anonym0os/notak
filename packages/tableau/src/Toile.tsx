@@ -80,7 +80,7 @@ import type { CibleBord } from './coeur/pointeurs'
 import { lignesDeTrace } from './trace'
 import { personneAJour } from './personne'
 import { usePublierVue } from './vueZoom'
-import { clicEcrit, ouvreMalgreEdition } from './ouvertureAuDoubleClic'
+import { champSous, clicEcrit, doubleToucherOuvre, ouvreMalgreEdition } from './ouvertureAuDoubleClic'
 import { chiffreDe, lettreDe, parAltGr, signeParmi } from './touches'
 
 type Geste =
@@ -553,11 +553,13 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const doubleTouche = useRef(-Infinity)
   // Les appuis sur la toile, comptés avant que quiconque les arrête (un champ, une légende), et leur nombre quand
   // l'écriture en cours s'est ouverte : le double-clic qui l'a ouverte lui-même s'en distingue (`ouvertureAuDoubleClic`).
-  // Le dernier appui sert au second toucher d'un double toucher qui tombe dans cette écriture (`compterAppui`).
+  // Le dernier appui (et le champ qu'il touchait) sert au second toucher d'un double toucher (`compterAppui`) ; le clic
+  // de ce second toucher, quand la toile a déjà ouvert l'élément, ne va plus à son champ (`clicEteint`).
   const appuis = useRef(0)
   const appuisAOuverture = useRef(0)
   const clicQuiEcrit = useRef<{ id: Id; ou: Point } | null>(null)
-  const appuiDernier = useRef<{ instant: number; x: number; y: number; doigt: boolean } | null>(null)
+  const appuiDernier = useRef<{ instant: number; x: number; y: number; doigt: boolean; champ: globalThis.Element | null } | null>(null)
+  const clicEteint = useRef<{ instant: number; id: Id } | null>(null)
   const [anime, setAnime] = useState(false)
   const [enGeste, setEnGeste] = useState(false)
   // Un geste qui laisse les barres telles qu'avant l'appui : la toile qu'on déplace (bouton du milieu, Espace) ne
@@ -2674,21 +2676,26 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
 
   /**
    * Chaque appui est compté avant d'arriver à sa cible, qui peut l'arrêter (un champ, une légende) : voir `appuis`. Au
-   * doigt, le second toucher d'un double toucher qui tombe dans l'élément qu'on écrit l'ouvre ici, comme le double-clic
-   * quand il l'ouvrirait (la légende que le premier toucher vient d'ouvrir) : le champ touché ne le laisserait pas passer.
+   * doigt, le second toucher d'un double toucher qui tombe sur un champ de l'élément (une légende, un titre, le champ
+   * que le premier toucher vient d'ouvrir) l'ouvre ici, comme le double-clic l'ouvrirait : le champ touché ne laisserait
+   * pas l'appui venir jusqu'à la toile (`doubleToucherOuvre`). Le champ ouvert en route se referme.
    */
   const compterAppui = (e: React.PointerEvent) => {
     clicQuiEcrit.current = null
     appuis.current++
     const avant = appuiDernier.current
-    appuiDernier.current = { instant: e.timeStamp, x: e.clientX, y: e.clientY, doigt: e.pointerType === 'touch' }
-    if (e.pointerType !== 'touch' || e.button !== 0 || !avant?.doigt || !dansEdition(racine.current, e.target)) return
+    appuiDernier.current = { instant: e.timeStamp, x: e.clientX, y: e.clientY, doigt: e.pointerType === 'touch', champ: champSous(e.target) }
+    if (e.pointerType !== 'touch' || e.button !== 0 || !avant?.doigt || toileSuspendue(racine.current) || services.presentation) return
     if (e.timeStamp - avant.instant >= DOUBLE_TOUCHER_MS || Math.hypot(e.clientX - avant.x, e.clientY - avant.y) >= DOUBLE_TOUCHER_PX) return
     const el = tableau.elements.find((x) => x.id === sous(e.target))
-    if (!el || !ouvreMalgreEdition(definition(el.contenu.type), e.target, appuis.current - appuisAOuverture.current)) return
+    const enEdition = dansEdition(racine.current, e.target)
+    if (!el || !doubleToucherOuvre(definition(el.contenu.type), { enEdition, cible: e.target, champAvant: avant.champ, appuisDepuis: appuis.current - appuisAOuverture.current })) return
     e.stopPropagation()
     e.preventDefault()
+    const actif = document.activeElement
+    if (actif instanceof HTMLElement && noeudDe(el.id)?.contains(actif)) actif.blur()
     toucher.current = null
+    clicEteint.current = { instant: e.timeStamp, id: el.id }
     doubleClic(e)
     doubleTouche.current = e.timeStamp
   }
@@ -2703,6 +2710,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const c = clicQuiEcrit.current
     clicQuiEcrit.current = null
     if (c && e.detail < 2) commencerEdition(c.id, c.ou)
+  }
+
+  /** Le clic du second toucher d'un double toucher qui a déjà ouvert l'élément : il n'écrit pas sa légende par-dessus. */
+  const eteindreClic = (e: React.MouseEvent) => {
+    const c = clicEteint.current
+    if (!c || e.timeStamp - c.instant > 600 || sous(e.target) !== c.id) return
+    clicEteint.current = null
+    e.stopPropagation()
+    e.preventDefault()
   }
 
   const appui = (e: React.PointerEvent) => {
@@ -3785,6 +3801,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       onKeyUp={relacherEspace}
       onClickCapture={(e) => {
         rendreLeClavier()
+        eteindreClic(e)
         ecrireAuClic(e)
       }}
       onBlur={() => setEspace(false)}

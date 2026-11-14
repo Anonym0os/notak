@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
-import { champSous, clicEcrit, ouvreMalgreEdition } from './ouvertureAuDoubleClic'
+import { champSous, clicEcrit, doubleToucherOuvre, ouvreAutreChose, ouvreMalgreEdition } from './ouvertureAuDoubleClic'
 
 const ouvrir = () => {}
 const surPlace = { ecritSurPlace: true, ouvrir }
@@ -62,5 +62,44 @@ describe('un double-clic dans l’élément qu’on écrit', () => {
     expect(champSous(d.querySelector('i'))).not.toBeNull()
     expect(champSous(d.querySelector('span'))).not.toBeNull()
     expect(champSous(d.querySelector('p'))).toBeNull()
+  })
+})
+
+describe('au doigt, le second toucher d’un double toucher sur un champ', () => {
+  const croquis = { ouvreAuDoubleClic: true, editable: true }
+  const toile = { ouvrir }
+  const note = { editable: true }
+  const c = carte('<p data-ecrire="legende">Plan</p><textarea></textarea><span data-ecrire="titre">Projets</span><svg></svg>')
+  const legende = c.querySelector('p')
+  const champ = c.querySelector('textarea')
+
+  it('ouvre l’élément depuis une légende ou un titre affichés', () => {
+    expect(doubleToucherOuvre(surPlace, { enEdition: false, cible: legende, champAvant: legende, appuisDepuis: 5 })).toBe(true)
+    expect(doubleToucherOuvre(croquis, { enEdition: false, cible: legende, champAvant: null, appuisDepuis: 5 })).toBe(true)
+    expect(doubleToucherOuvre(toile, { enEdition: false, cible: c.querySelector('span'), champAvant: null, appuisDepuis: 5 })).toBe(true)
+  })
+
+  it('ouvre l’élément depuis le champ que le premier toucher vient d’ouvrir, pas depuis celui où l’on écrivait', () => {
+    expect(doubleToucherOuvre(croquis, { enEdition: false, cible: champ, champAvant: legende, appuisDepuis: 5 })).toBe(true)
+    expect(doubleToucherOuvre(croquis, { enEdition: false, cible: champ, champAvant: champ, appuisDepuis: 5 })).toBe(false)
+  })
+
+  it('laisse le reste à la toile : hors d’un champ, ou une note, dont ouvrir veut dire écrire', () => {
+    expect(doubleToucherOuvre(croquis, { enEdition: false, cible: c.querySelector('svg'), champAvant: null, appuisDepuis: 5 })).toBe(false)
+    expect(doubleToucherOuvre(note, { enEdition: false, cible: legende, champAvant: null, appuisDepuis: 5 })).toBe(false)
+  })
+
+  it('dans l’écriture de la toile, suit la règle du double-clic', () => {
+    expect(doubleToucherOuvre(surPlace, { enEdition: true, cible: champ, champAvant: legende, appuisDepuis: 1 })).toBe(true)
+    expect(doubleToucherOuvre(surPlace, { enEdition: true, cible: champ, champAvant: champ, appuisDepuis: 4 })).toBe(false)
+    expect(doubleToucherOuvre(croquis, { enEdition: true, cible: champ, champAvant: legende, appuisDepuis: 1 })).toBe(false)
+  })
+
+  it('reconnaît ce qui ouvre autre chose que son texte', () => {
+    expect(ouvreAutreChose(surPlace)).toBe(true)
+    expect(ouvreAutreChose(croquis)).toBe(true)
+    expect(ouvreAutreChose(toile)).toBe(true)
+    expect(ouvreAutreChose(note)).toBe(false)
+    expect(ouvreAutreChose({ ouvrir, editable: true })).toBe(false)
   })
 })

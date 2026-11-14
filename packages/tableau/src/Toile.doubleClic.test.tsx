@@ -9,6 +9,7 @@ import { ouvrirFenetreFichier } from './elements/fichier/ouverture'
 import { imageOuverte, ouvrirImage } from './elements/image/visionneuse'
 import { fermerMenus } from './menuUnique'
 import { Toile } from './Toile'
+import type { Services } from './elements/types'
 
 /**
  * Le double-clic sur un élément qui porte une légende l'ouvre, toujours, légende comprise ; seul le champ où l'on écrit
@@ -67,12 +68,17 @@ function souris(cible: Node, type: string, detail = 0, pointeur: 'mouse' | 'touc
   act(() => void cible.dispatchEvent(e))
 }
 
-/** Un toucher du doigt sur ce nœud : posé, relevé (la webview d'iOS n'envoie pas de double-clic fiable). */
-function toucher(cible: () => Node) {
+/**
+ * Un toucher du doigt sur ce nœud : posé, relevé, puis le clic que la webview en tire (rang 1 : celle d'iOS n'envoie
+ * pas de double-clic fiable, ni de rang sûr). `sansClic` : le toucher seul.
+ */
+function toucher(cible: () => Node, sansClic = false) {
   vise = cible() as Element
   capture = null
   souris(vise, 'pointerdown', 0, 'touch')
-  souris(capture ?? vise, 'pointerup', 0, 'touch')
+  const recoit = capture ?? vise
+  souris(recoit, 'pointerup', 0, 'touch')
+  if (!sansClic && vise.isConnected) souris(recoit, 'click', 1, 'touch')
 }
 
 /** Un clic de souris sur ce nœud, de rang `rang` (1 : un clic seul, 2 : le second d'un double-clic). */
@@ -113,7 +119,7 @@ const image: ElementToile = {
 function monter(elements: ElementToile[]) {
   const magasin = creerMagasin({ titre: '', etiquettes: [], elements })
   const pleinEcran = vi.fn()
-  const services = { pleinEcran, fichiers: { enregistrer: async () => 'x', adresse: async () => '/api/fichiers/ab' } }
+  const services: Services = { pleinEcran, fichiers: { enregistrer: async () => 'x', adresse: async () => '/api/fichiers/ab' } }
   act(() => racine.render(<Toile magasin={magasin} services={services} />))
   const carte = (id: string) => hote.querySelector<HTMLElement>(`.notak-carte[data-id="${id}"]`)!
   const enEdition = () => [...hote.querySelectorAll<HTMLElement>('.notak-carte[data-edition]')].map((n) => n.dataset.id)
@@ -167,9 +173,9 @@ describe('le double-clic sur un fichier', () => {
     const m = monter([fichier])
     clic(apercu, 1)
     instant += 1000
-    toucher(legende)
+    toucher(legende, true)
     expect(m.enEdition()).toEqual(['F'])
-    toucher(legende)
+    toucher(legende, true)
     expect(m.pleinEcran).toHaveBeenLastCalledWith('F')
     expect(m.enEdition()).toEqual([])
   })
@@ -264,6 +270,77 @@ describe('le double-clic sur la légende d’un croquis ou d’un nuancier', () 
     clic(() => hote.querySelector('[data-id="U"] .notak-nuancier')!, 1)
     doubleClic(legende)
     expect(document.querySelector('input[type="color"]')).not.toBeNull()
+  })
+})
+
+describe('au doigt, deux touchers sur une légende', () => {
+  it('ouvrent une image qui n’était pas choisie, sans rouvrir sa légende ensuite', () => {
+    const m = monter([image])
+    const legende = () => hote.querySelector('[data-id="I"] .notak-legende')!
+    toucher(legende)
+    toucher(legende)
+    expect(imageOuverte()).toBe('I')
+    expect(m.enEdition()).toEqual([])
+  })
+
+  it('ouvrent une image qui n’était pas choisie, même quand le premier toucher n’a pas ouvert sa légende', () => {
+    const m = monter([image])
+    const legende = () => hote.querySelector('[data-id="I"] .notak-legende')!
+    // La webview n'a pas tiré de clic du premier toucher : la légende, désormais choisie, arrête l'appui du second.
+    toucher(legende, true)
+    toucher(legende)
+    expect(imageOuverte()).toBe('I')
+    expect(m.enEdition()).toEqual([])
+  })
+
+  it('ouvrent une image déjà choisie', () => {
+    const m = monter([image])
+    toucher(() => hote.querySelector('[data-id="I"] .notak-image-cadre')!)
+    instant += 1000
+    const legende = () => hote.querySelector('[data-id="I"] .notak-legende')!
+    toucher(legende)
+    toucher(legende)
+    expect(imageOuverte()).toBe('I')
+    expect(m.enEdition()).toEqual([])
+  })
+
+  it('ouvrent un croquis, choisi ou non, et referment le champ que le premier toucher a ouvert', () => {
+    const croquis: ElementToile = { id: 'C', x: 0, y: 0, largeur: 20, contenu: { type: 'croquis', traits: [], avecLegende: true, legende: 'Plan du rez' } }
+    const legende = () => hote.querySelector('[data-id="C"] .notak-croquis-legende')!
+    const m = monter([croquis])
+    toucher(legende)
+    toucher(legende)
+    expect(m.enEdition()).toEqual(['C'])
+    expect(hote.querySelector('textarea.notak-croquis-legende-champ')).toBeNull()
+  })
+
+  it('choisi, le croquis s’ouvre aussi quand le premier toucher a ouvert sa légende', () => {
+    const croquis: ElementToile = { id: 'C', x: 0, y: 0, largeur: 20, contenu: { type: 'croquis', traits: [], avecLegende: true, legende: 'Plan du rez' } }
+    const legende = () => hote.querySelector('[data-id="C"] .notak-croquis-legende')!
+    const m = monter([croquis])
+    toucher(() => hote.querySelector('[data-id="C"] svg')!)
+    instant += 1000
+    toucher(legende)
+    expect(hote.querySelector('textarea.notak-croquis-legende-champ')).not.toBeNull()
+    toucher(legende)
+    expect(m.enEdition()).toEqual(['C'])
+    expect(hote.querySelector('textarea.notak-croquis-legende-champ')).toBeNull()
+  })
+
+  it('dans le champ où l’on écrivait déjà, ils n’ouvrent rien : le mot reste à choisir', () => {
+    const croquis: ElementToile = { id: 'C', x: 0, y: 0, largeur: 20, contenu: { type: 'croquis', traits: [], avecLegende: true, legende: 'Plan du rez' } }
+    const m = monter([croquis])
+    toucher(() => hote.querySelector('[data-id="C"] svg')!)
+    instant += 1000
+    toucher(() => hote.querySelector('[data-id="C"] .notak-croquis-legende')!)
+    instant += 1000
+    const champ = () => hote.querySelector('textarea.notak-croquis-legende-champ')!
+    toucher(champ)
+    instant += 1000
+    toucher(champ)
+    toucher(champ)
+    expect(m.enEdition()).toEqual([])
+    expect(hote.querySelector('textarea.notak-croquis-legende-champ')).not.toBeNull()
   })
 })
 
