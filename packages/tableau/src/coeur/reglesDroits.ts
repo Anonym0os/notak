@@ -17,6 +17,11 @@ export interface DroitsTableau {
    * ceux que ce compte lit : leur carte ne quitte pas ce tableau et ne change pas (`carteIntacte`). Absent : aucun.
    */
   generes?: Record<Id, string>
+  /**
+   * Les cartes qui mènent à une toile que ce compte ne lit pas (privée, bloquée pour lui) : la toile ne les montre pas.
+   * Elles restent dans le document, que le serveur ne filtre pas par connexion ; c'est à la toile de les taire.
+   */
+  caches?: Id[]
 }
 
 /**

@@ -31,6 +31,38 @@ export function pasPermis(t: Tableau, pas: readonly Operation[], droits: DroitsT
   return true
 }
 
+/** Une ligne accrochée à l'un de ces éléments, par son départ ou son arrivée. */
+const accrochee = (e: Tableau['elements'][number], ids: ReadonlySet<Id>) => {
+  if (e.contenu.type !== 'ligne') return false
+  const bout = (b: unknown) => !!b && typeof b === 'object' && 'element' in b && ids.has(String((b as { element: unknown }).element))
+  return bout(e.contenu.depart) || bout(e.contenu.arrivee)
+}
+
+/**
+ * Le magasin sans ces éléments, ni les lignes qui y tiennent : les cartes des toiles que ce compte ne lit pas
+ * (`DroitsTableau.caches`). Les gestes passent tels quels ; `remplacer` garde, sous le reste, ce qu'il ne voit pas.
+ */
+export function sansCaches(m: Magasin, ids: ReadonlySet<Id>): Magasin {
+  let source: Tableau | null = null
+  let vue: Tableau | null = null
+  const lire = () => {
+    const t = m.lire()
+    if (t !== source) {
+      source = t
+      vue = { ...t, elements: t.elements.filter((e) => !ids.has(e.id) && !accrochee(e, ids)) }
+    }
+    return vue!
+  }
+  return {
+    ...m,
+    lire,
+    remplacer(t) {
+      const visibles = new Set(lire().elements.map((e) => e.id))
+      m.remplacer({ ...t, elements: [...m.lire().elements.filter((e) => !visibles.has(e.id)), ...t.elements] })
+    },
+  }
+}
+
 /**
  * Le magasin tel que ce compte peut l'écrire : un geste n'y passe que s'il est permis en entier (le serveur refuserait
  * le reste, et l'annulerait chez tout le monde). `refus` est appelé quand un geste est écarté.

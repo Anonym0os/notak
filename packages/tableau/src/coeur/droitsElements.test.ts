@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type DroitsTableau, carteIntacte, garderLesGeneres, gesteSurElement, pasPermis, permis, peutSupprimerMessage } from './droitsElements'
+import { type DroitsTableau, carteIntacte, garderLesGeneres, gesteSurElement, pasPermis, permis, peutSupprimerMessage, sansCaches } from './droitsElements'
 import { creerMagasin } from './magasin'
 import { type Element, type Tableau, auPremierPlan } from './tableau'
 
@@ -173,5 +173,25 @@ describe('la carte d’un dossier généré par un outil', () => {
       expect(refus.every((d) => d.length === 1 && d[0] === 'clients')).toBe(true)
       expect(m.lire()).toEqual(depart())
     })
+  })
+})
+
+describe('sansCaches', () => {
+  const ligne = (id: string, de: string, vers: string) => ({ id, x: 0, y: 0, largeur: 1, contenu: { type: 'ligne', depart: { element: de }, arrivee: { element: vers } } })
+  const carte = (id: string, cible: string) => ({ id, x: 0, y: 0, largeur: 10, contenu: { type: 'tableau', cible } })
+  const depart = (): Tableau => ({ titre: 'Accueil', elements: [note('n'), carte('privee', 'compta'), ligne('l', 'n', 'privee'), ligne('l2', 'n', 'n')] as unknown as Element[] })
+
+  it('la toile ne voit ni la carte d’une toile qu’on ne lit pas, ni les lignes qui y tiennent ; le reste passe', () => {
+    const m = sansCaches(creerMagasin(depart()), new Set(['privee']))
+    expect(m.lire().elements.map((e) => e.id)).toEqual(['n', 'l2'])
+    m.faire([{ type: 'deplacer', id: 'n', de: [0, 0], vers: [4, 4] }])
+    expect(m.lire().elements.find((e) => e.id === 'n')).toMatchObject({ x: 4, y: 4 })
+  })
+
+  it('remplacer le tableau garde, dessous, ce que la toile ne voyait pas', () => {
+    const brut = creerMagasin(depart())
+    const m = sansCaches(brut, new Set(['privee']))
+    m.remplacer({ ...m.lire(), elements: [note('neuve')] as unknown as Element[] })
+    expect(brut.lire().elements.map((e) => e.id).sort()).toEqual(['l', 'neuve', 'privee'])
   })
 })

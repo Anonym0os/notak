@@ -24,7 +24,7 @@ import { type Hauteur, hauteurTiree, memeHauteur } from './coeur/hauteur'
 import { CANEVAS, type Fond, NOMS_CANEVAS, estLibre, estNomme, estSombre, fondParDefaut, fondRange, pointsAllumes } from './coeur/fond'
 import { creerLimiteur } from './coeur/limiteur'
 import { type Magasin, enLectureSeule, sansCorbeille } from './coeur/magasin'
-import { aFiltrer, filtrerMagasin, garderLesGeneres, peutCommenter, peutSupprimerMessage } from './coeur/droitsElements'
+import { aFiltrer, filtrerMagasin, garderLesGeneres, peutCommenter, peutSupprimerMessage, sansCaches } from './coeur/droitsElements'
 import { largeurDoubleClic, largeurMinDe, largeurTiree } from './coeur/largeur'
 import { type Cible, type Deplace, cleEntre, clesEntre, comparerOrdre, indexInsertion, pasDeDepot } from './coeur/ordre'
 import { cliquer, lasso } from './coeur/selection'
@@ -483,16 +483,20 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   // jetterait ou la doublerait n'y passe pas, et l'avis le dit (`generes.ts`).
   const gardeGeneres = !!services.droits?.generes && !services.presentation && !services.apercuModele && (filtre || !lectureSeule)
   const avisDesGeneres = (dossiers: readonly Id[]) => avisGeneres(dossiers, droitsActuels.current?.generes, (id) => etat.current.services.tableau?.(id)?.titre)
+  // Les cartes des toiles que ce compte ne lit pas (une toile privée où il n'est pas invité) : le serveur les nomme, la
+  // toile ne les montre nulle part, corbeille et non triés compris.
+  const caches = services.droits?.caches?.join('\u0000') ?? ''
+  const visible = useMemo(() => (caches ? sansCaches(source, new Set(caches.split('\u0000'))) : source), [source, caches])
   // Tout le tableau, corbeille comprise ; la toile, elle, ne voit pas la corbeille.
   const complet = useMemo(() => {
     const m = filtre
-      ? filtrerMagasin(source, () => droitsActuels.current!, () => auteurActuel.current?.moi?.()?.id ?? '')
+      ? filtrerMagasin(visible, () => droitsActuels.current!, () => auteurActuel.current?.moi?.()?.id ?? '')
       : lectureSeule
-        ? enLectureSeule(source)
-        : source
+        ? enLectureSeule(visible)
+        : visible
     // `avisDesGeneres` lit l'état courant au moment du refus : il n'a pas à refaire le magasin.
     return gardeGeneres ? garderLesGeneres(m, () => droitsActuels.current?.generes, (dossiers) => annoncer({ texte: avisDesGeneres(dossiers) })) : m
-  }, [source, lectureSeule, filtre, gardeGeneres])
+  }, [visible, lectureSeule, filtre, gardeGeneres])
   const magasin = useMemo(() => sansCorbeille(complet), [complet])
   const toutLeTableau = useSyncExternalStore(complet.ecouter, complet.lire)
   const corbeille = useMemo(() => aLaCorbeille(toutLeTableau), [toutLeTableau])
