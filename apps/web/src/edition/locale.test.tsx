@@ -179,17 +179,21 @@ describe('l’édition locale : l’app s’ouvre sur la bibliothèque, partout'
   const ipad = () => vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(pointer: coarse)', media: q, addEventListener() {}, removeEventListener() {} }))
   afterEach(() => history.replaceState(null, '', '/'))
 
-  it('au téléphone, la bibliothèque, l’accueil en vedette ; le mot de la première visite attend la toile', async () => {
+  it('au téléphone, la bibliothèque, sans toile d’accueil en vedette ; le mot de la première visite attend la toile', async () => {
     ecran(true)
     localStorage.removeItem('notak:local:accueilli')
     history.replaceState(null, '', '/')
     const { racine, el } = await demarrer({ toile: false })
-    await vi.waitFor(() => expect(racine.querySelector('.biblio-locale-vedette')).not.toBeNull())
+    await vi.waitFor(() => expect(racine.querySelector('.biblio-locale')).not.toBeNull())
+    // Plus de toile d'accueil mise en avant : on ouvre et on crée des toiles, simplement.
+    expect(racine.querySelector('.biblio-locale-vedette')).toBeNull()
     expect(location.pathname).toBe('/')
     expect(racine.querySelector('.bandeau')).toBeNull()
-    // L'accueil touché ouvre sa toile : la bibliothèque s'efface, le mot de la première visite vient.
-    await act(async () => racine.querySelector<HTMLButtonElement>('.biblio-locale-vedette')!.click())
-    expect(location.pathname).toBe(`/t/${el.index.racine()}`)
+    // Une toile ouverte : la bibliothèque s'efface, le mot de la première visite vient.
+    const voyage = el.index.lister().find((e) => e.titre === 'Voyage')!.id
+    await vi.waitFor(() => expect(racine.querySelector(`[data-cle="${voyage}/"]`)).not.toBeNull())
+    await act(async () => racine.querySelector<HTMLElement>(`[data-cle="${voyage}/"]`)!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+    expect(location.pathname).toBe(`/t/${voyage}`)
     await vi.waitFor(() => expect(m.services).not.toBeNull())
     expect(racine.querySelector('.biblio-locale')).toBeNull()
     expect(racine.querySelector('.bandeau')?.textContent).toContain('Vos toiles restent')
