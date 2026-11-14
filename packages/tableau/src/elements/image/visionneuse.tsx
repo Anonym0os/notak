@@ -9,6 +9,8 @@ import { variablesDe } from '../surcouche'
 import { refuserLeDepot, useCouvrirLaToile, useTenirLaPlaceEnPartant } from '../enGrand'
 import { ouvrirDehors } from '../fichier/ouverture'
 import { nomTelecharge } from '../fichier/telechargement'
+import { telechargerFichier } from '../../telecharger'
+import { BandeauAvis } from '../../avis'
 import { copieLocale, ecouterEnvois, enEnvoi, fichierRecu, useProgressionEnvoi, useTenirCopie } from '../envois'
 import { aUneCarte, miseEnPage } from './geometrie'
 import { annoter } from './modeAnnotation'
@@ -386,15 +388,9 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
         {envoi === null && plusieurs && outil('suivant', t('visionneuse.suivant'), () => aller(1))}
         {envoi === null && plusieurs && <span className="notak-visionneuse-sep" role="separator" />}
         {envoi === null && outil('ouvrir', t(contexte.services.ouvrirAilleurs ? 'visionneuse.ouvrirAilleurs' : 'visionneuse.ouvrir'), () => adresse && ouvrirDehors(contexte.services, adresse, nomTelecharge(c)), !!adresse)}
-        {envoi === null &&
-          (adresse ? (
-            <a className="notak-visionneuse-outil" href={adresse} download={nomTelecharge(c)} aria-label={t('visionneuse.telecharger')} title={t('visionneuse.telecharger')} rel="noopener">
-              <Icone nom="exporter" taille={16} />
-            </a>
-          ) : (
-            outil('exporter', t('visionneuse.telecharger'), () => {}, false)
-          ))}
+        {envoi === null && outil('exporter', t('visionneuse.telecharger'), () => adresse && void telechargerFichier(adresse, nomTelecharge(c), c.typeMime), !!adresse)}
       </div>
+      <BandeauAvis enGrand />
     </div>,
     document.body,
   )

@@ -14,6 +14,7 @@ export { type FenetresNotak, HoteNotak } from './HoteNotak'
 export { type Entree as EntreeMenu, MenuContextuel } from './communs'
 export * from './communs'
 export { BandeauAvis, annoncer } from './avis'
+export { type RemiseTelechargement, nomDeTelechargement, reglerTelechargement, telechargerFichier } from './telecharger'
 export {
   type GenreNeuf,
   type Place,

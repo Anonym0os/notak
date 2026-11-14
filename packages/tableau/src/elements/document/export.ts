@@ -1,5 +1,6 @@
 import type { NoeudTexte } from '../../coeur/tableau'
 import { texteBrut } from '../../coeur/tableau'
+import { telechargerFichier } from '../../telecharger'
 
 /** Les formats que le navigateur sait fabriquer seul : le PDF passe par l'impression. */
 export type FormatDocument = 'md' | 'txt'
@@ -116,28 +117,14 @@ export function documentEnTexte(titre: string, texte: NoeudTexte, format: Format
 export const nomFichier = (titre: string, extension: string): string =>
   `${titre.trim().replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80) || 'document'}.${extension}`
 
-/** Ce que le navigateur télécharge : le fichier de ce format. */
+/** Télécharge le fichier de ce format (`telechargerFichier`). */
 export function telecharger(nom: string, contenu: string, mime: string) {
-  const adresse = URL.createObjectURL(new Blob([contenu], { type: `${mime};charset=utf-8` }))
-  const lien = document.createElement('a')
-  lien.href = adresse
-  lien.download = nom
-  document.body.appendChild(lien)
-  lien.click()
-  lien.remove()
-  setTimeout(() => URL.revokeObjectURL(adresse), 1000)
+  void telechargerFichier(new Blob([contenu], { type: `${mime};charset=utf-8` }), nom)
 }
 
 /** Comme `telecharger`, pour un fichier binaire (le .docx). */
 export function telechargerOctets(nom: string, octets: Uint8Array, mime: string) {
-  const adresse = URL.createObjectURL(new Blob([octets as BlobPart], { type: mime }))
-  const lien = document.createElement('a')
-  lien.href = adresse
-  lien.download = nom
-  document.body.appendChild(lien)
-  lien.click()
-  lien.remove()
-  setTimeout(() => URL.revokeObjectURL(adresse), 1000)
+  void telechargerFichier(new Blob([octets as BlobPart], { type: mime }), nom)
 }
 
 const echapper = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)

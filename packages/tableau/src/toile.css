@@ -1437,6 +1437,13 @@
   font-weight: 400;
 }
 
+/* Celui d'un plein écran (la visionneuse, le PDF, un fichier en grand) : par-dessus lui, au-dessus de sa barre du bas. */
+.notak-avis[data-en-grand] {
+  position: fixed;
+  bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  z-index: 10;
+}
+
 @keyframes notak-avis-entree {
   from {
     opacity: 0;

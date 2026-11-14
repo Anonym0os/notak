@@ -16,7 +16,8 @@ import { useCommentairesPdf } from './CommentairesPdf'
 import { type MoteurExport, ajouterTraits, nomAnnote } from './exportPdf'
 import { nombreDeTraits } from './annotations'
 import { telechargerOctets } from '../../document/export'
-import { annoncer } from '../../../avis'
+import { telechargerFichier } from '../../../telecharger'
+import { BandeauAvis, annoncer } from '../../../avis'
 import {
   type Disposition,
   type TaillePage,
@@ -620,10 +621,7 @@ export function VisionneusePdf({
               presse: commentaires.liste,
             })}
           <span className="notak-pdf-sep" role="separator" />
-          <a className="notak-pdf-bouton" href={adresse} download={contenu.nom} rel="noopener" aria-label={t('pdf.telecharger.titre')} title={t('pdf.telecharger.titre')}>
-            <Icone nom="exporter" taille={18} />
-            <span className="notak-pdf-libelle">{t('pdf.telecharger')}</span>
-          </a>
+          {bouton('exporter', t('pdf.telecharger.titre'), () => void telechargerFichier(adresse, contenu.nom, 'application/pdf'), { court: t('pdf.telecharger') })}
           {aDesTraits &&
             bouton('telechargerAnnote', t('pdf.telechargerAnnote'), () => void telechargerAnnote(), {
               court: t('pdf.telechargerAnnote.court'),
@@ -727,6 +725,7 @@ export function VisionneusePdf({
           {t('pdf.commenter.consigne')}
         </div>
       )}
+      <BandeauAvis enGrand />
     </div>,
     document.body,
   )

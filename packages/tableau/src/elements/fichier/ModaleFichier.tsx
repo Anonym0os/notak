@@ -1,7 +1,9 @@
 import type { Element, Fichier } from '../../coeur/tableau'
+import { BandeauAvis } from '../../avis'
 import { Dialogue } from '../../communs'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
+import { telechargerFichier } from '../../telecharger'
 import type { ContexteToile } from '../types'
 import { ICONE_DU_GENRE, genreDe, lisible, seLitEnLigne, tailleLisible } from './genre'
 import { LecteurSon, LecteurVideo } from './lecteur'
@@ -52,9 +54,9 @@ export function ModaleFichier({
       <div className="notak-fenetre-meta">
         <span className="notak-fenetre-titre">{titre}</span>
         <span className="notak-fenetre-details">
-          <a href={adresse} download={c.nom}>
+          <button type="button" className="notak-fichier-lien" onClick={() => void telechargerFichier(adresse, c.nom, c.typeMime)}>
             {t('fichier.telecharger')}
-          </a>
+          </button>
           {' - '}
           {tailleLisible(c.taille)}
         </span>
@@ -65,6 +67,7 @@ export function ModaleFichier({
   return (
     <Dialogue nu className="notak-fenetre" etiquette={titre} voile="sombre" fermer={fermer} hote={document.body}>
       {corps}
+      <BandeauAvis enGrand />
     </Dialogue>
   )
 }

@@ -1,5 +1,6 @@
 import { type ReactNode, type SyntheticEvent, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { BandeauAvis } from '../avis'
 import { refuserLeDepot, useCouvrirLaToile, useTenirLaPlaceEnPartant } from './enGrand'
 
 /**
@@ -194,6 +195,7 @@ export function Surcouche({ etiquette, className, fermer, surTouche, children }:
             }}
           >
             {children}
+            <BandeauAvis enGrand />
           </div>,
           document.body,
         )}

@@ -14,7 +14,7 @@
  *
  * Ce fichier est chargé avant tout le reste (`main.tsx`) : il ne tire qu'`appareil.ts`, ni la toile ni les textes.
  */
-import { type FenetreAvecCoque, estMobile, idiome, marquerAppareil, plateforme } from './appareil'
+import { type FenetreAvecCoque, estMobile, idiome, marquerAppareil, partagerFichier, peutPartager, plateforme } from './appareil'
 
 interface Tauri {
   invoke<T>(commande: string, arguments_?: unknown, options?: { headers?: Record<string, string> }): Promise<T>
@@ -34,6 +34,14 @@ export const dansCoque = (fenetre: Window = window): boolean => coque(fenetre) !
 
 /** Dans l'app de bureau : la coque d'un ordinateur, la seule qui ait les commandes de `lib.rs`. */
 export const estBureau = (fenetre: Window = window): boolean => dansCoque(fenetre) && !estMobile(plateforme(fenetre as unknown as FenetreAvecCoque))
+
+/**
+ * La coque reçoit les téléchargements de la page et les range dans Téléchargements (`telechargements.rs`) : elle le dit
+ * avant tout script. Une coque d'avant ne le dit pas ; la page d'un serveur plus récent qu'elle passe par « Enregistrer
+ * sous ».
+ */
+export const coqueTelecharge = (fenetre: Window = window): boolean =>
+  estBureau(fenetre) && (fenetre as unknown as { __NOTAK_TELECHARGEMENTS__?: unknown }).__NOTAK_TELECHARGEMENTS__ === true
 
 /** Une commande de la coque (`apps/bureau/src-tauri/src/lib.rs`) ; hors de l'app de bureau, une erreur. */
 export function invoquer<T>(commande: string, arguments_?: unknown, options?: { headers?: Record<string, string> }): Promise<T> {
@@ -421,8 +429,9 @@ export function ouvrirDehors(adresse: string, fenetre: Window = window): void {
  * Un lien vers un autre site, cliqué dans la page, s'ouvre dans le navigateur de la personne. Sans cela, la fenêtre de
  * Notak partirait sur ce site, sans bouton pour revenir. La coque le fait pour toute nouvelle fenêtre (`target="_blank"`,
  * `window.open`) et refuse toute autre navigation (`navigation.rs`) : on fait donc passer chaque lien par là.
- * Un lien de l'application (même protocole, même hôte) se suit sur place ; un téléchargement (`download`) de la page
- * passe par « Enregistrer sous », la webview ne téléchargeant rien d'elle-même. Un lien dans un texte en cours
+ * Un lien de l'application (même protocole, même hôte) se suit sur place. Un téléchargement (`download`) d'un fichier
+ * de la page, la coque d'un ordinateur le range dans Téléchargements ; sur un iPhone ou un iPad, il passe par la feuille
+ * de partage, et dans une coque d'avant ses téléchargements, par « Enregistrer sous ». Un lien dans un texte en cours
  * d'écriture ne s'ouvre pas au clic, comme dans un navigateur ; un lien d'une autre sorte (`javascript:`, `file:`…) ne
  * s'ouvre pas du tout.
  */
@@ -439,9 +448,11 @@ export function garderLesLiens(fenetre: Window = window): void {
     }
     if (lien.hasAttribute('download')) {
       const lisible = adresseLisible(adresse.href, fenetre)
+      // La coque le prend elle-même ; pas des `data:`, dont elle ne sait d'où ils viennent.
+      if (lisible && coqueTelecharge(fenetre) && lisible.protocol !== 'data:') return
       if (lisible) {
         e.preventDefault()
-        void telechargerIci(lisible, lien.getAttribute('download') || undefined)
+        void telechargerIci(lisible, lien.getAttribute('download') || undefined, fenetre)
         return
       }
     }
@@ -451,11 +462,26 @@ export function garderLesLiens(fenetre: Window = window): void {
   })
 }
 
-async function telechargerIci(u: URL, nom: string | undefined): Promise<void> {
+async function telechargerIci(u: URL, nom: string | undefined, fenetre: Window): Promise<void> {
   try {
     const { octets, type } = await octetsA(u)
-    await enregistrerSous(octets, nomDeFichier(nom, u, type))
+    const retenu = nomDeFichier(nom, u, type)
+    const fichier = new Blob([octets as Uint8Array<ArrayBuffer>], type ? { type } : {})
+    const f = fenetre as unknown as FenetreAvecCoque
+    if (peutPartager(f)) await partagerFichier(fichier, retenu, f)
+    else if (coqueTelecharge(fenetre)) telechargerParLaCoque(fichier, retenu, fenetre)
+    else await enregistrerSous(octets, retenu)
   } catch (e) {
     console.warn('Notak : téléchargement impossible', e)
   }
+}
+
+/** Des octets de la page que la coque range dans Téléchargements : un lien vers eux, hors du document. */
+function telechargerParLaCoque(fichier: Blob, nom: string, fenetre: Window) {
+  const adresse = URL.createObjectURL(fichier)
+  const a = fenetre.document.createElement('a')
+  a.href = adresse
+  a.download = nom
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(adresse), 60_000)
 }

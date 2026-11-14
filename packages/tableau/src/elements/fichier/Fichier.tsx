@@ -5,6 +5,7 @@ import type { PropsOutils, PropsRendu } from '../types'
 import { ICONE_DU_GENRE, aApercuAbsent, apercuDe, genreDe, lisible, seLitEnLigne, tailleLisible } from './genre'
 import { t } from '../../langue'
 import { annoncer } from '../../avis'
+import { telechargerFichier } from '../../telecharger'
 import { Icone } from '../../icones'
 import { BoutonOutil } from '../../BoutonOutil'
 import { LecteurSon, LecteurVideo } from './lecteur'
@@ -136,9 +137,9 @@ export function RenduFichier({ element, enEdition, contexte, brouillon }: PropsR
                 <span className="notak-fichier-details">
                   {adresse && !enRoute && (
                     <>
-                      <a href={adresse} download={c.nom} onPointerDown={garder}>
+                      <button type="button" className="notak-fichier-lien" onPointerDown={garder} onClick={() => void telechargerFichier(adresse, c.nom, c.typeMime)}>
                         {t('fichier.telecharger')}
-                      </a>
+                      </button>
                       {' - '}
                       {ouvrable && (
                         <>

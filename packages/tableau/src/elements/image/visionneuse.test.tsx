@@ -164,7 +164,12 @@ describe('ce que la visionneuse charge', () => {
     ecran(700, 600, 1)
     await ouvrir(grande)
     expect(peinte()).toBe('/api/fichiers/ab?l=800')
-    expect(document.querySelector('.notak-visionneuse-barre a[download]')!.getAttribute('href')).toBe('/api/fichiers/ab')
+    const liens: { href: string | null; download: string }[] = []
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      liens.push({ href: this.getAttribute('href'), download: this.download })
+    })
+    await act(async () => document.querySelector<HTMLButtonElement>('.notak-visionneuse-barre button[aria-label="Télécharger"]')!.click())
+    expect(liens).toEqual([{ href: '/api/fichiers/ab', download: 'image.jpg' }])
     act(() => boutonOuvrir()!.click())
     expect(onglet).toHaveBeenCalledWith('/api/fichiers/ab', '_blank', 'noopener,noreferrer')
   })

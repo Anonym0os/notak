@@ -1,10 +1,9 @@
-import type { Element } from '../../coeur/tableau'
+import type { Element, Fichier, Image } from '../../coeur/tableau'
+import { ECART_TELECHARGEMENTS_MS, EXTENSIONS, telechargerFichier } from '../../telecharger'
 import type { ContexteToile } from '../types'
 
-const EXTENSIONS: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp', 'image/svg+xml': 'svg', 'image/avif': 'avif' }
-
 /** Ce qu'on peut télécharger : une image, un fichier. */
-const telechargeable = (e: Element): e is Element & { contenu: { fichier: string } } => e.contenu.type === 'image' || e.contenu.type === 'fichier'
+const telechargeable = (e: Element): e is Element<Image | Fichier> => e.contenu.type === 'image' || e.contenu.type === 'fichier'
 
 export const peutTelecharger = (elements: Element[], contexte: ContexteToile) =>
   !!contexte.services.fichiers && elements.length > 0 && elements.every(telechargeable)
@@ -13,19 +12,21 @@ export const peutTelecharger = (elements: Element[], contexte: ContexteToile) =>
 export function nomTelecharge(c: Element['contenu']): string {
   if (c.type === 'fichier') return c.nom
   const mime = c.type === 'image' ? c.typeMime : undefined
-  return `image.${(mime && EXTENSIONS[mime]) ?? 'png'}`
+  return `image.${(mime?.startsWith('image/') && EXTENSIONS[mime]) || 'png'}`
 }
 
-/** Télécharge l'original de chaque image ou fichier choisi, tel qu'il a été envoyé. */
+/**
+ * Télécharge l'original de chaque image ou fichier choisi, tel qu'il a été envoyé, l'un après l'autre, à un instant
+ * d'écart : l'app de Mac ne garderait que le dernier de liens suivis coup sur coup (`ECART_TELECHARGEMENTS_MS`).
+ */
 export async function telecharger(elements: Element[], contexte: ContexteToile) {
+  let premier = true
   for (const e of elements) {
     if (!telechargeable(e)) continue
     const adresse = await contexte.services.fichiers?.adresse(e.contenu.fichier)
     if (!adresse) continue
-    const a = document.createElement('a')
-    a.href = adresse
-    a.download = nomTelecharge(e.contenu)
-    a.rel = 'noopener'
-    a.click()
+    if (!premier) await new Promise((fin) => setTimeout(fin, ECART_TELECHARGEMENTS_MS))
+    premier = false
+    await telechargerFichier(adresse, nomTelecharge(e.contenu), e.contenu.typeMime)
   }
 }

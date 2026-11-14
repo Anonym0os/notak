@@ -992,7 +992,13 @@ describe('les gestes', () => {
       // Un PDF s'ouvre dans la visionneuse de Notak, celle de la toile.
       await act(async () => tuile('voyage/billets').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
       expect(document.querySelector('.notak-pdf')!.getAttribute('aria-label')).toBe('Billets')
-      expect(document.querySelector('.notak-pdf a[download]')!.getAttribute('href')).toBe('/api/fichiers/f-billets')
+      const liens: { href: string | null; download: string }[] = []
+      const clic = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+        liens.push({ href: this.getAttribute('href'), download: this.download })
+      })
+      onTestFinished(() => clic.mockRestore())
+      await act(async () => document.querySelector<HTMLButtonElement>('.notak-pdf button[aria-label="Télécharger le PDF d’origine"]')!.click())
+      expect(liens).toEqual([{ href: '/api/fichiers/f-billets', download: 'billets-tap.pdf' }])
       expect(location.pathname).toBe('/')
     })
 

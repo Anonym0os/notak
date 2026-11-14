@@ -27,6 +27,7 @@ import { type Ancre, useInsertions } from './Insertions'
 import { TYPE_GLISSE } from './OngletIcones'
 import { type Fragment, boitesDeBranche, choisirParGenre, contenuZone, extraire, rectAutour } from './modele/insertions'
 import { Icone } from '../../icones'
+import { telechargerFichier } from '../../telecharger'
 import { type Boite, type Disposition, disposer, ecartsDe, emprise } from './disposition'
 import { gesteDe } from './modele/clavier'
 import { resumesValides, sujetsDePlage } from './modele/elements'
@@ -1667,10 +1668,7 @@ export async function ouvrirOuTelecharger(contexte: ContexteToile, fichier: Id, 
   const adresse = await contexte.services.fichiers?.adresse(fichier)
   if (!adresse) return
   if (!enregistrer) return ouvrirDehors(contexte.services, adresse, nom)
-  const lien = document.createElement('a')
-  lien.href = adresse
-  lien.download = nom ?? ''
-  lien.click()
+  await telechargerFichier(adresse, nom ?? '')
 }
 
 /** Zoome de `facteur` autour de `autour` (px de la surface ; son milieu par défaut). */

@@ -56,11 +56,6 @@ html[data-plateforme='ios'][data-clavier] .app-panneau {
   transition: max-height var(--clavier-duree) ease-out;
 }
 
-/* Le sélecteur natif « Enregistrer sous » n'existe pas : rien ne doit laisser croire à un téléchargement. */
-html[data-mobile] a[download] {
-  cursor: default;
-}
-
 /* La page /diagnostic : une carte qui défile, des listes serrées, un carré où dessiner. */
 .diagnostic {
   align-items: start;

@@ -7,15 +7,17 @@ const serveur = vi.fn()
 const reglages = vi.fn()
 const passerLaPorte = vi.fn()
 const compte = vi.fn()
+const telechargements = vi.fn()
 
 beforeEach(() => {
   vi.resetModules()
-  for (const f of [locale, serveur, reglages, passerLaPorte, compte]) f.mockReset()
+  for (const f of [locale, serveur, reglages, passerLaPorte, compte, telechargements]) f.mockReset()
   vi.doMock('../edition/locale', () => (locale(), {}))
   vi.doMock('../edition/serveur', () => (serveur(), {}))
   vi.doMock('./ReglagesBureau', () => ({ brancherReglagesBureau: reglages }))
   vi.doMock('./Porte', () => ({ passerLaPorte }))
   vi.doMock('./CompteEtServeur', () => ({ brancherReglagesCompte: compte }))
+  vi.doMock('../telechargements', () => ({ brancherTelechargements: telechargements }))
 })
 afterEach(() => {
   delete (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
@@ -25,6 +27,7 @@ afterEach(() => {
   vi.doUnmock('./ReglagesBureau')
   vi.doUnmock('./Porte')
   vi.doUnmock('./CompteEtServeur')
+  vi.doUnmock('../telechargements')
 })
 
 const dansLeBureau = () => {
@@ -44,6 +47,8 @@ describe('le démarrage de l’app web', () => {
     expect(serveur).not.toHaveBeenCalled()
     expect(passerLaPorte).not.toHaveBeenCalled()
     expect(reglages).not.toHaveBeenCalled()
+    // Le navigateur garde ses téléchargements : rien à régler.
+    expect(telechargements).not.toHaveBeenCalled()
   })
 
   it('dans un navigateur, l’édition serveur se monte seule', async () => {
@@ -72,6 +77,8 @@ describe('le démarrage de l’app web', () => {
     dansLeBureau()
     await demarrer()
     expect(reglages).toHaveBeenCalledOnce()
+    // Et ses téléchargements : Téléchargements sur un Mac, la feuille de partage sur un iPhone.
+    expect(telechargements).toHaveBeenCalledOnce()
   })
 
   it('sur la page d’un serveur, l’édition serveur se monte tout de suite, sans porte, avec la rubrique des réglages', async () => {

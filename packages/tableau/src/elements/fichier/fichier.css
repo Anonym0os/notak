@@ -139,7 +139,7 @@
   user-select: text;
 }
 
-/* Les détails : 18 px de haut, 12 px, le gris tertiaire ; les liens sont soulignés. */
+/* Les détails : 18 px de haut, 12 px, le gris tertiaire ; les liens (Télécharger, Ouvrir) sont soulignés. */
 .notak-fichier-details {
   min-height: 18px;
   color: #8d929a;
@@ -147,24 +147,19 @@
   line-height: 18px;
 }
 
-.notak-fichier-details a,
-.notak-fichier-lien {
-  color: inherit;
-  text-decoration: underline;
-}
-
-.notak-fichier-details a:hover,
-.notak-fichier-lien:hover {
-  color: var(--notak-texte);
-}
-
 .notak-fichier-lien {
   margin: 0;
   padding: 0;
   border: 0;
   background: none;
+  color: inherit;
   font: inherit;
+  text-decoration: underline;
   cursor: pointer;
+}
+
+.notak-fichier-lien:hover {
+  color: var(--notak-texte);
 }
 
 .notak-fichier-details .notak-roue {
@@ -480,11 +475,6 @@ img.notak-fichier-pdf {
 .notak-fenetre-details {
   color: #8d929a;
   font-size: 12px;
-}
-
-.notak-fenetre-details a {
-  color: inherit;
-  text-decoration: underline;
 }
 
 .notak-fenetre-legende {

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs'
 import { URL as UrlDeNode } from 'node:url'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import {
   FICHIER_OUVERT,
   acces,
@@ -462,7 +462,7 @@ describe('les liens dans l’app de bureau', () => {
     expect(ouvertes).toEqual(['http://localhost:3000/'])
   })
 
-  it('un téléchargement de la page passe par « Enregistrer sous »', async () => {
+  it('dans une app de Mac d’avant ses téléchargements, un téléchargement de la page passe par « Enregistrer sous »', async () => {
     ouvertes.length = 0
     vi.stubGlobal(
       'fetch',
@@ -481,6 +481,60 @@ describe('les liens dans l’app de bureau', () => {
       ['ecrire_fichier', new Uint8Array([1, 2])],
     ])
     expect(ouvertes).toEqual([])
+  })
+
+  /** La coque d'aujourd'hui, ou d'un iPhone : ce qu'elle pose avant tout script. */
+  const poser = (marques: Record<string, unknown>) => {
+    Object.assign(window, marques)
+    onTestFinished(() => {
+      for (const cle of Object.keys(marques)) delete (window as unknown as Record<string, unknown>)[cle]
+    })
+  }
+
+  it('l’app de Mac d’aujourd’hui range elle-même dans Téléchargements le fichier d’un lien de la page', () => {
+    ouvertes.length = 0
+    const { appels } = poserCoque()
+    poser({ __NOTAK_PLATEFORME__: 'macos', __NOTAK_TELECHARGEMENTS__: true })
+    document.body.innerHTML = '<a id="blob" href="blob:http://localhost:3000/0b6f" download="carte">b</a><a id="meme" href="/f/plan.png" download>p</a>'
+    expect(cliquer('#blob').defaultPrevented).toBe(false)
+    expect(cliquer('#meme').defaultPrevented).toBe(false)
+    expect(appels).toEqual([])
+    expect(ouvertes).toEqual([])
+  })
+
+  it('elle ne télécharge pas des `data:` : la page en fait un fichier à elle', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(new Uint8Array([1, 2]), { headers: { 'content-type': 'image/png' } })),
+    )
+    const { createObjectURL, revokeObjectURL } = URL
+    URL.createObjectURL = () => 'blob:http://localhost:3000/copie'
+    URL.revokeObjectURL = () => {}
+    onTestFinished(() => void Object.assign(URL, { createObjectURL, revokeObjectURL }))
+    const liens: { href: string; download: string; dansLaPage: boolean }[] = []
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      liens.push({ href: this.href, download: this.download, dansLaPage: this.isConnected })
+    })
+    onTestFinished(() => void vi.restoreAllMocks())
+    const { appels } = poserCoque()
+    poser({ __NOTAK_PLATEFORME__: 'macos', __NOTAK_TELECHARGEMENTS__: true })
+    document.body.innerHTML = '<a id="data" href="data:image/png;base64,AQI=" download="pixel">d</a>'
+    expect(cliquer('#data').defaultPrevented).toBe(true)
+    await vi.waitFor(() => expect(liens).toEqual([{ href: 'blob:http://localhost:3000/copie', download: 'pixel.png', dansLaPage: false }]))
+    expect(appels).toEqual([])
+  })
+
+  it('sur un iPhone ou un iPad, un téléchargement de la page passe par la feuille de partage', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(new Uint8Array([1, 2]), { headers: { 'content-type': 'image/png' } })),
+    )
+    const { appels } = poserCoque((a) => (a.commande === 'plugin:appareil|partager' ? { fait: true } : null))
+    poser({ __NOTAK_PLATEFORME__: 'ios' })
+    document.body.innerHTML = '<a id="blob" href="blob:http://localhost:3000/0b6f" download="carte">b</a>'
+    expect(cliquer('#blob').defaultPrevented).toBe(true)
+    await vi.waitFor(() => expect(appels.map((a) => a.commande)).toEqual(['plugin:appareil|partager']))
+    expect(appels[0]!.arguments_).toEqual({ nom: 'carte.png', donnees: btoa(String.fromCharCode(1, 2)) })
   })
 
   it('un lien d’une autre sorte ne s’ouvre nulle part', () => {

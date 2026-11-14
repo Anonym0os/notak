@@ -47,6 +47,15 @@ async function ouvrir(services: Partial<ContexteToile['services']> = {}, fermer 
 
 const visionneuse = () => document.querySelector<HTMLElement>('.notak-pdf')!
 const bouton = (nom: string) => document.querySelector<HTMLButtonElement>(`.notak-pdf [aria-label="${nom}"]`)!
+/** Ce que le bouton télécharge : le lien qu'il fait suivre. */
+function telechargeAuClic(b: HTMLButtonElement) {
+  const liens: { href: string | null; download: string }[] = []
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+    liens.push({ href: this.getAttribute('href'), download: this.download })
+  })
+  act(() => b.click())
+  return liens
+}
 const touche = (key: string, plus: KeyboardEventInit = {}) =>
   act(() => void document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...plus })))
 
@@ -83,10 +92,10 @@ describe('la visionneuse PDF', () => {
       expect(bouton(nom), nom).not.toBeNull()
       expect(bouton(nom).title).toBe(nom)
     }
-    const telecharger = bouton('Télécharger le PDF d’origine') as unknown as HTMLAnchorElement
-    expect(telecharger.getAttribute('href')).toBe('/api/fichiers/f1')
-    expect(telecharger.getAttribute('download')).toBe('devis.pdf')
+    const telecharger = bouton('Télécharger le PDF d’origine')
+    expect(telecharger.title).toBe('Télécharger le PDF d’origine')
     expect(telecharger.textContent).toBe('Télécharger')
+    expect(telechargeAuClic(telecharger)).toEqual([{ href: '/api/fichiers/f1', download: 'devis.pdf' }])
   })
 
   it('le zoom : 100 % à l’ouverture sur un grand écran, ses crans, puis ajusté à la largeur', async () => {
@@ -178,7 +187,7 @@ describe('télécharger avec les annotations', () => {
     expect(bouton(ANNOTE)).toBeNull()
     await ouvrir({}, vi.fn(), annote)
     expect(bouton(ANNOTE)).not.toBeNull()
-    expect(bouton('Télécharger le PDF d’origine')!.getAttribute('href')).toBe('/api/fichiers/f1')
+    expect(telechargeAuClic(bouton('Télécharger le PDF d’origine'))).toEqual([{ href: '/api/fichiers/f1', download: 'devis.pdf' }])
   })
 
   it('demande d’abord où enregistrer, puis y écrit le PDF avec ses traits', async () => {

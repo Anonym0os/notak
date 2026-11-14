@@ -1,12 +1,13 @@
 /**
  * Où va un export : la personne le choisit d'abord, puis le fichier s'y écrit.
  * - dans Notak de bureau (la coque Tauri) : la fenêtre « Enregistrer sous » du système, puis la coque écrit les
- *   octets (la webview de macOS ne télécharge rien d'elle-même) ;
+ *   octets (un téléchargement, lui, va droit dans Téléchargements : `telechargements.ts`) ;
  * - dans Chrome et Edge sur ordinateur : la fenêtre « Enregistrer sous » du navigateur ;
- * - ailleurs (Safari, Firefox, téléphone) : un téléchargement, qui va où le navigateur range les siens.
+ * - ailleurs (Safari, Firefox, téléphone) : un téléchargement, qui va où le navigateur range les siens
+ *   (`telechargerFichier`, comme ceux de la toile).
  * L'emplacement se demande au clic, avant de fabriquer le fichier : la fenêtre n'en veut pas après une longue attente.
  */
-import { ErreurExport } from '@notak/tableau'
+import { ErreurExport, telechargerFichier } from '@notak/tableau'
 import { partagerFichier, peutPartager } from './appareil'
 
 export interface Emplacement {
@@ -39,14 +40,9 @@ const fenetre = () => window as unknown as AvecSelecteur
 const tactile = () => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
 const annule = (e: unknown) => e instanceof DOMException && e.name === 'AbortError'
 
-/** Le téléchargement ordinaire d'un navigateur. */
+/** Le téléchargement ordinaire d'un navigateur, celui de la toile. */
 export function telecharger(blob: Blob, nom: string) {
-  const adresse = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = adresse
-  a.download = nom
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(adresse), 10_000)
+  void telechargerFichier(blob, nom)
 }
 
 /** L'emplacement choisi, ou `null` si la personne a renoncé. */

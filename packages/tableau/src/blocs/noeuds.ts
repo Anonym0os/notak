@@ -7,6 +7,7 @@ import { Citation } from '../elements/note/noeuds'
 import type { ChercheurApercu } from '../elements/types'
 import type { Apercu } from '../coeur/tableau'
 import { t } from '../langue'
+import { telechargerFichier } from '../telecharger'
 import { attributsDepuisApercu } from './apercu'
 import { blocsChoisis } from './selection'
 
@@ -364,12 +365,7 @@ export const ImageBloc = Node.create<OptionsImage>({
       const telecharger = () => {
         // L'image d'un fichier de l'espace (`blob:`), ou une image du web ; rien d'autre ne part au clic.
         if (!img.src || !(img.src.startsWith('blob:') || adresseSure(img.src, 'image'))) return
-        const a = document.createElement('a')
-        a.href = img.src
-        a.download = String(node.attrs.legende || 'image')
-        a.target = '_blank'
-        a.rel = 'noopener noreferrer'
-        a.click()
+        void telechargerFichier(img.src, String(node.attrs.legende || 'image'))
       }
       const ecrireLegende = () => {
         figure.append(legende)

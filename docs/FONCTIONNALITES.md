@@ -208,7 +208,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Image rognée sur la grille (jamais étirée), carte 2 px plus petite que la grille | ✅ | « Rogner l'image sur la grille de points » décoche pour garder les proportions exactes. |
 | Frappe directe sur une image choisie = début de sa légende ; Entrée l'ouvre | ✅ | → Notak : la légende aussi au clic droit (Ajouter, Modifier, Retirer la légende), et au doigt par l'appui long et le « ••• » des gestes rapides ; l'infobulle de la tuile « Légende » apprend la frappe directe. |
 | Outil Transparent, Dessiner dessus, Légende après l'arrangement | ✅ | Pivoter, Recadrer, Détourer restent dans « ••• ». |
-| Télécharger l'image d'origine, Remplacer l'image | ✅ | |
+| Télécharger l'image d'origine, Remplacer l'image | ✅ | Comme tout téléchargement de la toile (`telecharger.ts`) : dans l'app de Mac, le fichier va dans Téléchargements, annoncé avec « Afficher dans le Finder » (même par-dessus la visionneuse) ; sur iPhone et iPad, la feuille de partage ; plusieurs images partent l'une après l'autre. |
 | Pivoter vers la gauche, miroirs horizontal et vertical (à l'écran, après le quart de tour) | ✅ | |
 | Redimensionner avec Cmd : cadrage libre (4 × 4 UG au moins, l'image recouvre le cadre), double-clic sur la poignée qui le retire | ✅ | |
 | Palette de l'image (dix couleurs dominantes) dans les couleurs suggérées | ✅ | Lue à l'arrivée d'une image ; les images déjà posées n'en ont pas. |

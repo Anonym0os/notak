@@ -4,7 +4,7 @@ import '@notak/tableau/toile.css'
 import './app.css'
 import './styles/ios.css'
 import { estMobile } from './appareil'
-import { coque, estBureau, marquerBureau, peutJoindreUnServeur } from './bureau'
+import { coque, dansCoque, estBureau, marquerBureau, peutJoindreUnServeur } from './bureau'
 import { brancherMenuNatif } from './menuNatif'
 import { brancherPrecedentSuivant } from './precedentSuivant'
 import { simulerCoqueSiDemandee } from './ios/coqueSimulee'
@@ -21,6 +21,8 @@ brancherMenuNatif()
 // Sur un iPhone ou un iPad : le thème du système au premier lancement, la vue native au fond du thème, le clavier suivi.
 if (estMobile()) void import('./ios/demarrage').then((m) => m.demarrerMobile(window, coque()!))
 
+// Dans l'app, les téléchargements de la toile : Téléchargements sur un Mac, la feuille de partage sur un iPhone ou un iPad.
+if (dansCoque()) void import('./telechargements').then((m) => m.brancherTelechargements())
 // Dans l'app de bureau, les réglages (⌘,) gagnent leur rubrique « App de bureau », quelle que soit l'édition.
 if (estBureau()) void import('./bureau/ReglagesBureau').then((m) => m.brancherReglagesBureau())
 // Au téléphone, les réglages ouvrent sur le compte et son serveur : dans l'édition serveur, et dans l'app qui peut en joindre un.
