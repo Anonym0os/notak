@@ -38,5 +38,15 @@ export function arriveeDe(source: Rect, p: Point, cible: { id: Id; rect: Rect } 
   return contient(source, vise) ? null : { extremite: { x, y }, vise, rect: null }
 }
 
-/** Le coin haut droit d'un élément, où se pose la poignée. */
-export const coinPoignee = (r: Rect): Point => point(r.max.x, r.min.y)
+/** L'arrondi d'un coin, en UG : ses deux rayons, l'horizontal et le vertical (un arrondi en pourcentage est elliptique). */
+export interface Arrondi {
+  x: number
+  y: number
+}
+
+/**
+ * Le coin haut droit d'un élément, où se pose la poignée. Sa carte arrondie (un habillage arrondit les cartes, 10 px chez
+ * Silak), le coin de sa boîte tombe dans le vide, hors de la carte : la poignée se pose sur l'arrondi, à 45°.
+ */
+export const coinPoignee = (r: Rect, arrondi: Arrondi = { x: 0, y: 0 }): Point =>
+  point(r.max.x - arrondi.x * (1 - Math.SQRT1_2), r.min.y + arrondi.y * (1 - Math.SQRT1_2))

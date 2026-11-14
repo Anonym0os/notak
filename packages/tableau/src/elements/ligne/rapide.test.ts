@@ -47,4 +47,13 @@ describe('ligne rapide, où se pose le bout lâché', () => {
   it('la poignée se pose au coin haut droit', () => {
     expect(coinPoignee(source)).toEqual(point(20, 0))
   })
+
+  it('sur une carte arrondie, la poignée se pose sur l’arrondi, à 45°, et non sur le coin de sa boîte', () => {
+    // Un arrondi de 1 UG (10 px) : 1 − √2/2 ≈ 0,29 UG vers l'intérieur, sur chaque axe.
+    const coin = coinPoignee(source, { x: 1, y: 1 })
+    expect(coin.x).toBeCloseTo(20 - 0.2929, 4)
+    expect(coin.y).toBeCloseTo(0.2929, 4)
+    // Le point est bien sur le quart de cercle du coin : à 1 UG de son centre (19, 1).
+    expect(Math.hypot(coin.x - 19, coin.y - 1)).toBeCloseTo(1, 6)
+  })
 })
