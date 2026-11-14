@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 // Le chemin passe par une variable : écrit en dur dans `new URL`, Vite le changerait en adresse d'asset.
 const fichier = './fichier.css'
+const fichierToile = '../../toile.css'
 const css = readFileSync(new URL(fichier, import.meta.url), 'utf8')
 /** Les déclarations d'une règle, du sélecteur exact à son accolade fermante. */
 const regle = (selecteur: string) => {
@@ -46,6 +47,21 @@ describe('le nom d’un fichier reste dans sa carte', () => {
     const champ = regle('.notak-fichier-champ')
     expect(champ).toMatch(/text-overflow: ellipsis;/)
     expect(champ).toMatch(/width: 100%;/)
+  })
+
+  it('soulevé pendant un glisser, la feuille porte une ombre de la taille de la carte : le nom et la taille y tiennent', () => {
+    // Le fond clair arrondi de la capture de Samy : l'ombre de vol de la carte (toile.css), posée sur toute sa boîte,
+    // arrondie comme elle. La boîte contient le texte de la feuille, de sa largeur ; il ne déborde plus de ses bords.
+    const toile = readFileSync(new URL(fichierToile, import.meta.url), 'utf8')
+    const debut = toile.indexOf("\n.notak-carte[data-vol]:not([data-type='tableau'])::after {")
+    expect(debut).toBeGreaterThanOrEqual(0)
+    const vol = toile.slice(debut, toile.indexOf('}', debut))
+    expect(vol).toMatch(/inset: 0;/)
+    expect(vol).toMatch(/border-radius: inherit;/)
+    expect(vol).toMatch(/box-shadow: var\(--notak-ombre-vol\);/)
+    // Rien ne retire cette ombre à la feuille d'un fichier (comme fait le document) sans retirer aussi le débordement.
+    expect(css).not.toMatch(/\[data-type='fichier'\][^{]*::after\s*\{[^}]*display: none/)
+    expect(regle('.notak-fichier-texte')).toMatch(/width: 100%;/)
   })
 
   it('dans une colonne, la feuille à gauche, le texte reprend la place qui reste, sans marge ni retrait', () => {
