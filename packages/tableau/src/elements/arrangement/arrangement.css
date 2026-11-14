@@ -27,3 +27,14 @@
 .notak-arrangement-menu button:hover {
   color: var(--notak-accent);
 }
+
+/* Le menu de « Répartir », quand deux axes sont possibles : les lignes du menu commun, nommées, avec leurs raccourcis. */
+.notak-arrangement-axes {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 3;
+  width: max-content;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}

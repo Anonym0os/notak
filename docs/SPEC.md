@@ -248,7 +248,8 @@ collage en fait des copies. Le menu « Coller » colle au point cliqué.
   (croquis, couleur, document, audio, carte, vidéo, titre), puis image, fichier, dessin ; la corbeille en bas,
   qui accepte les dépôts.
 - **Barre de sélection** : outils propres au type sélectionné (couleur, étiquette, réaction, commentaire, aligner
-  dès 2 éléments, répartir dès 3, relier, menu « … »).
+  dès 2 éléments, répartir dès 3, relier, menu « … »). → Notak : « Répartir » agit d'un clic sur une rangée (en
+  largeur) ou une colonne (en hauteur) ; quand les deux axes sont possibles, son menu les nomme.
 - **Menu contextuel de la toile** : coller, annuler, rétablir, tout sélectionner, créer, fond du tableau.
 - **Menu contextuel d'un élément** : couper, copier, coller le style, dupliquer, cloner, corbeille, renommer, ouvrir
   dans une fenêtre, grouper en colonne, convertir, verrouiller, premier plan, arrière-plan.

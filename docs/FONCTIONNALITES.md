@@ -324,7 +324,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Copier, couper, coller, dupliquer (Cmd+C, X, V, D) | ✅ | Couper masque sans corbeille et le collage déplace les mêmes éléments (ailleurs : copie puis retrait de l'original) ; un nouveau copier ou Cmd+Z les fait reparaître. Du texte collé sur une image en devient la légende. |
 | Alt+glisser duplique | ✅ | Alt est lue au dépôt, comme chez Milanote. |
 | Aligner (Alt+A, D, W, S, H, V) | ✅ | |
-| Répartir (Cmd+Alt+Maj+H, V) | ✅ | |
+| Répartir (Cmd+Alt+Maj+H, V) | ✅ | Un clic répartit une rangée en largeur, une colonne en hauteur ; une grille ou une diagonale ouvre le menu des deux axes, nommés. Le premier reste, les écarts sont égaux à l'UG près ; ce qui se chevauche sur l'axe ne bouge pas, une colonne d'une grille bouge d'un bloc. Un élément verrouillé est ignoré. |
 | Aligner les centres sur la valeur commune | ✅ | |
 | Premier plan, arrière-plan (Cmd+Maj+↑, ↓), d'un cran | ✅ | |
 | Menu du clic droit, sur la toile et sur un élément | ✅ | Ordre de Milanote, coche à droite, création limitée à huit types, rien en lecture seule. Sous-menu « Changer l'arrière-plan » (cinq couleurs du canevas, couleur libre en direct, grille de points, retour au défaut, par tableau) ; métadonnées « Créé par… / Modifié par… » avec avatar (trace gardée dans le document partagé). |
