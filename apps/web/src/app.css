@@ -569,13 +569,92 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   gap: 6px;
 }
 
-/* Le choix entre une adresse et une équipe prend sa propre ligne, au-dessus. */
-.partage-form .partage-cible {
-  flex: 1 1 100%;
-}
-
 .partage-form input {
   flex: 1;
+}
+
+/* Le champ d'invitation : la personne choisie s'y pose en pastille, à gauche de ce qu'on tape, comme dans Drive. */
+.partage-inviter {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 36px;
+  border-radius: 10px;
+  background-color: var(--app-champ);
+  box-shadow: inset 0 0 0 1px var(--app-filet);
+  cursor: text;
+  transition: box-shadow 0.12s ease;
+}
+
+.partage-inviter:focus-within {
+  box-shadow: inset 0 0 0 1.5px var(--accent), 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.partage-form .partage-inviter input,
+.partage-form .partage-inviter input:focus {
+  min-width: 48px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.partage-choisi {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  max-width: 70%;
+  margin-left: 4px;
+  padding: 2px;
+  border-radius: 15px;
+  background: var(--app-choisi);
+  font-size: 13px;
+}
+
+.partage-choisi > span:not(.app-pastille) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.partage-choisi .app-pastille {
+  width: 24px;
+  height: 24px;
+  font-size: 11px;
+}
+
+.partage-choisi .app-icone-bouton {
+  width: 22px;
+  height: 22px;
+}
+
+/* Les propositions, sous le champ : chaque personne par sa photo, son nom, son adresse et son espace. */
+.partage-propositions {
+  display: flex;
+  flex: 1 1 100%;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 248px;
+  margin: 0 -6px;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.partage-propositions li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 4px 6px;
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.partage-propositions li[aria-selected='true'] {
+  background: var(--app-survol);
 }
 
 .partage-form .bouton,

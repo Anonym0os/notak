@@ -2,8 +2,14 @@
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { type Moi, etatVerrou, poserMotDePasse } from './api'
+import { type Moi, type PersonneProposee, etatVerrou, poserMotDePasse } from './api'
 import { PartageEnFenetre } from './Partage'
+
+const CLEO: PersonneProposee = { id: 'cleo', nom: 'Cléo', email: 'cleo@x.fr', couleur: '#3366ff', photo: null, espace: 'Silak', invite: false, acces: null }
+const faux = vi.hoisted(() => ({
+  proposerPersonnes: vi.fn(async (_tableau: string, _q: string): Promise<unknown[]> => []),
+  partager: vi.fn(async () => ({ enAttente: false, expire: null })),
+}))
 
 vi.mock('./api', async (origine) => ({
   ...(await origine<typeof import('./api')>()),
@@ -13,6 +19,8 @@ vi.mock('./api', async (origine) => ({
   listerEspaces: async () => [],
   etatVerrou: vi.fn(async () => ({ protege: false })),
   poserMotDePasse: vi.fn(async () => {}),
+  proposerPersonnes: faux.proposerPersonnes,
+  partager: faux.partager,
 }))
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -98,5 +106,53 @@ describe('PartageEnFenetre', () => {
     const bloc = [...hote.querySelectorAll('.partage-lien')].find((b) => b.querySelector('input[type="password"]'))!
     expect(bloc.textContent).not.toContain('généré')
     expect(bloc.querySelector<HTMLInputElement>('input[type="password"]')!.disabled).toBe(false)
+  })
+})
+
+/** Tape dans un champ tenu par React, comme le clavier, puis laisse passer le délai avant que le serveur cherche. */
+const taper = async (champ: HTMLInputElement, texte: string) => {
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ, texte)
+    champ.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await act(async () => new Promise((r) => setTimeout(r, 160)))
+}
+const touche = (champ: Element, key: string) => act(() => void champ.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true })))
+const inviter = (boite: Element) => act(async () => cliquer(boite.querySelector('.partage-form button[type="submit"]')!))
+
+describe('inviter quelqu’un de l’entreprise', () => {
+  beforeEach(() => {
+    faux.proposerPersonnes.mockReset().mockImplementation(async (_t, q) => (q && 'cleo'.startsWith(q.replace('é', 'e')) ? [CLEO] : []))
+    faux.partager.mockClear()
+  })
+
+  it('propose les membres par leur nom dès qu’on tape, et invite la personne choisie sans qu’on sache son adresse', async () => {
+    const boite = await ouvrir(() => {})
+    const champ = boite.querySelector<HTMLInputElement>('input[role="combobox"]')!
+    await act(async () => champ.focus())
+    await taper(champ, 'clé')
+    expect(faux.proposerPersonnes).toHaveBeenLastCalledWith('t', 'clé')
+    const options = boite.querySelectorAll('[role="option"]')
+    expect([...options].map((o) => o.textContent)).toEqual(['CCléocleo@x.fr · Silak'])
+    expect(champ.getAttribute('aria-expanded')).toBe('true')
+
+    await touche(champ, 'Enter')
+    expect(boite.querySelector('.partage-choisi')?.textContent).toContain('Cléo')
+    expect(boite.querySelectorAll('[role="option"]')).toHaveLength(0)
+    await inviter(boite)
+    expect(faux.partager).toHaveBeenCalledWith('t', { email: 'cleo@x.fr' }, 'edition', null)
+    expect(boite.querySelector('.partage-choisi')).toBeNull()
+  })
+
+  it('une adresse entière invite qui n’est pas de l’entreprise ; un nom que rien ne propose demande d’en choisir un', async () => {
+    const boite = await ouvrir(() => {})
+    const champ = boite.querySelector<HTMLInputElement>('input[role="combobox"]')!
+    await taper(champ, 'xavier')
+    await inviter(boite)
+    expect(faux.partager).not.toHaveBeenCalled()
+    expect(boite.querySelector('[role="alert"]')?.textContent).toBe('Choisissez une personne proposée, ou tapez une adresse entière')
+    await taper(champ, 'Xavier@Dehors.fr')
+    await inviter(boite)
+    expect(faux.partager).toHaveBeenCalledWith('t', { email: 'xavier@dehors.fr' }, 'edition', null)
   })
 })

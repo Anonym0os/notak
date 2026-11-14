@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useId, useRef, useState } from 'react'
+import { type FormEvent, type KeyboardEvent, useCallback, useEffect, useId, useRef, useState } from 'react'
 import {
   type Acces,
   type Blocage,
@@ -9,6 +9,7 @@ import {
   type Moi,
   type NiveauVisiteur,
   type Partage as ReponsePartage,
+  type PersonneProposee,
   type Role,
   type RoleDonne,
   adresseInvitation,
@@ -28,16 +29,20 @@ import {
   nouveauLienInvitation,
   partager,
   poserMotDePasse,
+  proposerPersonnes,
   retirerAcces,
   retirerMotDePasse,
 } from './api'
+import { adressePhoto } from './fichiers'
 import { langue, t, tn } from './langue'
 import { Icone } from '@notak/tableau'
 import { usePanneau } from './panneaux'
 
 // Partager un tableau, c'est deux portes, et le panneau les sépare :
 // - des personnes invitées, qui ont un compte : elles modifient, commentent ou lisent, et peuvent n'avoir qu'un accès
-//   temporaire ; une adresse sans compte (ou jamais vérifiée) reçoit une invitation, dont le lien est le seul passage ;
+//   temporaire. Comme dans le « Partager » de Notion et de Drive, on les trouve par leur nom dès qu'on tape : les
+//   membres des espaces d'équipe, avec leur photo, et les équipes. Une adresse sans compte (ou jamais vérifiée) reçoit
+//   une invitation, dont le lien est le seul passage ;
 // - des liens visiteurs, pour qui n'a pas de compte : ils voient le tableau, ou le commentent, jamais ne le modifient.
 //   Un lien par destinataire, chacun avec son échéance et son mot de passe : on en ferme un sans toucher aux autres.
 // La protection du tableau entier (mot de passe, blocage) reste repliée en bas.
@@ -86,14 +91,21 @@ const copier = async (texte: string): Promise<boolean> => {
   }
 }
 
-/** La pastille d'une ligne d'accès : l'initiale de la personne, ou l'icône d'une équipe, d'un lien. */
-function PastilleAcces({ nom, icone }: { nom: string; icone?: 'equipe' | 'lien' }) {
+/**
+ * La pastille d'une ligne d'accès : la photo de la personne, ou son initiale sur sa couleur (celle de son curseur sur la
+ * toile) ; l'icône d'une équipe, d'un lien ; une adresse sans compte reste grise.
+ */
+function PastilleAcces({ nom, icone, photo, couleur }: { nom: string; icone?: 'equipe' | 'lien'; photo?: string | null; couleur?: string }) {
+  const visage = !icone && (!!photo || !!couleur)
   return (
-    <span className="app-pastille app-pastille-neutre" aria-hidden>
-      {icone ? <Icone nom={icone} taille={15} /> : ([...nom.trim()][0]?.toLocaleUpperCase() ?? '?')}
+    <span className={visage ? 'app-pastille' : 'app-pastille app-pastille-neutre'} style={visage && !photo ? { background: couleur } : undefined} aria-hidden>
+      {icone ? <Icone nom={icone} taille={15} /> : photo ? <img src={adressePhoto(photo)} alt="" /> : ([...nom.trim()][0]?.toLocaleUpperCase() ?? '?')}
     </span>
   )
 }
+
+/** Un nom ou une adresse, sans accents ni majuscules : « eloise » trouve « Éloïse », comme le serveur. */
+const pourChercher = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
 
 /** Retirer une ligne : une croix pâle, dont le nom se lit à l'infobulle et au lecteur d'écran. */
 function Retirer({ libelle, disabled, onClick }: { libelle: string; disabled: boolean; onClick(): void }) {
@@ -251,32 +263,118 @@ function Panneau({ tableau, moi, reference, enFenetre, protection }: { tableau: 
   )
 }
 
-/** Inviter une adresse ou une équipe : un rôle, et une durée si l'accès ne doit pas durer. */
+/** Ce qu'on peut choisir dans les propositions du champ : une personne de l'entreprise, ou une équipe. */
+type Proposition = { genre: 'personne'; personne: PersonneProposee } | { genre: 'equipe'; id: string; nom: string; espace: string }
+
+const cleDe = (p: Proposition) => (p.genre === 'personne' ? `p:${p.personne.id}` : `e:${p.id}`)
+const nomDe = (p: Proposition) => (p.genre === 'personne' ? p.personne.nom : p.nom)
+
+/** Une proposition sous le champ : la pastille, le nom, l'adresse et l'espace ; l'accès qu'elle a déjà, à droite. */
+function LigneProposition({ p }: { p: Proposition }) {
+  if (p.genre === 'equipe') {
+    return (
+      <>
+        <PastilleAcces nom={p.nom} icone="equipe" />
+        <span className="partage-qui">
+          <strong>{p.nom}</strong>
+          <small>{[t('partage.equipe'), p.espace].join(' · ')}</small>
+        </span>
+      </>
+    )
+  }
+  const { personne: q } = p
+  return (
+    <>
+      <PastilleAcces nom={q.nom} photo={q.photo} couleur={q.couleur} />
+      <span className="partage-qui">
+        <strong>{q.nom}</strong>
+        <small>{[q.email, q.invite ? t('partage.inviteEspace', { espace: q.espace }) : q.espace].join(' · ')}</small>
+      </span>
+      {q.acces && <span className="partage-role">{t('partage.aDejaAcces', { role: LIBELLE_ROLE[q.acces]().toLocaleLowerCase(langue()) })}</span>}
+    </>
+  )
+}
+
+/**
+ * Inviter quelqu'un, comme dans le « Partager » de Notion ou de Drive : on tape un nom, et les membres des espaces
+ * d'équipe viennent, avec leur photo, sans qu'il faille connaître leur adresse ; les équipes aussi. Une adresse tapée en
+ * entier invite qui n'est pas de l'entreprise. Puis le rôle, et une durée si l'accès ne doit pas durer.
+ */
 function Inviter({ tableau, apres }: { tableau: string; apres(): void }) {
-  const [email, setEmail] = useState('')
+  const [saisie, setSaisie] = useState('')
+  const [choisi, setChoisi] = useState<Proposition | null>(null)
   const [role, setRole] = useState<RoleDonne>('edition')
   const [expire, setExpire] = useState<number | null>(null)
-  // À qui : une adresse (`''`) ou une équipe (son identifiant).
-  const [equipe, setEquipe] = useState('')
   const [equipes, setEquipes] = useState<(EquipeEspace & { espace: string })[]>([])
+  const [personnes, setPersonnes] = useState<PersonneProposee[]>([])
+  const [liste, setListe] = useState(false)
+  const [actif, setActif] = useState(0)
   const [occupe, setOccupe] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
   const [suite, setSuite] = useState<Suite | null>(null)
+  const champ = useRef<HTMLInputElement>(null)
+  const idListe = useId()
   useEffect(() => {
     void equipesPossibles().then(setEquipes, () => {})
   }, [])
+  // Le serveur cherche à chaque frappe, un instant après la dernière : seule la réponse à la saisie présente compte.
+  useEffect(() => {
+    if (choisi) return
+    let vivant = true
+    const minuteur = setTimeout(
+      () => proposerPersonnes(tableau, saisie.trim()).then((p) => vivant && setPersonnes(p), () => vivant && setPersonnes([])),
+      saisie ? 120 : 0,
+    )
+    return () => {
+      vivant = false
+      clearTimeout(minuteur)
+    }
+  }, [tableau, saisie, choisi])
+
+  const q = pourChercher(saisie.trim())
+  const propositions: Proposition[] = [
+    ...personnes.map((personne) => ({ genre: 'personne' as const, personne })),
+    ...equipes.filter((e) => !q || pourChercher(e.name).includes(q)).map((e) => ({ genre: 'equipe' as const, id: e.id, nom: e.name, espace: e.espace })),
+  ]
+  const montrer = liste && !choisi && propositions.length > 0
+  const rang = Math.max(0, Math.min(actif, propositions.length - 1))
+
+  const choisir = (p: Proposition) => {
+    setChoisi(p)
+    setSaisie('')
+    setListe(false)
+    setErreur(null)
+    champ.current?.focus()
+  }
+  const touche = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (!montrer) return setListe(true)
+      setActif((rang + (e.key === 'ArrowDown' ? 1 : -1) + propositions.length) % propositions.length)
+    } else if (e.key === 'Enter' && montrer) {
+      // Entrée prend la proposition en vue ; une seconde Entrée invite.
+      e.preventDefault()
+      choisir(propositions[rang]!)
+    } else if (e.key === 'Escape' && montrer) {
+      // Échap referme d'abord la liste, sans refermer le panneau.
+      e.preventDefault()
+      e.stopPropagation()
+      setListe(false)
+    } else if (e.key === 'Backspace' && !saisie && choisi) setChoisi(null)
+  }
 
   const envoyer = (e: FormEvent) => {
     e.preventDefault()
-    const adresse = email.trim().toLowerCase()
-    if (!equipe && !/^[^\s@]+@[^\s@]+$/.test(adresse)) return setErreur(t('connexion.adresseInvalide'))
+    const adresse = choisi?.genre === 'personne' ? choisi.personne.email : saisie.trim().toLowerCase()
+    if (choisi?.genre !== 'equipe' && !/^[^\s@]+@[^\s@]+$/.test(adresse)) return setErreur(t(saisie.includes('@') ? 'connexion.adresseInvalide' : 'partage.choisirOuAdresse'))
     setErreur(null)
     setSuite(null)
     setOccupe(true)
-    partager(tableau, equipe ? { equipe } : { email: adresse }, role, expire).then(
+    partager(tableau, choisi?.genre === 'equipe' ? { equipe: choisi.id } : { email: adresse }, role, expire).then(
       (r) => {
         setOccupe(false)
-        if (!equipe) setEmail('')
+        setChoisi(null)
+        setSaisie('')
         if (r.enAttente) setSuite({ email: adresse, ...r })
         apres()
       },
@@ -289,24 +387,66 @@ function Inviter({ tableau, apres }: { tableau: string; apres(): void }) {
 
   return (
     <form className="partage-form" onSubmit={envoyer} noValidate>
-      {equipes.length > 0 && (
-        <select className="partage-cible" value={equipe} aria-label={t('partage.aQui')} onChange={(e) => setEquipe(e.target.value)}>
-          <option value="">{t('partage.uneAdresse')}</option>
-          {equipes.map((q) => (
-            <option key={q.id} value={q.id}>
-              {q.name} · {q.espace}
-            </option>
-          ))}
-        </select>
-      )}
       <div className="partage-form-ligne">
-        {!equipe && (
-          <input type="email" placeholder={t('connexion.adresse')} aria-label={t('partage.adresseInviter')} value={email} onChange={(e) => setEmail(e.target.value)} />
-        )}
-        <button type="submit" className="bouton bouton-plein" disabled={occupe || (!equipe && !email.trim())}>
+        <div className="partage-inviter" onClick={() => champ.current?.focus()}>
+          {choisi && (
+            <span className="partage-choisi">
+              {choisi.genre === 'personne' ? (
+                <PastilleAcces nom={choisi.personne.nom} photo={choisi.personne.photo} couleur={choisi.personne.couleur} />
+              ) : (
+                <PastilleAcces nom={choisi.nom} icone="equipe" />
+              )}
+              <span>{nomDe(choisi)}</span>
+              <button type="button" className="app-icone-bouton" aria-label={`${t('partage.retirer')} ${nomDe(choisi)}`} onClick={() => setChoisi(null)}>
+                <Icone nom="fermer" taille={14} />
+              </button>
+            </span>
+          )}
+          <input
+            ref={champ}
+            role="combobox"
+            aria-expanded={montrer}
+            aria-controls={idListe}
+            aria-autocomplete="list"
+            aria-activedescendant={montrer ? `${idListe}-${rang}` : undefined}
+            autoComplete="off"
+            placeholder={choisi ? '' : t('partage.chercherPersonne')}
+            aria-label={t('partage.adresseInviter')}
+            value={saisie}
+            onChange={(e) => {
+              setSaisie(e.target.value)
+              setChoisi(null)
+              setActif(0)
+              setListe(true)
+            }}
+            onFocus={() => setListe(true)}
+            onBlur={() => setListe(false)}
+            onKeyDown={touche}
+          />
+        </div>
+        <button type="submit" className="bouton bouton-plein" disabled={occupe || (!choisi && !saisie.trim())}>
           {t('partage.inviter')}
         </button>
       </div>
+      {/* Sous le champ, dans le panneau : une liste posée par-dessus serait coupée par son défilement. */}
+      {montrer && (
+        <ul id={idListe} role="listbox" className="partage-propositions" aria-label={t('partage.propositions')}>
+          {propositions.map((p, i) => (
+            <li
+              key={cleDe(p)}
+              id={`${idListe}-${i}`}
+              role="option"
+              aria-selected={i === rang}
+              // Un appui ne retire pas le focus au champ : la liste reste là le temps du clic.
+              onMouseDown={(e) => e.preventDefault()}
+              onPointerEnter={() => setActif(i)}
+              onClick={() => choisir(p)}
+            >
+              <LigneProposition p={p} />
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="partage-form-ligne partage-form-reglages">
         <select value={role} aria-label={t('partage.droit')} onChange={(e) => setRole(e.target.value as RoleDonne)}>
           <option value="edition">{t('partage.edition')}</option>
@@ -384,7 +524,7 @@ function Personnes({ tableau, moi, acces, proprietaire, recharger }: { tableau: 
           ].filter(Boolean)
           return (
             <li key={cle(a)} className={a.enAttente ? 'partage-attente' : undefined}>
-              <PastilleAcces nom={nom} icone={a.equipe ? 'equipe' : undefined} />
+              <PastilleAcces nom={nom} icone={a.equipe ? 'equipe' : undefined} photo={a.photo} couleur={a.couleur} />
               <span className="partage-qui">
                 <strong>{nom}</strong>
                 {detail.length > 0 && <small>{detail.join(' · ')}</small>}

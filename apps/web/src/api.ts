@@ -26,6 +26,9 @@ export interface Acces {
   /** Vide pour qui n'est pas propriétaire : il ne voit que les noms des autres. */
   email: string
   nom?: string
+  /** La couleur et la photo d'un compte (voir `adressePhoto`), pour sa pastille. */
+  couleur?: string
+  photo?: string | null
   role: Role
   enAttente: boolean
   /** Donné sur un tableau parent : il se retire là-haut. */
@@ -517,6 +520,29 @@ export async function accepterInvitationTableau(jeton: string): Promise<string> 
 export async function retirerAcces(tableau: string, cible: Cible): Promise<void> {
   const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/partage`, cible, 'DELETE')
   if (!r.ok) throw await refus(r, { 409: 'erreur.dernier_proprietaire', ...PROPRIETAIRE, ...TABLEAU_ABSENT })
+}
+
+/** Quelqu'un de l'entreprise à qui proposer un tableau : un membre d'un espace d'équipe du compte. */
+export interface PersonneProposee {
+  id: string
+  nom: string
+  email: string
+  couleur: string
+  /** Le fichier de sa photo (voir `adressePhoto`), ou `null`. */
+  photo: string | null
+  /** Le nom de l'espace d'équipe où on l'a trouvée. */
+  espace: string
+  /** Invitée de cet espace : elle n'en voit que ce qu'on lui partage. */
+  invite: boolean
+  /** L'accès qu'elle a déjà sur ce tableau, ou `null`. */
+  acces: Role | null
+}
+
+/** Les personnes dont le nom ou l'adresse contient `q` (sans accents ni majuscules) ; toutes, par leur nom, si `q` est vide. */
+export async function proposerPersonnes(tableau: string, q: string): Promise<PersonneProposee[]> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/personnes?q=${encodeURIComponent(q)}`)
+  if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT })
+  return (await r.json()) as PersonneProposee[]
 }
 
 /** Ce que permet un lien visiteur : voir, ou voir et commenter. Sans compte, on ne modifie jamais rien. */

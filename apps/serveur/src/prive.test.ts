@@ -167,6 +167,42 @@ describe('une toile privée', () => {
   })
 })
 
+describe('les personnes à qui proposer un tableau', () => {
+  it('les membres de son espace, par leur nom sans accents ou leur adresse, avec leur photo et l’accès qu’ils ont déjà', async () => {
+    const e = await silak()
+    await compta(e)
+    await rendrePrive(ana, 'compta', true)
+    m.base.reglerCompte(cleo.utilisateur.id, { couleur: '#3366ff' })
+    type Personne = { id: string; nom: string; email: string; couleur: string; photo: string | null; espace: string; invite: boolean; acces: string | null }
+    const personnes = (q: string) => json<Personne[]>(m.appeler(`/api/tableaux/compta/personnes?q=${encodeURIComponent(q)}`, { compte: ana }))
+    expect(await personnes('cle')).toEqual([
+      { id: cleo.utilisateur.id, nom: 'Cléo', email: cleo.utilisateur.email, couleur: '#3366ff', photo: null, espace: 'Silak', invite: false, acces: null },
+    ])
+    expect((await personnes('BOB@')).map((p) => p.nom)).toEqual(['Bob'])
+    // Sans rien de tapé : tout l'espace, par ordre alphabétique, sans soi.
+    expect((await personnes('')).map((p) => p.nom)).toEqual(['Bob', 'Cléo'])
+    await partager(ana, 'compta', cleo.utilisateur.email)
+    expect((await personnes('cléo'))[0]?.acces).toBe('lecture')
+    // La liste de qui a accès la montre de même, par sa couleur ou sa photo.
+    expect(await json(m.appeler('/api/tableaux/compta/acces', { compte: ana }))).toContainEqual(expect.objectContaining({ nom: 'Cléo', couleur: '#3366ff', photo: null, role: 'lecture' }))
+    // L'annuaire n'est qu'à qui peut partager.
+    expect(await statut(bob, `/api/tableaux/${e.racine}/personnes?q=`)).toBe(403)
+  })
+
+  it('pour un tableau d’un espace personnel, les membres des espaces d’équipe du compte', async () => {
+    await silak()
+    m.tableau(ana, 'perso', 'À moi')
+    const r = await json<{ nom: string; espace: string }[]>(m.appeler('/api/tableaux/perso/personnes?q=', { compte: ana }))
+    expect(r).toEqual([expect.objectContaining({ nom: 'Bob', espace: 'Silak' }), expect.objectContaining({ nom: 'Cléo', espace: 'Silak' })])
+    // Bob, membre de Silak, y trouve Ana et Cléo pour le sien.
+    m.tableau(bob, 'a-bob', 'À Bob')
+    expect(await json(m.appeler('/api/tableaux/a-bob/personnes?q=', { compte: bob }))).toEqual([
+      expect.objectContaining({ nom: 'Ana' }),
+      expect.objectContaining({ nom: 'Cléo' }),
+    ])
+  })
+})
+
 describe('les cartes à taire', () => {
   it('celles qui mènent à une toile illisible, et les lignes qui y tiennent', () => {
     const t = {

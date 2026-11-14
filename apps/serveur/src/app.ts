@@ -167,6 +167,8 @@ const ACTIVITE_DEFAUT = 100
 const ACTIVITE_MAX = 200
 /** Combien de notifications la liste rend au plus. */
 const NOTIFICATIONS_AFFICHEES = 50
+/** Combien de personnes le champ « Partager » propose à la fois, comme les suggestions de Drive. */
+const PERSONNES_PROPOSEES = 8
 /** Combien de jetons d'arrivée un compte garde au plus, et la longueur de leur nom. */
 const JETONS_ARRIVEE_MAX = 20
 const NOM_JETON_MAX = 60
@@ -832,7 +834,8 @@ export function creerApp(ctx: Contexte): Hono {
       const m = base.utilisateurParId(id)
       if (!m) return []
       const soi = id === g.u.id
-      return [{ utilisateur: m.id, email: gerant || soi ? m.email : '', nom: m.nom, role: r, enAttente: false, herite, expire: gerant || soi ? expire : null }]
+      // Sa photo et sa couleur, comme sur la toile : on reconnaît un visage avant un nom.
+      return [{ utilisateur: m.id, email: gerant || soi ? m.email : '', nom: m.nom, couleur: m.couleur, photo: m.photo ?? null, role: r, enAttente: false, herite, expire: gerant || soi ? expire : null }]
     })
     if (!gerant) return c.json(membres)
     const emails = new Set<string>()
@@ -1224,6 +1227,48 @@ export function creerApp(ctx: Contexte): Hono {
     fermerConnexions(g.id)
     if (ligne?.parent) ctx.synchro()?.closeConnections(nomDuDocument(ligne.parent))
     return c.json(accesGeneral(g.id, g.u, g.role))
+  })
+
+  /** Un nom ou une adresse, sans accents ni majuscules, pour qu'« eloise » trouve « Éloïse ». */
+  const pourChercher = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+
+  // Les personnes à qui proposer ce tableau, par leur nom ou leur adresse, comme le champ « Partager » de Notion ou de
+  // Drive : les membres de son espace d'équipe, ou, pour un tableau d'un espace personnel, ceux des espaces d'équipe
+  // du compte. Chacune avec sa photo, sa couleur, et l'accès qu'elle a déjà ici (`acces`, `null` sinon). Réservé à qui
+  // peut partager : les autres ne voient pas l'annuaire.
+  app.get('/api/tableaux/:id/personnes', async (c) => {
+    const g = await garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    const q = pourChercher(texte(c.req.query('q')).trim()).slice(0, 80)
+    const espace = base.tableau(g.id)?.espace
+    const ici = espace ? base.espace(espace) : null
+    const espaces = ici && !ici.personnel ? [ici] : base.espacesDe(g.u.id).filter((e) => !e.personnel)
+    const trouves = new Map<string, { utilisateur: Utilisateur; espace: string; invite: boolean }>()
+    for (const e of espaces) {
+      for (const m of base.membresEspace(e.id)) {
+        if (m.utilisateur === g.u.id || trouves.has(m.utilisateur)) continue
+        const p = base.utilisateurParId(m.utilisateur)
+        if (!p || (q && !pourChercher(`${p.nom} ${p.email}`).includes(q))) continue
+        trouves.set(p.id, { utilisateur: p, espace: e.nom, invite: m.role.split(',').every((r) => r.trim() === 'guest') })
+      }
+    }
+    const choisis = [...trouves.values()].sort((a, b) => a.utilisateur.nom.localeCompare(b.utilisateur.nom)).slice(0, PERSONNES_PROPOSEES)
+    return c.json(
+      await Promise.all(
+        choisis.map(async ({ utilisateur: p, espace: nom, invite }) => ({
+          id: p.id,
+          nom: p.nom,
+          email: p.email,
+          couleur: p.couleur,
+          photo: p.photo ?? null,
+          espace: nom,
+          invite,
+          acces: await roleSur(p.id, g.id),
+        })),
+      ),
+      200,
+      { 'cache-control': 'no-store' },
+    )
   })
 
   /** Le tableau tel qu'il est maintenant : le document en direct s'il est ouvert, sinon le dernier état enregistré. */
