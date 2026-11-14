@@ -143,22 +143,15 @@ export function dossiersGeneres(sources: readonly SourceRattachement[], rattache
 
 /**
  * Ce que la synchro garde d'un document, lu à son ouverture : le dossier généré qu'il est (son `meta`), et les cartes
- * de dossiers générés qu'il porte. `null` : il n'a rien à garder, et ses mises à jour passent sans contrôle. Ce qu'un
- * outil demande, et ce que Notak fait lui-même, ne passe pas par là.
+ * de dossiers générés. Tout document l'est, dès qu'un outil est déclaré : une toile qui n'en portait aucune à
+ * l'ouverture n'en reçoit pas une seconde (une carte glissée d'une toile à l'autre y laissait son double). `null` :
+ * aucun outil, et les mises à jour passent sans ce contrôle. Ce qu'un outil demande, et ce que Notak fait lui-même, ne
+ * passe pas par là.
  */
 export function gardeDesDossiers(o: { base: Base; sources: () => readonly SourceRattachement[] }): (tableau: string) => Garde | null {
   const genere = (id: string) => dossiersGeneres(o.sources(), o.base.rattachementsDe([id])).has(id)
-  return (tableau) => {
-    const sources = o.sources()
-    if (sources.length === 0) return null
-    const ligne = o.base.contenus([tableau]).find((l) => l.genre === 'toile')
-    const lu = ligne ? (JSON.parse(ligne.resume) as { cartes?: string[]; jetees?: string[] }) : {}
-    const portees = [...(lu.cartes ?? []), ...(lu.jetees ?? [])]
-    const generes = dossiersGeneres(sources, o.base.rattachementsDe([tableau, ...portees]))
-    if (!generes.has(tableau) && !portees.some((id) => generes.has(id))) return null
-    // La carte se juge à chaque geste : un dossier généré depuis l'ouverture (une fiche neuve) est gardé aussitôt.
-    return { meta: generes.has(tableau), carte: genere }
-  }
+  // La carte se juge à chaque geste : un dossier généré depuis l'ouverture (une fiche neuve) est gardé aussitôt.
+  return (tableau) => (o.sources().length === 0 ? null : { meta: genere(tableau), carte: genere })
 }
 
 /** Le titre d'un dossier : sans blancs autour, borné, et à défaut la clé de la fiche. */

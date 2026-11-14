@@ -25,7 +25,7 @@ interface ContexteConnexion {
   auteur: string
   /** Commentateur, ou tableau dont des éléments ont leurs propres droits : chaque mise à jour se vérifie. */
   controle: boolean
-  /** Ce que ce document porte des dossiers générés par un outil : chaque mise à jour se vérifie aussi. */
+  /** Les dossiers générés par un outil, dès qu'un outil est déclaré : chaque mise à jour se vérifie aussi. */
   garde?: Garde
 }
 
@@ -54,7 +54,7 @@ export function creerHocuspocus(
   expirer?: () => Promise<unknown>,
   /** Prévenu des cartes de toiles jetées ou remises à chaque enregistrement, avec qui l'a fait (`suivreLesDossiers`). */
   surCartes?: (changement: ChangementDeCartes, par: Acteur | undefined) => void,
-  /** Ce qu'aucune connexion ne change dans ce document (`gardeDesDossiers`), lu à son ouverture ; `null` : rien. */
+  /** Ce qu'aucune connexion ne change dans ce document (`gardeDesDossiers`), lu à son ouverture ; `null` : aucun outil. */
   garder?: (tableau: string) => Garde | null,
 ): Hocuspocus {
   const activite = suivreActivite(base, maintenant)

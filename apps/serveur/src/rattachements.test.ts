@@ -529,6 +529,16 @@ describe('de bout en bout, par la synchro', () => {
       const relu = await ouvrir(dupont)
       expect([relu.getMap('meta').get('titre'), relu.getMap('elements').has('n1')]).toEqual(['Dupont', true])
       expect(((await (await appeler('/api/rattachements/crm/societe:1', ana)).json()) as { etat: string }).etat).toBe('present')
+      // Une toile qui ne portait aucune de leurs cartes à l'ouverture n'en reçoit pas une seconde ; un raccourci, si.
+      expect((await appeler('/api/tableaux', ana, { id: 'toile-a-cote', titre: 'À côté' })).status).toBe(201)
+      const cote = await ouvrir('toile-a-cote')
+      const carteVers = (id: string, en: Record<string, unknown> = {}) => ({ id, x: 0, y: 0, largeur: 10, plan: 'a0', contenu: { type: 'tableau', cible: dupont, ...en } })
+      cote.getMap('elements').set('double', carteVers('double'))
+      await attendre(() => !cote.getMap('elements').has('double'))
+      cote.getMap('elements').set('raccourci', carteVers('raccourci', { raccourci: true }))
+      const cote2 = await ouvrir('toile-a-cote')
+      await attendre(() => cote2.getMap('elements').has('raccourci'))
+      expect(cote2.getMap('elements').has('double')).toBe(false)
     } finally {
       for (const f of fermer) f()
       await serveur.fermer()
