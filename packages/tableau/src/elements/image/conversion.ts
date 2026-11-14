@@ -1,5 +1,6 @@
 import { TAILLE_MAX, TYPES_ACCEPTES } from './geometrie'
 import { type Entete, FENETRE_ENTETE, formatDe, lireEntete } from './entete'
+import { lireTransparence } from './lecture'
 
 /**
  * Les photos qu'il faut redessiner avant de les envoyer : un HEIC (le format de l'iPhone, que ni Chrome ni le serveur
@@ -74,11 +75,18 @@ export type Refus = 'heic' | 'taille' | 'illisible'
 /** Une image prête à partir : le fichier à envoyer (le même, ou sa copie redessinée) et son en-tête, s'il dit tout. */
 export type Prete = { fichier: File; entete: Entete | null } | { refus: Refus }
 
+/** Ce qui, pour préparer une image, demande un vrai navigateur : à part, pour que les essais s'en passent. */
+export interface OutilsPreparation {
+  redessiner: typeof redessiner
+  lireTransparence: typeof lireTransparence
+}
+
 /**
  * Prépare une image pour la toile : le type vient de ses octets (pas de son nom), un HEIC devient un JPEG, une
- * photo trop lourde une copie plus petite. `redessiner` est à part pour que les essais s'en passent.
+ * photo trop lourde une copie plus petite.
  */
-export async function preparerImage(f: File, refaire: typeof redessiner = redessiner): Promise<Prete> {
+export async function preparerImage(f: File, outils: Partial<OutilsPreparation> = {}): Promise<Prete> {
+  const refaire = outils.redessiner ?? redessiner
   let debut: Uint8Array
   try {
     debut = new Uint8Array(await f.slice(0, FENETRE_ENTETE).arrayBuffer())
@@ -97,13 +105,17 @@ export async function preparerImage(f: File, refaire: typeof redessiner = redess
   const entete = lireEntete(debut)
   const fichier = type === f.type ? f : new File([f], f.name, { type, lastModified: f.lastModified })
   if (fichier.size <= TAILLE_MAX) return { fichier, entete }
-  // Trop lourde : une photo (JPEG) ou une image (PNG, transparence gardée) se réduit ; un GIF y perdrait son animation.
+  // Trop lourde : une photo (JPEG) ou une image (PNG) se réduit ; un GIF y perdrait son animation.
   const reductible = (type === 'image/jpeg' || type === 'image/png') && fichier.size <= TAILLE_REDESSINABLE
   if (!reductible || (entete && entete.largeur * entete.hauteur > PIXELS_DECODABLES)) return { refus: 'taille' }
-  const copie = await refaire(fichier, type)
+  // Un PNG sans transparence est le plus souvent une photo collée (le presse-papiers du Mac les donne ainsi) : en JPEG,
+  // elle tient sous la limite ; un PNG transparent le reste, pour ne pas perdre son détourage.
+  const opaque = type === 'image/png' && (await (outils.lireTransparence ?? lireTransparence)(fichier)) === false
+  const cible = type === 'image/jpeg' || opaque ? 'image/jpeg' : 'image/png'
+  const copie = await refaire(fichier, cible)
   if (!copie || copie.size > TAILLE_MAX) return { refus: 'taille' }
   return {
-    fichier: new File([copie], fichier.name, { type, lastModified: f.lastModified }),
+    fichier: new File([copie], cible === type ? fichier.name : nomEnJpeg(fichier.name), { type: cible, lastModified: f.lastModified }),
     entete: lireEntete(new Uint8Array(await copie.slice(0, FENETRE_ENTETE).arrayBuffer())),
   }
 }
