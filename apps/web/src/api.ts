@@ -552,6 +552,27 @@ export async function reglerAccesGeneral(tableau: string, prive: boolean): Promi
   return (await r.json()) as AccesGeneral
 }
 
+/**
+ * Ce que dit l'aperçu d'un lien vers ce tableau, dans iMessage, WhatsApp, Slack… : `nom`, son nom (jamais son contenu) ;
+ * sinon « Une toile Notak ». `modifiable` : ce compte gère son partage, et peut le changer.
+ */
+export interface ApercuLien {
+  nom: boolean
+  modifiable: boolean
+}
+
+export async function lireApercuLien(tableau: string): Promise<ApercuLien> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/apercu-lien`)
+  if (!r.ok) throw await refus(r, { ...TABLEAU_ABSENT })
+  return (await r.json()) as ApercuLien
+}
+
+export async function reglerApercuLien(tableau: string, nom: boolean): Promise<ApercuLien> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/apercu-lien`, { nom }, 'PUT')
+  if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT })
+  return (await r.json()) as ApercuLien
+}
+
 /** Quelqu'un de l'entreprise à qui proposer un tableau : un membre d'un espace d'équipe du compte. */
 export interface PersonneProposee {
   id: string

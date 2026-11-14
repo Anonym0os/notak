@@ -896,6 +896,35 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   font-size: 12.5px;
 }
 
+/* Le nom de la toile dans l'aperçu de ses liens (iMessage, WhatsApp, Slack) : une case, sous « Copier le lien ». */
+.partage-apercu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.partage-apercu-choix {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.partage-pied .partage-apercu-choix input {
+  align-self: auto;
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--app-plein);
+}
+
+.partage-apercu .partage-note {
+  padding-left: 23px;
+}
+
 .partage-ligne-reglage {
   display: flex;
   flex: 1 1 100%;

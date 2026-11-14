@@ -17,6 +17,8 @@ const faux = vi.hoisted(() => {
     listerAcces: vi.fn(async (_tableau: string): Promise<unknown[]> => [proprietaire]),
     lireAccesGeneral: vi.fn(async (_tableau: string) => ({ ...ouverte })),
     reglerAccesGeneral: vi.fn(async (_tableau: string, prive: boolean) => ({ ...ouverte, prive })),
+    lireApercuLien: vi.fn(async (_tableau: string) => ({ nom: true, modifiable: true })),
+    reglerApercuLien: vi.fn(async (_tableau: string, nom: boolean) => ({ nom, modifiable: true })),
   }
 })
 
@@ -32,6 +34,8 @@ vi.mock('./api', async (origine) => ({
   partager: faux.partager,
   lireAccesGeneral: faux.lireAccesGeneral,
   reglerAccesGeneral: faux.reglerAccesGeneral,
+  lireApercuLien: faux.lireApercuLien,
+  reglerApercuLien: faux.reglerApercuLien,
 }))
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -239,6 +243,30 @@ describe('l’accès général', () => {
     await act(async () => bouton().click())
     expect(ecrire).toHaveBeenLastCalledWith(`${location.origin}/t/t/e/page-1`)
     history.replaceState(null, '', '/')
+  })
+
+  it('le nom dans l’aperçu du lien : coché par défaut, décoché par qui gère le partage, absent pour les autres', async () => {
+    let boite = await ouvrir(() => {})
+    const choix = () => boite.querySelector<HTMLInputElement>('.partage-apercu input[type="checkbox"]')
+    expect(choix()!.checked).toBe(true)
+    expect(boite.querySelector('.partage-apercu')!.textContent).toContain('Montrer le nom dans l’aperçu du lien')
+    await act(async () => choix()!.click())
+    expect(faux.reglerApercuLien).toHaveBeenLastCalledWith('t', false)
+    expect(choix()!.checked).toBe(false)
+    expect(boite.querySelector('.partage-apercu')!.textContent).toContain('lien visiteur compris, dit seulement « Une toile Notak »')
+    act(() => racine.render(<></>))
+
+    // Refusé par le serveur : la case revient où elle était, et l'erreur se dit.
+    faux.reglerApercuLien.mockRejectedValueOnce(new Error('Seul un propriétaire peut le faire'))
+    boite = await ouvrir(() => {})
+    await act(async () => choix()!.click())
+    expect(choix()!.checked).toBe(true)
+    expect(boite.querySelector('.partage-apercu [role="alert"]')!.textContent).toBe('Seul un propriétaire peut le faire')
+    act(() => racine.render(<></>))
+
+    faux.lireApercuLien.mockResolvedValueOnce({ nom: true, modifiable: false })
+    boite = await ouvrir(() => {})
+    expect(choix()).toBeNull()
   })
 
   it('le bouton « Partager » d’une toile privée porte un cadenas, et son nom le dit', async () => {

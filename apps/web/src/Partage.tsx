@@ -2,6 +2,7 @@ import { type FormEvent, type KeyboardEvent, useCallback, useEffect, useId, useR
 import {
   type Acces,
   type AccesGeneral,
+  type ApercuLien,
   type Blocage,
   type Cible,
   type EquipeEspace,
@@ -20,6 +21,7 @@ import {
   etatVerrou,
   fermerLien,
   lireAccesGeneral,
+  lireApercuLien,
   listerAcces,
   listerBlocages,
   listerEquipes,
@@ -33,6 +35,7 @@ import {
   poserMotDePasse,
   proposerPersonnes,
   reglerAccesGeneral,
+  reglerApercuLien,
   retirerAcces,
   retirerMotDePasse,
 } from './api'
@@ -398,6 +401,51 @@ function CopierLeLien({ tableau, general }: { tableau: string; general: AccesGen
       </button>
       <small className="partage-note">{espace ? t('partage.lienPourEspace', { espace }) : t('partage.lienPourInvites')}</small>
       {copie === false && <input className="champ" readOnly aria-label={t('partage.adresseToile')} value={adresse} onFocus={(e) => e.target.select()} />}
+      <NomDansLApercu tableau={tableau} />
+    </div>
+  )
+}
+
+/**
+ * Ce que montre un lien vers la toile collé dans iMessage, WhatsApp, Slack ou un courriel : son nom, par défaut, jamais
+ * son contenu. Qui gère le partage peut le masquer ; l'aperçu ne dit plus alors que « Une toile Notak », pour ses liens
+ * visiteurs aussi. Les autres n'ont pas la case.
+ */
+function NomDansLApercu({ tableau }: { tableau: string }) {
+  const [reglage, setReglage] = useState<ApercuLien | null>(null)
+  const [erreur, setErreur] = useState<string | null>(null)
+  useEffect(() => {
+    let vivant = true
+    lireApercuLien(tableau).then(
+      (r) => vivant && setReglage(r),
+      () => {},
+    )
+    return () => {
+      vivant = false
+    }
+  }, [tableau])
+  if (!reglage?.modifiable) return null
+  const changer = (nom: boolean) => {
+    const avant = reglage
+    setErreur(null)
+    setReglage({ ...reglage, nom })
+    reglerApercuLien(tableau, nom).then(setReglage, (x: Error) => {
+      setReglage(avant)
+      setErreur(x.message)
+    })
+  }
+  return (
+    <div className="partage-apercu">
+      <label className="partage-apercu-choix">
+        <input type="checkbox" checked={reglage.nom} onChange={(e) => changer(e.target.checked)} />
+        {t('partage.nomDansLApercu')}
+      </label>
+      <small className="partage-note">{reglage.nom ? t('partage.nomDansLApercuOui') : t('partage.nomDansLApercuNon')}</small>
+      {erreur && (
+        <p className="connexion-erreur" role="alert">
+          {erreur}
+        </p>
+      )}
     </div>
   )
 }
