@@ -8,29 +8,49 @@ import { t } from '../langue'
  * qu'on le permette, comme sur la toile elle-même. Sans fournisseur, aucune image ne se charge : on voit le genre.
  */
 export interface SourceVignettes {
-  adresse(fichier: string): Promise<string | null>
+  /**
+   * `largeur` : en pixels de l'écran, ce que la vignette montre ; une copie réduite suffit, quand la source sait en
+   * servir (un serveur, `?l=`). Sans elle, le fichier entier (une photo ouverte seule).
+   */
+  adresse(fichier: string, largeur?: number): Promise<string | null>
   distant(tableau: string): boolean
 }
 const ContexteVignettes = createContext<SourceVignettes | null>(null)
 export const FournisseurVignettes = ContexteVignettes.Provider
 
+/** Une vignette est large de tant de pixels au plus, colonne la plus large comprise ; la densité de l'écran s'y ajoute. */
+const LARGEUR_VIGNETTE = 260
+export const largeurDesVignettes = (densite = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1) =>
+  Math.ceil(LARGEUR_VIGNETTE * Math.min(3, Math.max(1, densite)))
+
 /** L'adresse d'un fichier, une fois connue ; `null` tant qu'elle ne l'est pas, ou s'il est introuvable. */
-function useAdresse(fichier: string | undefined): string | null {
+function useAdresse(fichier: string | undefined, largeur?: number): string | null {
   const source = useContext(ContexteVignettes)
   const [adresse, setAdresse] = useState<string | null>(null)
   useEffect(() => {
     setAdresse(null)
     if (!fichier || !source) return
     let vivant = true
-    source.adresse(fichier).then(
+    source.adresse(fichier, largeur).then(
       (a) => vivant && setAdresse(a),
       () => {},
     )
     return () => {
       vivant = false
     }
-  }, [fichier, source])
+  }, [fichier, largeur, source])
   return adresse
+}
+
+/**
+ * Une photo trop haute ou trop large pour la tuile s'y montre entière, sur le fond de la vignette, comme le Finder et
+ * Fichiers montrent les leurs : la recadrer en couperait plus du quart (une photo en hauteur n'y garderait qu'une
+ * bande, les têtes coupées). Les autres la remplissent, centrées.
+ */
+export const photoEntiere = (largeur: number, hauteur: number) => {
+  if (!(largeur > 0 && hauteur > 0)) return false
+  const [r, tuile] = [largeur / hauteur, VL / VH]
+  return 1 - Math.min(r / tuile, tuile / r) > 0.25
 }
 
 /**
@@ -41,7 +61,7 @@ function useAdresse(fichier: string | undefined): string | null {
 export function Vignette({ resume, tableau }: { resume: ResumeContenu; tableau?: string }) {
   if (resume.genre === 'document') return <VignetteDocument titre={resume.titre} lignes={resume.lignes} />
   if (resume.genre === 'arbre') return <VignetteCarte central={resume.titre} branches={resume.branches} />
-  if (resume.genre === 'image') return <VignettePhoto fichier={resume.petite ?? resume.fichier} />
+  if (resume.genre === 'image') return <VignettePhoto fichier={resume.petite ?? resume.fichier} largeur={resume.largeur} hauteur={resume.hauteur} />
   if (resume.genre === 'lien') return <VignetteLien resume={resume} tableau={tableau} />
   if (resume.genre === 'fichier') return <VignetteFichier nom={resume.nom} typeMime={resume.typeMime} />
   // Une toile qui se montre en dossier : l'icône d'un dossier, comme dans Fichiers.
@@ -242,11 +262,14 @@ export function VignetteDocument({ titre, lignes }: { titre: string; lignes: str
 }
 
 
-/** Une photo : elle-même, recadrée au format de la tuile ; en attendant, un fond neutre. */
-function VignettePhoto({ fichier }: { fichier: string }) {
-  const adresse = useAdresse(fichier)
+/**
+ * Une photo : elle-même, au format de la tuile et centrée, ou entière quand la recadrer la couperait trop
+ * (`photoEntiere`) ; une copie réduite à la taille de la tuile, pas l'original. En attendant, un fond neutre.
+ */
+function VignettePhoto({ fichier, largeur, hauteur }: { fichier: string; largeur: number; hauteur: number }) {
+  const adresse = useAdresse(fichier, largeurDesVignettes())
   return (
-    <span className="biblio-vignette" data-genre="image" aria-hidden>
+    <span className="biblio-vignette" data-genre="image" data-cadrage={photoEntiere(largeur, hauteur) ? 'entier' : undefined} aria-hidden>
       {adresse ? <img src={adresse} alt="" loading="lazy" decoding="async" draggable={false} /> : <Icone nom="fichierImage" taille={32} />}
     </span>
   )
@@ -258,7 +281,7 @@ const adresseWeb = (a: string | undefined) => (a && /^https:\/\//i.test(a) ? a :
 /** Un lien : l'image qu'on lui a choisie, sinon celle de la page (si la toile le permet), et son site. */
 function VignetteLien({ resume, tableau }: { resume: Extract<ResumeContenu, { genre: 'lien' }>; tableau?: string }) {
   const source = useContext(ContexteVignettes)
-  const choisie = useAdresse(resume.fichierImage)
+  const choisie = useAdresse(resume.fichierImage, largeurDesVignettes())
   const permis = !!source && (!tableau || source.distant(tableau))
   const image = choisie ?? (permis ? adresseWeb(resume.image) : undefined)
   const icone = permis ? adresseWeb(resume.favicon) : undefined

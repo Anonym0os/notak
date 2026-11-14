@@ -3349,11 +3349,22 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   font-size: 12.5px;
 }
 
-/* Une photo, l'aperçu d'un lien : l'image remplit la vignette, recadrée. */
+/*
+ * Une photo, l'aperçu d'un lien : l'image remplit la vignette, recadrée au centre. Posée sur toute la vignette : dans
+ * la grille qui centre son contenu, sa hauteur suivait la sienne, et une photo en hauteur ne montrait que son haut.
+ */
 .biblio-vignette > img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: 50% 50%;
+}
+
+/* Une photo que le recadrage couperait trop (en hauteur, panoramique) : entière, sur le fond de la vignette. */
+.biblio-vignette[data-cadrage='entier'] > img {
+  object-fit: contain;
 }
 
 /* Un dossier : son icône, au milieu d'un fond teinté de l'accent. */

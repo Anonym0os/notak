@@ -334,8 +334,17 @@ interface Glisse {
 /** Une toile, une carte ou un document entre dans les récents du compte. */
 const noterVuEntree = (e: Pick<EntreeBibliotheque, 'tableau' | 'element'>) => (e.element ? noterElementVu(e.tableau, e.element) : noterVuToile(e.tableau))
 
-/** Sur un serveur, les photos viennent de ses fichiers ; ses toiles laissent venir l'aperçu d'un lien. */
-const VIGNETTES_SERVEUR: SourceVignettes = { adresse: (f) => fichiersServeur.adresse(f), distant: () => true }
+/**
+ * Sur un serveur, les photos viennent de ses fichiers, réduites à la largeur d'une vignette (`?l=`) : l'original d'un
+ * appareil photo pèse des dizaines de fois plus. Ses toiles laissent venir l'aperçu d'un lien.
+ */
+const VIGNETTES_SERVEUR: SourceVignettes = {
+  adresse: async (f, largeur) => {
+    const a = await fichiersServeur.adresse(f)
+    return a && largeur ? `${a}${a.includes('?') ? '&' : '?'}l=${largeur}` : a
+  },
+  distant: () => true,
+}
 
 /** Le pointeur à moins de tant de pixels du haut ou du bas de la page la fait défiler, pendant un cadre ou un glisser. */
 const BORD_DEFILEMENT = 48
