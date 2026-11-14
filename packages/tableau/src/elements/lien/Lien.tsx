@@ -283,13 +283,15 @@ function Carte({ element, choisie, seule, enEdition, contexte, brouillon }: Prop
   const ecrire = (champ: 'titre' | 'legende', v: string) => brouillon({ ...contenu, [champ]: v })
 
   // Le domaine ouvre toujours le lien ; le titre tant que la carte n'est pas choisie seule (alors, on le renomme).
-  // L'appui va à la toile, qui glisse ou choisit la carte : seul un clic sans mouvement ouvre la page.
+  // L'appui va à la toile, qui glisse ou choisit la carte : seul un clic sans mouvement ouvre la page. Le titre, coupé
+  // après trois lignes, se lit en entier au survol (`bulle`).
   const appui = useRef<{ x: number; y: number } | null>(null)
   const renomme = choisie && !!seule
-  const lien = (children: React.ReactNode, classe: string, toujours: boolean) => (
+  const lien = (children: React.ReactNode, classe: string, toujours: boolean, bulle?: string) => (
     <a
       className={classe}
       href={adresseSure(url)}
+      title={bulle}
       target="_blank"
       rel={REL}
       draggable={false}
@@ -342,7 +344,7 @@ function Carte({ element, choisie, seule, enEdition, contexte, brouillon }: Prop
           {partie === 'titre' ? (
             <Champ classe="notak-lien-titre" valeur={titre ?? ''} max={500} toutChoisir ligne ecrire={(v) => ecrire('titre', v)} finir={contexte.finirEdition} />
           ) : (
-            aff.infos && titre && lien(sansOrphelin(titre), 'notak-lien-titre', false)
+            aff.infos && titre && lien(sansOrphelin(titre), 'notak-lien-titre', false, titre)
           )}
           {partie === 'legende' ? (
             <Champ classe="notak-lien-description" valeur={legende ?? ''} debut={debut} ecrire={(v) => ecrire('legende', v)} finir={contexte.finirEdition} />

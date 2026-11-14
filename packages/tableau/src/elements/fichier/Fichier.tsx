@@ -64,10 +64,11 @@ export function RenduFichier({ element, enEdition, contexte, brouillon }: PropsR
       {tailleLisible(c.taille)}
     </>
   )
+  // Le nom coupé (ellipse) se lit en entier au survol ; renommé, le nom d'origine suit sur une seconde ligne.
   const titre = enEdition ? (
     <Nom contenu={c} ecrire={brouillon} finir={contexte.finirEdition} focus={cible === 'nom'} />
   ) : (
-    <span className="notak-fichier-nom" title={c.nom}>
+    <span className="notak-fichier-nom" title={c.titre && c.titre !== c.nom ? `${c.titre}\n${c.nom}` : c.nom}>
       {c.titre ?? c.nom}
     </span>
   )

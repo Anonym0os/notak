@@ -107,15 +107,25 @@
   flex: 1;
 }
 
+/*
+ * Le nom de la carte détaillée tient sur une ligne, et finit sur une ellipse quand il est plus long que la carte : un
+ * nom sans espace ne la déborde pas. Le nom entier se lit au survol (`title`).
+ */
 .notak-fichier-nom {
+  display: block;
+  min-width: 0;
   margin: -4px 0 4px;
+  overflow: hidden;
   font-weight: 600;
-  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+/* Le champ du nom, ou de la légende : hors du curseur, ce qui dépasse finit aussi sur une ellipse. */
 .notak-fichier-champ {
   box-sizing: border-box;
   width: 100%;
+  min-width: 0;
   margin: 0;
   padding: 0;
   border: 0;
@@ -123,6 +133,7 @@
   font: inherit;
   font-weight: 600;
   color: inherit;
+  text-overflow: ellipsis;
   outline: none;
   -webkit-user-select: text;
   user-select: text;
@@ -259,7 +270,7 @@ img.notak-fichier-pdf {
   outline: none;
 }
 
-/* Le mode icône : une feuille de 56 × 72 px, le nom centré dessous (sur 180 px), la taille. */
+/* Le mode icône : une feuille de 56 × 72 px, le nom centré dessous (de la largeur de la carte), la taille. */
 .notak-fichier[data-feuille] {
   display: flex;
   flex-direction: column;
@@ -289,12 +300,19 @@ img.notak-fichier-pdf {
   margin-top: 0;
 }
 
+/*
+ * Le nom et la taille restent dans la carte, de sa largeur : la carte (et son fond, quand une couleur lui en donne un)
+ * grandit en hauteur avec eux, jamais en largeur.
+ */
 .notak-fichier-texte {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 180px;
-  margin: 8px -40px 0;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin: 8px 0 0;
+  padding: 0 4px 4px;
   text-align: center;
 }
 
@@ -306,8 +324,20 @@ img.notak-fichier-pdf {
   font-weight: 500;
 }
 
+/* Sous la feuille, le nom passe à la ligne entre les mots (un mot trop long se coupe), sur trois lignes au plus. */
+.notak-fichier-texte .notak-fichier-nom {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 .notak-fichier-texte .notak-fichier-details {
+  max-width: 100%;
   margin-top: 2px;
+  overflow-wrap: anywhere;
 }
 
 /* Dans une colonne, la feuille passe à gauche et le texte à droite, sur un fond noir à 4 %. */
@@ -331,6 +361,7 @@ img.notak-fichier-pdf {
   min-width: 0;
   width: auto;
   margin: 0;
+  padding: 0;
   align-items: flex-start;
   text-align: left;
 }

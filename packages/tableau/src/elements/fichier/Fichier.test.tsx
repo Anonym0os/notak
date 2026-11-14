@@ -95,6 +95,30 @@ describe('la carte d’un fichier', () => {
     expect(hote.querySelector('img.notak-fichier-pdf')).not.toBeNull()
   })
 
+  it('un nom long se lit en entier au survol, en icône comme en carte, extension comprise', async () => {
+    const nom = "Conditions générales d'accompagnement (CG 2026-17).pdf"
+    await rendre({ nom, taille: 111_000 })
+    const enCarte = hote.querySelector('.notak-fichier-infos .notak-fichier-nom')
+    expect(enCarte?.getAttribute('title')).toBe(nom)
+    expect(enCarte?.textContent).toBe(nom)
+    await rendre({ nom, taille: 111_000, icone: true }, { largeur: 10 })
+    const enIcone = hote.querySelector('.notak-fichier-texte .notak-fichier-nom')
+    expect(enIcone?.getAttribute('title')).toBe(nom)
+    // Le nom et la taille sont dans le texte de la feuille, que la carte contient (voir fichier.css.test.ts).
+    expect(hote.querySelector('.notak-fichier-texte .notak-fichier-details')?.textContent).toBe('111 KB')
+  })
+
+  it('un nom sans espace garde aussi son survol', async () => {
+    const nom = 'Rapport_annuel_final_version_definitive_relue_par_le_comite_2026_v12_ok.pdf'
+    await rendre({ nom, icone: true }, { largeur: 10 })
+    expect(hote.querySelector('.notak-fichier-nom')?.getAttribute('title')).toBe(nom)
+  })
+
+  it('renommé, le survol donne le nom choisi puis celui d’origine', async () => {
+    await rendre({ titre: 'Devis signé' })
+    expect(hote.querySelector('.notak-fichier-nom')?.getAttribute('title')).toBe('Devis signé\ndevis.pdf')
+  })
+
   it('la légende se range dans la carte', async () => {
     await rendre({ legende: 'Version signée' })
     expect(hote.querySelector('.notak-fichier-legende')?.textContent).toBe('Version signée')
