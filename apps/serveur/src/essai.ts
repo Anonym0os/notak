@@ -97,9 +97,18 @@ export interface Monde {
  * `cle` : le monde chiffre au repos, comme un serveur qui a reçu `NOTAK_CLE`. `courriels` : les courriels partent,
  * et s'empilent là. `fermetures` : le nom de chaque document dont la synchro ferme les connexions s'y empile.
  * `autresOrigines` : d’autres pages de Notak (`NOTAK_AUTRES_ORIGINES`), le serveur de Vite en développement.
+ * `dossierWeb` : le serveur sert aussi l'application construite, depuis ce dossier.
  */
 export function monde(
-  options: { cle?: Cle; courriels?: Courriel[]; fermetures?: string[]; rattachements?: SourceRattachement[]; autresOrigines?: readonly string[]; signalements?: boolean } = {},
+  options: {
+    cle?: Cle
+    courriels?: Courriel[]
+    fermetures?: string[]
+    rattachements?: SourceRattachement[]
+    autresOrigines?: readonly string[]
+    signalements?: boolean
+    dossierWeb?: string
+  } = {},
 ): Monde {
   const dossier = mkdtempSync(join(tmpdir(), 'notak-monde-'))
   const base = ouvrirBase(':memory:', options.cle ?? null)
@@ -124,6 +133,7 @@ export function monde(
     ...(options.courriels ? { courrier: { actif: true, envoyer: async (c: Courriel) => void options.courriels!.push(c) } } : {}),
     ...(options.rattachements ? { rattachements: options.rattachements } : {}),
     ...(options.signalements ? { dossierSignalements: join(dossier, 'signalements') } : {}),
+    ...(options.dossierWeb ? { dossierWeb: options.dossierWeb } : {}),
   })
   return {
     base,

@@ -344,6 +344,9 @@ export interface Base {
   definirMotDePasse(tableau: string, portee: Portee, empreinte: string): void
   /** Retire le mot de passe ; rend faux s'il n'y en avait pas. */
   retirerMotDePasse(tableau: string, portee: Portee): boolean
+  /** Le propriétaire a-t-il masqué le nom de ce tableau dans l'aperçu de ses liens (`apercuLien.ts`) ? */
+  nomMasque(tableau: string): boolean
+  masquerNom(tableau: string, masque: boolean): void
   /** Ce compte a-t-il donné le mot de passe de ce tableau ? */
   aOuvert(utilisateur: string, tableau: string): boolean
   noterOuverture(utilisateur: string, tableau: string): void
@@ -904,6 +907,9 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
         return retire
       })
     },
+    nomMasque: (t) => un('SELECT 1 AS ok FROM apercus_sans_nom WHERE tableau = ?', t) !== null,
+    masquerNom: (t, masque) =>
+      void (masque ? executer('INSERT OR IGNORE INTO apercus_sans_nom (tableau) VALUES (?)', t) : executer('DELETE FROM apercus_sans_nom WHERE tableau = ?', t)),
     aOuvert: (u, t) => un('SELECT 1 AS ok FROM ouvertures WHERE utilisateur = ? AND tableau = ?', u, t) !== null,
     noterOuverture: (u, t) => void executer('INSERT OR IGNORE INTO ouvertures (utilisateur,tableau) VALUES (?,?)', u, t),
     favoris: (u) =>

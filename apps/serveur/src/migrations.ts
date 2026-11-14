@@ -557,6 +557,17 @@ CREATE INDEX envois_a_faire ON envois(prochain) WHERE livre IS NULL AND prochain
       if (!colonnes.some((c) => c.name === 'emojis')) db.exec(`ALTER TABLE notifications ADD COLUMN emojis TEXT NOT NULL DEFAULT '';`)
     },
   },
+  {
+    version: 17,
+    nom: 'le nom d’une toile dans l’aperçu de ses liens',
+    // L'aperçu d'un lien vers une toile (iMessage, WhatsApp, Slack…) dit son nom, sauf si son propriétaire l'a masqué :
+    // une ligne ici par toile masquée. Par défaut, aucune : le nom se montre.
+    appliquer(db) {
+      db.exec(`CREATE TABLE IF NOT EXISTS apercus_sans_nom (
+  tableau TEXT PRIMARY KEY REFERENCES tableaux(id) ON DELETE CASCADE
+);`)
+    },
+  },
 ]
 
 /**

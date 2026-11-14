@@ -132,11 +132,11 @@ Toutes se mettent dans le `.env`, sauf les trois dernières, que l'image règle 
 
 | Variable | Par défaut | Ce qu'elle règle |
 |---|---|---|
-| `NOTAK_ORIGINE` | `http://localhost:3005` dans `compose.yaml`, aucune hors de lui (développement) | l'adresse publique du serveur, telle qu'on la tape (`https://notak.exemple.fr`, sans chemin ni `/` final) : liens envoyés, retours de connexion, et l'adresse que l'app de bureau attend |
+| `NOTAK_ORIGINE` | `http://localhost:3005` dans `compose.yaml`, aucune hors de lui (développement) | l'adresse publique du serveur, telle qu'on la tape (`https://notak.exemple.fr`, sans chemin ni `/` final) : liens envoyés, retours de connexion, l'adresse que l'app de bureau attend, et celle des images d'aperçu des liens |
 | `NOTAK_ADRESSE_PUBLIQUE` | `NOTAK_ORIGINE` | l'adresse où un autre appareil joint le serveur, quand elle diffère de `NOTAK_ORIGINE` (en développement : celle du Mac sur le réseau local ou Tailscale). La page « Envoyer vers Notak » la donne aux Raccourcis de l'iPhone ; sans elle, et sur une page ouverte en `localhost`, elle dit qu'un iPhone ne peut rien envoyer |
 | `NOTAK_AUTRES_ORIGINES` | aucune | d'autres origines, séparées par des virgules, dont les pages peuvent se connecter, se synchroniser et écrire (sans `NOTAK_ORIGINE`, `http://localhost:5173` l'est déjà). Une écriture vers l'API (`POST`, `PUT`, `PATCH`, `DELETE`) qui porte une autre origine est refusée (403, `origine_refusee`), même d'un sous-domaine voisin qui reçoit le cookie ; seules la connexion (Better Auth) et l'arrivée par jeton n'y sont pas soumises |
 | `NOTAK_OPENFGA_URL` | `http://localhost:8080` | l'OpenFGA qui évalue les droits (`compose.yaml` le fixe à `http://openfga:8080`) |
-| `NOTAK_NOM` | `Notak` | le nom affiché sur l'écran de connexion |
+| `NOTAK_NOM` | `Notak` | le nom affiché sur l'écran de connexion et dans l'aperçu des liens |
 | `NOTAK_INSCRIPTIONS` | `ouvertes` | `fermees` : personne ne crée de compte seul (voir plus bas) |
 | `NOTAK_HABILLAGES` | `/donnees/habillages` | le dossier des thèmes à fournir aux comptes |
 | `NOTAK_HABILLAGE_DEFAUT` | aucun | l'identifiant du thème proposé à qui n'en a pas choisi |
@@ -274,6 +274,24 @@ docker compose exec notak node apps/serveur/src/compte.ts --email ana@exemple.fr
 Le mot de passe est tiré au hasard et écrit une fois dans le terminal, ou pris dans `NOTAK_MOT_DE_PASSE`. Il ne passe
 jamais par la ligne de commande, qui reste dans l'historique. Un tableau partagé avec une adresse sans compte
 attend toujours son invitée : il la retrouve quand son compte est créé.
+
+## L'aperçu des liens
+
+Un lien vers le serveur collé dans iMessage, WhatsApp, Slack, Teams, Discord, LinkedIn, Signal ou un courriel s'y
+montre en carte : un titre, une phrase, et une image de 1200 × 630 que le serveur dessine lui-même (balises Open Graph,
+`apps/serveur/src/apercuLien.ts`). Le robot qui la lit n'a pas de session, et ne reçoit que ce que l'adresse ouvre déjà :
+
+- une toile ou un élément (`/t/…`) : leur nom, jamais leur contenu. Son propriétaire peut le masquer dans « Partager »
+  (« Montrer le nom dans l'aperçu du lien ») ; une toile protégée par un mot de passe ne le dit jamais ;
+- un lien visiteur (`/p/…`) : le titre de la toile, un extrait de son texte et son plan, avec ses photos. Un lien
+  inconnu, échu, révoqué ou protégé par un mot de passe n'en dit rien ;
+- une invitation : son jeton reste après `#`, l'aperçu ne nomme personne.
+
+L'image et l'adresse des cartes viennent de `NOTAK_ORIGINE` : sans elle, de l'adresse où la page est demandée. Le
+texte y est dessiné avec Inter, rangée dans `apps/serveur/src/polices` (licence SIL OFL) : l'image du serveur n'a besoin
+d'aucune police installée. `NOTAK_NOM` y remplace « Notak ». Les plateformes gardent une carte des jours durant :
+pour revoir celle d'une adresse déjà partagée, passez-la dans leur outil de débogage (celui de Facebook, ou
+`/unfurl` de Slack), ou ajoutez-y `?` puis n'importe quoi.
 
 ## Ajouter un thème
 

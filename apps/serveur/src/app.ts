@@ -14,6 +14,7 @@ import * as Y from 'yjs'
 import { regrouper } from './activite.ts'
 import { type ElementArrive, elementImage, elementsDeTexte, nouvelId, poserDansNonTries } from './arrivee.ts'
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
+import { creerApercus } from './apercuLien.ts'
 import { type Base, DUREE_ACCES_PUBLIC_MS, DUREE_INVITATION_MS, type Fichier, type Invitation, type LienVisiteur, type NiveauVisiteur, type Rattachement, type Utilisateur } from './base.ts'
 import { type Auth, CHEMIN_AUTH, type Fournisseur, normaliserOrigine, utilisateurDeSession } from './auth.ts'
 import { type Demandes, creerDemandes, normaliserCode } from './demandesBureau.ts'
@@ -1283,6 +1284,24 @@ export function creerApp(ctx: Contexte): Hono {
     fermerConnexions(g.id)
     if (ligne?.parent) ctx.synchro()?.closeConnections(nomDuDocument(ligne.parent))
     return c.json(accesGeneral(g.id, g.u, g.role))
+  })
+
+  // Le nom de la toile dans l'aperçu de ses liens (iMessage, WhatsApp, Slack…, voir apercuLien.ts) : montré par défaut ;
+  // seul qui gère son partage peut le masquer. Masqué, l'aperçu d'un lien vers elle, ou vers ce qu'elle porte, ne dit
+  // plus que « Une toile Notak ».
+  app.get('/api/tableaux/:id/apercu-lien', async (c) => {
+    const g = await garde(c, 'lecture', true)
+    if (g instanceof Response) return g
+    return c.json({ nom: !base.nomMasque(g.id), modifiable: g.role === 'proprietaire' }, 200, { 'cache-control': 'no-store' })
+  })
+
+  app.put('/api/tableaux/:id/apercu-lien', async (c) => {
+    const g = await garde(c, 'proprietaire', true)
+    if (g instanceof Response) return g
+    const b = await corps(c)
+    if (typeof b?.nom !== 'boolean' || Object.keys(b).length !== 1) return c.json({ erreur: 'demande invalide', code: 'demande_invalide' }, 400)
+    base.masquerNom(g.id, !b.nom)
+    return c.json({ nom: b.nom, modifiable: true })
   })
 
   /** Un nom ou une adresse, sans accents ni majuscules, pour qu'« eloise » trouve « Éloïse ». */
@@ -2782,6 +2801,24 @@ export function creerApp(ctx: Contexte): Hono {
     })
   })
 
+  // ---- L'aperçu des liens ----
+
+  // Les balises Open Graph de chaque page et leur image (apercuLien.ts) : un robot d'aperçu n'a pas de session, il ne
+  // reçoit que ce que l'adresse elle-même ouvre. L'adresse publique vient de NOTAK_ORIGINE, sinon de la requête.
+  const apercus = creerApercus({
+    base,
+    nom: instance.nom,
+    ...(ctx.dossierWeb ? { dossierWeb: ctx.dossierWeb } : {}),
+    dossierFichiers: ctx.dossierFichiers,
+    cle,
+    maintenant: ctx.maintenant,
+    lire: lireLe,
+    vuePublique: (id) => vuePublique(id, false),
+    lienOuvre: (jeton, tableau) => ctx.autorisation.verifier(`lien:${jeton}`, 'peut_lire', `tableau:${tableau}`),
+  })
+  const origineDe = (c: Context) => ctx.origine ?? new URL(c.req.url).origin
+  app.get('/api/apercu-lien/*', (c) => apercus.image(c, origineDe(c)))
+
   app.all('/api/*', (c) => c.json({ erreur: 'introuvable', code: 'introuvable' }, 404))
 
   // En production, le même serveur sert l'application web construite ; toute autre adresse (`/t/…`) reçoit la page.
@@ -2792,7 +2829,10 @@ export function creerApp(ctx: Contexte): Hono {
     const securite = entetesSecurite('serveur', { https: ctx.cookieSecurise, ...(ctx.origine ? { origineServeur: ctx.origine } : {}) })
     app.use('*', async (c, next) => {
       await next()
-      for (const [nom, valeur] of Object.entries(securite)) c.res.headers.set(nom, valeur)
+      // Une page qui porte un secret (`/p/…`, `/invitation`) a déjà fermé son référent : la règle commune, plus large,
+      // ne la rouvre pas.
+      const ferme = c.res.headers.get('referrer-policy') === 'no-referrer'
+      for (const [nom, valeur] of Object.entries(securite)) if (!(ferme && nom === 'referrer-policy')) c.res.headers.set(nom, valeur)
     })
     // Un partage vers Notak est reçu par le service worker ; sans lui (pas encore installé), on ne perd que le partage, pas la page.
     app.post('/partage', async (c) => c.redirect('/', 303))
@@ -2805,8 +2845,12 @@ export function creerApp(ctx: Contexte): Hono {
         c.header('x-robots-tag', 'noindex')
       }
     })
+    // La page de l'app reçoit les balises de l'aperçu de son adresse ; l'accueil d'abord, que `serveStatic` servirait tel quel.
+    const page = (c: Context) => apercus.page(c, origineDe(c))
+    app.get('/', page)
+    app.get('/index.html', page)
     app.use('*', serveStatic({ root: ctx.dossierWeb }))
-    app.get('*', serveStatic({ root: ctx.dossierWeb, path: 'index.html' }))
+    app.get('*', page)
   }
   return app
 }
