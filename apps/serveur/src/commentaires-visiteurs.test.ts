@@ -152,6 +152,17 @@ describe('les commentaires d’un visiteur', () => {
     expect((await envoyer({ nom: 'Marie', changements: [{ id: 'note-1', apres: { commentaire: note.commentaire, reactions: { '👍': [id, 'ana-id'] } } }] })).status).toBe(403)
   })
 
+  it('son dernier message retiré, son fil ne laisse ni épingle vide ni fil vide accroché', async () => {
+    const id = await moi()
+    const pin = (messages: unknown[]) => ({ x: 4, y: 4, largeur: 34, contenu: fil(messages) })
+    expect((await envoyer({ nom: 'Marie', changements: [{ id: 'pin-vide', apres: pin([msg('v5', { id, nom: 'Marie' }, 'Un mot')]) }] })).status).toBe(200)
+    expect((await envoyer({ nom: 'Marie', changements: [{ id: 'pin-vide', apres: pin([]) }] })).status).toBe(200)
+    expect(elements()['pin-vide']).toBeUndefined()
+    // Le fil qu'il a accroché à la note (plus haut) n'a que son message : le retirer décroche le fil.
+    expect((await envoyer({ nom: 'Marie', changements: [{ id: 'note-1', apres: { commentaire: fil([]), reactions: elements()['note-1']!.reactions } }] })).status).toBe(200)
+    expect(elements()['note-1']).not.toHaveProperty('commentaire')
+  })
+
   it('ce qu’il ne voit pas, ou qui a ses propres droits, il ne le commente pas', async () => {
     const id = await moi()
     for (const cible of ['note-jetee', 'note-a-trier', 'note-figee']) {

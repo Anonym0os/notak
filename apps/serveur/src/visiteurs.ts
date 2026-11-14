@@ -190,7 +190,9 @@ export function jugerChangements(
         if (x === undefined || y === undefined || largeur === undefined || !contenu) return 'invalide'
         // Une épingle neuve dit quelque chose : un fil vide n'a rien à faire dans le document.
         if (!avant && (contenu.messages as unknown[]).length === 0) return 'invalide'
-        apres = { ...(avant ?? { id }), x, y, largeur, contenu }
+        // Son dernier message retiré, l'épingle s'en va avec lui, au lieu de rester vide sur la toile : la règle du
+        // commentateur le permet, puisque tous ses messages étaient les siens.
+        apres = (contenu.messages as unknown[]).length === 0 ? null : { ...(avant ?? { id }), x, y, largeur, contenu }
       }
     } else {
       if (!avant || vu === null) return 'interdit'
@@ -199,7 +201,9 @@ export function jugerChangements(
       else {
         const f = fil(vu.commentaire, objet(avant.commentaire), auteur, maintenant)
         if (!f) return 'invalide'
-        apres.commentaire = f
+        // Un fil vidé ne reste pas accroché : l'élément perd son épingle.
+        if ((f.messages as unknown[]).length === 0) delete apres.commentaire
+        else apres.commentaire = f
       }
       if (vu.reactions === undefined) delete apres.reactions
       else {
