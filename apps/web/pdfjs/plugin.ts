@@ -5,13 +5,14 @@ import type { Plugin } from 'vite'
 
 /**
  * Les ressources de pdf.js que la visionneuse et l'aperçu des cartes demandent (`packages/tableau/src/elements/fichier/
- * pdf/ressources.ts`) : les CMaps et les polices standard, servies sous `/pdfjs/` telles que `pdfjs-dist` les livre.
- * En développement, Vite les sert depuis le paquet ; au build, elles sont copiées dans le dossier construit, donc dans
- * l'image Docker et dans l'app de bureau, qui les a hors ligne. Ni CDN ni réseau tiers.
+ * pdf/ressources.ts`) : les CMaps, les polices standard et le décodeur JPEG 2000 (`wasm/` : le module WebAssembly, et
+ * son repli en JavaScript, le seul que la CSP de Notak laisse tourner), servis sous `/pdfjs/` tels que `pdfjs-dist` les
+ * livre. En développement, Vite les sert depuis le paquet ; au build, ils sont copiés dans le dossier construit, donc
+ * dans l'image Docker et dans l'app de bureau, qui les a hors ligne. Ni CDN ni réseau tiers.
  */
 
 /** Les dossiers de `pdfjs-dist` publiés, et leur place sous `/pdfjs/`. */
-export const DOSSIERS_PDF = ['cmaps', 'standard_fonts'] as const
+export const DOSSIERS_PDF = ['cmaps', 'standard_fonts', 'wasm'] as const
 export const PREFIXE_PDF = '/pdfjs/'
 
 /** Le dossier de `pdfjs-dist`, tel que la toile (`@notak/tableau`) le trouve. */
@@ -30,7 +31,8 @@ export function fichiersPdf(racine = racinePdfjs()): { chemin: string; source: s
   )
 }
 
-const TYPES: Record<string, string> = { '.ttf': 'font/ttf', '.pfb': 'application/x-font-type1' }
+/** Les types que le serveur de développement annonce ; le repli JS s'importe en module, il lui faut le sien. */
+export const TYPES: Record<string, string> = { '.ttf': 'font/ttf', '.pfb': 'application/x-font-type1', '.wasm': 'application/wasm', '.js': 'text/javascript' }
 
 /**
  * Le fichier à servir pour cette adresse (`/pdfjs/cmaps/78-H.bcmap?v=1`), ou `null` : hors de `/pdfjs/`, hors des

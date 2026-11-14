@@ -70,6 +70,9 @@ describe('la visionneuse PDF', () => {
       cMapUrl: new URL('/pdfjs/cmaps/', document.baseURI).href,
       cMapPacked: true,
       standardFontDataUrl: new URL('/pdfjs/standard_fonts/', document.baseURI).href,
+      wasmUrl: new URL('/pdfjs/wasm/', document.baseURI).href,
+      // Rien n'interdit ici le WebAssembly : le décodeur JPEG 2000 le prendrait.
+      useWasm: true,
       isEvalSupported: false,
     })
   })
