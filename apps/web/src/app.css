@@ -2262,6 +2262,20 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
   font-weight: 650;
 }
 
+/* Ce qui ne se peut pas, dit sous les droits : un élément ne se cache pas, une toile privée si. */
+.droits-element-prive {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--app-filet);
+}
+
+.droits-element-prive > svg {
+  flex: none;
+  margin-top: 2px;
+}
+
 .droits-element > .bouton {
   align-self: flex-start;
 }

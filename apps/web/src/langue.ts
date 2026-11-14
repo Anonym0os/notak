@@ -431,6 +431,8 @@ export const fr: Textes = {
   'droitsElement.titre': 'Droits de cet élément',
   'droitsElement.explique': 'Figé, l’élément ne s’écrit plus que par les propriétaires et ceux qu’on nomme ici. Il reste lisible par tous ceux qui lisent la toile.',
   'droitsElement.figer': 'Figer pour tous',
+  'droitsElement.prive':
+    'Un élément ne se cache pas à qui lit cette toile : elle lui arrive en entier. Ce qui doit rester entre quelques-uns s’écrit dans une toile privée (« Partager », puis « Seulement les personnes invitées ») : sa carte, ici, ne se montre qu’à ses invités.',
   'droitsElement.liberer': 'Ne plus le figer',
   'droitsElement.edition': 'Peut écrire',
   'droitsElement.commentaire': 'Peut commenter',
@@ -1516,6 +1518,8 @@ export const en: Textes = {
   'droitsElement.titre': 'Permissions for this item',
   'droitsElement.explique': 'Once frozen, only the owners and the people named here can edit the item. Everyone who can read the canvas still reads it.',
   'droitsElement.figer': 'Freeze for everyone',
+  'droitsElement.prive':
+    'An item can’t be hidden from someone who reads this canvas: it reaches them whole. What must stay between a few people goes in a private canvas (“Share”, then “Only people invited”): its card, here, only shows to the people invited.',
   'droitsElement.liberer': 'Unfreeze',
   'droitsElement.edition': 'Can edit',
   'droitsElement.commentaire': 'Can comment',
