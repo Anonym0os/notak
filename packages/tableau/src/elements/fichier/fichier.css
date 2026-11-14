@@ -199,6 +199,15 @@ img.notak-fichier-pdf {
   aspect-ratio: auto;
 }
 
+/* La première page et, posés dessus à sa taille, les traits qu'on y a dessinés dans la visionneuse. */
+.notak-fichier-pdf-page {
+  position: relative;
+}
+
+.notak-fichier-pdf-page > .notak-pdf-traits {
+  pointer-events: none;
+}
+
 /* Le temps du dessin : une barre pleine de 200 × 8 px qui respire, et « Processing » à côté. */
 .notak-fichier-traitement {
   display: flex;

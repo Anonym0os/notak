@@ -89,6 +89,25 @@ describe('la carte d’un fichier', () => {
     expect(hote.querySelector('.notak-fichier-sans-apercu')?.textContent).toBe('Aucun aperçu disponible')
   })
 
+  it('un PDF annoté montre, sur l’aperçu de sa première page, les traits de cette page et d’elle seule', async () => {
+    const trait = (id: string, surligneur = false) => ({ id, couleur: '#ff5757', epaisseur: 0.01, points: [[0.1, 0.1], [0.5, 0.2]] as [number, number][], ...(surligneur ? { surligneur: true } : {}) })
+    apercu.etat = { etat: 'pret', adresse: 'blob:page-1', largeur: 720, hauteur: 932 } as never
+    await rendre({ annotations: { '1': [trait('a'), trait('b', true)], '2': [trait('c')] } })
+    const calque = hote.querySelector('.notak-fichier-pdf-page > svg.notak-pdf-traits')!
+    expect(calque.getAttribute('viewBox')).toBe('0 0 720 932')
+    expect(calque.querySelectorAll('g')).toHaveLength(2)
+    expect(calque.querySelectorAll('[data-surligneur]')).toHaveLength(1)
+    // Le trait garde sa place et son épaisseur relatives : 1 % de la largeur de la page.
+    expect(calque.querySelector('path')!.getAttribute('stroke-width')).toBe('7.2')
+  })
+
+  it('sans traits sur la première page, l’aperçu reste nu', async () => {
+    apercu.etat = { etat: 'pret', adresse: 'blob:page-1', largeur: 720, hauteur: 932 } as never
+    await rendre({ annotations: { '2': [{ id: 'c', couleur: '#ff5757', epaisseur: 0.01, points: [[0.1, 0.1]] }] } })
+    expect(hote.querySelector('img.notak-fichier-pdf')).not.toBeNull()
+    expect(hote.querySelector('.notak-pdf-traits')).toBeNull()
+  })
+
   it('sans les infos : rien que l’aperçu', async () => {
     await rendre({ sansInfos: true })
     expect(hote.querySelector('.notak-fichier-meta')).toBeNull()

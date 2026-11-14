@@ -13,6 +13,8 @@ export const DELAI_APERCU_MS = 60_000
 const LARGEUR_DESSIN = 720
 
 const dessins = new Map<string, Promise<string | null>>()
+/** La taille, en pixels, de chaque première page dessinée (par l'adresse de son image) : les traits s'y posent. */
+const tailles = new Map<string, { largeur: number; hauteur: number }>()
 
 /** Le moteur pdf.js et son travailleur, chargés à la première demande (l'aperçu d'une carte, la visionneuse). */
 export async function moteurPdf() {
@@ -37,7 +39,10 @@ async function dessiner(adresse: string): Promise<string | null> {
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     await page.render({ canvas, canvasContext: ctx, viewport }).promise
     const blob = await new Promise<Blob | null>((fini) => canvas.toBlob(fini, 'image/jpeg', 0.85))
-    return blob ? URL.createObjectURL(blob) : null
+    if (!blob) return null
+    const image = URL.createObjectURL(blob)
+    tailles.set(image, { largeur: canvas.width, hauteur: canvas.height })
+    return image
   } finally {
     void document.destroy()
   }
@@ -54,7 +59,10 @@ export function premierePage(adresse: string, delai = DELAI_APERCU_MS): Promise<
   return p
 }
 
-export type ApercuPdf = { etat: 'prepare' } | { etat: 'pret'; adresse: string } | { etat: 'manque' }
+/** La taille de la première page dessinée à cette adresse d'image, si on l'a. */
+export const taillePremierePage = (image: string) => tailles.get(image)
+
+export type ApercuPdf = { etat: 'prepare' } | { etat: 'pret'; adresse: string; largeur?: number; hauteur?: number } | { etat: 'manque' }
 
 /**
  * L'aperçu d'un PDF pour une carte : « prepare » le temps du dessin, puis « pret » avec l'image, ou « manque ».
@@ -65,7 +73,7 @@ export function useApercuPdf(adresse: string | null | undefined, actif: boolean)
   useEffect(() => {
     if (!actif || !adresse) return
     let vivant = true
-    void premierePage(adresse).then((a) => vivant && setEtat((avant) => (a ? { etat: 'pret', adresse: a } : avant.etat === 'pret' ? avant : { etat: 'manque' })))
+    void premierePage(adresse).then((a) => vivant && setEtat((avant) => (a ? { etat: 'pret', adresse: a, ...taillePremierePage(a) } : avant.etat === 'pret' ? avant : { etat: 'manque' })))
     return () => {
       vivant = false
     }

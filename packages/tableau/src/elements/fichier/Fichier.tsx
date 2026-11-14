@@ -11,6 +11,8 @@ import { LecteurSon, LecteurVideo } from './lecteur'
 import { ModaleFichier } from './ModaleFichier'
 import { type CibleEdition, ouvrirDehors, ouvrirFenetreFichier, prendreAmorce, prendreCible, useFichierOuvert, viserEdition } from './ouverture'
 import { useApercuPdf } from './apercuPdf'
+import { CalqueTraits } from './pdf/DessinPdf'
+import { traitsDeLaPage } from './pdf/annotations'
 
 /** La largeur d'un fichier en icône (une feuille et son nom) et d'une carte détaillée, en UG. */
 export const LARGEUR_ICONE = 10
@@ -103,8 +105,12 @@ export function RenduFichier({ element, enEdition, contexte, brouillon }: PropsR
       ) : (
         <>
           {apercu === 'pdf' && pdf.etat === 'pret' && (
-            // La première page seulement, déjà dessinée ; l'image n'attrape pas le pointeur, la carte reste glissable.
-            <img className="notak-fichier-pdf" src={pdf.adresse} alt={t('fichier.premierePage', { nom: c.titre ?? c.nom })} draggable={false} />
+            // La première page seulement, déjà dessinée, et ce qu'on y a dessiné dans la visionneuse, comme l'image
+            // annotée montre ses traits ; ni l'une ni les autres n'attrapent le pointeur, la carte reste glissable.
+            <div className="notak-fichier-pdf-page">
+              <img className="notak-fichier-pdf" src={pdf.adresse} alt={t('fichier.premierePage', { nom: c.titre ?? c.nom })} draggable={false} />
+              {pdf.largeur && pdf.hauteur ? <CalqueTraits traits={traitsDeLaPage(c.annotations, 1)} taille={{ largeur: pdf.largeur, hauteur: pdf.hauteur }} /> : null}
+            </div>
           )}
           {apercu === 'pdf' && pdf.etat === 'prepare' && adresse !== null && (
             <div className="notak-fichier-traitement" role="status">
