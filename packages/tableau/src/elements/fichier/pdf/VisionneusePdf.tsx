@@ -8,6 +8,7 @@ import type { ContexteToile } from '../../types'
 import { useThemeDeLaToile } from '../../image/barreOutil'
 import { refuserLeDepot, useCouvrirLaToile, useTenirLaPlaceEnPartant } from '../../enGrand'
 import { moteurPdf } from '../apercuPdf'
+import { optionsDocument } from './ressources'
 import { ouvrirDehors } from '../ouverture'
 import { type MoteurPdf, PagePdf } from './PagePdf'
 import { CalqueTraits, useDessinPdf } from './DessinPdf'
@@ -53,7 +54,7 @@ function useDocumentPdf(adresse: string): EtatDocument {
     void (async () => {
       const [pdfjs, octets] = await Promise.all([moteurPdf(), fetch(adresse).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))])
       if (!vivant) return
-      const chargement = pdfjs.getDocument({ data: new Uint8Array(octets), isEvalSupported: false })
+      const chargement = pdfjs.getDocument({ data: new Uint8Array(octets), ...optionsDocument() })
       tache = chargement
       const ouvert = await chargement.promise
       doc = ouvert

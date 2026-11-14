@@ -17,6 +17,11 @@ describe('adressesDuBuild', () => {
       '/manifest.webmanifest',
     ])
   })
+
+  it('laisse hors de la liste les ressources de pdf.js, que le service worker garde à leur premier usage', () => {
+    const d = join('/', 'tmp', 'dist')
+    expect(adressesDuBuild(d, [join(d, 'index.html'), join(d, 'pdfjs', 'cmaps', '78-H.bcmap'), join(d, 'pdfjs', 'standard_fonts', 'FoxitSerif.pfb')])).toEqual(['/index.html'])
+  })
 })
 
 describe('genererServiceWorker', () => {
@@ -107,6 +112,17 @@ describe('le service worker', () => {
     expect(await garde!.text()).toBe('copie de /assets/a.js')
     const autre = await jouer('fetch', { request: new Request('https://notak.test/assets/b.js') })
     expect(await autre!.text()).toBe('au réseau')
+  })
+
+  it('garde une ressource de pdf.js à son premier usage, et la sert ensuite sans réseau', async () => {
+    let appels = 0
+    const { jouer, stockage } = lancer(async () => (appels++ === 0 ? new Response('cmap') : Promise.reject(new Error('hors ligne'))))
+    await jouer('install')
+    const requete = () => new Request('https://notak.test/pdfjs/cmaps/UniJIS-UCS2-H.bcmap')
+    expect(await (await jouer('fetch', { request: requete() }))!.text()).toBe('cmap')
+    expect(await (await stockage.open('notak-v1')).match('/pdfjs/cmaps/UniJIS-UCS2-H.bcmap')).toBeDefined()
+    expect(await (await jouer('fetch', { request: requete() }))!.text()).toBe('cmap')
+    expect(appels).toBe(1)
   })
 
   it('reçoit un partage : le range, puis renvoie la page qui le prendra', async () => {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { optionsDocument } from './pdf/ressources'
 
 /**
  * L'aperçu d'un PDF : sa première page, dessinée ici avec pdf.js (Apache-2.0), sans service d'aperçu. Le moteur et son
@@ -22,7 +23,7 @@ export async function moteurPdf() {
 
 async function dessiner(adresse: string): Promise<string | null> {
   const [pdfjs, octets] = await Promise.all([moteurPdf(), fetch(adresse).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))])
-  const document = await pdfjs.getDocument({ data: new Uint8Array(octets) }).promise
+  const document = await pdfjs.getDocument({ data: new Uint8Array(octets), ...optionsDocument(window.document.baseURI) }).promise
   try {
     const page = await document.getPage(1)
     const base = page.getViewport({ scale: 1 })

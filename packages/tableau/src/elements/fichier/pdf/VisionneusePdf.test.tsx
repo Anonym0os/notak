@@ -64,6 +64,16 @@ describe('la visionneuse PDF', () => {
     expect(document.querySelector('.notak-pdf-texte span')?.textContent).toBe('Page 1 hippopotame')
   })
 
+  it('pdf.js reçoit les CMaps et les polices standard que l’application sert, à la racine du site', async () => {
+    await ouvrir()
+    expect(faux.options).toEqual({
+      cMapUrl: new URL('/pdfjs/cmaps/', document.baseURI).href,
+      cMapPacked: true,
+      standardFontDataUrl: new URL('/pdfjs/standard_fonts/', document.baseURI).href,
+      isEvalSupported: false,
+    })
+  })
+
   it('chaque bouton dit ce qu’il fait', async () => {
     await ouvrir()
     for (const nom of ['Zoom arrière (⌘−)', 'Zoom avant (⌘+)', 'Ajuster à la largeur (⌘0)', 'Rechercher dans le PDF (⌘F)', 'Fermer (Échap)']) {

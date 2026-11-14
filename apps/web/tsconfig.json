@@ -13,7 +13,8 @@
   "include": [
     "src",
     "vite.config.ts",
-    "pwa"
+    "pwa",
+    "pdfjs"
   ],
   "references": [
     {

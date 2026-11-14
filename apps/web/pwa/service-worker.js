@@ -36,8 +36,19 @@ self.addEventListener('fetch', (e) => {
   // Les données (fichiers, aperçus, synchro) se lisent toujours au réseau : jamais de copie périmée ni d'un autre compte.
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/sync')) return
   if (requete.mode === 'navigate') return e.respondWith(ouvrirPage(requete))
+  // Les ressources de pdf.js (CMaps, polices standard) ne sont pas dans la liste : gardées à leur premier usage.
+  if (url.pathname.startsWith('/pdfjs/')) return e.respondWith(garderAuPassage(requete))
   e.respondWith(caches.match(requete).then((copie) => copie ?? fetch(requete)))
 })
+
+/** La copie si on l'a, sinon le réseau, dont la réponse se garde pour la prochaine fois (et hors ligne). */
+async function garderAuPassage(requete) {
+  const copie = await caches.match(requete)
+  if (copie) return copie
+  const reponse = await fetch(requete)
+  if (reponse.ok) await (await caches.open(CACHE)).put(requete, reponse.clone())
+  return reponse
+}
 
 /** Une page : le serveur d'abord, la page d'accueil de l'application gardée quand il manque. */
 async function ouvrirPage(requete) {

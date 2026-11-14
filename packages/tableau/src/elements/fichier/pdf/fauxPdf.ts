@@ -3,7 +3,7 @@
  * chacune avec une ligne de texte (« Page n hippopotame »), et compte les documents relâchés. À brancher par
  * `vi.mock('../apercuPdf', async () => (await import('./fauxPdf')).moduleFaux)`.
  */
-export const etatFaux = { pages: 3, detruits: 0 }
+export const etatFaux = { pages: 3, detruits: 0, options: null as Record<string, unknown> | null }
 
 class TextLayer {
   textDivs: HTMLElement[] = []
@@ -29,7 +29,7 @@ const page = (n: number) => ({
 
 const pdfjs = {
   TextLayer,
-  getDocument: () => ({
+  getDocument: ({ data: _, ...options }: Record<string, unknown>) => ((etatFaux.options = options), {
     promise: Promise.resolve({
       numPages: etatFaux.pages,
       getPage: async (n: number) => page(n),

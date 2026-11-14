@@ -1,6 +1,7 @@
 import { execSync } from 'node:child_process'
 import react from '@vitejs/plugin-react'
 import { type Plugin, defineConfig } from 'vite'
+import { ressourcesPdf } from './pdfjs/plugin'
 import { pwa } from './pwa/plugin'
 
 const serveur = process.env.NOTAK_SERVEUR ?? 'http://localhost:3005'
@@ -34,7 +35,7 @@ function version(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), pwa(), version()],
+  plugins: [react(), ressourcesPdf(), pwa(), version()],
   server: {
     proxy: {
       '/api': serveur,

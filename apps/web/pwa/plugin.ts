@@ -5,11 +5,15 @@ import type { Plugin } from 'vite'
 
 const MODELE = new URL('./service-worker.js', import.meta.url)
 
-/** Les fichiers d'un dossier, en adresses du site (`/assets/x.js`), sans le service worker lui-même. */
+/**
+ * Les fichiers d'un dossier, en adresses du site (`/assets/x.js`), sans le service worker lui-même. Les ressources de
+ * pdf.js (`/pdfjs/`, 2 Mo de CMaps et de polices dont un PDF n'use que quelques-unes) n'en sont pas : le service worker
+ * les garde à leur premier usage, au lieu que chaque installation les télécharge toutes.
+ */
 export function adressesDuBuild(dossier: string, fichiers: string[]): string[] {
   return fichiers
     .map((f) => '/' + relative(dossier, f).split(sep).join('/'))
-    .filter((a) => a !== '/sw.js' && !a.endsWith('.map'))
+    .filter((a) => a !== '/sw.js' && !a.endsWith('.map') && !a.startsWith('/pdfjs/'))
     .sort()
 }
 
