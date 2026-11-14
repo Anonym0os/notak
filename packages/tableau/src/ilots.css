@@ -119,29 +119,13 @@
   user-select: text;
 }
 
-/* Le fil : le chemin pâle, le titre de l'écran en gras. */
+/* Le fil d'un écran ouvert en grand : le chemin pâle, le titre de l'écran en gras. */
 .notak-fil-ecran {
   flex: 0 1 auto;
   font-size: 14px;
 }
 
-/* Le chemin garde sa place (chaque maillon coupé à 160 px) : c'est le titre qui cède quand elle manque. */
-.notak-fil-ecran .notak-fil-bloc {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-}
-
-.notak-fil-ecran .notak-fil-segment {
-  font-size: 14px;
-}
-
-/* La maison en tête du fil d'un écran ouvert en grand : elle ramène à la bibliothèque. */
-.notak-fil-maison {
-  display: inline-grid;
-  place-items: center;
-}
-
+/* Là où l'on est, au bout du fil : plus foncé que le chemin, en gras, son icône devant ; il cède sa place en dernier. */
 .notak-fil-titre {
   display: inline-flex;
   flex: 0 1 auto;
@@ -159,16 +143,61 @@
   text-overflow: ellipsis;
 }
 
+/* Le nom de l'endroit où l'on est n'est pas coupé à 150 px comme le chemin : il prend ce qui reste. */
+.notak-fil-titre > .notak-fil-nom {
+  max-width: none;
+}
+
 /*
  * L'îlot de gauche porte le fil, après ses boutons et un filet (tableau, carte et document) : la toile passe dessous
  * sans le brouiller, et le reste de la bande reste vide. Au plus 440 px (40 % d'une fenêtre étroite) : les niveaux du
- * milieu passent dans le « + », puis chaque parent se coupe à 160 px, le titre en dernier. Le texte est à 8 px du
- * filet et à 14 px du bord.
+ * milieu passent dans « … », puis chaque nom se coupe, le titre en dernier. Le texte est à 8 px du filet et à 14 px du
+ * bord.
  */
 .notak-ilot-fil {
   flex: 0 1 auto;
   min-width: 0;
   max-width: min(440px, 40vw);
+}
+
+/* Dans la toile et dans une page ouverte en grand, l'îlot du fil peut prendre toute la bande que lui laissent les îlots
+   de droite (le fil la mesure, `usePlaceDuFil`) : le chemin entier se lit tant qu'il tient, comme chez Notion. La carte
+   mentale garde la borne : sa barre d'outils vit au milieu. */
+:is(.notak-entete-gauche, .notak-document-entete) > .notak-ilot-fil {
+  max-width: none;
+}
+
+/*
+ * L'endroit où l'on est, dessous, en titre de la page (un dossier de la bibliothèque) : le chemin, le même que dans la
+ * toile, a sa ligne au-dessus, ses niveaux en pilules comme dans l'îlot ; le titre prend la ligne suivante, en 20 px,
+ * son icône de 20 px devant.
+ */
+.notak-fil-dessous {
+  flex-wrap: wrap;
+  row-gap: 0;
+}
+
+.notak-fil-dessous .notak-fil-segment {
+  height: 26px;
+  border-radius: 13px;
+}
+
+.notak-fil-dessous .notak-fil-segment:hover,
+.notak-fil-dessous .notak-fil-segment[aria-expanded='true'] {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.notak-fil-dessous > .notak-fil-titre {
+  flex: 1 0 100%;
+  gap: 8px;
+  font-size: 20px;
+  font-weight: 650;
+}
+
+.notak-fil-dessous > .notak-fil-titre .notak-fil-accueil {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
 }
 
 .notak-ilot-fil .notak-fil {

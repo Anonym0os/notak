@@ -72,7 +72,7 @@ export function EnTete({ titre, etat, fermer, navigation }: { titre: string; eta
         {/* Le fil cède sa place en premier quand la barre de la carte le touche (fenetre.css). */}
         <span className="notak-arbre-nom">
           <FiletIlot />
-          <FilEcran titre={<span>{titre || t('type.arbre')}</span>} nom={titre || t('type.arbre')} fermer={fermer} apres={etat && <span className="notak-arbre-etat">{etat}</span>} />
+          <FilEcran titre={<span>{titre || t('type.arbre')}</span>} nom={titre || t('type.arbre')} genre="carte" fermer={fermer} apres={etat && <span className="notak-arbre-etat">{etat}</span>} />
         </span>
       </Ilot>
     </div>

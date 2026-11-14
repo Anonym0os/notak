@@ -734,6 +734,11 @@
   text-overflow: clip;
 }
 
+/*
+ * Le fil d'Ariane (FilDAriane.tsx), dans la toile, la page et la carte ouvertes en grand, et la bibliothèque : chaque
+ * niveau, son icône puis son nom (coupé à 150 px), un chevron pâle entre deux niveaux ; au bout, l'endroit où l'on est,
+ * plus foncé et en gras (ilots.css). Les marges ici sont celles que `GABARIT` compte pour savoir ce qui tient.
+ */
 .notak-fil {
   display: flex;
   align-items: center;
@@ -743,25 +748,31 @@
 
 .notak-fil-bloc {
   position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
 }
 
 .notak-fil-sep {
+  display: inline-flex;
+  flex: none;
   color: #9aa0a8;
 }
 
 .notak-fil-segment {
-  max-width: 160px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   height: 28px;
   padding: 0 6px;
-  overflow: hidden;
   border: 0;
   border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: #5b616a;
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
-  text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -771,43 +782,40 @@
   background: var(--notak-fond);
 }
 
-.notak-fil-segment[aria-current='page'] {
-  color: #3f444b;
-  font-weight: 500;
-}
-
-.notak-fil-menu {
-  position: absolute;
-  z-index: 5;
-  top: 32px;
-  left: 0;
-  display: flex;
-  flex-direction: column;
-  min-width: 160px;
-  padding: 4px;
-  border-radius: var(--notak-rayon-panneau, 8px);
-  background: var(--notak-carte);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
-}
-
-.notak-fil-menu button {
-  max-width: 260px;
-  height: 28px;
-  padding: 0 8px;
+/* Le nom se coupe, l'icône reste entière. */
+.notak-fil-nom {
+  min-width: 0;
+  max-width: 150px;
   overflow: hidden;
-  border: 0;
-  border-radius: var(--notak-rayon-controle, 6px);
-  background: none;
-  color: var(--notak-texte);
-  font: inherit;
-  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: pointer;
 }
 
-.notak-fil-menu button:hover {
-  background: var(--notak-fond);
+.notak-fil-icone {
+  flex: none;
+}
+
+/* L'accueil : la tuile bleue à la maison, comme dans la colonne de la bibliothèque. */
+.notak-fil-accueil {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: #5b6cf0;
+  color: #fff;
+}
+
+/* Le menu de « … » : le menu commun (communs/menu.css), sous son bouton. */
+.notak-fil-menu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  left: 0;
+  width: max-content;
+  min-width: 200px;
+  max-width: 296px;
 }
 
 /* Un élément qu'on glisse passe au-dessus de tout. */
@@ -1655,7 +1663,7 @@
 }
 
 /* Le tableau ouvert pas encore rattrapé : son nom dans le fil d'Ariane pulse doucement. */
-.notak-fil-segment[data-charge] {
+.notak-fil-titre[data-charge] {
   animation: notak-fil-charge 1.2s ease-in-out infinite;
 }
 

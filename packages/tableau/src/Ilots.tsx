@@ -1,5 +1,6 @@
 import { type ReactNode, createContext, useContext } from 'react'
 import type { Id } from './coeur/tableau'
+import { FilDAriane, type Niveau, usePlaceDuFil } from './FilDAriane'
 import { Icone, type NomIcone } from './icones'
 import { Infobulle } from './Infobulle'
 import { t } from './langue'
@@ -14,8 +15,8 @@ import './ilots.css'
 
 /** Ce que l'espace prête aux écrans ouverts en grand : le chemin du tableau, et les îlots de l'application. */
 export interface EnteteEspace {
-  /** De l'accueil au tableau ouvert, chacun avec son titre. */
-  fil: { id: Id; titre: string }[]
+  /** De l'accueil au tableau ouvert, chacun avec son titre et ce qu'il est (l'accueil, un dossier, une toile). */
+  fil: Niveau[]
   ouvrir(id: Id): void
   /** Mène à la bibliothèque, quand l'application en a une : une maison en tête du fil. */
   bibliotheque?(): void
@@ -88,58 +89,49 @@ export function IlotHistorique({ annuler, retablir, peutAnnuler = true, peutReta
 }
 
 /**
- * Le fil d'un écran ouvert en grand, à ranger au bout de son îlot de gauche (`notak-ilot-fil`), après un filet : le
- * chemin du tableau qui le porte, puis son titre. Un maillon y ramène : l'écran
- * se ferme d'abord, pour que ce qu'il tient s'enregistre, puis le tableau voulu s'ouvre.
+ * Le fil d'un écran ouvert en grand, une page ou une carte mentale (`genre`), à ranger au bout de son îlot de gauche
+ * (`notak-ilot-fil`), après un filet : le même que celui de la toile, le chemin du tableau qui le porte puis son titre,
+ * les niveaux du milieu dans « … » quand l'îlot n'a plus de place. Un niveau y ramène : l'écran se ferme d'abord, pour
+ * que ce qu'il tient s'enregistre, puis le tableau voulu s'ouvre. Avec une bibliothèque, la maison qui y mène vient
+ * avant le fil, dans l'îlot, comme dans la toile. `bande` : l'îlot partage sa bande avec les îlots de droite (la page),
+ * et prend ce qu'ils lui laissent ; sinon, il s'en tient à sa largeur maximale (la carte, dont la barre vit au milieu).
  */
-export function FilEcran({ titre, nom, fermer, apres }: { titre: ReactNode; nom?: string; fermer(): void; apres?: ReactNode }) {
+export function FilEcran({ titre, nom, genre, bande = false, fermer, apres }: { titre: ReactNode; nom?: string; genre: 'page' | 'carte'; bande?: boolean; fermer(): void; apres?: ReactNode }) {
   const entete = useEntete()
-  const fil = entete?.fil ?? []
-  // Le tableau qui porte l'écran, et celui d'au-dessus : plus haut, le chemin se lit dans le tableau.
-  const vus = fil.slice(-2)
+  const [place, fil] = usePlaceDuFil(bande ? 'ilot-zone' : 'ilot')
+  const niveaux = entete?.fil ?? []
+  const porteur = niveaux.at(-1)?.id
   return (
-    <nav className="notak-fil notak-fil-ecran" aria-label={t('espace.fil')}>
+    <>
       {entete?.bibliotheque && (
-        <span className="notak-fil-bloc">
-          <button
-            type="button"
-            className="notak-fil-segment notak-fil-maison"
-            aria-label={t('espace.bibliotheque')}
-            title={`${t('espace.bibliotheque')} (⌥⌘O)`}
+        <>
+          <BoutonIlot
+            icone="maison"
+            className="notak-fil-maison"
+            libelle={t('espace.bibliotheque')}
+            raccourci="⌥⌘O"
             onClick={() => {
               fermer()
               entete.bibliotheque!()
             }}
-          >
-            <Icone nom="maison" taille={16} />
-          </button>
-          <span className="notak-fil-sep" aria-hidden>
-            <Icone nom="chevronDroite" taille={14} />
-          </span>
-        </span>
+          />
+          <FiletIlot />
+        </>
       )}
-      {vus.map((s, i) => (
-        <span key={s.id} className="notak-fil-bloc">
-          <button
-            type="button"
-            className="notak-fil-segment"
-            onClick={() => {
-              fermer()
-              if (i < vus.length - 1) entete?.ouvrir(s.id)
-            }}
-          >
-            {s.titre || t('commun.sansTitre')}
-          </button>
-          <span className="notak-fil-sep" aria-hidden>
-            <Icone nom="chevronDroite" taille={14} />
-          </span>
-        </span>
-      ))}
-      <span className="notak-fil-titre" aria-current="page" title={nom}>
-        {titre}
-      </span>
-      {apres}
-    </nav>
+      <FilDAriane
+        ref={fil}
+        className="notak-fil-ecran"
+        niveaux={niveaux}
+        ici={{ genre, titre: nom ?? (typeof titre === 'string' ? titre : ''), contenu: titre, ...(nom ? { infobulle: nom } : {}) }}
+        aller={(id) => {
+          fermer()
+          // Le tableau qui porte l'écran est déjà dessous : le fermer suffit.
+          if (id !== porteur) entete?.ouvrir(id)
+        }}
+        place={place}
+        apres={apres}
+      />
+    </>
   )
 }
 

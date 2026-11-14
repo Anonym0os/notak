@@ -13,7 +13,6 @@ import {
   ouvrir as ouvrirParcours,
   parcoursDepart,
   reculer,
-  tronquerFil,
 } from './coeur/espace'
 import { point } from './coeur/geometrie'
 import { deballer } from './coeur/pressePapiers'
@@ -32,6 +31,7 @@ import { FenetreRaccourcis } from './Menus'
 import { BoutonVue } from './BoutonVue'
 import { Infobulle } from './Infobulle'
 import { BoutonIlot, ContexteEntete, type EnteteEspace, FiletIlot, Ilot, IlotCompte, IlotHistorique, IlotPartage } from './Ilots'
+import { FilDAriane, type Niveau, usePlaceDuFil } from './FilDAriane'
 import { modelesDe } from './modeles/langues'
 import { elementsDuModele, sansExemple } from './modeles/construire'
 import { PanneauModeles, modelesProposes } from './PanneauModeles'
@@ -50,20 +50,6 @@ import { GardeToile } from './garde'
 import { useApercuOutils, useBarreRetenue } from './apercuOutils'
 
 const CLE_VUES = 'notak:vues'
-/**
- * La largeur d'un segment du fil (texte, marges, séparateur), en pixels : le titre est mesuré dans la police du fil,
- * puis coupé à 160. Sans canvas (un test), on retombe sur une estimation.
- */
-let mesureur: CanvasRenderingContext2D | null | undefined
-function largeurSegment(titre: string): number {
-  mesureur ??= typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d')
-  // La police vraiment employée par un segment déjà dessiné, sinon celle de la page.
-  const modele = mesureur && (document.querySelector('.notak-fil-segment') ?? document.body)
-  if (mesureur && modele) mesureur.font = getComputedStyle(modele).font
-  const texte = mesureur ? mesureur.measureText(titre || t('commun.sansTitre')).width : (titre.length || 10) * 7.2
-  return Math.min(160, 8 + texte) + 24
-}
-const LARGEUR_SUSPENSION = 44
 
 /** Ce qu'un écran posé sur la toile (la bibliothèque de l'appareil, au doigt) envoie pour en ouvrir les réglages. */
 export const EVENEMENT_REGLAGES = 'notak-reglages'
@@ -164,10 +150,8 @@ export function copieDuContenu(elements: readonly Element[]): Element[] {
   })
 }
 
-interface Segment {
-  id: Id
-  titre: string
-}
+/** Un niveau du fil de la toile : l'accueil, un dossier ou une toile. */
+type Segment = Niveau
 
 /** L'espace de tableaux : un en-tête avec le fil d'Ariane, puis la toile du tableau courant. */
 export function EspaceNotak({
@@ -469,16 +453,17 @@ export function EspaceNotak({
     setParcours(parcoursDepart(racine))
   }, [refuse, courant, racine])
 
-  // Le fil, lu comme une chaîne : l'en-tête ne se redessine que si le chemin ou un titre change.
+  // Le fil, lu comme une chaîne : l'en-tête ne se redessine que si le chemin, un titre ou un dossier change.
   const fil = useSyncExternalStore(espace.ecouter, () => {
     const chemin = espace.chemin(courant)
-    return JSON.stringify(chemin.map((id) => [id, espace.tableau(id)?.titre ?? '']))
+    return JSON.stringify(chemin.map((id) => [id, espace.tableau(id)?.titre ?? '', espace.tableau(id)?.dossier === true]))
   })
   const segments = useMemo(() => {
-    const chemin = (JSON.parse(fil) as [Id, string][]).map(([id, titre]): Segment => ({ id, titre }))
+    const chemin = (JSON.parse(fil) as [Id, string, boolean][]).map(([id, titre, estDossier]): Segment => ({ id, titre, genre: estDossier ? 'dossier' : 'toile' }))
     // Un tableau orphelin n'est pas sous l'accueil, mais on garde une sortie.
-    if (chemin[0]?.id !== racine) chemin.unshift({ id: racine, titre: t('espace.accueil') })
-    else chemin[0] = { id: racine, titre: t('espace.accueil') }
+    const accueil: Segment = { id: racine, titre: t('espace.accueil'), genre: 'accueil' }
+    if (chemin[0]?.id !== racine) chemin.unshift(accueil)
+    else chemin[0] = accueil
     return chemin
   }, [fil, racine, langue])
 
@@ -684,7 +669,6 @@ export function EspaceNotak({
         key={`entete:${langue}`}
         segments={segments}
         charge={charge}
-        courant={courant}
         ouvrir={ouvrir}
         renommer={courant === racine || lectureSeule ? undefined : (titre) => espace.renommer(courant, titre)}
         actions={barreTelephone ? barreTelephone.plus : actions?.(courant, ouvrir, ouvrirAide)}
@@ -770,7 +754,6 @@ export function EspaceNotak({
 
 function Entete({
   segments,
-  courant,
   ouvrir,
   renommer,
   actions,
@@ -783,8 +766,8 @@ function Entete({
   outils,
   bibliotheque,
 }: {
+  /** De l'accueil au tableau ouvert, le dernier. */
   segments: Segment[]
-  courant: Id
   ouvrir(id: Id): void
   /** Le titre du tableau ouvert se change en place, au bout du fil (pas celui de l'accueil). */
   renommer?(titre: string): void
@@ -805,10 +788,10 @@ function Entete({
   /** Mène à la bibliothèque : une maison en tête de l'îlot. */
   bibliotheque?(): void
 }) {
-  const fil = useRef<HTMLElement>(null)
   const barre = useRef<HTMLElement>(null)
-  const [largeur, setLargeur] = useState(Number.POSITIVE_INFINITY)
-  const [menu, setMenu] = useState(false)
+  // Le fil vit au bout de l'îlot de gauche, qui se règle sur lui : sa place est ce que l'îlot peut prendre (la bande à
+  // gauche des îlots de droite), moins ses boutons. Elle dit combien de niveaux tiennent.
+  const [place, fil] = usePlaceDuFil('ilot-zone')
 
   // Ce qui s'accroche sous la barre (les non triés, la recherche) se règle sur sa hauteur ordinaire, celle d'une ligne
   // d'îlots. Si les îlots passent sur deux lignes (une fenêtre étroite), le surplus est dit à l'espace : rien ne les
@@ -832,71 +815,12 @@ function Entete({
     }
   }, [])
 
-  useLayoutEffect(() => {
-    const n = fil.current!
-    // Le fil vit au bout de l'îlot de gauche, qui se règle sur lui : sa place est celle que l'îlot peut prendre (la
-    // bande à gauche des îlots de droite, et au plus sa largeur maximale), moins ses boutons. C'est elle qui dit
-    // combien de maillons tiennent.
-    const ilot = n.parentElement!
-    const gauche = ilot.parentElement!
-    const mesurer = () => {
-      if (!gauche.clientWidth) return setLargeur(Number.POSITIVE_INFINITY)
-      const plafond = Math.min(gauche.clientWidth, Number.parseFloat(getComputedStyle(ilot).maxWidth) || Number.POSITIVE_INFINITY)
-      setLargeur(plafond - (ilot.offsetWidth - n.offsetWidth))
-    }
-    mesurer()
-    const obs = new ResizeObserver(mesurer)
-    obs.observe(gauche)
-    obs.observe(ilot)
-    return () => obs.disconnect()
-  }, [])
-
-  useEffect(() => {
-    if (!menu) return
-    const hors = (e: PointerEvent) => {
-      if (!(e.target as HTMLElement).closest('.notak-fil-menu, .notak-fil-suspension')) setMenu(false)
-    }
-    document.addEventListener('pointerdown', hors)
-    return () => document.removeEventListener('pointerdown', hors)
-  }, [menu])
-
   // Sur un téléphone, un seul bouton de tête, comme une app iPhone : ‹ remonte à la toile parente, la maison ouvre la
   // bibliothèque depuis l'accueil ; le fil n'a que la toile ouverte, et son titre prend la place qui reste.
   const telephone = auDoigt() && typeof innerWidth === 'number' && innerWidth <= 640
   // Le titre du tableau ouvert se change en place, au bout du fil ; l'accueil n'a que son nom.
   const avecTitre = segments.length > 1
-  const { visibles, caches } = telephone
-    ? { visibles: [segments.length - 1], caches: [] as number[] }
-    : tronquerFil(segments.map((s) => largeurSegment(s.titre)), largeur, LARGEUR_SUSPENSION)
-
-  const aller = (id: Id) => {
-    setMenu(false)
-    ouvrir(id)
-  }
-  const segment = (i: number) => {
-    const s = segments[i]!
-    const ici = i === segments.length - 1 && s.id === courant
-    if (ici && avecTitre)
-      return (
-        <span key={`${s.id}:${i}`} className="notak-fil-titre" aria-current="page" data-depot-tableau={s.id} data-charge={!charge || undefined} title={!charge ? t('espace.chargement') : s.titre}>
-          <TitreTableau titre={s.titre} {...(renommer ? { renommer } : {})} />
-        </span>
-      )
-    return (
-      <button
-        key={`${s.id}:${i}`}
-        type="button"
-        className="notak-fil-segment"
-        aria-current={ici ? 'page' : undefined}
-        title={ici && !charge ? t('espace.chargement') : s.titre}
-        data-depot-tableau={s.id}
-        data-charge={(ici && !charge) || undefined}
-        onClick={() => (ici ? undefined : aller(s.id))}
-      >
-        {s.titre || t('commun.sansTitre')}
-      </button>
-    )
-  }
+  const ici = segments.at(-1)!
   const parent = segments.length > 1 ? segments.at(-2) : undefined
   if (telephone) {
     if (parent) bibliotheque = undefined
@@ -912,7 +836,7 @@ function Entete({
         <Ilot className="notak-ilot-fil">
           {bibliotheque && <BoutonIlot icone="maison" libelle={t('espace.bibliotheque')} raccourci="⌥⌘O" onClick={bibliotheque} />}
           {bibliotheque && (parent || outils) && <FiletIlot />}
-          {parent && <BoutonIlot icone="gauche" libelle={t('espace.remonter')} onClick={() => aller(parent.id)} />}
+          {parent && <BoutonIlot icone="gauche" libelle={t('espace.remonter')} onClick={() => ouvrir(parent.id)} />}
           {parent && outils && <FiletIlot />}
           {outils && (
             <BoutonIlot
@@ -924,36 +848,23 @@ function Entete({
             />
           )}
           {(bibliotheque || parent || outils) && <FiletIlot />}
-          <nav className="notak-fil" aria-label={t('espace.fil')} ref={fil}>
-            {visibles.flatMap((i, rang) => [
-              rang > 0 && <span key={`s${i}`} className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
-              rang === 1 && caches.length > 0 && (
-                <span key="susp" className="notak-fil-bloc">
-                  <button
-                    type="button"
-                    className="notak-fil-segment notak-fil-suspension"
-                    title={t('espace.niveauxCaches')}
-                    aria-expanded={menu}
-                    onClick={() => setMenu((m) => !m)}
-                  >
-                    <Icone nom="plus" taille={16} />
-                  </button>
-                  {menu && (
-                    <div className="notak-fil-menu" role="menu">
-                      {caches.map((c) => (
-                        <button key={c} type="button" role="menuitem" onClick={() => aller(segments[c]!.id)}>
-                          {segments[c]!.titre || t('commun.sansTitre')}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </span>
-              ),
-              rang === 1 && caches.length > 0 && <span key="s-susp" className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
-              segment(i),
-            ])}
-            {avecTitre && <EtatEnregistrement etat={envoi} />}
-          </nav>
+          {/* Chaque niveau reçoit ce qu'on y glisse depuis la toile (`data-depot-tableau`, lu par Toile.tsx). */}
+          <FilDAriane
+            ref={fil}
+            niveaux={segments.slice(0, -1)}
+            ici={{
+              genre: ici.genre,
+              titre: ici.titre,
+              ...(avecTitre ? { contenu: <TitreTableau titre={ici.titre} {...(renommer ? { renommer } : {})} /> } : {}),
+              ...(!charge ? { infobulle: t('espace.chargement') } : {}),
+              attributs: { 'data-depot-tableau': ici.id, 'data-charge': !charge || undefined },
+            }}
+            aller={ouvrir}
+            place={place}
+            seulIci={telephone}
+            attributs={(n) => ({ 'data-depot-tableau': n.id })}
+            apres={avecTitre && <EtatEnregistrement etat={envoi} />}
+          />
         </Ilot>
       </div>
       <div className="notak-entete-droite">

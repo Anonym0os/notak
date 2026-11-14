@@ -25,9 +25,9 @@ afterEach(() => {
 
 const entete = (plus: Partial<EnteteEspace> = {}): EnteteEspace => ({
   fil: [
-    { id: 'R', titre: 'Accueil' },
-    { id: 'P', titre: 'Projets' },
-    { id: 'T', titre: 'Un steak vivant ?!' },
+    { id: 'R', titre: 'Accueil', genre: 'accueil' },
+    { id: 'P', titre: 'Projets', genre: 'dossier' },
+    { id: 'T', titre: 'Un steak vivant ?!', genre: 'toile' },
   ],
   ouvrir: vi.fn(),
   ...plus,
@@ -39,19 +39,24 @@ const rendre = (valeur: EnteteEspace | null, enfant: React.ReactNode) =>
 const textes = (selecteur: string) => [...document.querySelectorAll(selecteur)].map((n) => n.textContent)
 
 describe('la barre d’îlots, commune au tableau, à la carte et au document', () => {
-  it('le fil d’un écran ouvert en grand : le tableau qui le porte et celui d’au-dessus, puis son titre en gras', () => {
-    rendre(entete(), <FilEcran titre={<span>Carte des idées</span>} fermer={() => {}} />)
-    expect(textes('.notak-fil-segment')).toEqual(['Projets', 'Un steak vivant ?!'])
-    expect(document.querySelector('.notak-fil-titre')!.textContent).toBe('Carte des idées')
-    expect(document.querySelector('.notak-fil-titre')!.getAttribute('aria-current')).toBe('page')
+  it('le fil d’un écran ouvert en grand : le chemin entier du tableau qui le porte, puis son titre en gras, chacun avec son icône', () => {
+    rendre(entete(), <FilEcran titre={<span>Carte des idées</span>} genre="carte" fermer={() => {}} />)
+    expect(textes('.notak-fil-segment')).toEqual(['Accueil', 'Projets', 'Un steak vivant ?!'])
+    expect([...document.querySelectorAll<HTMLElement>('.notak-fil-segment')].map((b) => b.dataset.genre)).toEqual(['accueil', 'dossier', 'toile'])
+    expect(document.querySelectorAll('.notak-fil-segment svg')).toHaveLength(3)
+    const ici = document.querySelector<HTMLElement>('.notak-fil-titre')!
+    expect(ici.textContent).toBe('Carte des idées')
+    expect(ici.getAttribute('aria-current')).toBe('page')
+    expect(ici.dataset.genre).toBe('carte')
+    expect(ici.querySelector('svg')).not.toBeNull()
   })
 
   it('un maillon du fil ferme l’écran d’abord (ce qu’il tient s’enregistre), puis ouvre le tableau voulu ; celui qui le porte ne fait que fermer', () => {
     const e = entete()
     const appels: string[] = []
     e.ouvrir = (id) => void appels.push(`ouvrir ${id}`)
-    rendre(e, <FilEcran titre="Carte" fermer={() => appels.push('fermer')} />)
-    const [projets, tableau] = document.querySelectorAll<HTMLButtonElement>('.notak-fil-segment')
+    rendre(e, <FilEcran titre="Carte" genre="carte" fermer={() => appels.push('fermer')} />)
+    const [, projets, tableau] = document.querySelectorAll<HTMLButtonElement>('.notak-fil-segment')
     act(() => projets!.click())
     expect(appels).toEqual(['fermer', 'ouvrir P'])
     appels.length = 0
@@ -59,12 +64,14 @@ describe('la barre d’îlots, commune au tableau, à la carte et au document', 
     expect(appels).toEqual(['fermer'])
   })
 
-  it('avec une bibliothèque, une maison ouvre le fil : elle ferme l’écran puis y mène', () => {
+  it('avec une bibliothèque, une maison la précède dans l’îlot, comme dans la toile : elle ferme l’écran puis y mène', () => {
     const appels: string[] = []
-    rendre(entete({ bibliotheque: () => void appels.push('bibliothèque') }), <FilEcran titre="Carte" fermer={() => appels.push('fermer')} />)
+    rendre(entete({ bibliotheque: () => void appels.push('bibliothèque') }), <FilEcran titre="Carte" genre="carte" fermer={() => appels.push('fermer')} />)
     const maison = document.querySelector<HTMLButtonElement>('.notak-fil-maison')!
     expect(maison.getAttribute('aria-label')).toBe('Bibliothèque')
-    expect(textes('.notak-fil-segment')).toEqual(['', 'Projets', 'Un steak vivant ?!'])
+    // Le fil part de l'accueil ; la bibliothèque n'en est pas un niveau.
+    expect(maison.closest('nav')).toBeNull()
+    expect(textes('.notak-fil-segment')).toEqual(['Accueil', 'Projets', 'Un steak vivant ?!'])
     act(() => maison.click())
     expect(appels).toEqual(['fermer', 'bibliothèque'])
   })
@@ -73,7 +80,7 @@ describe('la barre d’îlots, commune au tableau, à la carte et au document', 
     rendre(
       null,
       <>
-        <FilEcran titre="Seul" fermer={() => {}} />
+        <FilEcran titre="Seul" genre="page" fermer={() => {}} />
         <IlotPartage />
         <IlotCompte />
       </>,
@@ -83,9 +90,9 @@ describe('la barre d’îlots, commune au tableau, à la carte et au document', 
   })
 
   it('l’état de l’écran suit le titre dans le fil, et le titre porte son nom complet', () => {
-    rendre(entete(), <FilEcran titre="Carte" nom="Carte des idées" fermer={() => {}} apres={<span className="etat">Lecture seule</span>} />)
+    rendre(entete(), <FilEcran titre="Carte" nom="Carte des idées" genre="carte" fermer={() => {}} apres={<span className="etat">Lecture seule</span>} />)
     const fil = document.querySelector('.notak-fil-ecran')!
-    expect([...fil.children].map((n) => n.textContent)).toEqual(['Projets', 'Un steak vivant ?!', 'Carte', 'Lecture seule'])
+    expect([...fil.children].map((n) => n.textContent)).toEqual(['Accueil', 'Projets', 'Un steak vivant ?!', 'Carte', 'Lecture seule'])
     expect(fil.querySelector('.notak-fil-titre')!.getAttribute('title')).toBe('Carte des idées')
   })
 
@@ -151,7 +158,7 @@ describe('le document ouvert en grand porte la même barre', () => {
     // Un seul îlot à gauche : le retour, un filet, puis le fil.
     const gauche = barre.querySelector('.notak-ilot-fil')!
     expect([...gauche.children].map((n) => n.className.split(' ')[0])).toEqual(['notak-infobulle-hote', 'notak-ilot-filet', 'notak-fil'])
-    expect([...barre.querySelectorAll('.notak-fil-segment')].map((n) => n.textContent)).toEqual(['Projets', 'Un steak vivant ?!'])
+    expect([...barre.querySelectorAll('.notak-fil-segment')].map((n) => n.textContent)).toEqual(['Accueil', 'Projets', 'Un steak vivant ?!'])
     expect(barre.querySelector('.notak-historique')).not.toBeNull()
     expect(barre.querySelector('.notak-ilot-partage .partage')).not.toBeNull()
   })

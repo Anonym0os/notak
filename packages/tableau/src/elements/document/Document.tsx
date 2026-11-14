@@ -390,7 +390,7 @@ function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps
           <Ilot className="notak-ilot-fil">
             <BoutonIlot icone="gauche" className="notak-document-fermer" libelle={t('espace.retourTableau')} onClick={fermer} />
             <FiletIlot />
-            <FilEcran titre={titre} nom={titreTexte} fermer={fermer} />
+            <FilEcran titre={titre} nom={titreTexte} genre="page" bande fermer={fermer} />
           </Ilot>
           <div className="notak-document-entete-droite">
             {!lecture && editeur && <IlotHistorique annuler={() => editeur.chain().focus().undo().run()} retablir={() => editeur.chain().focus().redo().run()} />}
