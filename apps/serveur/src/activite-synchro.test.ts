@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { ouvrirBase } from './base.ts'
+import * as Y from 'yjs'
+import { suivreActivite } from './activite.ts'
+import { type Base, ouvrirBase } from './base.ts'
 import { authEssai, autorisationEssai, poser, poserUtilisateur } from './essai.ts'
 import { creerHocuspocus, nomDuDocument } from './synchro.ts'
 
@@ -108,6 +110,102 @@ describe('l’activité déduite de la synchro', () => {
     expect(base.notifications('ana', 10)).toEqual([])
     expect(base.activite('tableau-act-1', 10)).toHaveLength(1)
     await ana.disconnect()
+    base.fermer()
+  })
+})
+
+describe('un message supprimé ne se lit plus ailleurs', () => {
+  /** Le tableau d'Ana, où Bob écrit et que Cléo commente. */
+  function avecCleo() {
+    const m = monde()
+    poserUtilisateur(m.base, { id: 'cleo', email: 'cleo@exemple.fr', nom: 'Cléo Durand', couleur: '#336699', racine: 'racine-cleo' })
+    m.base.definirAcces({ tableau: 'tableau-act-1', utilisateur: 'cleo', role: 'commentaire' })
+    return m
+  }
+  const message = (id: string, auteur: string, texte: string) => ({ id, auteur: { id: auteur, nom: auteur }, date: 1, texte })
+  type Fil = Record<string, unknown> & { contenu: { messages: unknown[] } }
+  /** Le fil `fil` changé d'un seul geste, comme le fait la toile ; `null` le retire. */
+  const changerFil = (doc: Y.Doc, f: (fil: Fil) => Fil | null) => {
+    const elements = doc.getMap<Record<string, unknown>>('elements')
+    const apres = f(elements.get('fil') as Fil)
+    if (apres) elements.set('fil', apres)
+    else elements.delete('fil')
+  }
+  const messages = (doc: Y.Doc, f: (avant: unknown[]) => unknown[]) => changerFil(doc, (fil) => ({ ...fil, contenu: { ...fil.contenu, messages: f(fil.contenu.messages) } }))
+  /** Ce que citent les notifications des messages, et l'activité de leurs commentaires. */
+  const notes = (base: Base, qui: string) => base.notifications(qui, 50).filter((n) => n.genre !== 'modification').map((n) => [n.genre, n.extrait, n.lu])
+  const commentes = (base: Base) => base.activite('tableau-act-1', 50).filter((a) => a.genre === 'commente').map((a) => [a.auteur.id, a.libelle])
+  const seLit = (base: Base, texte: string) =>
+    JSON.stringify([base.activite('tableau-act-1', 50), ...['ana', 'bob', 'cleo'].map((id) => base.notifications(id, 50))]).includes(texte)
+
+  it('supprimé, ses notifications partent, lues ou non, et l’activité garde le geste sans le texte ; son fil jeté emporte les autres', async () => {
+    const { base, ouvrir } = avecCleo()
+    const bob = await ouvrir('bob')
+    await bob.transact((doc) => void poser(doc, { type: 'commentaire', messages: [message('m1', 'bob', 'Première remarque')] }, { id: 'fil' }))
+    await bob.transact((doc) => messages(doc, (avant) => [...avant, message('m2', 'bob', 'Je regrette, @Cléo')]))
+    expect(notes(base, 'cleo')).toEqual([['mention', 'Je regrette, @Cléo', false]])
+    base.marquerLues('ana', null)
+    expect(notes(base, 'ana')).toEqual([['commentaire', 'Je regrette, @Cléo', true], ['commentaire', 'Première remarque', true]])
+
+    await bob.transact((doc) => messages(doc, (avant) => avant.slice(0, 1)))
+    expect(seLit(base, 'regrette')).toBe(false)
+    expect(notes(base, 'cleo')).toEqual([])
+    // La première remarque est toujours là, et dite ; Bob a bien commenté, même si ce qu'il a dit n'y est plus.
+    expect(notes(base, 'ana')).toEqual([['commentaire', 'Première remarque', true]])
+    expect(commentes(base)).toEqual([['bob', '']])
+
+    // Supprimer le dernier message jette le fil (`effacerFil`), qui le garde pour qu'Annuler le rende entier.
+    await bob.transact((doc) => changerFil(doc, (fil) => ({ ...fil, corbeille: 5 })))
+    expect(seLit(base, 'Première remarque')).toBe(false)
+    await bob.disconnect()
+    base.fermer()
+  })
+
+  it('un commentateur qui retire son fil n’y laisse rien de cité', async () => {
+    const { base, ouvrir } = avecCleo()
+    const cleo = await ouvrir('cleo')
+    await cleo.transact((doc) => void poser(doc, { type: 'commentaire', messages: [message('m1', 'cleo', 'Une idée à moi')] }, { id: 'fil' }))
+    expect(notes(base, 'ana')).toEqual([['commentaire', 'Une idée à moi', false]])
+    await cleo.transact((doc) => changerFil(doc, () => null))
+    expect(seLit(base, 'Une idée')).toBe(false)
+    await cleo.disconnect()
+    base.fermer()
+  })
+
+  it('un texte que son auteur dit encore dans le fil reste cité, jusqu’à ce qu’il ne le dise plus', async () => {
+    const { base, ouvrir } = avecCleo()
+    const bob = await ouvrir('bob')
+    await bob.transact((doc) => void poser(doc, { type: 'commentaire', messages: [message('m1', 'bob', 'Merci !')] }, { id: 'fil' }))
+    await bob.transact((doc) => messages(doc, (avant) => [...avant, message('m2', 'bob', 'Merci !')]))
+    await bob.transact((doc) => messages(doc, (avant) => avant.slice(0, 1)))
+    expect(notes(base, 'ana')).toHaveLength(2)
+    await bob.transact((doc) => messages(doc, () => []))
+    expect(notes(base, 'ana')).toEqual([])
+    await bob.disconnect()
+    base.fermer()
+  })
+
+  it('un geste refusé puis défait ne retire rien ; celui d’un visiteur ou du serveur retire ce qu’il efface', () => {
+    const { base } = monde()
+    let instant = 1_000_000
+    const suivi = suivreActivite(base, () => (instant += 1000))
+    const doc = new Y.Doc()
+    suivi.suivre(doc)
+    const bob = { id: 'bob', nom: 'Bob', couleur: '#336699' }
+    poser(doc, { type: 'commentaire', messages: [message('m1', 'bob', 'Une question')] }, { id: 'fil' })
+    suivi.noter('tableau-act-1', doc, bob)
+    expect(notes(base, 'ana')).toHaveLength(1)
+
+    // Ce que fait la synchro d'un geste interdit : appliqué, défait, oublié.
+    messages(doc, () => [])
+    messages(doc, () => [message('m1', 'bob', 'Une question')])
+    suivi.oublier(doc)
+    suivi.noter('tableau-act-1', doc, bob)
+    expect(notes(base, 'ana')).toHaveLength(1)
+
+    messages(doc, () => [])
+    suivi.noter('tableau-act-1', doc, undefined)
+    expect(notes(base, 'ana')).toEqual([])
     base.fermer()
   })
 })

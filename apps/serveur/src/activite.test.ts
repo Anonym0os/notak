@@ -42,6 +42,26 @@ describe('comparer deux états d’un élément', () => {
     expect(comparer('c', fil(m1), fil(m1, m2))).toMatchObject({ genre: 'commente', libelle: 'Salut @Bob', participants: ['ana'] })
     expect(comparer('c', fil(m1), { ...fil(m1), contenu: { type: 'commentaire', messages: [m1], resolu: true } })).toMatchObject({ genre: 'modifie' })
   })
+
+  it('un fil dit quels messages ne disent plus ce qu’on a pu citer d’eux : supprimés, ou partis avec lui', () => {
+    const fil = (champs: Record<string, unknown>, ...messages: Record<string, unknown>[]) => ({
+      id: 'c', x: 0, y: 0, largeur: 28, plan: 'a', contenu: { type: 'commentaire', messages }, ...champs,
+    })
+    const m1 = { id: 'm1', texte: 'Bonjour', auteur: { id: 'ana' } }
+    const m2 = { id: 'm2', texte: 'Je regrette', auteur: { id: 'bob' } }
+    expect(comparer('c', fil({}, m1, m2), fil({}, m1))).toMatchObject({ genre: 'modifie', perimes: [{ auteur: 'bob', texte: 'Je regrette' }] })
+    // Jeté ou retiré, le fil emporte tous ses messages ; déjà jeté, il n'a plus rien à dire.
+    const tous = [{ auteur: 'ana', texte: 'Bonjour' }, { auteur: 'bob', texte: 'Je regrette' }]
+    expect(comparer('c', fil({}, m1, m2), fil({ corbeille: 5 }, m1, m2))).toMatchObject({ genre: 'supprime', perimes: tous })
+    expect(comparer('c', fil({}, m1, m2), undefined)).toMatchObject({ genre: 'supprime', perimes: tous })
+    expect(comparer('c', fil({ corbeille: 5 }, m1), undefined)).toBeNull()
+    // Une réponse, une réaction : ce qu'on a cité se dit toujours.
+    expect(comparer('c', fil({}, m1), fil({}, m1, m2))?.perimes).toBeUndefined()
+    expect(comparer('c', fil({}, m1), fil({}, { ...m1, reactions: { '👍': ['bob'] } }))?.perimes).toBeUndefined()
+    // Les fils de la marge d'une note ne sont cités ni par l'activité ni par les notifications : rien à retirer.
+    const enMarge = { ...note('Idée'), contenu: { type: 'note', texte: texte('Idée'), fils: { f: { type: 'commentaire', messages: [m2] } } } }
+    expect(comparer('n', enMarge, undefined)?.perimes).toBeUndefined()
+  })
 })
 
 describe('observer un document', () => {
@@ -81,6 +101,13 @@ describe('observer un document', () => {
   it('une rafale de frappes ne fait qu’un changement par élément', () => {
     const rafale = [1, 2, 3].map(() => ({ genre: 'modifie' as const, element: 'a', typeElement: 'note', libelle: 'x' }))
     expect(sansDoublons(rafale)).toHaveLength(1)
+  })
+
+  it('une rafale garde, dans l’ordre, tout ce qui ne se dit plus', () => {
+    const parti = (texte: string) => ({ genre: 'modifie' as const, element: 'c', typeElement: 'commentaire', libelle: '', perimes: [{ auteur: 'bob', texte }] })
+    expect(sansDoublons([parti('A'), { genre: 'modifie', element: 'c', typeElement: 'commentaire', libelle: '' }, parti('B')])).toMatchObject([
+      { perimes: [{ texte: 'A' }, { texte: 'B' }] },
+    ])
   })
 })
 

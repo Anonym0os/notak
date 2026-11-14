@@ -30,4 +30,28 @@ describe('la synchro tient l’index à jour', () => {
     expect(base.tableau('tableau-sync-1')?.titre).toBe('Courses')
     base.fermer()
   })
+
+  it('un message supprimé ne se cherche plus, ni ceux d’un fil jeté', async () => {
+    const base = ouvrirBase(':memory:')
+    poserUtilisateur(base, { id: 'u1', email: 'a@exemple.fr', nom: 'Ana', couleur: '#000000', racine: 'racine-1' })
+    base.creerTableau({ id: 'tableau-sync-2', titre: 'Fil', proprietaire: 'u1', parent: null })
+    const serveur = creerHocuspocus(base, authEssai(base), autorisationEssai(base))
+    const message = (id: string, texte: string) => ({ id, auteur: { id: 'u1', nom: 'Ana' }, date: 1, texte })
+    const fil = (champs: Record<string, unknown>, ...messages: unknown[]) => ({ id: 'fil', x: 0, y: 0, largeur: 28, plan: 'a', ...champs, contenu: { type: 'commentaire', messages } })
+    const trouve = (mot: string) => base.chercher(`"${mot}"*`, ['tableau-sync-2'], 5).length
+    // Se déconnecter attend l'enregistrement, qui remet l'index à jour.
+    const ecrire = async (element: unknown) => {
+      const connexion = await serveur.openDirectConnection(nomDuDocument('tableau-sync-2'))
+      await connexion.transact((doc) => doc.getMap('elements').set('fil', element))
+      await connexion.disconnect()
+    }
+
+    await ecrire(fil({}, message('m1', 'Pamplemousses regrettés'), message('m2', 'Kiwis')))
+    expect([trouve('pamplemousses'), trouve('kiwis')]).toEqual([1, 1])
+    await ecrire(fil({}, message('m2', 'Kiwis')))
+    expect([trouve('pamplemousses'), trouve('kiwis')]).toEqual([0, 1])
+    await ecrire(fil({ corbeille: 5 }, message('m2', 'Kiwis')))
+    expect(trouve('kiwis')).toBe(0)
+    base.fermer()
+  })
 })

@@ -31,13 +31,25 @@ export interface Changement {
   messages?: { texte: string }[]
   /** Pour un fil de commentaires : qui avait déjà écrit dedans. */
   participants?: string[]
+  /**
+   * Pour un fil de commentaires : les messages qui ne disent plus ce que l'activité et les notifications ont pu citer
+   * d'eux, supprimés ou partis avec leur fil. `noter` retire ces citations.
+   */
+  perimes?: MessagePerime[]
+}
+
+export interface MessagePerime {
+  auteur: string
+  /** Ce qu'il disait. */
+  texte: string
 }
 
 const chaine = (v: unknown): string => (typeof v === 'string' ? v : '')
 const nombre = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+const net = (texte: string) => texte.replace(/\s+/g, ' ').trim()
 const court = (texte: string, max: number) => {
-  const net = texte.replace(/\s+/g, ' ').trim()
-  return net.length > max ? `${net.slice(0, max - 1)}…` : net
+  const propre = net(texte)
+  return propre.length > max ? `${propre.slice(0, max - 1)}…` : propre
 }
 
 const contenuDe = (s: Stocke): ElementLu['contenu'] | null => {
@@ -65,6 +77,23 @@ const messagesDe = (c: ElementLu['contenu'] | null): { id: string; texte: string
       }))
     : []
 
+/**
+ * Les messages du fil `avant` qui ne sont plus dans `apres` : supprimés. `apres` absent : le fil est parti (jeté,
+ * retiré), ses messages avec lui. Rien pour un élément qui n'était pas un fil.
+ */
+function perimes(avant: Stocke, apres: Stocke | undefined): MessagePerime[] {
+  if (contenuDe(avant)?.type !== 'commentaire') return []
+  const restants = new Set(messagesDe(apres ? contenuDe(apres) : null).map((m) => m.id))
+  return messagesDe(contenuDe(avant))
+    .filter((m) => !restants.has(m.id))
+    .map((m) => ({ auteur: m.auteur, texte: m.texte }))
+}
+
+const avecPerimes = (c: Changement, avant: Stocke, apres: Stocke | undefined): Changement => {
+  const p = perimes(avant, apres)
+  return p.length > 0 ? { ...c, perimes: p } : c
+}
+
 /** Ce qui a changé d'un élément entre `avant` et `apres` (absent : n'existait pas, n'existe plus), ou `null`. */
 export function comparer(id: string, avant: Stocke | undefined, apres: Stocke | undefined): Changement | null {
   const decrire = (s: Stocke, genre: GenreActivite): Changement => ({
@@ -85,8 +114,9 @@ export function comparer(id: string, avant: Stocke | undefined, apres: Stocke | 
     }
     return decrire(apres, 'cree')
   }
-  if (!apres) return aLaCorbeille(avant) ? null : decrire(avant, 'supprime')
-  if (!aLaCorbeille(avant) && aLaCorbeille(apres)) return decrire(avant, 'supprime')
+  // Un fil jeté part avec ses messages : ce qu'on citait d'eux ne se lit plus, même s'il peut revenir.
+  if (!apres) return aLaCorbeille(avant) ? null : avecPerimes(decrire(avant, 'supprime'), avant, undefined)
+  if (!aLaCorbeille(avant) && aLaCorbeille(apres)) return avecPerimes(decrire(avant, 'supprime'), avant, undefined)
   if (aLaCorbeille(avant) && !aLaCorbeille(apres)) return decrire(apres, 'restaure')
   if (aLaCorbeille(apres)) return null
 
@@ -98,15 +128,19 @@ export function comparer(id: string, avant: Stocke | undefined, apres: Stocke | 
       const connus = new Set(anciens.map((m) => m.id))
       const neufs = messagesDe(c1).filter((m) => !connus.has(m.id))
       if (neufs.length > 0) {
-        return {
-          ...decrire(apres, 'commente'),
-          libelle: court(neufs[neufs.length - 1]!.texte, LIBELLE_MAX),
-          messages: neufs.map((m) => ({ texte: m.texte })),
-          participants: [...new Set(anciens.map((m) => m.auteur).filter(Boolean))],
-        }
+        return avecPerimes(
+          {
+            ...decrire(apres, 'commente'),
+            libelle: court(neufs[neufs.length - 1]!.texte, LIBELLE_MAX),
+            messages: neufs.map((m) => ({ texte: m.texte })),
+            participants: [...new Set(anciens.map((m) => m.auteur).filter(Boolean))],
+          },
+          avant,
+          apres,
+        )
       }
     }
-    return decrire(apres, 'modifie')
+    return avecPerimes(decrire(apres, 'modifie'), avant, apres)
   }
   const loin = Math.hypot(nombre(apres.x) - nombre(avant.x), nombre(apres.y) - nombre(avant.y)) >= DEPLACEMENT_MIN
   if (loin || chaine(apres.parent) !== chaine(avant.parent)) return decrire(apres, 'deplace')
@@ -176,13 +210,18 @@ export function observer(doc: Y.Doc): { ramasser(): Changement[] } {
   }
 }
 
-/** Un changement par élément et par genre : une rafale de frappes n'en fait qu'un. */
+/**
+ * Un changement par élément et par genre : une rafale de frappes n'en fait qu'un. Les messages arrivés et ceux qui sont
+ * partis s'additionnent : aucun ne se perd dans la rafale.
+ */
 export function sansDoublons(changements: readonly Changement[]): Changement[] {
   const dernier = new Map<string, Changement>()
   for (const c of changements) {
     const cle = `${c.element}|${c.genre}`
     const avant = dernier.get(cle)
-    dernier.set(cle, avant?.messages ? { ...c, messages: [...avant.messages, ...(c.messages ?? [])], participants: avant.participants } : c)
+    const fondu = avant?.messages ? { ...c, messages: [...avant.messages, ...(c.messages ?? [])], participants: avant.participants } : c
+    const perimes = [...(avant?.perimes ?? []), ...(c.perimes ?? [])]
+    dernier.set(cle, perimes.length > 0 ? { ...fondu, perimes } : fondu)
   }
   return [...dernier.values()]
 }
@@ -268,7 +307,10 @@ export function notificationsDe(
 export interface SuiviActivite {
   /** À appeler quand un document vient d'être chargé. */
   suivre(doc: Y.Doc): void
-  /** À appeler à chaque mise à jour reçue ; `acteur` : qui l'a envoyée (absent : le serveur, on ne note rien). */
+  /**
+   * À appeler à chaque mise à jour reçue ; `acteur` : qui l'a envoyée. Absent (le serveur, un visiteur), rien ne
+   * s'ajoute à l'activité, mais un message qu'elle a fait disparaître n'y est plus cité.
+   */
   noter(tableau: string | null, doc: Y.Doc, acteur: Acteur | undefined): void
   /** Oublie ce qui a été observé et pas encore noté : un geste refusé puis annulé ne laisse pas d'activité. */
   oublier(doc: Y.Doc): void
@@ -285,22 +327,50 @@ export function suivreActivite(base: Base, maintenant: () => number): SuiviActiv
     },
     noter(tableau, doc, acteur) {
       const pris = observes.get(doc)?.ramasser() ?? []
-      if (!acteur || !tableau || pris.length === 0 || !base.tableau(tableau) || !base.utilisateurParId(acteur.id)) return
+      if (!tableau || pris.length === 0 || !base.tableau(tableau)) return
       const changements = sansDoublons(pris)
+      const qui = acteur && base.utilisateurParId(acteur.id) ? acteur : undefined
+      if (!qui && !changements.some((c) => c.perimes)) return
       const instant = maintenant()
       base.transaction(() => {
-        for (const c of changements) {
-          base.noterActivite(
-            { tableau, auteur: acteur.id, genre: c.genre, element: c.element, typeElement: c.typeElement, libelle: c.libelle, instant },
-            FENETRE_FUSION,
-          )
+        if (qui) {
+          for (const c of changements) {
+            base.noterActivite(
+              { tableau, auteur: qui.id, genre: c.genre, element: c.element, typeElement: c.typeElement, libelle: c.libelle, instant },
+              FENETRE_FUSION,
+            )
+          }
+          for (const n of notificationsDe(base, tableau, qui.id, changements, instant)) {
+            base.noterNotification(n, n.genre === 'modification' ? FUSION_NOTIFICATION : undefined)
+          }
         }
-        for (const n of notificationsDe(base, tableau, acteur.id, changements, instant)) {
-          base.noterNotification(n, n.genre === 'modification' ? FUSION_NOTIFICATION : undefined)
-        }
+        // Après ce qui vient d'être cité : un message écrit puis supprimé dans la même rafale ne reste pas cité.
+        oublierLesPerimes(base, tableau, doc, changements)
       })
     },
   }
+}
+
+/**
+ * Ce que l'activité et les notifications citaient de messages partis n'y est plus cité (`Base.retirerCitation`). Un
+ * texte que son auteur dit encore dans ce fil, tel qu'est le document maintenant, reste cité : rien ne dit laquelle des
+ * citations visait le message parti, et ce qu'elle dit se lit toujours dans le fil.
+ */
+function oublierLesPerimes(base: Base, tableau: string, doc: Y.Doc, changements: readonly Changement[]) {
+  const elements = doc.getMap<Stocke>('elements')
+  for (const c of changements) {
+    for (const p of c.perimes ?? []) {
+      // Un texte vide ne cite rien, et désignerait les lignes dont la citation est déjà partie.
+      if (!net(p.texte) || ditEncore(elements.get(c.element), p.auteur, p.texte)) continue
+      base.retirerCitation(tableau, { element: c.element, auteur: p.auteur, libelle: court(p.texte, LIBELLE_MAX), extrait: court(p.texte, EXTRAIT_MAX) })
+    }
+  }
+}
+
+/** Ce fil, tel qu'il est sur la toile, a un message de cet auteur qui dit ce texte. */
+function ditEncore(fil: Stocke | undefined, auteur: string, texte: string): boolean {
+  if (!fil || fil.corbeille !== undefined || contenuDe(fil)?.type !== 'commentaire') return false
+  return messagesDe(contenuDe(fil)).some((m) => m.auteur === auteur && net(m.texte) === net(texte))
 }
 
 // ---- Regrouper pour l'affichage ----

@@ -152,6 +152,20 @@ export interface NouvelleNotification {
   instant: number
 }
 
+/**
+ * Un message tel que l'activité et les notifications l'ont cité : leurs lignes ne gardent pas son identifiant, il s'y
+ * reconnaît à son fil, à son auteur et à son texte, coupé comme chacune le coupe.
+ */
+export interface Citation {
+  /** Le fil. */
+  element: string
+  auteur: string
+  /** Comme une ligne d'activité le cite. */
+  libelle: string
+  /** Comme une notification le cite. */
+  extrait: string
+}
+
 export interface LigneNotification extends Omit<NouvelleNotification, 'auteur' | 'destinataire'> {
   id: number
   auteur: { id: string; nom: string; couleur: string }
@@ -378,6 +392,13 @@ export interface Base {
   nonLues(destinataire: string): number
   /** Marque comme lues ces notifications de ce compte, ou toutes si `ids` est `null` ; rend leur nombre. */
   marquerLues(destinataire: string, ids: readonly number[] | null): number
+  /**
+   * Un message n'est plus (supprimé, ou parti avec son fil) : son texte ne doit plus se lire ailleurs. La ligne
+   * d'activité qui le citait garde le geste, sans le texte. Les notifications qui le citaient, lues ou non, sont
+   * retirées, comme chez Notion et Slack, où l'on ne trouve plus trace d'un message supprimé : y laisser « message
+   * supprimé » ferait sonner la cloche pour rien, et montrerait qu'on a retiré quelque chose.
+   */
+  retirerCitation(tableau: string, c: Citation): void
 
   /**
    * Remplace tout ce qu'on sait chercher dans ce tableau (`element` vide : le titre du tableau), et la liste des
@@ -1116,6 +1137,23 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
           destinataire,
           JSON.stringify(ids),
         ).changes,
+      )
+    },
+    // Seules ces lignes citent un message : `commente` dans l'activité, `commentaire` et `mention` dans les notifications.
+    retirerCitation(tableau, c) {
+      executer(
+        "UPDATE activite SET libelle = '' WHERE tableau = ? AND element = ? AND auteur = ? AND genre = 'commente' AND libelle = ?",
+        tableau,
+        c.element,
+        c.auteur,
+        c.libelle,
+      )
+      executer(
+        "DELETE FROM notifications WHERE tableau = ? AND element = ? AND auteur = ? AND genre IN ('commentaire', 'mention') AND extrait = ?",
+        tableau,
+        c.element,
+        c.auteur,
+        c.extrait,
       )
     },
   }
