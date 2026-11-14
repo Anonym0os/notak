@@ -191,6 +191,7 @@
   background: color-mix(in srgb, currentColor 7%, transparent);
   color: var(--notak-page-pale, rgb(21 14 0 / 0.286));
   pointer-events: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 

@@ -316,6 +316,7 @@
   padding-top: 68px;
   overflow-x: hidden;
   overflow-y: auto;
+  -webkit-user-select: text;
   user-select: text;
 }
 

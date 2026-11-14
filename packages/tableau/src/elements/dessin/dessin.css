@@ -10,6 +10,7 @@
   position: absolute;
   inset: 0;
   z-index: 45;
+  -webkit-user-select: none;
   user-select: none;
 }
 

@@ -127,6 +127,7 @@
   /* Le crayon du curseur est posé par le composant, à la couleur du trait ; la pointe est en bas à gauche. */
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M3 21l1-5L16 4l4 4L8 20z' fill='white' stroke='black' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='M3 21l1-5 4 4z' fill='black'/%3E%3C/svg%3E") 3 21, crosshair;
   touch-action: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 

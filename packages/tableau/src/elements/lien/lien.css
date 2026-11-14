@@ -301,6 +301,7 @@
   field-sizing: content;
   -webkit-line-clamp: none;
   overflow: hidden;
+  -webkit-user-select: text;
   user-select: text;
   cursor: text;
 }

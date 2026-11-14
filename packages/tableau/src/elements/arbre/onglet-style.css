@@ -24,11 +24,6 @@
   user-select: none;
 }
 
-.notak-arbre-fond .notak-arbre-style .notak-arbre-contenu {
-  -webkit-user-select: text;
-  user-select: text;
-}
-
 .notak-arbre-fond .notak-arbre-style,
 .notak-arbre-fond .notak-arbre-style * {
   box-sizing: border-box;
