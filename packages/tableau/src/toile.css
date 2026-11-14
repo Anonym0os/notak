@@ -461,38 +461,40 @@
   text-align: center;
 }
 
-/* Dans la barre de création, un libellé tient sur une ligne : plus large que l'outil, il est coupé en fondu et défile
-   au survol (Barres.tsx, LibelleOutil), après un temps d'arrêt, puis revient quand le pointeur repart. */
+/* Dans la barre de création, un libellé tient sur une ligne et se lit en entier : un mot court sous chaque outil, comme
+   chez Milanote (`Outil.etiquette`), à 2 px des bords de l'outil. S'il dépasse encore, sa taille baisse juste assez pour
+   tenir (Barres.tsx, useLibellesEntiers) ; il n'est jamais coupé. */
 .notak-barre-outils:not([data-selection]) .notak-outil-libelle {
   display: block;
-  max-width: calc(100% - 8px);
+  max-width: calc(100% - 4px);
   overflow: hidden;
   white-space: nowrap;
 }
 
-.notak-barre-outils:not([data-selection]) .notak-outil-libelle > span {
-  display: inline-block;
-  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+/* Ce que la corbeille contient, en pastille sur le coin de son icône (Barres.tsx, IconeCorbeille) : sous l'outil, le
+   seul mot « Corbeille » tient dans la barre en toute langue. Le gris et l'encre de la pastille « ••• », pleins pour ne
+   pas laisser voir l'icône dessous. */
+.notak-outil[data-genre='corbeille'] .notak-outil-icone {
+  position: relative;
 }
 
-.notak-barre-outils:not([data-selection]) .notak-outil-libelle[data-deborde] {
-  text-align: left;
-  mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
-}
-
-.notak-barre-outils:not([data-selection]) .notak-outil:is(:hover, :focus-visible) .notak-outil-libelle[data-deborde] {
-  mask-image: linear-gradient(to right, transparent, #000 6px, #000 calc(100% - 6px), transparent);
-}
-
-.notak-barre-outils:not([data-selection]) .notak-outil:is(:hover, :focus-visible) .notak-outil-libelle[data-deborde] > span {
-  transform: translateX(var(--notak-defile));
-  transition: transform var(--notak-defile-duree) linear 0.4s;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .notak-barre-outils:not([data-selection]) .notak-outil-libelle > span {
-    transform: none !important;
-  }
+.notak-outil-nombre {
+  position: absolute;
+  top: -5px;
+  left: calc(100% - 10px);
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--notak-texte) 10%, var(--notak-carte));
+  box-shadow: 0 0 0 2px var(--notak-carte);
+  color: var(--notak-texte);
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+  text-align: center;
 }
 
 .notak-barre-selection {
@@ -1836,8 +1838,9 @@
   color: var(--notak-carte);
 }
 
+/* Sur une ligne, à 2 px des bords de la tuile ; trop long, il se resserre pour tenir (Barres.tsx, useLibellesEntiers). */
 .notak-barre-selection[data-a-gauche] button.notak-outil .notak-outil-libelle {
-  max-width: 68px;
+  max-width: calc(100% - 4px);
   overflow: hidden;
   color: color-mix(in srgb, var(--notak-texte) 70%, transparent);
   font-size: 11px;

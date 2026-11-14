@@ -444,6 +444,12 @@ export interface Coloration<C extends Contenu = Contenu> {
  */
 export interface Outil {
   libelle: string
+  /**
+   * Le mot court sous l'outil, dans la barre de gauche, quand son nom n'y tient pas (« Image » pour « Ajouter une
+   * image ») : comme chez Milanote, un mot qui se lit en entier. Le nom entier reste dans l'infobulle et pour qui lit à
+   * haute voix.
+   */
+  etiquette?: string
   icone: ReactNode
   /** Sa place dans la barre, croissante vers le bas. */
   rang: number

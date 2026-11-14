@@ -130,7 +130,10 @@ describe('la barre de gauche en édition', () => {
     const panneau = { nombre: 2, ouverte: false, basculer() {} }
     act(() => racine.render(<BarreEdition cible={(el) => (cible = el)} corbeille={panneau} nonTries={panneau} />))
     expect(cible).toBe(hote.querySelector('nav[data-edition] .notak-barre-edition-liste'))
-    expect(hote.querySelector('nav [data-corbeille]')!.textContent).toContain('Corbeille (2)')
+    const corbeille = hote.querySelector('nav [data-corbeille]')!
+    expect(corbeille.querySelector('.notak-outil-libelle')!.textContent).toBe('Corbeille')
+    expect(corbeille.querySelector('.notak-outil-nombre')!.textContent).toBe('2')
+    expect(corbeille.getAttribute('aria-label')).toBe('Corbeille (2)')
   })
 })
 

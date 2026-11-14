@@ -1,6 +1,6 @@
 import { createContext, useRef } from 'react'
+import { IconeCorbeille, libelleCorbeille, useLibellesEntiers } from './Barres'
 import { useGlissement } from './glissement'
-import { Icone } from './icones'
 import { Infobulle } from './Infobulle'
 import { t } from './langue'
 
@@ -29,6 +29,7 @@ interface Panneau {
 export function BarreEdition({ cible, corbeille, nonTries }: { cible(el: HTMLElement | null): void; corbeille: Panneau; nonTries: Panneau }) {
   const nav = useRef<HTMLElement>(null)
   useGlissement(nav, 2)
+  useLibellesEntiers(nav)
   return (
     <>
       <nav ref={nav} className="notak-barre-outils" data-selection data-edition onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
@@ -41,11 +42,11 @@ export function BarreEdition({ cible, corbeille, nonTries }: { cible(el: HTMLEle
             data-genre="corbeille"
             data-corbeille
             aria-expanded={corbeille.ouverte}
-            aria-label={t('corbeille.titre')}
+            aria-label={libelleCorbeille(corbeille.nombre)}
             onClick={corbeille.basculer}
           >
-            <span className="notak-outil-icone"><Icone nom="corbeille" taille={26} /></span>
-            <span className="notak-outil-libelle">{t('corbeille.titre')}{corbeille.nombre > 0 ? ` (${corbeille.nombre})` : ''}</span>
+            <IconeCorbeille nombre={corbeille.nombre} />
+            <span className="notak-outil-libelle">{t('corbeille.titre')}</span>
           </button>
         </Infobulle>
       </nav>

@@ -53,6 +53,9 @@ registre.type<Fichier>({
       get libelle() {
         return t('outil.image')
       },
+      get etiquette() {
+        return t('outil.image.court')
+      },
       icone: ico('image'),
       rang: 80,
       groupe: 'action',

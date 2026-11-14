@@ -1244,6 +1244,9 @@ export const fr: Textes = {
   'type.dessin': 'Dessin',
   'outil.dessin': 'Dessiner',
   'outil.image': 'Ajouter une image',
+  // Les mots courts sous les outils de la barre de gauche, quand le nom n'y tient pas (`Outil.etiquette`).
+  'outil.image.court': 'Image',
+  'outil.commentaire.court': 'Commenter',
   'outil.fichier': 'Envoyer',
   'fichier.envoi.titre': 'Envoyer des fichiers',
   'fichier.envoi.choisir': 'Choisir des fichiers',
@@ -3378,6 +3381,8 @@ export const en: Textes = {
   'type.dessin': 'Drawing',
   'outil.dessin': 'Draw',
   'outil.image': 'Add image',
+  'outil.image.court': 'Add image',
+  'outil.commentaire.court': 'Comment',
   'outil.fichier': 'Upload',
   'fichier.envoi.titre': 'Upload files',
   'fichier.envoi.choisir': 'Choose files',
