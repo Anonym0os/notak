@@ -68,6 +68,28 @@ export const genere = (e: Pick<EntreeBibliotheque, 'element' | 'outil'>) => e.el
 /** Ce qu'une toile porte directement : les toiles qu'elle range, et ses pages, cartes, photos, liens et fichiers. */
 export const contenuDuDossier = (id: string, entrees: readonly EntreeBibliotheque[]) => entrees.filter((e) => e.dans === id && !(e.element === null && e.tableau === id))
 
+/** Au plus tant d'entrées dans l'aperçu d'un dossier : quatre petites vignettes, comme le Finder ou Drive. */
+export const APERCU_MAX = 4
+
+/**
+ * Les entrées, chaque dossier portant l'aperçu de ce qu'il range (`resume.apercu`) : ses premières entrées dans l'ordre
+ * où il les montre ouvert, la plus récente d'abord, puis par titre. Sa vignette le distingue ainsi des autres ; vide, il
+ * n'en a pas. Un dossier rangé dans un autre s'y montre par son icône : pas d'aperçu dans l'aperçu.
+ */
+export function avecApercus(entrees: EntreeBibliotheque[]): EntreeBibliotheque[] {
+  const contenus = new Map(entrees.filter(estDossier).map((e) => [e.tableau, [] as EntreeBibliotheque[]]))
+  if (contenus.size === 0) return entrees
+  for (const e of entrees) if (e.dans && !(e.element === null && e.tableau === e.dans)) contenus.get(e.dans)?.push(e)
+  const ordre = (a: EntreeBibliotheque, b: EntreeBibliotheque) =>
+    (b.vu ?? -1) - (a.vu ?? -1) || (a.titre || '\uffff').localeCompare(b.titre || '\uffff', undefined, { sensitivity: 'base', numeric: true })
+  return entrees.map((e) => {
+    const contenu = estDossier(e) ? contenus.get(e.tableau)!.sort(ordre).slice(0, APERCU_MAX) : []
+    if (contenu.length === 0) return e
+    const apercu = contenu.map(({ tableau, resume: { apercu: _, ...resume } }) => ({ tableau, resume }))
+    return { ...e, resume: { ...e.resume, apercu } }
+  })
+}
+
 /**
  * Le chemin d'une toile depuis l'accueil, elle comprise : `[accueil, …, id]`. Une toile dont on ne lit pas le haut (un
  * partage) commence là où l'on ne sait plus ; un cycle (une carte posée dans sa propre descendante) s'arrête.

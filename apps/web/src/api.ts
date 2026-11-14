@@ -1,4 +1,5 @@
 import { type Element, type Habillage, type ResultatRecherche, type ResumeContenu, lireHabillage, textesFr } from '@notak/tableau'
+import { avecApercus } from './bibliotheque/modele'
 import { langue, t } from './langue'
 
 export interface Moi {
@@ -755,6 +756,12 @@ export const GENRES_EN_PLUS = ['image', 'lien', 'fichier'] as const
  */
 export const GENRES_DEMANDES: readonly GenreMontre[] = ['arbre', 'document', ...GENRES_EN_PLUS]
 
+/** Ce que la vignette d'un dossier montre de ce qu'il range (`avecApercus`) : une entrée, et la toile qui la porte. */
+export interface ApercuDossier {
+  tableau: string
+  resume: ResumeContenu
+}
+
 /** Une toile, une page, une carte mentale, une photo, un lien ou un fichier de la bibliothèque. */
 export interface EntreeBibliotheque {
   tableau: string
@@ -762,7 +769,8 @@ export interface EntreeBibliotheque {
   element: string | null
   genre: GenreMontre
   titre: string
-  resume: Extract<ResumeContenu, { genre: GenreMontre }>
+  /** Ce que dessine sa vignette ; celui d'un dossier porte l'aperçu de ce qu'il range. */
+  resume: Extract<ResumeContenu, { genre: GenreMontre }> & { apercu?: ApercuDossier[] }
   /** Le titre de la toile qui le porte, s'il la lit. */
   ou: string | null
   /** L'identifiant de cette toile, s'il la lit : le dossier du tri par dossier. */
@@ -782,7 +790,7 @@ export interface EntreeBibliotheque {
 export async function lireBibliotheque(): Promise<EntreeBibliotheque[]> {
   const r = await appeler(`/api/bibliotheque?genres=${GENRES_DEMANDES.join(',')}`)
   if (!r.ok) throw await refus(r, {})
-  return (await r.json()) as EntreeBibliotheque[]
+  return avecApercus((await r.json()) as EntreeBibliotheque[])
 }
 
 /**

@@ -3,6 +3,7 @@ import { type ResumeContenu, definirLangue } from '@notak/tableau'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { ApercuDossier } from '../api'
 import { FournisseurVignettes, type SourceVignettes, Vignette, largeurDesVignettes, misePhoto, photoEntiere, placerDansLaBoite, texteSansPlan } from './Vignettes'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -133,6 +134,63 @@ describe('la vignette d’une photo', () => {
     expect(vignette.querySelector('svg image')!.getAttribute('transform')).toBe('translate(10 20) rotate(90)')
     // La coupe reste celle de la boîte : elle ne tourne pas avec l'image.
     expect(vignette.querySelector('svg image')!.parentElement!.getAttribute('clip-path')).toMatch(/^url\(#plan-photo-/)
+  })
+})
+
+describe('la vignette d’un dossier', () => {
+  let hote: HTMLDivElement
+  let racine: Root
+  beforeEach(() => {
+    hote = document.createElement('div')
+    document.body.append(hote)
+    racine = createRoot(hote)
+  })
+  afterEach(() => {
+    act(() => racine.unmount())
+    hote.remove()
+  })
+
+  const dossier = (apercu?: ApercuDossier[]): ResumeContenu & { apercu?: ApercuDossier[] } => ({ genre: 'toile', element: '', titre: 'Clients', boites: [], dossier: true, ...(apercu ? { apercu } : {}) })
+  const monter = async (resume: ResumeContenu & { apercu?: ApercuDossier[] }) => {
+    const source: SourceVignettes = { adresse: async (f) => `/api/fichiers/${f}`, distant: () => true }
+    await act(async () =>
+      racine.render(
+        <FournisseurVignettes value={source}>
+          <Vignette resume={resume} />
+        </FournisseurVignettes>,
+      ),
+    )
+    return hote.querySelector<HTMLElement>('.biblio-vignette')!
+  }
+
+  it('montre ce qu’il range en petites vignettes, et les places qui restent ; un dossier rangé là, par son icône', async () => {
+    // Même s'il portait son propre aperçu, un dossier rangé dans un autre ne s'y montre que par son icône.
+    const range = dossier([{ tableau: 't3', resume: { genre: 'toile', element: '', titre: '', boites: [] } }])
+    const vignette = await monter(
+      dossier([
+        { tableau: 't1', resume: { genre: 'toile', element: '', titre: 'Acme', boites: [[0, 0, 20, 10, 'jaune', 'note', 1]] } },
+        { tableau: 'c', resume: { genre: 'image', element: 'p', titre: '', fichier: 'f-p', largeur: 4, hauteur: 3 } },
+        { tableau: 't2', resume: range },
+      ]),
+    )
+    expect(vignette.dataset.genre).toBe('dossier')
+    const places = [...vignette.querySelectorAll('.biblio-apercu > *')]
+    expect(places.map((p) => [p.className, (p as HTMLElement).dataset.genre])).toEqual([
+      ['biblio-miniature', 'toile'],
+      ['biblio-miniature', 'image'],
+      ['biblio-miniature', 'dossier'],
+      ['biblio-apercu-place', undefined],
+    ])
+    // Les miniatures ne sont pas des vignettes : les règles des tuiles (survol, choix, liste) ne les visent pas.
+    expect(vignette.querySelectorAll('.biblio-vignette')).toHaveLength(0)
+    expect(places[1]!.querySelector('img')!.getAttribute('src')).toBe('/api/fichiers/f-p')
+    expect(places[2]!.querySelector('.biblio-apercu')).toBeNull()
+  })
+
+  it('vide, il garde son icône seule', async () => {
+    const vignette = await monter(dossier())
+    expect(vignette.querySelector('.biblio-apercu')).toBeNull()
+    expect(vignette.querySelector('svg')).not.toBeNull()
   })
 })
 

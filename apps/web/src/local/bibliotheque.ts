@@ -2,6 +2,7 @@ import { type EntreeIndex, type Id, type ResumeContenu, rangerLesToiles } from '
 import type { BilanRangement, EntreeBibliotheque } from '../api'
 import type { BilanImport } from '../importation'
 import { t } from '../langue'
+import { avecApercus } from '../bibliotheque/modele'
 import type { SourceVignettes } from '../bibliotheque/Vignettes'
 import type { FicheToile } from './catalogue'
 import type { EspaceLocal } from './espace'
@@ -119,7 +120,7 @@ export function sourceLocale(
     await lire(manquantes.slice(0, LUES_D_ABORD))
     // Le reste se lit derrière : chaque fiche qui arrive redessine la page (`ecouter`).
     if (manquantes.length > LUES_D_ABORD) void lire(manquantes.slice(LUES_D_ABORD))
-    return entreesDeLAppareil(toiles, index.racine(), await catalogue.fiches(), index.favoris(), lireVus())
+    return avecApercus(entreesDeLAppareil(toiles, index.racine(), await catalogue.fiches(), index.favoris(), lireVus()))
   }
   return {
     charger,

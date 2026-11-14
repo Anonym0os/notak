@@ -3334,13 +3334,13 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   box-shadow: 0 0 0 2px var(--notak-accent, #2f6feb);
 }
 
-.biblio-vignette[data-genre='toile'] {
+:is(.biblio-vignette, .biblio-miniature)[data-genre='toile'] {
   background-color: var(--notak-fond, #ebedee);
   background-image: radial-gradient(circle, var(--notak-point, #c4c8ce) 0.7px, transparent 1px);
   background-size: 9px 9px;
 }
 
-.biblio-vignette[data-genre='document'] {
+:is(.biblio-vignette, .biblio-miniature)[data-genre='document'] {
   background: color-mix(in srgb, var(--notak-fond, #ebedee) 60%, var(--notak-carte, #fff));
 }
 
@@ -3353,7 +3353,7 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
  * L'aperçu d'un lien : l'image remplit la vignette, recadrée au centre. Posée sur toute la vignette : dans la grille
  * qui centre son contenu, sa hauteur suivait la sienne, et une image en hauteur ne montrait que son haut.
  */
-.biblio-vignette > img {
+:is(.biblio-vignette, .biblio-miniature) > img {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -3391,19 +3391,18 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 }
 
 /* Un dossier : son icône, au milieu d'un fond teinté de l'accent. */
-.biblio-vignette[data-genre='dossier'] {
+:is(.biblio-vignette, .biblio-miniature)[data-genre='dossier'] {
   background: color-mix(in srgb, var(--notak-accent, #2f6feb) 9%, var(--notak-carte, #fff));
   color: color-mix(in srgb, var(--notak-accent, #2f6feb) 75%, var(--notak-texte, #323b4a));
 }
 
-.biblio-vignette[data-genre='dossier'] svg {
+/* Son icône seule : les vignettes de ce qu'il range ont leurs propres dessins. */
+:is(.biblio-vignette, .biblio-miniature)[data-genre='dossier'] > svg {
   width: auto;
   height: 46%;
 }
 
-.biblio-vignette[data-genre='image'],
-.biblio-vignette[data-genre='lien'],
-.biblio-vignette[data-genre='fichier'] {
+:is(.biblio-vignette, .biblio-miniature):is([data-genre='image'], [data-genre='lien'], [data-genre='fichier']) {
   color: var(--biblio-pale);
   background: color-mix(in srgb, var(--notak-fond, #ebedee) 70%, var(--notak-carte, #fff));
 }
@@ -3434,8 +3433,61 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   border-radius: 6px;
 }
 
-.biblio-vignette[data-fichier='pdf'] {
+:is(.biblio-vignette, .biblio-miniature)[data-fichier='pdf'] {
   color: #d64545;
+}
+
+/*
+ * Un dossier qui range quelque chose : ses premières entrées en petites vignettes, deux par deux, sur son fond, et les
+ * places qui restent. Tout se mesure à la vignette (`cqw`, `cqh`) : en liste comme en grille, elle garde ses proportions.
+ */
+.biblio-vignette[data-genre='dossier'] {
+  container-type: size;
+}
+
+.biblio-apercu {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template: repeat(2, minmax(0, 1fr)) / repeat(2, minmax(0, 1fr));
+  gap: 6cqh 4.5cqw;
+  padding: 9cqh 7cqw;
+}
+
+.biblio-miniature,
+.biblio-apercu-place {
+  border-radius: 3cqw;
+}
+
+.biblio-apercu-place {
+  background: color-mix(in srgb, var(--notak-accent, #2f6feb) 7%, transparent);
+}
+
+/* Une miniature : une vignette en petit, qui mesure ce qu'elle porte à elle-même. */
+.biblio-miniature {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--notak-carte, #fff);
+  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.08), 0 1px 3px rgb(27 37 54 / 0.12);
+  container-type: size;
+}
+
+.biblio-miniature[data-genre='toile'] {
+  background-size: 5px 5px;
+}
+
+/* En si petit, les mots ne tiennent pas : l'icône dit le genre. */
+.biblio-miniature .biblio-vignette-vide,
+.biblio-miniature :is(.biblio-vignette-lien, .biblio-vignette-fichier) > span {
+  display: none;
+}
+
+.biblio-miniature .notak-ico,
+.biblio-miniature .biblio-vignette-favicon {
+  width: 44cqh;
+  height: 44cqh;
 }
 
 .biblio-tuile-neuve .biblio-vignette {
