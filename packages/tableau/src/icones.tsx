@@ -782,12 +782,19 @@ export interface PropsIcone {
 }
 
 /**
- * Une icône : elle prend la couleur du texte (`currentColor`) et se cache des lecteurs d'écran. Le bouton qui la porte
- * garde son `aria-label` ou son texte.
+ * Les icônes qui portent leur couleur partout où elles paraissent, au lieu de celle du texte : l'étoile pleine d'un
+ * favori est jaune dans l'en-tête d'une toile comme dans un menu, la feuille « ••• » du téléphone ou la bibliothèque.
+ */
+const COLOREES: Partial<Record<NomIcone, string>> = { favoriPlein: 'notak-ico-favori' }
+
+/**
+ * Une icône : elle prend la couleur du texte (`currentColor`), sauf celles de `COLOREES`, et se cache des lecteurs
+ * d'écran. Le bouton qui la porte garde son `aria-label` ou son texte.
  */
 export function Icone({ nom, taille = 18, trait = 1.75, className }: PropsIcone): ReactElement {
   const Dessin: TablerIcon = ICONES[nom]
-  return <Dessin size={taille} stroke={trait} color="currentColor" className={className ? `notak-ico ${className}` : 'notak-ico'} aria-hidden="true" />
+  const classes = ['notak-ico', COLOREES[nom], className].filter(Boolean).join(' ')
+  return <Dessin size={taille} stroke={trait} color="currentColor" className={classes} aria-hidden="true" />
 }
 
 /** La même icône, pour les définitions qui ne sont pas du JSX (le champ `icone` des types d'éléments). */

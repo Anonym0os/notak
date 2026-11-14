@@ -438,6 +438,16 @@
   margin-inline: 1px;
 }
 
+/* L'étoile pleine d'un favori (`favoriPlein`, icones.tsx) : jaune partout où elle paraît, en clair comme en sombre. Ni le
+   texte qui l'entoure ni un bouton enfoncé ne la repeignent. */
+.notak-ico.notak-ico-favori {
+  color: #e8a400;
+}
+
+[data-theme='sombre'] .notak-ico.notak-ico-favori {
+  color: #f5b82e;
+}
+
 :where(button:has(> .notak-ico:only-child)) {
   display: inline-flex;
   align-items: center;

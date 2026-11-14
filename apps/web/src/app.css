@@ -1197,12 +1197,18 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
 
 /* Plusieurs bandeaux à la fois : chacun se pose au-dessus des précédents, à leur hauteur réelle (`bandeaux.ts`). */
 
-.bouton-etoile[aria-pressed='true'] {
-  color: #e8a400;
+/*
+ * L'étoile du tableau ouvert, dans l'îlot de l'en-tête : en favori, c'est l'étoile pleine et jaune qui le dit
+ * (`notak-ico-favori`, toile.css). Le bouton ne passe donc pas en sombre plein comme un bouton enfoncé de l'îlot
+ * (ilots.css), qui la rendait blanche sur un rond noir ; au survol, il prend le voile des autres boutons.
+ */
+.notak-ilot .bouton.bouton-etoile[aria-pressed='true'] {
+  background: transparent;
+  color: inherit;
 }
 
-[data-theme='sombre'] .bouton-etoile[aria-pressed='true'] {
-  color: #f5b82e;
+.notak-ilot .bouton.bouton-etoile[aria-pressed='true']:hover:not(:disabled) {
+  background: color-mix(in srgb, currentColor 8%, transparent);
 }
 
 /* — L'invitation à une toile, en tête de la carte de connexion ou d'acceptation. — */
