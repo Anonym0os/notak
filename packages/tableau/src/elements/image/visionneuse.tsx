@@ -198,6 +198,11 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
     ouvrirImage(null)
     apres()
   }
+  // Un outil qu'on termine soi-même (valider, annuler, enregistrer) rend la visionneuse sur l'image qu'on y a ouverte.
+  const depuisIci = () => {
+    const id = courant.id
+    return { retour: () => ouvrirImage(id) }
+  }
   const outil = (icone: NomIcone, libelle: string, onClick: () => void, actif = true) => (
     <button type="button" className="notak-visionneuse-outil" aria-label={libelle} title={libelle} disabled={!actif} onClick={onClick}>
       <Icone nom={icone} taille={16} />
@@ -288,9 +293,9 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
             {t('visionneuse.envoi')}
           </span>
         )}
-        {envoi === null && modifiable && texte(t('visionneuse.dessiner'), () => sortir(() => annoter(courant.id)))}
-        {envoi === null && modifiable && texte(t('visionneuse.modifier'), () => sortir(() => recadrer(courant.id)))}
-        {envoi === null && modifiable && !!contexte.services.fichiers && aUneCarte({ ...c, fondBlanc: false }) && texte(t('visionneuse.fond'), () => sortir(() => detourerImage(courant.id)))}
+        {envoi === null && modifiable && texte(t('visionneuse.dessiner'), () => sortir(() => annoter(courant.id, depuisIci())))}
+        {envoi === null && modifiable && texte(t('visionneuse.modifier'), () => sortir(() => recadrer(courant.id, depuisIci())))}
+        {envoi === null && modifiable && !!contexte.services.fichiers && aUneCarte({ ...c, fondBlanc: false }) && texte(t('visionneuse.fond'), () => sortir(() => detourerImage(courant.id, depuisIci())))}
         {envoi === null && modifiable && <span className="notak-visionneuse-sep" role="separator" />}
         {envoi === null && plusieurs && outil('precedent', t('visionneuse.precedent'), () => aller(-1))}
         {envoi === null && plusieurs && outil('suivant', t('visionneuse.suivant'), () => aller(1))}
