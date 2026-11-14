@@ -10,6 +10,7 @@ import { BarreTexte } from './Barre'
 import { OutilsTexteGauche } from './OutilsTexte'
 import { Extraction } from './PoigneeExtraction'
 import { FilOuvert, Marge } from './Marge'
+import { prendreFil, useFilDemande } from '../tableau/montrer'
 import { MARQUE_FIL, type Fils, avecFil, filsVivants, sansPassagesMuets } from './fils'
 import { type Pont, Propositions, extensionPropositions } from './Propositions'
 import { adresseSeule, adressesEnLiens, caseSeule, collageEnTaches, couleurSeule, docEstVide } from './conversion'
@@ -42,6 +43,13 @@ export function RenduNote(props: PropsRendu<Note>) {
   useEffect(() => {
     if (enEdition) setFilOuvert(null)
   }, [enEdition])
+  // Arrivé par une notification qui parle du fil d'un passage : il s'ouvre, comme d'un clic sur le passage.
+  const filDemandeIci = useFilDemande(element.id)
+  useEffect(() => {
+    if (!filDemandeIci || enEdition || !contenu.fils?.[filDemandeIci]) return
+    prendreFil(element.id)
+    setFilOuvert(filDemandeIci)
+  }, [filDemandeIci, enEdition, contenu.fils, element.id])
   const fermerFil = useCallback(() => setFilOuvert(null), [])
   // Sous un plafond de hauteur, le texte déborde en silence : le bas s'efface (voir `note.css`).
   const [deborde, setDeborde] = useState(false)

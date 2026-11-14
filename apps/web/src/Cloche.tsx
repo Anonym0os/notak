@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { type GenreNotification, type ListeNotifications, type Notification, listerNotifications, marquerLues } from './api'
 import { quand } from './Activite'
 import { t, tn } from './langue'
-import { FeuilleBas, Icone, Infobulle, PastillePersonne } from '@notak/tableau'
+import { FeuilleBas, Icone, Infobulle, PastillePersonne, demanderLeFil, filDemande, montrerDemande } from '@notak/tableau'
 import { usePanneau } from './panneaux'
 
 const RAFRAICHIR_MS = 30_000
@@ -58,8 +58,27 @@ export function useNotifications(ouvert: boolean) {
 
 export type Notifications = ReturnType<typeof useNotifications>
 
-/** La tête (« Tout marquer comme lu ») et la liste ; toucher une notification la lit et ouvre son tableau. */
-function ListeDesNotifications({ notifications: { liste, erreur, lire, nonLues }, aller }: { notifications: Notifications; aller(tableau: string): void }) {
+/**
+ * Où mène une notification : son tableau, et pour un commentaire ou une mention, le fil où on l'a écrit, comme chez
+ * Notion, qui ouvre la page sur la discussion. La toile se pose sur l'élément qui le porte (l'épingle, la carte, la note)
+ * et ouvre le fil ; un document ou une carte mentale s'ouvrent en grand, sur le passage ou le sujet.
+ */
+export function suivreNotification(n: Notification, ouvrir: (tableau: string) => void) {
+  if ((n.genre === 'commentaire' || n.genre === 'mention') && n.element) demanderLeFil(n.element, n.fil ?? '')
+  ouvrir(n.tableau)
+}
+
+/**
+ * L'élément dont une notification suivie veut ouvrir le fil, tant qu'aucune toile ne l'a pris ; sinon `null`. Un dossier
+ * s'ouvre en liste, sans toile : c'est son adresse qui le porte, et la liste l'ouvre en grand (une page, une carte).
+ */
+export function elementDuFilDemande(): string | null {
+  const element = montrerDemande()
+  return element && filDemande(element) !== null ? element : null
+}
+
+/** La tête (« Tout marquer comme lu ») et la liste ; toucher une notification la lit et y mène (`suivreNotification`). */
+function ListeDesNotifications({ notifications: { liste, erreur, lire, nonLues }, aller }: { notifications: Notifications; aller(n: Notification): void }) {
   return (
     <>
       <div className="app-panneau-tete">
@@ -81,7 +100,7 @@ function ListeDesNotifications({ notifications: { liste, erreur, lire, nonLues }
               type="button"
               onClick={() => {
                 if (!n.lu) lire([n.id])
-                aller(n.tableau)
+                aller(n)
               }}
             >
               <PastillePersonne nom={n.auteur.nom} couleur={n.auteur.couleur} titre="" />
@@ -116,9 +135,9 @@ export function Cloche({ ouvrir }: { ouvrir(tableau: string): void }) {
         <div className="app-panneau cloche-panneau" ref={panneau} role="dialog" aria-label={t('cloche.titre')}>
           <ListeDesNotifications
             notifications={notifications}
-            aller={(tableau) => {
+            aller={(n) => {
               regler(false)
-              ouvrir(tableau)
+              suivreNotification(n, ouvrir)
             }}
           />
         </div>
@@ -134,9 +153,9 @@ export function NotificationsEnFeuille({ notifications, ouvrir, fermer }: { noti
       <div role="dialog" aria-label={t('cloche.titre')}>
         <ListeDesNotifications
           notifications={notifications}
-          aller={(tableau) => {
+          aller={(n) => {
             fermer()
-            ouvrir(tableau)
+            suivreNotification(n, ouvrir)
           }}
         />
       </div>

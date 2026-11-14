@@ -11,6 +11,7 @@ import { ajouterMessage, nouveauCommentaire } from '../commentaire/fil'
 import { oublierLus } from '../commentaire/suivi'
 import { RenduArbre } from './Arbre'
 import { EpinglesCarte } from './Epingles'
+import { demanderLeFil, filDemande } from '../tableau/montrer'
 import type { Disposition } from './disposition'
 import { poserFil } from './modele/commentaires'
 import { ajouterEnfant, lire, nouvelArbre } from './modele/sujets'
@@ -127,6 +128,17 @@ describe('commenter un sujet de la carte', () => {
     expect(document.querySelector('.notak-fil-attache')?.textContent).toContain('Salut')
     clic(bouton)
     expect(document.querySelector('.notak-fil-attache')).toBeNull()
+  })
+
+  it('arrivé par une notification, la carte choisit le sujet dont elle parle et ouvre son fil', () => {
+    const { a, idees, recette } = carte()
+    const avec = poserFil(poserFil(a, idees, fil({ auteur: bob, texte: 'Bonjour' })), recette, fil({ auteur: bob, texte: 'Une recette' }))
+    demanderLeFil('k', recette)
+    ouvrir(avec)
+    expect(document.querySelector(`[data-epingle-sujet="${recette}"] .notak-fil-attache`)?.textContent).toContain('Une recette')
+    expect(document.querySelectorAll('.notak-fil-attache')).toHaveLength(1)
+    expect(sujetDe('Recette').querySelector('.notak-arbre-choix')).toBeTruthy()
+    expect(filDemande('k')).toBeNull()
   })
 
   it('un fil résolu a son épingle atténuée', () => {

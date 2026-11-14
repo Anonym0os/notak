@@ -17,7 +17,9 @@ import { BarreEdition, ContexteBarreEdition } from './barreEdition'
 import { Cadre, ContexteRangement, type Empreinte, type Rangement } from './Cadre'
 import * as cam from './coeur/camera'
 import { brancherPilote } from './pilotage'
-import { montrerDemande, prendreDemande } from './elements/tableau/montrer'
+import { ecouterDemandes, filDemande, montrerDemande, prendreDemande, prendreFil, versionDemandes } from './elements/tableau/montrer'
+import { ouvrirFil } from './elements/decor/etat'
+import { cleEpingleLibre } from './elements/commentaire/Epingle'
 import { type DetailImport, EVENEMENT_IMPORT, operationsDImport } from './recevoirImport'
 import { type Point, type Rect, centre, chevauche, depuisCoins, englobant, point, soustraire } from './coeur/geometrie'
 import { type Hauteur, hauteurTiree, memeHauteur } from './coeur/hauteur'
@@ -2020,6 +2022,24 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
    * vise sa carte ici.
    */
   const arrivee = useRef<Id | null>(null)
+  // Une demande faite pendant qu'on regarde cette toile (une notification d'ici) doit la redessiner pour être prise.
+  useSyncExternalStore(ecouterDemandes, versionDemandes)
+  /**
+   * Arrivé par une notification de commentaire (`demanderLeFil`) : le fil dont elle parle s'ouvre. Une épingle réduite
+   * s'ouvre en bulle, une fiche montre déjà tout son fil une fois choisie, le fil d'une carte s'ouvre sur elle. Le fil
+   * d'un passage, la note le prend elle-même ; celui d'un document ou d'un sujet, le document ou la carte ouverts en
+   * grand.
+   */
+  const ouvrirLeFilDemande = (e: Element) => {
+    const cle = filDemande(e.id)
+    if (cle === null) return
+    if (e.contenu.type === 'commentaire' || cle === '') {
+      prendreFil(e.id)
+      const ouvrir = e.contenu.type !== 'commentaire' ? e.id : e.contenu.replie ? cleEpingleLibre(e.id) : null
+      // Après les effets de ce rendu : la bande d'une carte retient la toile, ce qui referme le fil d'une autre.
+      if (ouvrir) setTimeout(() => ouvrirFil(ouvrir), 60)
+    } else if (PLEIN_ECRAN.has(e.contenu.type)) definition(e.contenu.type)?.ouvrir?.(e, contexte)
+  }
   useLayoutEffect(() => {
     if (vue.largeur <= 1) return
     const poser = (zone: Rect) => {
@@ -2057,6 +2077,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const estimee = zoneRangee(vise.id)
       if (estimee) poser(estimee)
     }
+    ouvrirLeFilDemande(vise)
   })
 
   const lancerAnimation = (cible: cam.Camera) => {

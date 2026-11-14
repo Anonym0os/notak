@@ -7,6 +7,7 @@ import { definirLangue } from '../../langue'
 import type { ContexteToile } from '../types'
 import { type SujetExport, brancherExport } from '../../export/sujet'
 import { RenduDocument } from './Document'
+import { demanderLeFil, filDemande } from '../tableau/montrer'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -54,6 +55,22 @@ describe('le document ouvert en grand', () => {
     expect(document.querySelector('.notak-document-entete .notak-document-fermer')).not.toBeNull()
     expect(document.querySelector('.notak-page textarea.notak-page-titre')).not.toBeNull()
     expect(document.querySelector('.notak-document-outils')).toBeNull()
+  })
+
+  it('arrivé par une notification, le fil du passage dont elle parle s’ouvre dans la marge', () => {
+    const message = (id: string, texte: string) => ({ id, auteur: { id: 'bob', nom: 'Bob' }, date: 1, texte })
+    const marque = (texte: string, fil: string) => ({ type: 'text', text: texte, marks: [{ type: 'commentaireTexte', attrs: { fil } }] })
+    const texte = { type: 'doc', content: [{ type: 'paragraph', content: [marque('Jour 1', 'f1')] }, { type: 'paragraph', content: [marque('Jour 2', 'f2')] }] }
+    const fils = { f1: { type: 'commentaire' as const, messages: [message('m1', 'Et le matin ?')] }, f2: { type: 'commentaire' as const, messages: [message('m2', 'Repos')] } }
+    // La marge éclaire le passage du fil ouvert par une règle de style, qui échappe son identifiant, et le mesure :
+    // jsdom ne mesure aucun texte, une plage n'y a pas de rectangles.
+    ;(globalThis as { CSS?: { escape(s: string): string } }).CSS ??= { escape: (s) => s }
+    Range.prototype.getClientRects ??= () => [] as unknown as DOMRectList
+    Range.prototype.getBoundingClientRect ??= () => new DOMRect()
+    demanderLeFil('D', 'f2')
+    monter(doc('', { texte, fils }), { enEdition: true })
+    expect(document.querySelector('.notak-fil-marge[data-actif]')?.textContent).toContain('Repos')
+    expect(filDemande('D')).toBeNull()
   })
 
   it('en lecture seule, le titre de la page n’est pas un champ', () => {
