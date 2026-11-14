@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { type DroitsTableau, gesteSurElement, pasPermis, permis, peutSupprimerMessage } from './droitsElements'
-import type { Element, Tableau } from './tableau'
+import { type DroitsTableau, carteIntacte, garderLesGeneres, gesteSurElement, pasPermis, permis, peutSupprimerMessage } from './droitsElements'
+import { creerMagasin } from './magasin'
+import { type Element, type Tableau, auPremierPlan } from './tableau'
 
 const message = (id: string, auteur: string, texte: string, reactions?: Record<string, string[]>) => ({
   id,
@@ -104,5 +105,73 @@ describe('pasPermis', () => {
         'bob',
       ),
     ).toBe(false)
+  })
+})
+
+describe('la carte d’un dossier généré par un outil', () => {
+  const carte = (id: string, cible: string, extra: object = {}, contenu: object = {}) =>
+    ({ id, x: 0, y: 0, largeur: 10, contenu: { type: 'tableau', cible, ...contenu }, ...extra }) as unknown as Element
+  const genere = (toile: string) => toile === 'clients'
+
+  it('ne change que de place : ni corbeille, ni contenu, ni départ, ni double ; un raccourci se pose', () => {
+    const c = carte('c1', 'clients')
+    expect(carteIntacte(c, { ...c, x: 40, y: 12, parent: 'col', ordre: 'a1', hauteur: 3 }, genere)).toBe(true)
+    expect(carteIntacte(c, { ...c, corbeille: 5 }, genere)).toBe(false)
+    expect(carteIntacte(c, { ...c, nonTrie: 5 }, genere)).toBe(false)
+    expect(carteIntacte(c, { ...c, verrou: true }, genere)).toBe(false)
+    expect(carteIntacte(c, carte('c1', 'clients', {}, { icone: 'etoile' }), genere)).toBe(false)
+    expect(carteIntacte(c, undefined, genere)).toBe(false)
+    expect(carteIntacte(undefined, carte('c2', 'clients'), genere)).toBe(false)
+    expect(carteIntacte(undefined, carte('r1', 'clients', {}, { raccourci: true }), genere)).toBe(true)
+    // Un raccourci qui deviendrait la carte elle-même : une seconde carte.
+    expect(carteIntacte(carte('r1', 'clients', {}, { raccourci: true }), carte('r1', 'clients'), genere)).toBe(false)
+    // Une autre toile, une note : rien à garder.
+    expect(carteIntacte(carte('c3', 'autre'), undefined, genere)).toBe(true)
+    expect(carteIntacte(note('n'), undefined, genere)).toBe(true)
+  })
+
+  describe('garderLesGeneres', () => {
+    const depart = (): Tableau => ({ titre: 'Accueil', elements: [carte('c1', 'clients'), note('n1') as unknown as Element] })
+    const garde = () => {
+      const m = creerMagasin(depart())
+      const refus: string[][] = []
+      return { m, g: garderLesGeneres(m, () => ({ clients: 'Silak' }), (d) => void refus.push(d)), refus }
+    }
+    const c1 = () => depart().elements[0]!
+
+    it('laisse la carte bouger, et tout le reste de la toile', () => {
+      const { m, g, refus } = garde()
+      g.faire([{ type: 'deplacer', id: 'c1', de: [0, 0], vers: [30, 8] }])
+      g.appliquerSeulement([{ type: 'deplacer', id: 'n1', de: [0, 0], vers: [2, 2] }])
+      g.inscrire([{ type: 'deplacer', id: 'n1', de: [0, 0], vers: [2, 2] }])
+      g.remplacer(auPremierPlan(m.lire(), ['c1']))
+      g.faire([{ type: 'supprimer', element: m.lire().elements.find((e) => e.id === 'n1')! }])
+      g.faire([{ type: 'creer', element: carte('r1', 'clients', {}, { raccourci: true }) }])
+      expect(refus).toEqual([])
+      expect(m.lire().elements.map((e) => e.id)).toEqual(['c1', 'r1'])
+      expect(m.lire().elements[0]).toMatchObject({ x: 30, y: 8 })
+    })
+
+    it('refuse en entier ce qui la jetterait, la retirerait, la changerait ou la doublerait, et dit lequel', () => {
+      const { m, g, refus } = garde()
+      const pas = [
+        [{ type: 'ranger', id: 'c1', de: { x: 0, y: 0 }, vers: { x: 0, y: 0, corbeille: 9 } }],
+        [{ type: 'supprimer', element: c1() }],
+        [{ type: 'contenu', id: 'c1', avant: c1().contenu, apres: { ...c1().contenu, titre: 'Autre' } }],
+        [{ type: 'verrouiller', id: 'c1', de: false, vers: true }],
+        [
+          { type: 'deplacer', id: 'n1', de: [0, 0], vers: [5, 5] },
+          { type: 'creer', element: carte('c2', 'clients', { x: 2, y: 2 }) },
+        ],
+      ] as const
+      for (const p of pas) g.faire([...p] as never)
+      g.corriger([{ type: 'supprimer', element: c1() }])
+      // Inscrire refait le geste depuis son début : une copie qu'il porterait se refuse aussi.
+      g.inscrire([{ type: 'creer', element: carte('c3', 'clients') }])
+      g.remplacer({ ...m.lire(), elements: m.lire().elements.filter((e) => e.id !== 'c1') })
+      expect(refus).toHaveLength(pas.length + 3)
+      expect(refus.every((d) => d.length === 1 && d[0] === 'clients')).toBe(true)
+      expect(m.lire()).toEqual(depart())
+    })
   })
 })

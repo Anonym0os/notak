@@ -12,6 +12,11 @@ export type RoleTableau = 'lecture' | 'commentaire' | 'edition' | 'proprietaire'
 export interface DroitsTableau {
   role: RoleTableau
   elements: Record<Id, { ecrire: boolean; commenter: boolean }>
+  /**
+   * Les dossiers qu'un outil rattaché a générés parmi ceux dont ce tableau porte la carte, avec le nom de l'outil, pour
+   * ceux que ce compte lit : leur carte ne quitte pas ce tableau et ne change pas (`carteIntacte`). Absent : aucun.
+   */
+  generes?: Record<Id, string>
 }
 
 /**
@@ -122,6 +127,29 @@ function carteDeSoi(avant: unknown, apres: unknown, auteur: string): boolean {
     return false
   }
   return true
+}
+
+/** Ce qui ne dit que la place d'une carte sur sa toile (`plan` : son rang au-dessus des autres, dans le document). */
+const PLACE = new Set(['x', 'y', 'largeur', 'hauteur', 'plan', 'parent', 'ordre'])
+
+/** La toile que cet élément montre en carte, s'il en est une et pas un raccourci (qui, lui, se pose où l'on veut). */
+export function toileDeLaCarte(element: unknown): Id | undefined {
+  const c = objet(objet(element)?.contenu)
+  return c?.type === 'tableau' && typeof c.cible === 'string' && !c.raccourci ? c.cible : undefined
+}
+
+/**
+ * Le passage d'un élément de `avant` à `apres` laisse-t-il intacte la carte d'un dossier qu'un outil rattaché a généré
+ * (`genere` le dit d'une toile) ? Elle ne part pas, ne va ni à la corbeille ni dans les non triés, et ne change pas :
+ * seule sa place sur la toile bouge. Il ne s'en pose pas une seconde (un raccourci, si). Le serveur l'exige de chaque
+ * mise à jour reçue par la synchro ; la toile, de chaque geste, pour ne pas en proposer qu'il annulerait.
+ */
+export function carteIntacte(avant: unknown, apres: unknown, genere: (toile: Id) => boolean): boolean {
+  const [de, vers] = [toileDeLaCarte(avant), toileDeLaCarte(apres)]
+  if (!(de !== undefined && genere(de)) && !(vers !== undefined && genere(vers))) return true
+  const [a, b] = [objet(avant), objet(apres)]
+  if (!a || !b) return false
+  return [...new Set([...Object.keys(a), ...Object.keys(b)])].every((cle) => PLACE.has(cle) || egal(a[cle], b[cle]))
 }
 
 /**

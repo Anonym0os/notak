@@ -1,6 +1,6 @@
 import * as decoding from 'lib0/decoding'
 import * as Y from 'yjs'
-import { type DroitsTableau, gesteSurElement, gesteSurFil, permis } from '../../../packages/tableau/src/coeur/reglesDroits.ts'
+import { type DroitsTableau, carteIntacte, gesteSurElement, gesteSurFil, permis } from '../../../packages/tableau/src/coeur/reglesDroits.ts'
 import { decouper } from '../../../packages/tableau/src/coeur/arbresYjs.ts'
 
 // Le contrôle des mises à jour reçues par la synchro, élément par élément. Un geste qu'on n'a pas le droit de faire
@@ -126,24 +126,10 @@ export interface Garde {
   carte(cible: string): boolean
 }
 
-/** Ce qui ne dit que la place d'une carte sur sa toile. */
-const PLACE = new Set(['x', 'y', 'largeur', 'hauteur', 'plan', 'parent', 'ordre'])
-
-const carteGardee = (valeur: unknown, garde: Garde): boolean => {
-  const c = (valeur as { contenu?: { type?: unknown; cible?: unknown; raccourci?: unknown } } | undefined)?.contenu
-  return c?.type === 'tableau' && typeof c.cible === 'string' && !c.raccourci && garde.carte(c.cible)
-}
-
-const placeSeule = (avant: unknown, apres: unknown): boolean => {
-  if (typeof avant !== 'object' || typeof apres !== 'object' || !avant || !apres) return false
-  const [a, p] = [avant as Record<string, unknown>, apres as Record<string, unknown>]
-  return [...new Set([...Object.keys(a), ...Object.keys(p)])].every((cle) => PLACE.has(cle) || JSON.stringify(a[cle]) === JSON.stringify(p[cle]))
-}
-
-/** Ces changements laissent-ils intact ce que la garde protège ? */
+/** Ces changements laissent-ils intact ce que la garde protège ? La règle des cartes est celle de la toile (`carteIntacte`). */
 export function gardeRespectee(c: Changements, garde: Garde): boolean {
   if (garde.meta && c.meta) return false
-  for (const { avant, apres } of c.elements.values()) if ((carteGardee(avant, garde) || carteGardee(apres, garde)) && !placeSeule(avant, apres)) return false
+  for (const { avant, apres } of c.elements.values()) if (!carteIntacte(avant, apres, garde.carte)) return false
   return true
 }
 

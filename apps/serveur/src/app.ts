@@ -1054,12 +1054,31 @@ export function creerApp(ctx: Contexte): Hono {
     return c.json({ etat })
   })
 
-  // Ce que ce compte peut faire ici, et sur les éléments qui ont leurs propres droits : la toile s'y règle.
+  /**
+   * Les dossiers qu'un outil rattaché a générés parmi ceux dont cette toile porte la carte (jetée ou non), avec le nom
+   * de l'outil. Seulement ceux que ce compte lit et a ouverts, comme la bibliothèque les lui nomme : la carte d'un
+   * dossier qu'on ne voit pas n'en dit rien.
+   */
+  const generesPortes = async (u: Utilisateur, id: string): Promise<Record<string, string>> => {
+    if (!ctx.rattachements?.length) return {}
+    const ligne = base.contenus([id]).find((l) => l.genre === 'toile')
+    const lu = ligne ? (JSON.parse(ligne.resume) as { cartes?: string[]; jetees?: string[] }) : {}
+    const generes = dossiersGeneres(ctx.rattachements, base.rattachementsDe([...new Set([...(lu.cartes ?? []), ...(lu.jetees ?? [])])]))
+    if (generes.size === 0) return {}
+    const lus = new Set(await lisibles(u.id))
+    return Object.fromEntries([...generes].filter(([t]) => lus.has(t) && verrouPar(base, u.id, t) === null))
+  }
+
+  // Ce que ce compte peut faire ici, et sur les éléments qui ont leurs propres droits : la toile s'y règle. Qui peut y
+  // toucher apprend aussi quelles cartes sont celles de dossiers générés (`generes`) : la toile refuse d'emblée ce que la
+  // synchro annulerait.
   app.get('/api/tableaux/:id/droits', async (c) => {
     const g = await garde(c, 'lecture', true)
     if (g instanceof Response) return g
     await echus()
-    return c.json(await ctx.autorisation.droitsSur(`user:${g.u.id}`, g.id), 200, { 'cache-control': 'no-store' })
+    const droits = await ctx.autorisation.droitsSur(`user:${g.u.id}`, g.id)
+    const generes = droits && droits.role !== 'lecture' && verrouPar(base, g.u.id, g.id) === null ? await generesPortes(g.u, g.id) : {}
+    return c.json(droits && Object.keys(generes).length > 0 ? { ...droits, generes } : droits, 200, { 'cache-control': 'no-store' })
   })
 
   // ---- Droits d'un élément ----

@@ -186,6 +186,30 @@ describe('les dossiers des fiches d’un autre outil', () => {
     expect(await verrou(dupont, cleo)).toEqual({ protege: false, verrouille: false, par: null })
   })
 
+  it('les droits d’une toile nomment les dossiers générés dont elle porte la carte, à qui les lit et peut y toucher', async () => {
+    const dupont = ((await lire(ana, 'societe:1')).corps as { tableau: string }).tableau
+    const clients = m.base.tableau(dupont)!.parent!
+    const accueil = ana.utilisateur.racine
+    const droits = async (id: string, c = ana) => (await (await m.appeler(`/api/tableaux/${id}/droits`, { compte: c })).json()) as { role: string; generes?: Record<string, string> }
+    expect((await droits(accueil)).generes).toEqual({ [clients]: 'Mon CRM' })
+    expect((await droits(clients)).generes).toMatchObject({ [dupont]: 'Mon CRM' })
+    m.tableau(ana, 'sans-carte', 'Sans carte')
+    expect(await droits('sans-carte')).not.toHaveProperty('generes')
+    // Dana écrit sur l'accueil d'Ana : elle lit « Clients », elle l'apprend ; écartée de « Clients », plus rien.
+    const dana = await m.compte('Dana')
+    m.base.definirAcces({ tableau: accueil, utilisateur: dana.utilisateur.id, role: 'edition' })
+    await m.autorisation.vider()
+    expect(await droits(accueil, dana)).toMatchObject({ role: 'edition', generes: { [clients]: 'Mon CRM' } })
+    expect((await m.appeler(`/api/tableaux/${clients}/blocage`, { compte: ana, json: { email: dana.utilisateur.email, etat: 'bloque' } })).status).toBe(200)
+    expect(await droits(accueil, dana)).not.toHaveProperty('generes')
+    // Qui ne fait que lire n'a rien à refuser : rien ne lui en est dit.
+    const eve = await m.compte('Eve')
+    m.base.definirAcces({ tableau: accueil, utilisateur: eve.utilisateur.id, role: 'lecture' })
+    await m.autorisation.vider()
+    expect(await droits(accueil, eve)).toMatchObject({ role: 'lecture' })
+    expect(await droits(accueil, eve)).not.toHaveProperty('generes')
+  })
+
   it('la création n’accepte que du JSON : un formulaire d’un autre site ne la déclenche pas', async () => {
     const r = await m.appeler('/api/rattachements/crm/societe:9', { compte: ana, methode: 'POST', corps: new TextEncoder().encode('{"titre":"X"}'), type: 'text/plain' })
     expect(r.status).toBe(415)

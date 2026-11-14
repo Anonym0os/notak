@@ -13,6 +13,8 @@ import { demanderModele, ecouterModele, modeleEnCours } from './modele'
 import { prendreDemande } from './montrer'
 import { poserModele } from './poserModele'
 import { demanderRenommage, ecouterRenommage, renommageEnCours } from './renommage'
+import { avisGeneres, outilDe } from './generes'
+import { annoncer } from '../../avis'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
 
@@ -72,7 +74,16 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
   })
   const pastille = pastilleDe(element.contenu)
   const image = useImage(pastille.genre === 'image' ? pastille.fichier : undefined, contexte)
-  const enRenommage = useSyncExternalStore(ecouterRenommage, renommageEnCours) === element.id
+  const demande = useSyncExternalStore(ecouterRenommage, renommageEnCours) === element.id
+  // Le dossier qu'un outil a généré garde son nom : la demande (le menu, la barre, un clic sur le titre) ne s'ouvre pas,
+  // l'avis dit pourquoi.
+  const outil = outilDe(element, contexte.services.droits?.generes)
+  const enRenommage = demande && outil === undefined
+  useEffect(() => {
+    if (!demande || outil === undefined) return
+    demanderRenommage(null)
+    annoncer({ texte: avisGeneres([cible], contexte.services.droits?.generes, (id) => tableau?.(id)?.titre) })
+  }, [demande, outil, cible, contexte, tableau])
   const choixModele = useSyncExternalStore(ecouterModele, modeleEnCours) === element.id
   const apercu = useApercuAuSurvol()
   const plan = apercu.vu ? tableau?.(cible) : undefined
