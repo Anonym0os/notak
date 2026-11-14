@@ -1,6 +1,6 @@
 import type { Element, Fichier, Operation } from '../../coeur/tableau'
 import { nouvelId } from '../../coeur/tableau'
-import { nombreColonnes, placerImages } from '../image/geometrie'
+import { LARGEUR_COLONNE, nombreColonnes, placerImages } from '../image/geometrie'
 import { prisEnImage } from '../image/conversion'
 import { commencerEnvoi } from '../envois'
 import type { ContexteToile } from '../types'
@@ -46,14 +46,16 @@ export function recevoirFichiers(donnees: DataTransfer, ou: { x: number; y: numb
     else fichiers.push(f)
   }
   if (fichiers.length === 0) return null
-  // Les images du même dépôt se posent à `ou` : les fichiers se rangent à leur droite.
-  const decalage = tous.some(prisEnImage) ? LARGEUR_FICHIER + 2 : 0
+  // Les images du même dépôt se posent à `ou`, sur autant de colonnes qu'il en faut : les fichiers se rangent à leur droite.
+  const colonnes = nombreColonnes(contexte.largeurVue())
+  const images = tous.filter(prisEnImage).length
+  const decalage = images === 0 ? 0 : images === 1 ? LARGEUR_FICHIER + 2 : Math.min(images, colonnes) * LARGEUR_COLONNE
   // Comme les images : seul, au point de dépôt ; plusieurs, en colonnes de 36 UG. Une icône mesure 10 UG de large, une carte 34.
   const icones = fichiers.map((f) => naitEnIcone(f.name, f.type))
   const places = placerImages(
     fichiers.map((_, i) => ({ largeur: icones[i] ? LARGEUR_ICONE : LARGEUR_CARTE, hauteur: icones[i] ? HAUTEUR_ICONE : HAUTEUR_CARTE })),
     { x: ou.x + decalage, y: ou.y },
-    nombreColonnes(contexte.largeurVue()),
+    colonnes,
   )
   // L'élément naît tout de suite ; le fichier part ensuite (voir `envois.ts`).
   const elements: Element<Fichier>[] = fichiers.map((f, i) => ({
