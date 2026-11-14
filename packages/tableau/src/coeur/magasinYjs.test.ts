@@ -148,6 +148,36 @@ describe('magasin Yjs', () => {
     expect(a.getMap('textes').size).toBe(0)
   })
 
+  it('ce qu’un geste fait hors du document se défait et se refait avec son pas, même un pas qui ne change rien de visible', () => {
+    const { ma } = relies()
+    const carte: Element = { id: 'carte', x: 0, y: 0, largeur: 10, contenu: { type: 'tableau', cible: 'budget' } }
+    ma.faire([{ type: 'creer', element: carte }])
+    const faits: string[] = []
+    // Le renommage d'une toile depuis sa carte : la carte ne change pas, le titre vit dans le document de la toile.
+    ma.faire([{ type: 'contenu', id: 'carte', avant: carte.contenu, apres: carte.contenu }], { faire: () => faits.push('Neuf'), defaire: () => faits.push('Ancien') })
+    expect(ma.annuler()).toBe(true)
+    expect(ma.lire().elements).toEqual([carte])
+    expect(ma.retablir()).toBe(true)
+    expect(ma.annuler()).toBe(true)
+    expect(faits).toEqual(['Neuf', 'Ancien', 'Neuf', 'Ancien'])
+    // Un nouveau geste efface ce qu'on pouvait rétablir, et ce qu'il aurait refait.
+    ma.faire([{ type: 'deplacer', id: 'carte', de: [0, 0], vers: [4, 4] }])
+    expect(ma.retablir()).toBe(false)
+    expect(ma.annuler()).toBe(true)
+    expect(faits).toHaveLength(4)
+  })
+
+  it('un geste qui ne change rien n’ouvre pas de pas : ce qu’il fait ailleurs ne s’accroche pas au précédent', () => {
+    const { ma } = relies()
+    const n = note(1, 1)
+    ma.faire([{ type: 'creer', element: n }])
+    const faits: string[] = []
+    ma.faire([{ type: 'deplacer', id: n.id, de: [1, 1], vers: [1, 1] }], { faire: () => faits.push('fait'), defaire: () => faits.push('défait') })
+    expect(ma.annuler()).toBe(true)
+    expect(ma.lire().elements).toEqual([])
+    expect(faits).toEqual(['fait'])
+  })
+
   it('un glisser inscrit fait un seul pas, qui ramène au début du geste', () => {
     const { ma, mb } = relies()
     const n = note(1, 1)

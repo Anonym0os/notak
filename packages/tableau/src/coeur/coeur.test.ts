@@ -91,6 +91,16 @@ describe('historique', () => {
     expect(h.retablir(vide())).toBeNull()
   })
 
+  test('ce qu’un geste fait hors du tableau se défait et se refait avec lui', () => {
+    const h = new Historique()
+    const a = nouvelleNote(0, 0, 'a')
+    const faits: string[] = []
+    h.inscrire([{ type: 'creer', element: a }], { faire: () => faits.push('refait'), defaire: () => faits.push('défait') })
+    h.annuler({ titre: '', elements: [a] })
+    h.retablir(vide())
+    expect(faits).toEqual(['défait', 'refait'])
+  })
+
   test('l’historique oublie les plus vieux pas', () => {
     const h = new Historique()
     for (let i = 0; i <= 500; i++) h.inscrire([{ type: 'creer', element: nouvelleNote(i, 0) }])

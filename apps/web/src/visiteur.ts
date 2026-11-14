@@ -94,8 +94,8 @@ export function magasinVisiteur(
 
   const magasin: Magasin = {
     ...base,
-    faire(pas) {
-      base.faire(pas)
+    faire(pas, hors) {
+      base.faire(pas, hors)
       apres(pas, true)
     },
     inscrire(pas) {

@@ -146,7 +146,11 @@ l'espace, ni ce qu'elle contient : restent son propriétaire et ceux à qui on l
 liste passe par OpenFGA (bibliothèque, récents, favoris, recherche, notifications et leur compte) et l'ignore donc ;
 reste la carte qui y mène, posée sur une toile que d'autres lisent. Elle est dans le document de celle-ci, qui ne se
 filtre pas : le serveur la tait partout où il compose (vignette, activité, notifications, vue d'un visiteur) et dit à la
-toile de ne pas la montrer (`caches` des droits, `prive.ts`).
+toile de ne pas la montrer (`caches` des droits, `prive.ts`). La carte ne porte que l'identifiant de sa toile, dont le
+titre vit dans le document de celle-ci : renommer depuis la carte écrit ce titre là-bas, et l'historique de la toile
+porteuse le défait et le refait (`HorsDocument`, `coeur/historique.ts`). Une carte d'avant le gardait : il part quand la
+toile devient privée, pour elle et ce qu'elle contient (`oublierLeTitreDesCartes`). Le titre d'un raccourci est le sien
+et reste.
 
 **Décision (26/10/2026) : sans compte, on ne se synchronise jamais.** Un visiteur passe par son lien (`/api/public/<jeton>`)
 et lit une vue faite pour lui : sans corbeille, non triés ni personne confiée, et sans les fils si le lien ne permet pas de

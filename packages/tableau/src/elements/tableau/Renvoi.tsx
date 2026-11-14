@@ -110,31 +110,28 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
     return () => clearTimeout(minuteur)
   }, [element.id, contexte])
 
-  // Annuler ou rétablir un renommage change `titre` dans le renvoi : on en reporte la valeur sur le tableau.
-  const vu = useRef(nomDonne)
-  useEffect(() => {
-    if (vu.current === nomDonne) return
-    vu.current = nomDonne
-    if (!raccourci && nomDonne !== undefined && nomDonne !== titre) renommerTableau?.(cible, nomDonne)
-  })
-
   const valider = (valeur: string) => {
     demanderRenommage(null)
     const nom = valeur.trim()
     if (!nom || nom === titre) return
-    // `avant` porte l'ancien nom : sans lui, annuler ne saurait pas quoi remettre.
     const actuel = contexte.magasin.lire().elements.find((e) => e.id === element.id)?.contenu
     if (actuel?.type !== 'tableau') return
-    // Le titre d'un raccourci lui appartient : le tableau d'origine n'est pas renommé.
+    // Le titre d'un raccourci lui appartient : il se range dans sa carte, le tableau d'origine n'est pas renommé.
+    if (raccourci) return contexte.magasin.faire([{ type: 'contenu', id: element.id, avant: actuel, apres: { ...actuel, titre: nom } }])
     // Le premier vrai nom d'un tableau neuf lui trouve une couleur (si le titre en parle) et une icône (jamais celle d'un voisin).
-    const premierNom = !raccourci && titre === t('tableau.nouveau') && !actuel.icone && !actuel.image
+    const premierNom = titre === t('tableau.nouveau') && !actuel.icone && !actuel.image
     const voisines = new Set(contexte.magasin.lire().elements.flatMap((e) => (e.contenu.type === 'tableau' && e.contenu.icone ? [e.contenu.icone] : [])))
     const icone = premierNom ? iconeDuTitre(nom, voisines) : undefined
     const teinte = premierNom ? couleurDuTitre(nom) : undefined
-    const apres = { ...actuel, titre: nom }
-    contexte.magasin.faire([
-      { type: 'contenu', id: element.id, avant: raccourci ? actuel : { ...actuel, titre }, apres: icone ? avecIcone(apres, icone) : apres },
-    ])
+    // Le titre d'une toile ne vit que dans son document, que seuls ses lecteurs reçoivent : la carte n'en garde rien (une
+    // carte d'avant le gardait, il part ici), pour ne pas le montrer à qui lit la toile qui la porte sans lire celle-ci.
+    // Le pas de la carte fait, défait et refait le renommage (`HorsDocument`) ; s'il est refusé, rien n'est renommé.
+    const { titre: _ancien, ...sansTitre } = actuel
+    const avant = titre
+    contexte.magasin.faire([{ type: 'contenu', id: element.id, avant: actuel, apres: icone ? avecIcone(sansTitre, icone) : sansTitre }], {
+      faire: () => renommerTableau?.(cible, nom),
+      defaire: () => renommerTableau?.(cible, avant),
+    })
     if (teinte) contexte.services.colorerTableau?.(cible, teinte)
   }
 

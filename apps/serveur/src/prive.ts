@@ -1,3 +1,4 @@
+import type * as Y from 'yjs'
 import type { Base } from './base.ts'
 import type { ElementLu, TableauLu } from './contenu.ts'
 
@@ -48,5 +49,22 @@ export function sansElements<T extends Pick<TableauLu, 'elements'>>(t: T, ids: R
   return {
     ...t,
     elements: t.elements.filter((e) => !ids.has(e.id) && !(e.contenu.type === 'ligne' && (accroche(e.contenu.depart) || accroche(e.contenu.arrivee)))),
+  }
+}
+
+/**
+ * Les cartes de ces toiles dans ce document (pas leurs raccourcis, dont le titre est le leur) oublient le titre qu'une
+ * carte d'avant gardait : une toile le tient dans son propre document, qui ne part qu'à qui la lit, et celui de la
+ * toile qui porte sa carte part à tous ceux qui lisent celle-ci.
+ */
+export function oublierLeTitreDesCartes(doc: Y.Doc, toiles: ReadonlySet<string>): void {
+  const elements = doc.getMap<Record<string, unknown>>('elements')
+  const nommees = [...elements.entries()].flatMap(([id, brut]) => {
+    const c = brut && typeof brut === 'object' ? (brut.contenu as Record<string, unknown> | undefined) : undefined
+    return c?.type === 'tableau' && typeof c.cible === 'string' && toiles.has(c.cible) && !c.raccourci && 'titre' in c ? [{ id, brut, contenu: c }] : []
+  })
+  for (const { id, brut, contenu } of nommees) {
+    const { titre: _titre, ...reste } = contenu
+    elements.set(id, { ...brut, contenu: reste })
   }
 }

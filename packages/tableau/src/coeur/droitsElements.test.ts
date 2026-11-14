@@ -173,6 +173,15 @@ describe('la carte d’un dossier généré par un outil', () => {
       expect(refus.every((d) => d.length === 1 && d[0] === 'clients')).toBe(true)
       expect(m.lire()).toEqual(depart())
     })
+
+    it('un geste refusé ne fait pas non plus ce qu’il ferait hors du document ; un geste permis le fait', () => {
+      const { g } = garde()
+      const faits: string[] = []
+      const hors = (nom: string) => ({ faire: () => void faits.push(nom), defaire: () => {} })
+      g.faire([{ type: 'supprimer', element: c1() }], hors('refusé'))
+      g.faire([{ type: 'deplacer', id: 'n1', de: [0, 0], vers: [5, 5] }], hors('permis'))
+      expect(faits).toEqual(['permis'])
+    })
   })
 })
 

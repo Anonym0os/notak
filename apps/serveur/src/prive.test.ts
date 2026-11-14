@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
+import { lireEtat } from './contenu.ts'
 import { type Compte, type Monde, monde, poser, texte } from './essai.ts'
 import { indexerDocument } from './indexation.ts'
 import { cartesCachees, sansElements } from './prive.ts'
@@ -159,6 +160,24 @@ describe('une toile privée', () => {
     expect(dAna.find((x) => x.tableau === 'salaires' && x.element === null)?.prive).toBe(true)
     expect(dAna.find((x) => x.tableau === e.racine && x.element === null)?.resume.boites).toHaveLength(2)
     expect((await json<unknown[]>(m.appeler('/api/recherche?q=bilan', { compte: ana }))).length).toBe(1)
+  })
+
+  it('sa carte, et celle de ce qu’elle contient, oublient le titre qu’une carte d’avant gardait ; un raccourci garde le sien', async () => {
+    const e = await silak()
+    await compta(e)
+    ecrire(e.racine, (doc) => {
+      poser(doc, { type: 'tableau', cible: 'compta', raccourci: true, titre: 'Mes comptes' }, { id: 'raccourci-compta' })
+      // La carte des salaires, posée sur l'accueil plutôt que dans la compta.
+      poser(doc, { type: 'tableau', cible: 'salaires', titre: 'Salaires' }, { id: 'carte-salaires-ici' })
+    })
+    await rendrePrive(ana, 'compta', true)
+    const etat = m.base.document(nomDuDocument(e.racine))!
+    const carte = (id: string) => lireEtat(etat).elements.find((x) => x.id === id)?.contenu
+    expect(carte('carte-compta')).toEqual({ type: 'tableau', cible: 'compta' })
+    expect(carte('carte-salaires-ici')).toEqual({ type: 'tableau', cible: 'salaires' })
+    expect(carte('raccourci-compta')).toMatchObject({ titre: 'Mes comptes' })
+    // Le document que reçoit qui lit l'accueil ne les nomme plus nulle part.
+    expect(new TextDecoder().decode(etat)).not.toMatch(/Compta 2026|Salaires/)
   })
 
   it('sa carte sur la toile parente se tait : la toile ne la montre pas, ni l’activité, ni le lien d’un visiteur', async () => {

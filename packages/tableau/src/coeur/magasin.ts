@@ -1,6 +1,8 @@
 import type { Text as YText, XmlFragment } from 'yjs'
-import { Historique } from './historique'
+import { Historique, type HorsDocument } from './historique'
 import { type Id, type Operation, type Tableau, type Trace, appliquer, surLeTableau } from './tableau'
+
+export type { HorsDocument } from './historique'
 
 /**
  * Le tableau et son historique, derrière une petite interface qu'écoute l'interface.
@@ -9,8 +11,8 @@ import { type Id, type Operation, type Tableau, type Trace, appliquer, surLeTabl
 export interface Magasin {
   lire(): Tableau
   ecouter(f: () => void): () => void
-  /** Applique un geste et l'inscrit dans l'historique. */
-  faire(pas: Operation[]): void
+  /** Applique un geste et l'inscrit dans l'historique ; `hors`, ce qu'il fait aussi ailleurs, se fait, s'annule et se rétablit avec lui. */
+  faire(pas: Operation[], hors?: HorsDocument): void
   /** Applique sans rien inscrire : un glisser en cours, inscrit à la fin par `inscrire`. */
   appliquerSeulement(pas: Operation[]): void
   inscrire(pas: Operation[]): void
@@ -54,11 +56,12 @@ export function creerMagasin(initial: Tableau): Magasin {
       ecouteurs.add(f)
       return () => ecouteurs.delete(f)
     },
-    faire(pas) {
+    faire(pas, hors) {
       if (pas.length === 0) return
       // Inscrit avant de prévenir : ceux qui écoutent lisent déjà la pile à jour.
-      historique.inscrire(pas)
+      historique.inscrire(pas, hors)
       poser(pas.reduce(appliquer, tableau))
+      hors?.faire()
     },
     appliquerSeulement(pas) {
       if (pas.length > 0) poser(pas.reduce(appliquer, tableau))

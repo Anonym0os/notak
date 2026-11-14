@@ -1,6 +1,6 @@
 import * as Y from 'yjs'
 import { type Fond, lireFond } from './fond'
-import type { Magasin } from './magasin'
+import type { HorsDocument, Magasin } from './magasin'
 import { cleEntre, comparerOrdre } from './ordre'
 import { lireElement } from './valider'
 import { fusionnerParCles } from './fusion'
@@ -16,6 +16,8 @@ export const ORIGINE_GESTE = 'notak:geste'
 export const ORIGINE_LIBRE = 'notak:libre'
 /** Ce que l'historique ne voit pas du tout : une correction (`corriger`), un texte ou une ligne créés au besoin. */
 const ORIGINE_HORS = 'notak:hors-historique'
+/** Où un pas de l'historique garde ce que son geste a fait hors du document (`HorsDocument`). */
+const HORS = 'notak:hors-document'
 
 export type MagasinYjs = Magasin & { detruire(): void; texte(id: Id): Y.XmlFragment; ligne(id: Id): Y.Text; trace(id: Id): Trace | undefined }
 
@@ -175,6 +177,16 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
   }
   historique.on('stack-item-added', prevenir)
   historique.on('stack-item-popped', prevenir)
+  // Un pas défait ou refait défait ou refait aussi ce que son geste a fait ailleurs ; Yjs le range sur l'autre pile sous
+  // un pas neuf, qui en reprend la charge.
+  historique.on('stack-item-popped', ({ stackItem, type }) => {
+    const hors = stackItem.meta.get(HORS) as HorsDocument | undefined
+    if (!hors) return
+    const pile = type === 'undo' ? historique.redoStack : historique.undoStack
+    pile[pile.length - 1]?.meta.set(HORS, hors)
+    if (type === 'undo') hors.defaire()
+    else hors.faire()
+  })
   historique.on('stack-cleared', prevenir)
 
   const lire = () => (cache ??= construire())
@@ -311,14 +323,18 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
       ecouteurs.add(f)
       return () => ecouteurs.delete(f)
     },
-    faire(pas) {
+    faire(pas, hors) {
       if (pas.length === 0) return
       historique.stopCapturing()
+      const avant = historique.undoStack.length
       transaction(() => {
         ecrire(pas)
         marquer(pas)
       }, ORIGINE_GESTE)
+      // Le pas que le geste vient d'ouvrir garde ce qu'il fait ailleurs ; un geste qui n'a rien changé n'en ouvre pas.
+      if (hors && historique.undoStack.length > avant) historique.undoStack[historique.undoStack.length - 1]!.meta.set(HORS, hors)
       historique.stopCapturing()
+      hors?.faire()
     },
     appliquerSeulement(pas) {
       if (pas.length > 0) transaction(() => ecrire(pas), ORIGINE_LIBRE)

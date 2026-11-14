@@ -72,7 +72,7 @@ import {
 } from './signalements.ts'
 import { entetesSecurite } from '@notak/tableau/securite'
 import { verrouPar } from './verrou.ts'
-import { cartesCachees, cibleDeCarte, priveePar, relationPrivee, sansElements } from './prive.ts'
+import { cartesCachees, cibleDeCarte, oublierLeTitreDesCartes, priveePar, relationPrivee, sansElements } from './prive.ts'
 import { CLE_VISITEUR, auteurVisiteur, ecrireChangements, jugerChangements, nomVisiteur } from './visiteurs.ts'
 import { creerZip, nommerLesMedias } from './zip.ts'
 
@@ -1248,6 +1248,14 @@ export function creerApp(ctx: Contexte): Hono {
     return c.json(accesGeneral(g.id, g.u, g.role), 200, { 'cache-control': 'no-store' })
   })
 
+  /** Les toiles de l'espace qui portent une carte (pas un raccourci, jetée ou non) de l'une de celles-ci, d'après leur résumé. */
+  const porteusesDe = (espace: string, toiles: ReadonlySet<string>): string[] =>
+    base.contenus(base.tableauxDeLEspace(espace)).flatMap((l) => {
+      if (l.genre !== 'toile') return []
+      const lu = JSON.parse(l.resume) as { cartes?: string[]; jetees?: string[] }
+      return [...(lu.cartes ?? []), ...(lu.jetees ?? [])].some((cible) => toiles.has(cible)) ? [l.tableau] : []
+    })
+
   // Rendre un tableau privé (`{ prive: true }`), ou le rouvrir à tout l'espace. Qui le lisait par l'espace le perd
   // aussitôt : les connexions se ferment sur lui, sur ce qu'il contient, et sur la toile qui porte sa carte, qu'on relit
   // alors sans elle.
@@ -1265,6 +1273,13 @@ export function creerApp(ctx: Contexte): Hono {
     if (b.prive) base.ajouterRelation(relationPrivee(g.id))
     else base.retirerRelation(relationPrivee(g.id))
     await droitsAJour()
+    // Une carte d'avant gardait le titre de sa toile : il quitte le document des toiles qui la portent, que reçoit qui
+    // n'est pas invité, pour elle et ce qu'elle contient (une carte peut porter ailleurs que sous son parent). La carte
+    // n'en a pas besoin : la toile se nomme dans son propre document.
+    if (b.prive) {
+      const fermees = new Set([g.id, ...base.descendants(g.id)])
+      for (const porteuse of porteusesDe(espace.id, fermees)) await modifierDocument(porteuse, undefined, (doc) => oublierLeTitreDesCartes(doc, fermees))
+    }
     fermerConnexions(g.id)
     if (ligne?.parent) ctx.synchro()?.closeConnections(nomDuDocument(ligne.parent))
     return c.json(accesGeneral(g.id, g.u, g.role))

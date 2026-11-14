@@ -291,8 +291,9 @@ export interface RenvoiTableau {
   type: 'tableau'
   cible: Id
   /**
-   * Le dernier nom donné depuis ce renvoi. Il sert à l'historique : annuler un renommage
-   * remet ce champ, et la carte en reporte la valeur sur le tableau cible.
+   * Le nom d'un raccourci, quand on lui en a donné un. Une carte qui n'est pas un raccourci n'en porte pas : le titre de
+   * sa toile vit dans le document de celle-ci, que seuls ses lecteurs reçoivent (une carte d'avant le gardait ici, pour
+   * l'historique ; il part à son prochain renommage, ou quand sa toile devient privée).
    */
   titre?: string
   /** Une icône de la bibliothèque (voir `elements/tableau/icones.ts`), à la place de l'initiale. */

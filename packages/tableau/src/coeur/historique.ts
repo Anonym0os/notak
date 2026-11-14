@@ -44,12 +44,29 @@ function laisse(pas: readonly Operation[], c: Champ): unknown {
 const memes = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b)
 
 /**
+ * Ce qu'un geste fait aussi hors du document de sa toile : le titre de la toile qu'une carte porte, qui ne vit que dans
+ * le document de celle-ci (sa carte n'en garde rien, pour ne pas le montrer à qui ne la lit pas). Le magasin le fait avec
+ * le geste, et seulement s'il le fait ; son historique le défait et le refait avec lui.
+ */
+export interface HorsDocument {
+  /** Quand le geste se fait, puis quand on le rétablit. */
+  faire(): void
+  /** Quand on l'annule. */
+  defaire(): void
+}
+
+interface Pas {
+  operations: Operation[]
+  hors?: HorsDocument
+}
+
+/**
  * Annuler et rétablir. Un pas regroupe toutes les opérations d'un même geste :
  * un déplacement de groupe s'annule d'un coup.
  */
 export class Historique {
-  private passe: Operation[][] = []
-  private futur: Operation[][] = []
+  private passe: Pas[] = []
+  private futur: Pas[] = []
 
   get peutAnnuler(): boolean {
     return this.passe.length > 0
@@ -59,10 +76,10 @@ export class Historique {
     return this.futur.length > 0
   }
 
-  /** Inscrit un geste déjà appliqué au tableau. */
-  inscrire(pas: Operation[]) {
+  /** Inscrit un geste déjà appliqué au tableau, et ce qu'il a fait hors de lui. */
+  inscrire(pas: Operation[], hors?: HorsDocument) {
     if (pas.length === 0) return
-    this.passe.push(pas)
+    this.passe.push(hors ? { operations: pas, hors } : { operations: pas })
     this.futur = []
     if (this.passe.length > PAS_MAX) this.passe.splice(0, this.passe.length - PAS_GARDES)
   }
@@ -77,23 +94,26 @@ export class Historique {
     for (const op of pas) {
       const c = champCorrige(op)
       if (!c) continue
-      const i = this.passe.findLastIndex((p) => laisse(p, c) !== SANS_CE_CHAMP)
-      // Un nouveau tableau du pas, jamais celui qu'on a reçu : le geste qui l'a inscrit le garde peut-être encore.
-      if (i >= 0 && memes(laisse(this.passe[i]!, c), c.avant)) this.passe[i] = [...this.passe[i]!, op]
+      const i = this.passe.findLastIndex((p) => laisse(p.operations, c) !== SANS_CE_CHAMP)
+      // Un nouveau pas et une nouvelle liste, jamais ceux qu'on a reçus : le geste qui les a inscrits les garde peut-être encore.
+      if (i >= 0 && memes(laisse(this.passe[i]!.operations, c), c.avant)) this.passe[i] = { ...this.passe[i]!, operations: [...this.passe[i]!.operations, op] }
     }
   }
 
+  /** Le tableau d'avant le dernier pas ; ce que ce pas a fait hors du tableau est défait. */
   annuler(t: Tableau): Tableau | null {
     const pas = this.passe.pop()
     if (!pas) return null
     this.futur.push(pas)
-    return pas.reduceRight((acc, op) => appliquer(acc, inverse(op)), t)
+    pas.hors?.defaire()
+    return pas.operations.reduceRight((acc, op) => appliquer(acc, inverse(op)), t)
   }
 
   retablir(t: Tableau): Tableau | null {
     const pas = this.futur.pop()
     if (!pas) return null
     this.passe.push(pas)
-    return pas.reduce(appliquer, t)
+    pas.hors?.faire()
+    return pas.operations.reduce(appliquer, t)
   }
 }
