@@ -18,6 +18,8 @@ export async function poserLeGuideServeur(
   const l = langue() === 'en' ? 'en' : 'fr'
   const modele = l === 'en' ? ACCUEIL_EN : ACCUEIL
   const elements = elementsDuModele(auDoigt() ? accueilAuDoigt(modele, l) : modele, () => nouvelId())
-  espace.magasin(tableau).appliquerSeulement(elements.map((element) => ({ type: 'creer' as const, element })))
+  // Il arrive d'un modèle, hors de l'historique : sinon le premier geste qu'on y fait s'y joindrait, et l'annuler
+  // effacerait tout le guide.
+  espace.magasin(tableau).transferer(elements.map((element) => ({ type: 'creer' as const, element })))
   return tableau
 }
