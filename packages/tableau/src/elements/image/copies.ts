@@ -2,6 +2,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { PX_PAR_UG } from '../../coeur/camera'
 import type { Element, Image } from '../../coeur/tableau'
 import { ecouterVue } from '../../vueZoom'
+import { estCopieLocale, fichierRecu, useTenirCopie } from '../envois'
 import type { ContexteToile } from '../types'
 import { adresseALargeur, finesse, largeurCadrePx, largeurEntiereAffichee, palierPour } from './tailles'
 
@@ -60,28 +61,32 @@ function observer(noeud: HTMLElement, f: (vu: boolean) => void): () => void {
 /**
  * L'adresse à peindre : la voulue, mais une autre copie du même fichier (`cle`) ne prend la place de celle qu'on voit
  * qu'une fois décodée : l'image ne passe jamais par le vide, et reste nette de ce qu'on a pendant que la suivante
- * arrive. La première adresse d'un fichier, celle d'un autre fichier, se montrent aussitôt.
+ * arrive. La première adresse d'un fichier, celle d'un autre fichier, se montrent aussitôt ; `depart`, une copie déjà
+ * chargée ailleurs (celle de la carte, pour la visionneuse), tient lieu de première. `decodee` : l'adresse peinte est
+ * passée par ici décodée, ou était déjà chargée ; sinon elle se charge dans la balise même.
  */
-export function useAdressePrete(voulue: string | undefined, cle: string): string | undefined {
-  const [prete, setPrete] = useState<{ cle: string; adresse: string } | null>(null)
-  const montree = prete?.cle === cle ? prete.adresse : undefined
+export function useAdressePrete(voulue: string | undefined, cle: string, depart?: string): { adresse: string | undefined; decodee: boolean } {
+  const [prete, setPrete] = useState<{ cle: string; adresse: string; decodee: boolean } | null>(() => (depart ? { cle, adresse: depart, decodee: true } : null))
+  const garde = prete?.cle === cle ? prete : undefined
+  const montree = garde?.adresse
   useEffect(() => {
     if (!voulue || voulue === montree) return
     // Sans `decode` (un environnement d'essai), rien ne dit quand elle est prête : elle passe tout de suite.
-    if (!montree || !('decode' in HTMLImageElement.prototype)) return setPrete({ cle, adresse: voulue })
+    if (!montree || !('decode' in HTMLImageElement.prototype)) return setPrete({ cle, adresse: voulue, decodee: false })
     let vivant = true
     const img = new Image()
     img.src = voulue
-    // Illisible, la nouvelle n'efface pas la copie qu'on voit.
     img.decode().then(
-      () => vivant && setPrete({ cle, adresse: voulue }),
-      () => {},
+      () => vivant && setPrete({ cle, adresse: voulue, decodee: true }),
+      // Illisible, la nouvelle n'efface pas la copie qu'on voit ; sauf l'aperçu d'un envoi, qui n'est plus l'image une
+      // fois le fichier reçu : la balise dira ce qu'il en est, au lieu d'un aperçu qui attendrait pour toujours.
+      () => vivant && estCopieLocale(montree) && setPrete({ cle, adresse: voulue, decodee: false }),
     )
     return () => {
       vivant = false
     }
   }, [voulue, montree, cle])
-  return montree ?? voulue
+  return garde ? { adresse: garde.adresse, decodee: garde.decodee } : { adresse: voulue, decodee: false }
 }
 
 /**
@@ -144,6 +149,16 @@ export function useCopieDeCarte(element: Element<Image>, contexte: ContexteToile
     const palier = voulu()
     if (finesse(palier) > finesse(garde.current.palier)) garde.current.palier = palier
   }
-  const prete = useAdressePrete(adresse ? adresseALargeur(adresse, garde.current.palier) : undefined, contenu.fichier)
-  return { adresse: adresse ? prete : adresse, suivre }
+  // L'envoi parti d'ici et le fichier qu'il a reçu sont la même image : la carte garde l'aperçu de l'appareil jusqu'à
+  // ce que la copie du serveur soit décodée, au lieu de passer par le vide puis de la peindre pavé par pavé (le serveur
+  // les fait en JPEG progressif).
+  const lignee = useRef({ fichier: contenu.fichier, cle: contenu.fichier })
+  if (lignee.current.fichier !== contenu.fichier) {
+    const suite = fichierRecu(lignee.current.fichier) === contenu.fichier
+    lignee.current = { fichier: contenu.fichier, cle: suite ? lignee.current.cle : contenu.fichier }
+  }
+  const prete = useAdressePrete(adresse ? adresseALargeur(adresse, garde.current.palier) : undefined, lignee.current.cle)
+  // L'aperçu qu'on peint encore reste à nous jusque-là : l'envoi fini ne le rend pas au navigateur sous nos yeux.
+  useTenirCopie(adresse ? prete.adresse : undefined)
+  return { adresse: adresse ? prete.adresse : adresse, decodee: !!adresse && prete.decodee, suivre }
 }

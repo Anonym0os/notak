@@ -167,6 +167,9 @@ export const fichierRecu = (fichier: string): string | undefined => (enEnvoi(fic
  */
 export const copieLocale = (fichier: string): string | undefined => (enEnvoi(fichier) ? envois.get(fichier)?.local : undefined)
 
+/** Cette adresse est la copie locale d'un envoi parti d'ici (l'aperçu fait par l'appareil), pas une adresse du serveur. */
+export const estCopieLocale = (adresse: string | null | undefined): boolean => !!adresse && copies.has(adresse)
+
 /** La copie locale d'un envoi parti d'ici, depuis l'id provisoire du fichier ou celui qu'il a reçu, tant qu'elle n'est pas rendue. */
 const copieDe = (fichier: string): string | undefined => envois.get(enEnvoi(fichier) ? fichier : (recus.get(fichier) ?? ''))?.local
 

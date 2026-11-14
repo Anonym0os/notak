@@ -300,27 +300,85 @@
   from { opacity: 0; }
 }
 
-/* Pendant l'envoi : la copie locale, un peu passée, et une roue au centre. */
-.notak-image[data-en-route] {
+/*
+ * Une image qui charge (`chargement.tsx`), du dépôt à sa version nette : l'aperçu de l'appareil un peu passé, ou
+ * rien tant que la balise n'a pas l'image entière (le serveur fait ses copies en JPEG progressif, qui se peindraient
+ * par gros pavés) ; le gris des images vides dessous. Puis un fondu vers la version nette, si l'attente s'est vue.
+ */
+.notak-image-cadre[data-chargement] {
+  background: #f3f3f4;
+}
+
+.notak-image[data-chargement='passee'] {
   opacity: 0.6;
 }
 
-.notak-envoi {
+.notak-image[data-chargement='cachee'] {
+  opacity: 0;
+}
+
+.notak-image[data-fondu] {
+  transition: opacity 0.3s ease-out;
+}
+
+/* L'anneau, au centre, sur une pastille sombre qui se lit sur toute photo ; sa taille à l'écran ne suit pas le zoom. */
+.notak-image-charge {
   position: absolute;
   inset: 0;
   z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
   pointer-events: none;
+  animation: notak-voile 0.2s ease-out;
 }
 
-.notak-envoi .notak-roue {
+.notak-image-charge-pastille {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.48);
+  color: #fff;
+  scale: var(--notak-zoom-inverse, 1);
+}
+
+.notak-image-charge .notak-roue {
+  box-sizing: border-box;
   width: 18px;
   height: 18px;
   border-width: 2.5px;
-  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.4));
+}
+
+/* La part envoyée : un arc qui part de midi et tourne dans le sens des aiguilles d'une montre. */
+.notak-image-charge svg {
+  transform: rotate(-90deg);
+}
+
+.notak-image-charge-piste,
+.notak-image-charge-part {
+  fill: none;
+  stroke-width: 2.5;
+}
+
+.notak-image-charge-piste {
+  stroke: rgb(255 255 255 / 0.3);
+}
+
+.notak-image-charge-part {
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-dasharray: 1 1;
+  transition: stroke-dashoffset 0.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notak-image[data-fondu],
+  .notak-image-charge-part {
+    transition: none;
+  }
 }
 
 .notak-carte[data-choisie] .notak-legende {

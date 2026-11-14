@@ -81,6 +81,8 @@ async function poser() {
   await act(async () => {
     racine.render(<RenduImage element={element} choisie={false} enEdition={false} contexte={contexte} brouillon={() => {}} changer={() => {}} />)
   })
+  // Sa copie chargée (jsdom ne charge rien : on le dit pour lui), la carte n'attend plus rien : seul le zoom la change.
+  act(() => void hote.querySelector('img.notak-image')!.dispatchEvent(new Event('load')))
   return contexte
 }
 

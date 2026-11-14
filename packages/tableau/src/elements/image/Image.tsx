@@ -10,6 +10,7 @@ import { Detoureur, detourerImage, useDetourageOuvert } from './Detoureur'
 import { sansDetourage } from './detourage'
 import { annoter, useAnnotation } from './modeAnnotation'
 import { useCopieDeCarte } from './copies'
+import { AnneauChargement, useChargementCarte } from './chargement'
 import { Visionneuse, useImageOuverte } from './visionneuse'
 import { useDepotSurImage } from './survolDepot'
 import { t } from '../../langue'
@@ -25,7 +26,9 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
   const { adresse: adresseOrigine, enRoute } = useFichier(element, contexte)
   // La copie à la taille où la carte s'affiche, qui suit le zoom une fois posé. La visionneuse choisit la sienne, et le
   // détourage, qui lit les pixels, part de l'adresse du fichier.
-  const { adresse, suivre } = useCopieDeCarte(element, contexte, adresseOrigine)
+  const { adresse, decodee, suivre } = useCopieDeCarte(element, contexte, adresseOrigine)
+  // Du dépôt à la version nette (envoi, copie du serveur, décodage), la carte montre qu'elle charge.
+  const chargement = useChargementCarte({ fichier: contenu.fichier, adresse, decodee, enRoute })
   // Le cadre suit l'image, ou le cadrage libre qu'un redimensionnement avec Cmd a fixé : l'image le recouvre.
   const proportions = rapportDuCadre(contenu)
   const page = miseEnPage(contenu)
@@ -67,18 +70,13 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
   if (enDetourage && adresseOrigine) return <Detoureur id={element.id} contenu={contenu} adresse={adresseOrigine} contexte={contexte} />
   return (
     <>
-      {enRoute && (
-        <span className="notak-envoi" role="status" aria-label={t('image.envoiEnCours')}>
-          <span className="notak-roue" />
-        </span>
-      )}
       {enGrand && adresseOrigine && <Visionneuse element={element} adresse={adresseOrigine} contexte={contexte} />}
-      <div ref={suivre} className="notak-image-cadre" style={forme}>
+      <div ref={suivre} className="notak-image-cadre" style={forme} data-chargement={chargement.voile}>
         {adresse ? (
           <div className="notak-image-plan" style={page.plan}>
             <img
+              {...chargement.img}
               className="notak-image"
-              data-en-route={enRoute || undefined}
               src={adresse}
               alt={contenu.legende ?? ''}
               draggable={false}
@@ -95,6 +93,7 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
             )}
           </div>
         )}
+        {chargement.anneau && <AnneauChargement etat={chargement.etat} />}
         {depot && (
           // Un fichier au-dessus : un filet de 2 px, puis, après 500 ms, le voile qui dit que l'image va être remplacée.
           <div className="notak-image-depot" data-voile={depot === 'voile' || undefined} aria-hidden>

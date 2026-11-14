@@ -147,7 +147,7 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
   const taille = useCarteEnGrand(zone, legende, tailleMontree(c), c.legende)
   // L'image se peint depuis une copie à la taille de l'écran ; « Ouvrir » et « Télécharger » gardent l'original.
   const cle = `${courant.id}:${c.fichier}`
-  const peinte = useAdressePrete(useCopieACharger(adresse, c, taille, zoom, cle), cle)
+  const peinte = useAdressePrete(useCopieACharger(adresse, c, taille, zoom, cle), cle).adresse
   const page = miseEnPage(c)
   const geste = useRef<{ x: number; y: number; depart: { x: number; y: number } } | null>(null)
   /** Le dernier appui dans la visionneuse : le bouton qui la ferme garde cette place le temps du geste (`sortir`). */

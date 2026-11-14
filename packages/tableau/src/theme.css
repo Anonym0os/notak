@@ -78,7 +78,8 @@
   background: rgb(255 255 255 / 0.1);
 }
 
-.notak-espace[data-theme='sombre'] .notak-image-vide {
+.notak-espace[data-theme='sombre'] .notak-image-vide,
+.notak-espace[data-theme='sombre'] .notak-image-cadre[data-chargement] {
   background: #33383f;
   color: #9aa0a8;
 }
