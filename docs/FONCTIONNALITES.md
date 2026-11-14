@@ -369,6 +369,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Accès temporaire | ✅ | Une échéance par personne, par équipe et par invitation (un jour, une semaine, un mois, une date) ; passée, le rôle tombe et les connexions ouvertes se ferment. |
 | Rôles lecture, édition, propriétaire ; changés en direct | ✅ | |
 | Partage hérité par les sous-tableaux | ✅ | |
+| Toile privée : « Seulement les personnes invitées » ou « Tout l'espace » | ✅ | L'accès général de Notion. Privée, une toile d'un espace d'équipe ne s'ouvre plus par le rôle dans l'espace, ni ce qu'elle contient ; elle n'est ni dans la bibliothèque, ni dans les récents, la recherche, les notifications ou l'activité des autres. Son propriétaire et ses invités la gardent. |
 | Présence : pastilles, curseurs, sélections des autres | ✅ | Pastille avec avatar et prénom qui pulse, et croix qui fait lâcher l'élément à l'autre (sauf croquis et document) ; un élément tenu par un autre ne se choisit ni ne s'édite. |
 | Point d'activité non vue sur un élément modifié par un autre | ✅ | Zone de 19 px, infobulle immédiate (qui, depuis quand). Pointeurs de bord de vue vers les autres personnes et l'activité hors écran (clic : la vue s'y centre, effacés pendant un zoom). |
 | Suggestion sous l'élément (« Convertir cette note en page ? ») | ✅ | Mécanisme `suggestionSous` ; reste : copie synchronisée, titre et tâches terminées d'une liste. |

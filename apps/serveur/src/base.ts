@@ -390,6 +390,8 @@ export interface Base {
   /** Les notifications d'un compte, la plus récente d'abord. */
   notifications(destinataire: string, limite: number): LigneNotification[]
   nonLues(destinataire: string): number
+  /** Le tableau et l'élément de chaque notification non lue (mille au plus) : le compte n'en garde que ce qu'il lit. */
+  nonLuesDe(destinataire: string): { tableau: string; element: string }[]
   /** Marque comme lues ces notifications de ce compte, ou toutes si `ids` est `null` ; rend leur nombre. */
   marquerLues(destinataire: string, ids: readonly number[] | null): number
   /**
@@ -1131,6 +1133,8 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
       })),
     nonLues: (destinataire) =>
       Number(un('SELECT COUNT(*) AS n FROM notifications WHERE destinataire = ? AND lu = 0', destinataire)?.n ?? 0),
+    nonLuesDe: (destinataire) =>
+      tous('SELECT tableau, element FROM notifications WHERE destinataire = ? AND lu = 0 ORDER BY id DESC LIMIT 1000', destinataire) as unknown as { tableau: string; element: string }[],
     marquerLues(destinataire, ids) {
       if (ids === null) return Number(executer('UPDATE notifications SET lu = 1 WHERE destinataire = ? AND lu = 0', destinataire).changes)
       return Number(

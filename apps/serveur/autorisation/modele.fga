@@ -44,12 +44,24 @@ type tableau
     define bloque: [user, user:*, lien:*, equipe#membre]
     define debloque: [user, user:*, lien:*, equipe#membre]
     define est_bloque: bloque or (est_bloque from parent but not debloque)
+    # « Seulement les personnes invitées » (l'accès général de Notion, « Accès limité » chez Drive) : le rôle dans
+    # l'espace ne donne plus rien ici, ni plus bas. Restent les propriétaires et ceux à qui on l'a partagé, ici ou
+    # au-dessus. Il s'écrit `user:*` : c'est le tableau qui est privé, pour tout le monde.
+    define prive: [user:*]
+    define est_prive: prive or est_prive from parent
 
-    # Les droits accordés, hérités des tableaux au-dessus et du rôle dans l'espace, avant tout blocage.
-    define possede: proprietaire or possede from parent or administre_tableaux from espace
-    define droit_ecrire: editeur or possede or droit_ecrire from parent or modifie_tableaux from espace
-    define droit_commenter: commentateur or droit_ecrire or droit_commenter from parent or commente_tableaux from espace
-    define droit_lire: lecteur or droit_commenter or droit_lire from parent or lit_tableaux from espace
+    # Les droits donnés à quelqu'un (une personne, une équipe, un lien), ici ou sur un tableau au-dessus.
+    define possede_donne: proprietaire or possede_donne from parent
+    define ecrire_donne: editeur or possede_donne or ecrire_donne from parent
+    define commenter_donne: commentateur or ecrire_donne or commenter_donne from parent
+    define lire_donne: lecteur or commenter_donne or lire_donne from parent
+
+    # Les droits accordés, avant tout blocage : donnés, ou venus du rôle dans l'espace, sauf sous une toile privée. Un
+    # tableau naît dans l'espace de son parent et n'en change pas : le rôle s'y lit directement, sans remonter.
+    define possede: possede_donne or (administre_tableaux from espace but not est_prive)
+    define droit_ecrire: ecrire_donne or possede or (modifie_tableaux from espace but not est_prive)
+    define droit_commenter: commenter_donne or droit_ecrire or (commente_tableaux from espace but not est_prive)
+    define droit_lire: lire_donne or droit_commenter or (lit_tableaux from espace but not est_prive)
 
     # Ce qu'on peut faire. Un propriétaire ne se bloque pas.
     define peut_posseder: possede

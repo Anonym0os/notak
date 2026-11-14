@@ -22,7 +22,7 @@ import { accorderInvitation, activerInvitations, entrerParLeSso, invitationValab
 import type { Courrier } from './courriel.ts'
 import { creerExpiration } from './echeances.ts'
 import { type Cle, duDisque, pourLeDisque } from './chiffrement.ts'
-import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from './contenu.ts'
+import { type ElementLu, type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau, resumesDuTableau } from './contenu.ts'
 import { rangerLesToiles } from './catalogue.ts'
 import {
   ACTIONS_OUTIL,
@@ -72,6 +72,7 @@ import {
 } from './signalements.ts'
 import { entetesSecurite } from '@notak/tableau/securite'
 import { verrouPar } from './verrou.ts'
+import { cartesCachees, cibleDeCarte, priveePar, relationPrivee, sansElements } from './prive.ts'
 import { CLE_VISITEUR, auteurVisiteur, ecrireChangements, jugerChangements, nomVisiteur } from './visiteurs.ts'
 import { creerZip, nommerLesMedias } from './zip.ts'
 
@@ -1069,16 +1070,28 @@ export function creerApp(ctx: Contexte): Hono {
     return Object.fromEntries([...generes].filter(([t]) => lus.has(t) && verrouPar(base, u.id, t) === null))
   }
 
+  /**
+   * Les cartes de ce tableau qui mènent à une toile que ce compte ne lit pas : une toile privée où il n'est pas invité,
+   * une toile bloquée pour lui. Une carte vers une toile qui n'existe pas (encore) n'en est pas : on la laisse.
+   */
+  const cachesPour = async (utilisateur: string, t: TableauLu): Promise<Set<string>> => {
+    if (!t.elements.some((e) => cibleDeCarte(e) !== null)) return new Set()
+    const lues = new Set(await lisibles(utilisateur))
+    return cartesCachees(t, (cible) => lues.has(cible) || !base.tableau(cible))
+  }
+
   // Ce que ce compte peut faire ici, et sur les éléments qui ont leurs propres droits : la toile s'y règle. Qui peut y
   // toucher apprend aussi quelles cartes sont celles de dossiers générés (`generes`) : la toile refuse d'emblée ce que la
-  // synchro annulerait.
+  // synchro annulerait. `caches` : les cartes qu'elle ne montre pas, puisqu'elles mènent à une toile qu'il ne lit pas.
   app.get('/api/tableaux/:id/droits', async (c) => {
     const g = await garde(c, 'lecture', true)
     if (g instanceof Response) return g
     await echus()
     const droits = await ctx.autorisation.droitsSur(`user:${g.u.id}`, g.id)
     const generes = droits && droits.role !== 'lecture' && verrouPar(base, g.u.id, g.id) === null ? await generesPortes(g.u, g.id) : {}
-    return c.json(droits && Object.keys(generes).length > 0 ? { ...droits, generes } : droits, 200, { 'cache-control': 'no-store' })
+    const caches = droits ? [...(await cachesPour(g.u.id, lireLe(g.id)))] : []
+    const reponse = droits && { ...droits, ...(Object.keys(generes).length > 0 ? { generes } : {}), ...(caches.length ? { caches } : {}) }
+    return c.json(reponse, 200, { 'cache-control': 'no-store' })
   })
 
   // ---- Droits d'un élément ----
@@ -1164,6 +1177,55 @@ export function creerApp(ctx: Contexte): Hono {
     )
   })
 
+  // ---- Accès général : tout l'espace, ou seulement les personnes invitées ----
+
+  /**
+   * L'accès général d'un tableau, comme dans le « Partager » de Notion : `prive`, il ne s'ouvre plus par le rôle dans
+   * l'espace (`herite` : un tableau au-dessus l'a fermé, il se rouvre là-haut). `modifiable` : ce compte peut le changer
+   * ici. L'accueil d'un espace, un accueil personnel et ce qui vit dans un espace personnel n'ont pas de second cran :
+   * l'espace, c'est tous ses membres, ou soi seul. Le nom d'un tableau au-dessus ne se dit pas : on ne le lit peut-être pas.
+   */
+  const accesGeneral = (id: string, u: Utilisateur, droit: Role) => {
+    const ligne = base.tableau(id)
+    const espace = ligne?.espace ? base.espace(ligne.espace) : null
+    const par = priveePar(base, id)
+    const accueil = id === u.racine || espace?.racine === id
+    return {
+      prive: par !== null,
+      herite: par !== null && par !== id,
+      espace: espace ? { nom: espace.personnel ? '' : espace.nom, personnel: espace.personnel } : null,
+      modifiable: droit === 'proprietaire' && !!espace && !espace.personnel && !accueil && (par === null || par === id),
+    }
+  }
+
+  app.get('/api/tableaux/:id/prive', async (c) => {
+    const g = await garde(c, 'lecture')
+    if (g instanceof Response) return g
+    return c.json(accesGeneral(g.id, g.u, g.role), 200, { 'cache-control': 'no-store' })
+  })
+
+  // Rendre un tableau privé (`{ prive: true }`), ou le rouvrir à tout l'espace. Qui le lisait par l'espace le perd
+  // aussitôt : les connexions se ferment sur lui, sur ce qu'il contient, et sur la toile qui porte sa carte, qu'on relit
+  // alors sans elle.
+  app.put('/api/tableaux/:id/prive', async (c) => {
+    const g = await garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    const b = await corps(c)
+    if (typeof b?.prive !== 'boolean') return c.json({ erreur: 'demande invalide', code: 'demande_invalide' }, 400)
+    const ligne = base.tableau(g.id)
+    const espace = ligne?.espace ? base.espace(ligne.espace) : null
+    if (g.id === g.u.racine || espace?.racine === g.id) return c.json({ erreur: 'accueil', code: 'accueil_pas_prive' }, 400)
+    if (!espace || espace.personnel) return c.json({ erreur: 'espace personnel', code: 'espace_personnel' }, 400)
+    const par = priveePar(base, g.id)
+    if (!b.prive && par !== null && par !== g.id) return c.json({ erreur: 'privé plus haut', code: 'prive_herite' }, 409)
+    if (b.prive) base.ajouterRelation(relationPrivee(g.id))
+    else base.retirerRelation(relationPrivee(g.id))
+    await droitsAJour()
+    fermerConnexions(g.id)
+    if (ligne?.parent) ctx.synchro()?.closeConnections(nomDuDocument(ligne.parent))
+    return c.json(accesGeneral(g.id, g.u, g.role))
+  })
+
   /** Le tableau tel qu'il est maintenant : le document en direct s'il est ouvert, sinon le dernier état enregistré. */
   const lireLe = (id: string): TableauLu => {
     const vivant = ctx.synchro()?.documents.get(nomDuDocument(id))
@@ -1210,24 +1272,36 @@ export function creerApp(ctx: Contexte): Hono {
     if (g instanceof Response) return g
     const limite = entier(c.req.query('limite'), ACTIVITE_DEFAUT, 1, ACTIVITE_MAX)
     const apres = entier(c.req.query('depuis'), 0, 0, Number.MAX_SAFE_INTEGER)
-    const evenements = base.activite(g.id, limite, apres)
-    return c.json({ evenements, groupes: regrouper(evenements), dernier: evenements[0]?.id ?? apres }, 200, { 'cache-control': 'no-store' })
+    const tous = base.activite(g.id, limite, apres)
+    // La carte d'une toile qu'on ne lit pas (privée, bloquée) ne se lit pas non plus dans l'activité : son nom y est.
+    const caches = tous.some((e) => e.typeElement === 'tableau') ? await cachesPour(g.u.id, lireLe(g.id)) : new Set<string>()
+    const evenements = tous.filter((e) => !caches.has(e.element))
+    return c.json({ evenements, groupes: regrouper(evenements), dernier: tous[0]?.id ?? apres }, 200, { 'cache-control': 'no-store' })
   })
+
+  /**
+   * Ce que ce compte peut savoir de ses notifications : seulement celles d'un tableau qu'il lit encore, et pas celles
+   * de la carte d'une toile qu'il ne lit pas. Les tableaux lus se demandent une fois à OpenFGA, chaque document une fois.
+   */
+  const notificationsVisibles = async (u: Utilisateur) => {
+    const lues = new Set(await lisibles(u.id))
+    const cachesDe = new Map<string, Set<string>>()
+    return (n: { tableau: string; element: string }): boolean => {
+      if (!lues.has(n.tableau) || !base.tableau(n.tableau)) return false
+      if (!n.element) return true
+      if (!cachesDe.has(n.tableau)) cachesDe.set(n.tableau, cartesCachees(lireLe(n.tableau), (cible) => lues.has(cible) || !base.tableau(cible)))
+      return !cachesDe.get(n.tableau)!.has(n.element)
+    }
+  }
 
   app.get('/api/notifications', async (c) => {
     const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const limite = entier(c.req.query('limite'), NOTIFICATIONS_AFFICHEES, 0, NOTIFICATIONS_AFFICHEES)
-    // Un tableau qu'on ne peut plus ouvrir ne se devine pas par ses notifications.
-    const notifications = (
-      await Promise.all(
-        base.notifications(u.id, limite).map(async (n) => {
-          const t = base.tableau(n.tableau)
-          return t && (await roleSur(u.id, n.tableau)) ? [{ ...n, titreTableau: t.titre }] : []
-        }),
-      )
-    ).flat()
-    return c.json({ notifications, nonLues: base.nonLues(u.id) }, 200, { 'cache-control': 'no-store' })
+    // Un tableau qu'on ne peut plus ouvrir (retiré, rendu privé) ne se devine pas par ses notifications, ni par leur compte.
+    const visible = await notificationsVisibles(u)
+    const notifications = base.notifications(u.id, limite).flatMap((n) => (visible(n) ? [{ ...n, titreTableau: base.tableau(n.tableau)!.titre }] : []))
+    return c.json({ notifications, nonLues: base.nonLuesDe(u.id).filter(visible).length }, 200, { 'cache-control': 'no-store' })
   })
 
   // `{ ids: [...] }` marque celles-là, `{ tout: true }` toutes les siennes ; jamais celles d'un autre.
@@ -1351,7 +1425,8 @@ export function creerApp(ctx: Contexte): Hono {
    * rangement, la même que dans l'app (catalogue.ts) : chaque toile lue, son parent en base, ses cartes.
    */
   const rangementPour = async (u: Utilisateur) => {
-    const ouverts = (await lisibles(u.id)).filter((id) => verrouPar(base, u.id, id) === null)
+    const lus = await lisibles(u.id)
+    const ouverts = lus.filter((id) => verrouPar(base, u.id, id) === null)
     const lignes = base.contenus(ouverts).map((l) => ({ ...l, lu: JSON.parse(l.resume) as { cartes?: string[]; jetees?: string[] } }))
     const resumesDesToiles = new Map(lignes.flatMap((l) => (l.genre === 'toile' ? [[l.tableau, l.lu] as const] : [])))
     // Un dossier rattaché à la corbeille y reste, sa carte effacée ou non : la table le dit (`rattachements.corbeille`).
@@ -1364,7 +1439,7 @@ export function creerApp(ctx: Contexte): Hono {
       }),
       ...(aLaCorbeille.length ? [{ id: '\u0000corbeille', parent: null, jetees: aLaCorbeille }] : []),
     ])
-    return { ouverts, lignes, dossierDe, cachees }
+    return { lus, ouverts, lignes, dossierDe, cachees }
   }
 
   /**
@@ -1382,8 +1457,28 @@ export function creerApp(ctx: Contexte): Hono {
     await anciensDossiersRanges()
     const demandes = c.req.query('genres')?.split(',')
     const genres = new Set<string>(demandes?.length ? [...demandes, 'toile'] : GENRES_D_AVANT)
-    const { ouverts, lignes, dossierDe, cachees } = await rangementPour(u)
+    const { lus: tousLus, ouverts, lignes, dossierDe, cachees } = await rangementPour(u)
     const ouvrables = new Set(ouverts)
+    const lus = new Set(tousLus)
+    // La vignette d'une toile ne montre pas la carte d'une toile qu'on ne lit pas (privée, bloquée) : son plan se refait
+    // sans elle, d'après le document, pour ces toiles seulement.
+    const planSansLesCaches = (l: { tableau: string; lu: { cartes?: string[] } }) => {
+      if (!l.lu.cartes?.some((cible) => !lus.has(cible) && base.tableau(cible))) return null
+      const t = lireLe(l.tableau)
+      const r = resumesDuTableau(sansElements(t, cartesCachees(t, (cible) => lus.has(cible) || !base.tableau(cible))))[0]
+      return r?.genre === 'toile' ? r.boites : null
+    }
+    // Une toile privée, par elle ou par une toile au-dessus, porte un cadenas.
+    const privees = new Map<string, boolean>()
+    const estPrivee = (id: string): boolean => {
+      const connue = privees.get(id)
+      if (connue !== undefined) return connue
+      privees.set(id, false)
+      const parent = base.tableau(id)?.parent
+      const prive = base.relationExiste(relationPrivee(id)) || (!!parent && estPrivee(parent))
+      privees.set(id, prive)
+      return prive
+    }
     const vus = new Map(base.vus(u.id).map((v) => [`${v.tableau}/${v.element}`, v.vu]))
     // Ce que le compte a ajouté ou changé compte comme ce qu'il a ouvert, comme dans les récents du Finder, de Fichiers
     // ou de Drive : les photos qu'il vient de poser sur une toile y viennent sans qu'il les ait ouvertes une à une. Une
@@ -1418,18 +1513,20 @@ export function creerApp(ctx: Contexte): Hono {
       const toile = l.genre === 'toile'
       const parent = toile ? dossierDe(l.tableau) : l.tableau
       const { cartes: _c, jetees: _j, ...resume } = l.lu
+      const boites = toile ? planSansLesCaches(l) : null
       return [
         {
           tableau: l.tableau,
           element: toile ? null : l.element,
           genre: l.genre,
           titre: toile ? ligne.titre : l.titre,
-          resume,
+          resume: boites ? { ...resume, boites } : resume,
           ou: parent && ouvrables.has(parent) ? titreDe(parent) : null,
           dans: parent && ouvrables.has(parent) ? parent : null,
           vu: vus.get(`${l.tableau}/${l.element}`) ?? null,
           favori: toile ? favoris.has(l.tableau) : favorisElements.has(`${l.tableau}/${l.element}`),
           partage: toile && partages.has(l.tableau),
+          ...(toile && estPrivee(l.tableau) ? { prive: true } : {}),
           ...(toile && fiches.has(l.tableau) ? { fiche: fiches.get(l.tableau) } : {}),
           ...(toile && generes.has(l.tableau) ? { outil: generes.get(l.tableau) } : {}),
         },
@@ -1560,7 +1657,13 @@ export function creerApp(ctx: Contexte): Hono {
    */
   const vuePublique = (id: string, commentaires: boolean) => {
     const t = lireLe(id)
-    const visibles = t.elements.filter((e) => e.corbeille === undefined && e.nonTrie === undefined && (commentaires || e.contenu.type !== 'commentaire'))
+    // La carte d'une toile privée n'y est pas du tout, sauf si la toile du lien est elle-même dans ce qui est privé :
+    // son propriétaire a choisi d'en donner le lien. Les lignes qui y tenaient partent avec elle.
+    const privee = (e: Pick<ElementLu, 'contenu'>) => {
+      const cible = cibleDeCarte(e)
+      return cible !== null && priveePar(base, cible, id) !== null
+    }
+    const visibles = t.elements.filter((e) => e.corbeille === undefined && e.nonTrie === undefined && (commentaires || e.contenu.type !== 'commentaire') && !privee(e))
     const ids = new Set(visibles.map((e) => e.id))
     const bout = (b: unknown) => !(b && typeof b === 'object' && 'element' in b) || ids.has(String((b as { element: unknown }).element))
     const elements = visibles

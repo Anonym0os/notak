@@ -44,6 +44,19 @@ tuples:
   - { user: user:eve, relation: editeur, object: element:carte }
   - { user: tableau:perso, relation: tableau, object: element:libre }
 
+  # La compta de l'atelier, privée : Hugo, membre, l'a créée sous l'accueil et l'a fermée à l'espace. Cléo y est invitée,
+  # l'équipe graphisme commente les salaires, dessous ; Gaël, invité sur l'accueil, la voit depuis là-haut.
+  - { user: user:hugo, relation: assignee, object: role:atelier/member }
+  - { user: espace:atelier, relation: espace, object: tableau:compta }
+  - { user: tableau:accueil, relation: parent, object: tableau:compta }
+  - { user: user:hugo, relation: proprietaire, object: tableau:compta }
+  - { user: "user:*", relation: prive, object: tableau:compta }
+  - { user: espace:atelier, relation: espace, object: tableau:salaires }
+  - { user: tableau:compta, relation: parent, object: tableau:salaires }
+  - { user: user:cleo, relation: lecteur, object: tableau:compta }
+  - { user: equipe:graphisme#membre, relation: commentateur, object: tableau:salaires }
+  - { user: user:gael, relation: lecteur, object: tableau:accueil }
+
 tests:
   - name: Les rôles d'un espace valent sur ses tableaux
     check:
@@ -118,3 +131,42 @@ tests:
         type: tableau
         assertions:
           peut_ecrire: [tableau:accueil, tableau:details, tableau:perso]
+
+  - name: Une toile privée ne s'ouvre plus par l'espace, ni ce qu'elle contient ; ses invités et son propriétaire l'ouvrent
+    check:
+      - user: user:bob
+        object: tableau:compta
+        assertions: { peut_lire: false, peut_ecrire: false }
+      - user: user:dan
+        object: tableau:salaires
+        assertions: { peut_lire: false }
+      - user: user:ana
+        object: tableau:compta
+        assertions: { peut_posseder: false, peut_lire: false }
+      - user: user:hugo
+        object: tableau:salaires
+        assertions: { peut_posseder: true }
+      - user: user:cleo
+        object: tableau:salaires
+        assertions: { peut_lire: true, peut_ecrire: false }
+      - user: user:eve
+        object: tableau:salaires
+        assertions: { peut_commenter: true }
+      - user: user:eve
+        object: tableau:compta
+        assertions: { peut_lire: false }
+      - user: user:gael
+        object: tableau:compta
+        assertions: { peut_lire: true, peut_ecrire: false }
+      - user: user:dan
+        object: tableau:accueil
+        assertions: { peut_lire: true }
+    list_objects:
+      - user: user:dan
+        type: tableau
+        assertions:
+          peut_lire: [tableau:accueil]
+      - user: user:ana
+        type: tableau
+        assertions:
+          peut_posseder: [tableau:accueil, tableau:plans, tableau:details]
