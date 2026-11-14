@@ -3,13 +3,19 @@ import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { type Moi, type PersonneProposee, etatVerrou, poserMotDePasse } from './api'
-import { PartageEnFenetre } from './Partage'
+import { Partage, PartageEnFenetre } from './Partage'
 
 const CLEO: PersonneProposee = { id: 'cleo', nom: 'Cléo', email: 'cleo@x.fr', couleur: '#3366ff', photo: null, espace: 'Silak', invite: false, acces: null }
-const faux = vi.hoisted(() => ({
-  proposerPersonnes: vi.fn(async (_tableau: string, _q: string): Promise<unknown[]> => []),
-  partager: vi.fn(async () => ({ enAttente: false, expire: null })),
-}))
+const faux = vi.hoisted(() => {
+  const ouverte = { prive: false, herite: false, espace: { nom: 'Silak', personnel: false }, accueil: false, modifiable: true }
+  return {
+    proposerPersonnes: vi.fn(async (_tableau: string, _q: string): Promise<unknown[]> => []),
+    partager: vi.fn(async () => ({ enAttente: false, expire: null })),
+    ouverte,
+    lireAccesGeneral: vi.fn(async (_tableau: string) => ({ ...ouverte })),
+    reglerAccesGeneral: vi.fn(async (_tableau: string, prive: boolean) => ({ ...ouverte, prive })),
+  }
+})
 
 vi.mock('./api', async (origine) => ({
   ...(await origine<typeof import('./api')>()),
@@ -21,6 +27,8 @@ vi.mock('./api', async (origine) => ({
   poserMotDePasse: vi.fn(async () => {}),
   proposerPersonnes: faux.proposerPersonnes,
   partager: faux.partager,
+  lireAccesGeneral: faux.lireAccesGeneral,
+  reglerAccesGeneral: faux.reglerAccesGeneral,
 }))
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -154,5 +162,48 @@ describe('inviter quelqu’un de l’entreprise', () => {
     await taper(champ, 'Xavier@Dehors.fr')
     await inviter(boite)
     expect(faux.partager).toHaveBeenCalledWith('t', { email: 'xavier@dehors.fr' }, 'edition', null)
+  })
+})
+
+describe('l’accès général', () => {
+  beforeEach(() => {
+    faux.lireAccesGeneral.mockReset().mockImplementation(async () => ({ ...faux.ouverte }))
+    faux.reglerAccesGeneral.mockClear()
+  })
+  const choix = (boite: Element) => boite.querySelector<HTMLSelectElement>('.partage-general select')!
+  const note = (boite: Element) => boite.querySelector('.partage-general small')!.textContent
+
+  it('a deux crans, comme Notion : le propriétaire rend la toile privée, et la note le dit', async () => {
+    const boite = await ouvrir(() => {})
+    expect([...choix(boite).options].map((o) => o.textContent)).toEqual(['Seulement les personnes invitées', 'Tout l’espace Silak'])
+    expect(choix(boite).value).toBe('espace')
+    expect(note(boite)).toBe('Chaque membre de Silak l’ouvre, selon son rôle dans l’espace.')
+    await act(async () => {
+      choix(boite).value = 'prive'
+      choix(boite).dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    expect(faux.reglerAccesGeneral).toHaveBeenCalledWith('t', true)
+    expect(choix(boite).value).toBe('prive')
+    expect(note(boite)).toBe('Privée : les autres membres de Silak ne la voient nulle part, ni elle ni ce qu’elle contient.')
+  })
+
+  it('se lit seulement quand on ne peut pas le changer : privée par la toile au-dessus, ou dans un espace personnel', async () => {
+    faux.lireAccesGeneral.mockImplementation(async () => ({ ...faux.ouverte, prive: true, herite: true, modifiable: false }))
+    let boite = await ouvrir(() => {})
+    expect(boite.querySelector('.partage-general select')).toBeNull()
+    expect(boite.querySelector('.partage-general strong')!.textContent).toBe('Seulement les personnes invitées')
+    expect(note(boite)).toBe('Privée comme la toile qui la contient : elle se rouvre depuis celle-ci.')
+    act(() => racine.render(<></>))
+    faux.lireAccesGeneral.mockImplementation(async () => ({ ...faux.ouverte, espace: { nom: '', personnel: true }, modifiable: false }))
+    boite = await ouvrir(() => {})
+    expect(note(boite)).toBe('Dans un espace personnel : seules les personnes invitées l’ouvrent.')
+  })
+
+  it('le bouton « Partager » d’une toile privée porte un cadenas, et son nom le dit', async () => {
+    faux.lireAccesGeneral.mockImplementation(async () => ({ ...faux.ouverte, prive: true }))
+    await act(async () => racine.render(<Partage tableau="t" moi={MOI} />))
+    const bouton = hote.querySelector('.partage > button')!
+    expect(bouton.getAttribute('aria-label')).toBe('Partager · Privée')
+    expect(bouton.hasAttribute('data-prive')).toBe(true)
   })
 })

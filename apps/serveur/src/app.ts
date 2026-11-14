@@ -1185,8 +1185,9 @@ export function creerApp(ctx: Contexte): Hono {
   /**
    * L'accès général d'un tableau, comme dans le « Partager » de Notion : `prive`, il ne s'ouvre plus par le rôle dans
    * l'espace (`herite` : un tableau au-dessus l'a fermé, il se rouvre là-haut). `modifiable` : ce compte peut le changer
-   * ici. L'accueil d'un espace, un accueil personnel et ce qui vit dans un espace personnel n'ont pas de second cran :
-   * l'espace, c'est tous ses membres, ou soi seul. Le nom d'un tableau au-dessus ne se dit pas : on ne le lit peut-être pas.
+   * ici. L'accueil d'un espace (`accueil`), un accueil personnel et ce qui vit dans un espace personnel n'ont pas de
+   * second cran : l'espace, c'est tous ses membres, ou soi seul. Le nom d'un tableau au-dessus ne se dit pas : on ne le
+   * lit peut-être pas.
    */
   const accesGeneral = (id: string, u: Utilisateur, droit: Role) => {
     const ligne = base.tableau(id)
@@ -1197,6 +1198,7 @@ export function creerApp(ctx: Contexte): Hono {
       prive: par !== null,
       herite: par !== null && par !== id,
       espace: espace ? { nom: espace.personnel ? '' : espace.nom, personnel: espace.personnel } : null,
+      accueil,
       modifiable: droit === 'proprietaire' && !!espace && !espace.personnel && !accueil && (par === null || par === id),
     }
   }

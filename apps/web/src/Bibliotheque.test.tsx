@@ -188,6 +188,15 @@ describe('la page', () => {
     expect(hote.querySelectorAll('.biblio-tuile-ou')[2]!.textContent).toBe('dans Voyage')
   })
 
+  it('une toile privée porte un cadenas devant son nom, que son nom dit aussi au lecteur d’écran', async () => {
+    await ouvrir(async () => [entree({ tableau: 'compta', titre: 'Compta', prive: true, vu: 2 }), entree({ tableau: 'voyage', titre: 'Voyage', vu: 1 })])
+    const compta = hote.querySelector<HTMLElement>('[data-cle="compta/"]')!
+    expect(compta.querySelector('.biblio-tuile-privee')?.getAttribute('title')).toBe('Privée')
+    expect(compta.getAttribute('aria-label')).toBe('Compta, Privée')
+    expect(compta.querySelector('.biblio-tuile-titre')!.textContent).toBe('Compta')
+    expect(hote.querySelector('[data-cle="voyage/"] .biblio-tuile-privee')).toBeNull()
+  })
+
   it('ce qu’on range ailleurs (le dossier d’une fiche de Silak, la toile d’un collègue) paraît au retour sur la page, sans la recharger', async () => {
     let liste = TOUTES
     let lectures = 0

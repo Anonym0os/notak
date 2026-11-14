@@ -1,6 +1,7 @@
 import { type FormEvent, type KeyboardEvent, useCallback, useEffect, useId, useRef, useState } from 'react'
 import {
   type Acces,
+  type AccesGeneral,
   type Blocage,
   type Cible,
   type EquipeEspace,
@@ -18,6 +19,7 @@ import {
   creerLien,
   etatVerrou,
   fermerLien,
+  lireAccesGeneral,
   listerAcces,
   listerBlocages,
   listerEquipes,
@@ -30,6 +32,7 @@ import {
   partager,
   poserMotDePasse,
   proposerPersonnes,
+  reglerAccesGeneral,
   retirerAcces,
   retirerMotDePasse,
 } from './api'
@@ -177,13 +180,24 @@ async function equipesPossibles(): Promise<(EquipeEspace & { espace: string })[]
 /** Le bouton « Partager » et son panneau. */
 export function Partage({ tableau, moi }: { tableau: string; moi: Moi }) {
   const { ouvert, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
+  // Une toile privée se reconnaît à son bouton : un cadenas à la place de l'icône du partage, et son nom le dit.
+  const [prive, setPrive] = useState(false)
+  useEffect(() => {
+    let vivant = true
+    setPrive(false)
+    lireAccesGeneral(tableau).then((g) => vivant && setPrive(g.prive), () => {})
+    return () => {
+      vivant = false
+    }
+  }, [tableau])
+  const libelle = prive ? `${t('partage.titre')} · ${t('partage.privee')}` : t('partage.titre')
   return (
     <div className="partage" ref={ancre}>
-      <button type="button" ref={bouton} className="bouton" aria-expanded={ouvert} aria-label={t('partage.titre')} title={t('partage.titre')} onClick={basculer}>
-        <Icone nom="partager" taille={16} />
+      <button type="button" ref={bouton} className="bouton" aria-expanded={ouvert} aria-label={libelle} title={libelle} data-prive={prive || undefined} onClick={basculer}>
+        <Icone nom={prive ? 'verrou' : 'partager'} taille={16} />
         <span className="bouton-texte">{t('partage.titre')}</span>
       </button>
-      {ouvert && <Panneau key={tableau} tableau={tableau} moi={moi} reference={panneau} />}
+      {ouvert && <Panneau key={tableau} tableau={tableau} moi={moi} reference={panneau} surAccesGeneral={(g) => setPrive(g.prive)} />}
     </div>
   )
 }
@@ -228,14 +242,40 @@ export function PartageEnFenetre({ tableau, moi, fermer, protection }: { tableau
 /** Ce qu'il reste à faire après une invitation : le lien à transmettre, s'il n'est pas parti tout seul. */
 type Suite = { email: string } & ReponsePartage
 
-function Panneau({ tableau, moi, reference, enFenetre, protection }: { tableau: string; moi: Moi; reference(el: HTMLElement | null): void; enFenetre?: boolean; protection?: boolean }) {
+/**
+ * Le panneau, dans l'ordre du « Partager » de Notion : inviter, qui a accès, l'accès général ; puis les liens visiteurs
+ * et la protection. `surAccesGeneral` : l'accès général vient de changer.
+ */
+function Panneau({
+  tableau,
+  moi,
+  reference,
+  enFenetre,
+  protection,
+  surAccesGeneral,
+}: {
+  tableau: string
+  moi: Moi
+  reference(el: HTMLElement | null): void
+  enFenetre?: boolean
+  protection?: boolean
+  surAccesGeneral?(g: AccesGeneral): void
+}) {
   const [acces, setAcces] = useState<Acces[] | null>(null)
+  const [general, setGeneral] = useState<AccesGeneral | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
   const charger = useCallback(() => {
     listerAcces(tableau).then(setAcces, (x: Error) => setErreur(x.message))
   }, [tableau])
   useEffect(charger, [charger])
+  useEffect(() => {
+    lireAccesGeneral(tableau).then(setGeneral, () => {})
+  }, [tableau])
   const proprietaire = acces?.some((a) => a.utilisateur === moi.id && a.role === 'proprietaire') ?? false
+  const changerGeneral = (g: AccesGeneral) => {
+    setGeneral(g)
+    surAccesGeneral?.(g)
+  }
 
   return (
     <div className="app-panneau partage-panneau" ref={reference} role={enFenetre ? undefined : 'dialog'} aria-label={enFenetre ? undefined : t('partage.titre')}>
@@ -243,6 +283,7 @@ function Panneau({ tableau, moi, reference, enFenetre, protection }: { tableau: 
       {proprietaire && <Inviter tableau={tableau} apres={charger} />}
       <Personnes tableau={tableau} moi={moi} acces={acces} proprietaire={proprietaire} recharger={charger} />
       {acces && !proprietaire && <p className="partage-note">{t('partage.seulProprio')}</p>}
+      {general && <AccesGeneralDuTableau tableau={tableau} general={general} changer={changerGeneral} />}
       {proprietaire && <LiensVisiteurs tableau={tableau} />}
       {proprietaire && (
         <details className="partage-avance" open={protection || undefined}>
@@ -262,6 +303,70 @@ function Panneau({ tableau, moi, reference, enFenetre, protection }: { tableau: 
     </div>
   )
 }
+
+/**
+ * L'accès général, à deux crans comme dans Notion : « Seulement les personnes invitées » (la toile est privée) ou « Tout
+ * l'espace ». Le choix n'est qu'au propriétaire, dans un espace d'équipe, hors de son accueil et d'une toile privée par
+ * une toile au-dessus ; sinon il se lit seulement.
+ */
+function AccesGeneralDuTableau({ tableau, general, changer }: { tableau: string; general: AccesGeneral; changer(g: AccesGeneral): void }) {
+  const [occupe, setOccupe] = useState(false)
+  const [erreur, setErreur] = useState<string | null>(null)
+  if (!general.espace) return null
+  const espace = general.espace.nom
+  // Dans un espace personnel, il n'y a que son propriétaire : seuls ceux qu'il invite l'ouvrent.
+  const prive = general.prive || general.espace.personnel
+  const note = general.espace.personnel
+    ? t('partage.generalPersonnel')
+    : general.herite
+      ? t('partage.generalHerite')
+      : prive
+        ? t('partage.generalPrive', { espace })
+        : general.accueil
+          ? t('partage.generalAccueil', { espace })
+          : t('partage.generalEspace', { espace })
+  const choisir = (valeur: string) => {
+    setErreur(null)
+    setOccupe(true)
+    reglerAccesGeneral(tableau, valeur === 'prive').then(
+      (g) => {
+        setOccupe(false)
+        changer(g)
+      },
+      (x: Error) => {
+        setOccupe(false)
+        setErreur(x.message)
+      },
+    )
+  }
+  return (
+    <section className="partage-general" aria-label={t('partage.accesGeneral')}>
+      <div className="partage-rubrique">{t('partage.accesGeneral')}</div>
+      <div className="partage-general-ligne">
+        <span className="app-pastille app-pastille-neutre" aria-hidden>
+          <Icone nom={prive ? 'verrou' : 'equipe'} taille={15} />
+        </span>
+        <span className="partage-qui">
+          {general.modifiable ? (
+            <select className="partage-general-choix" aria-label={t('partage.accesGeneral')} value={prive ? 'prive' : 'espace'} disabled={occupe} onChange={(e) => choisir(e.target.value)}>
+              <option value="prive">{t('partage.seulementInvites')}</option>
+              <option value="espace">{t('partage.toutLEspace', { espace })}</option>
+            </select>
+          ) : (
+            <strong>{prive ? t('partage.seulementInvites') : t('partage.toutLEspace', { espace })}</strong>
+          )}
+          <small>{note}</small>
+        </span>
+      </div>
+      {erreur && (
+        <p className="connexion-erreur" role="alert">
+          {erreur}
+        </p>
+      )}
+    </section>
+  )
+}
+
 
 /** Ce qu'on peut choisir dans les propositions du champ : une personne de l'entreprise, ou une équipe. */
 type Proposition = { genre: 'personne'; personne: PersonneProposee } | { genre: 'equipe'; id: string; nom: string; espace: string }

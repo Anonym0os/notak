@@ -522,6 +522,33 @@ export async function retirerAcces(tableau: string, cible: Cible): Promise<void>
   if (!r.ok) throw await refus(r, { 409: 'erreur.dernier_proprietaire', ...PROPRIETAIRE, ...TABLEAU_ABSENT })
 }
 
+/**
+ * L'accès général d'un tableau, celui de Notion : `prive`, « Seulement les personnes invitées » (le rôle dans l'espace
+ * n'y donne plus rien) ; sinon tout son espace l'ouvre, selon le rôle de chacun. `herite` : c'est un tableau au-dessus
+ * qui l'a rendu privé. `espace` : son espace (un nom vide pour l'espace personnel). `accueil` : l'accueil d'un espace,
+ * qui est à tous ses membres. `modifiable` : ce compte peut le changer ici.
+ */
+export interface AccesGeneral {
+  prive: boolean
+  herite: boolean
+  espace: { nom: string; personnel: boolean } | null
+  accueil: boolean
+  modifiable: boolean
+}
+
+export async function lireAccesGeneral(tableau: string): Promise<AccesGeneral> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/prive`)
+  if (!r.ok) throw await refus(r, { ...TABLEAU_ABSENT })
+  return (await r.json()) as AccesGeneral
+}
+
+/** Rend le tableau privé, ou le rouvre à tout son espace ; rend l'accès général tel qu'il est devenu. */
+export async function reglerAccesGeneral(tableau: string, prive: boolean): Promise<AccesGeneral> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/prive`, { prive }, 'PUT')
+  if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT })
+  return (await r.json()) as AccesGeneral
+}
+
 /** Quelqu'un de l'entreprise à qui proposer un tableau : un membre d'un espace d'équipe du compte. */
 export interface PersonneProposee {
   id: string
@@ -806,6 +833,8 @@ export interface EntreeBibliotheque {
   favori: boolean
   /** Une toile que d'autres lui partagent. */
   partage: boolean
+  /** Une toile privée, par elle ou par une toile au-dessus : seules les personnes invitées l'ouvrent. */
+  prive?: boolean
   /** Le dossier d'une fiche d'un autre outil (un CRM…) : l'outil, et où la fiche s'ouvre. */
   fiche?: { nom: string; adresse?: string }
   /** Le nom de l'outil qui a posé ce dossier, celui d'une fiche ou, sans `fiche`, celui qui les range : il ne se déplace pas. */

@@ -21,7 +21,7 @@ beforeEach(async () => {
 afterEach(() => m.fermer())
 
 type EspaceLu = { id: string; nom: string; racine: string; personnel: boolean }
-type AccesGeneral = { prive: boolean; herite: boolean; espace: { nom: string; personnel: boolean } | null; modifiable: boolean }
+type AccesGeneral = { prive: boolean; herite: boolean; espace: { nom: string; personnel: boolean } | null; accueil: boolean; modifiable: boolean }
 const json = async <T>(r: Response | Promise<Response>): Promise<T> => (await (await r).json()) as T
 const auth = (chemin: string, compte: Compte, corps: unknown) => m.appeler(`/api/auth${chemin}`, { compte, json: corps })
 
@@ -72,7 +72,7 @@ describe('une toile privée', () => {
 
     const r = await rendrePrive(ana, 'compta', true)
     expect(r.status).toBe(200)
-    expect(await r.json()).toEqual({ prive: true, herite: false, espace: { nom: 'Silak', personnel: false }, modifiable: true })
+    expect(await r.json()).toEqual({ prive: true, herite: false, espace: { nom: 'Silak', personnel: false }, accueil: false, modifiable: true })
     expect(await statut(bob, '/api/tableaux/compta/acces')).toBe(404)
     expect(await statut(bob, '/api/tableaux/salaires/acces')).toBe(404)
     expect(await statut(bob, '/api/tableaux/compta/prive')).toBe(404)
@@ -96,6 +96,7 @@ describe('une toile privée', () => {
       prive: true,
       herite: true,
       espace: { nom: 'Silak', personnel: false },
+      accueil: false,
       modifiable: false,
     })
     const refus = await rendrePrive(ana, 'salaires', false)
@@ -110,6 +111,7 @@ describe('une toile privée', () => {
     const e = await silak()
     await compta(e)
     expect((await json<{ code: string }>(rendrePrive(ana, e.racine, true))).code).toBe('accueil_pas_prive')
+    expect(await json(m.appeler(`/api/tableaux/${e.racine}/prive`, { compte: ana }))).toMatchObject({ prive: false, accueil: true, modifiable: false })
     m.tableau(ana, 'perso', 'À moi')
     expect((await json<{ code: string }>(rendrePrive(ana, 'perso', true))).code).toBe('espace_personnel')
     expect((await json<AccesGeneral>(m.appeler('/api/tableaux/perso/prive', { compte: ana }))).modifiable).toBe(false)

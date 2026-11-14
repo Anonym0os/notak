@@ -2237,7 +2237,7 @@ function Tuile({
       data-survol-depot={survolee || undefined}
       data-arrivee={arrivee || undefined}
       data-glissee={glissee || undefined}
-      aria-label={e.outil ? `${titreDe(e)}, ${t('biblio.genere', { outil: e.outil })}` : titreDe(e)}
+      aria-label={[titreDe(e), e.outil ? t('biblio.genere', { outil: e.outil }) : null, e.prive && e.element === null ? t('partage.privee') : null].filter(Boolean).join(', ')}
       data-coche={coche || undefined}
       data-genre={e.genre}
     >
@@ -2260,7 +2260,15 @@ function Tuile({
           <MarqueOutil outil={e.outil} />
         </span>
       ) : (
-        <span className="biblio-tuile-titre">{titreDe(e)}</span>
+        <span className="biblio-tuile-titre">
+          {/* Une toile privée : un cadenas discret devant son nom ; le nom de la tuile le dit au lecteur d'écran. */}
+          {e.prive && e.element === null && (
+            <span className="biblio-tuile-privee" title={t('partage.privee')}>
+              <Icone nom="verrou" taille={13} />
+            </span>
+          )}
+          {titreDe(e)}
+        </span>
       )}
       <span className="biblio-tuile-ou">
         <Icone nom={iconeDe(e)} taille={13} />
