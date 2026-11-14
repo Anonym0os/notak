@@ -53,7 +53,7 @@ import { hacher, verifier } from './motsDePasse.ts'
 import { cookieAccesPublic, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
 import { TYPE_NOTAK, ecrireCopie } from './copie.ts'
 import { nomDuDocument } from './synchro.ts'
-import { largeurDemandee, nomReduit, reduire, reductible } from './tailles.ts'
+import { FABRICATIONS_MAX, fileDAttente, largeurDemandee, nomReduit, reduire, reductible } from './tailles.ts'
 import { INSTANCE_PAR_DEFAUT, type Instance } from './instance.ts'
 import type { Verificateur } from './misesAJour.ts'
 import { VERSION_NOTAK } from '../../../packages/tableau/src/version.ts'
@@ -1621,7 +1621,8 @@ export function creerApp(ctx: Contexte): Hono {
     if (!ID_FICHIER.test(fichier) || !idsDeFichiers(vuePublique(l.tableau, false).elements).has(fichier)) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     const f = base.fichier(fichier)
     if (!f) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
-    return await servirFichier(f, 'private, max-age=300')
+    // Un visiteur charge, lui aussi, les photos à la taille où il les voit.
+    return await servirALargeur(c, f, 'private, max-age=300')
   })
 
   /**
@@ -1818,22 +1819,48 @@ export function creerApp(ctx: Contexte): Hono {
         : "sandbox; default-src 'none'; img-src data:; media-src 'self'; style-src 'unsafe-inline'",
   })
 
+  /** Les copies réduites qui se fabriquent : une demande de la même copie attend celle-ci plutôt que d'en refaire une. */
+  const enFabrication = new Map<string, Promise<Buffer | null>>()
+  const aTour = fileDAttente(FABRICATIONS_MAX)
   /** La copie réduite d'une image, fabriquée à la première demande puis gardée à côté de l'original ; `null` : servir l'original. */
   const copieReduite = async (id: string, type: string, largeur: number): Promise<Buffer | null> => {
     if (!reductible(type)) return null
-    const chemin = join(ctx.dossierFichiers, nomReduit(id, largeur))
+    const nom = nomReduit(id, largeur)
+    const chemin = join(ctx.dossierFichiers, nom)
     try {
       return duDisque(cle, await readFile(chemin))
     } catch {
       // pas encore fabriquée, ou illisible : on la refait d'après l'original
     }
-    const fabriquee = await reduire(duDisque(cle, await readFile(join(ctx.dossierFichiers, id))), type, largeur)
-    if (!fabriquee) return null
-    // Écrite sous un nom provisoire, puis posée d'un coup : deux demandes ensemble ne se lisent jamais à moitié.
-    const provisoire = `${chemin}.${randomUUID()}.tmp`
-    await writeFile(provisoire, pourLeDisque(cle, fabriquee))
-    await rename(provisoire, chemin)
-    return fabriquee
+    const deja = enFabrication.get(nom)
+    if (deja) return deja
+    const fabrication = aTour(async () => {
+      const fabriquee = await reduire(duDisque(cle, await readFile(join(ctx.dossierFichiers, id))), type, largeur)
+      if (!fabriquee) return null
+      // Écrite sous un nom provisoire, puis posée d'un coup : deux demandes ensemble ne se lisent jamais à moitié.
+      const provisoire = `${chemin}.${randomUUID()}.tmp`
+      await writeFile(provisoire, pourLeDisque(cle, fabriquee))
+      await rename(provisoire, chemin)
+      return fabriquee
+    }).finally(() => enFabrication.delete(nom))
+    enFabrication.set(nom, fabrication)
+    return fabrication
+  }
+
+  /** Le fichier, ou avec `?l=800` l'image réduite à cette largeur (400, 800 ou 1600), quand elle y gagne. */
+  const servirALargeur = async (c: Context, f: Fichier, cache: string): Promise<Response> => {
+    const demande = c.req.query('l')
+    if (demande !== undefined) {
+      const largeur = largeurDemandee(demande)
+      if (largeur === null) return c.json({ erreur: 'largeur invalide', code: 'largeur_invalide' }, 400)
+      const reduite = await copieReduite(f.id, f.type, largeur)
+      if (reduite) {
+        return new Response(new Uint8Array(reduite), {
+          headers: { ...entetesFichier(cache), 'content-type': f.type, 'content-length': String(reduite.length) },
+        })
+      }
+    }
+    return await servirFichier(f, cache)
   }
 
   /**
@@ -1855,21 +1882,7 @@ export function creerApp(ctx: Contexte): Hono {
     const id = c.req.param('id')
     const f = ID_FICHIER.test(id) ? base.fichier(id) : null
     if (!f || !(await peutLireFichier(u, f))) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
-    const cache = 'private, max-age=31536000, immutable'
-
-    // `?l=800` : l'image réduite à cette largeur (400, 800 ou 1600), quand elle y gagne.
-    const demande = c.req.query('l')
-    if (demande !== undefined) {
-      const largeur = largeurDemandee(demande)
-      if (largeur === null) return c.json({ erreur: 'largeur invalide', code: 'largeur_invalide' }, 400)
-      const reduite = await copieReduite(f.id, f.type, largeur)
-      if (reduite) {
-        return new Response(new Uint8Array(reduite), {
-          headers: { ...entetesFichier(cache), 'content-type': f.type, 'content-length': String(reduite.length) },
-        })
-      }
-    }
-    return await servirFichier(f, cache)
+    return await servirALargeur(c, f, 'private, max-age=31536000, immutable')
   })
 
   // ---- Aperçus ----
