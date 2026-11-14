@@ -33,7 +33,7 @@ export interface Changement {
   participants?: string[]
   /**
    * Pour un fil de commentaires : les messages qui ne disent plus ce que l'activité et les notifications ont pu citer
-   * d'eux, supprimés ou partis avec leur fil. `noter` retire ces citations.
+   * d'eux, supprimés, récrits, ou partis avec leur fil. `noter` retire ou récrit ces citations.
    */
   perimes?: MessagePerime[]
 }
@@ -42,6 +42,8 @@ export interface MessagePerime {
   auteur: string
   /** Ce qu'il disait. */
   texte: string
+  /** Ce qu'il dit maintenant ; absent : il n'est plus. */
+  nouveau?: string
 }
 
 const chaine = (v: unknown): string => (typeof v === 'string' ? v : '')
@@ -78,15 +80,17 @@ const messagesDe = (c: ElementLu['contenu'] | null): { id: string; texte: string
     : []
 
 /**
- * Les messages du fil `avant` qui ne sont plus dans `apres` : supprimés. `apres` absent : le fil est parti (jeté,
- * retiré), ses messages avec lui. Rien pour un élément qui n'était pas un fil.
+ * Les messages du fil `avant` qui ne disent plus la même chose dans `apres` : supprimés, ou récrits. `apres` absent :
+ * le fil est parti (jeté, retiré), ses messages avec lui. Rien pour un élément qui n'était pas un fil.
  */
 function perimes(avant: Stocke, apres: Stocke | undefined): MessagePerime[] {
   if (contenuDe(avant)?.type !== 'commentaire') return []
-  const restants = new Set(messagesDe(apres ? contenuDe(apres) : null).map((m) => m.id))
-  return messagesDe(contenuDe(avant))
-    .filter((m) => !restants.has(m.id))
-    .map((m) => ({ auteur: m.auteur, texte: m.texte }))
+  const restants = new Map(messagesDe(apres ? contenuDe(apres) : null).map((m) => [m.id, m]))
+  return messagesDe(contenuDe(avant)).flatMap((m) => {
+    const reste = restants.get(m.id)
+    if (reste && net(reste.texte) === net(m.texte)) return []
+    return [{ auteur: m.auteur, texte: m.texte, ...(reste ? { nouveau: reste.texte } : {}) }]
+  })
 }
 
 const avecPerimes = (c: Changement, avant: Stocke, apres: Stocke | undefined): Changement => {
@@ -211,8 +215,8 @@ export function observer(doc: Y.Doc): { ramasser(): Changement[] } {
 }
 
 /**
- * Un changement par élément et par genre : une rafale de frappes n'en fait qu'un. Les messages arrivés et ceux qui sont
- * partis s'additionnent : aucun ne se perd dans la rafale.
+ * Un changement par élément et par genre : une rafale de frappes n'en fait qu'un. Les messages arrivés et ceux qui ne
+ * disent plus la même chose s'additionnent, dans l'ordre : un message récrit deux fois l'est jusqu'à sa dernière version.
  */
 export function sansDoublons(changements: readonly Changement[]): Changement[] {
   const dernier = new Map<string, Changement>()
@@ -352,9 +356,10 @@ export function suivreActivite(base: Base, maintenant: () => number): SuiviActiv
 }
 
 /**
- * Ce que l'activité et les notifications citaient de messages partis n'y est plus cité (`Base.retirerCitation`). Un
- * texte que son auteur dit encore dans ce fil, tel qu'est le document maintenant, reste cité : rien ne dit laquelle des
- * citations visait le message parti, et ce qu'elle dit se lit toujours dans le fil.
+ * Ce que l'activité et les notifications citaient de messages qui ne le disent plus : un message parti n'y est plus
+ * cité (`Base.retirerCitation`), un message récrit l'est dans sa nouvelle version. Un texte que son auteur dit encore
+ * dans ce fil, tel qu'est le document maintenant, reste cité tel quel : rien ne dit laquelle des citations visait ce
+ * message, et ce qu'elle dit se lit toujours dans le fil.
  */
 function oublierLesPerimes(base: Base, tableau: string, doc: Y.Doc, changements: readonly Changement[]) {
   const elements = doc.getMap<Stocke>('elements')
@@ -362,7 +367,9 @@ function oublierLesPerimes(base: Base, tableau: string, doc: Y.Doc, changements:
     for (const p of c.perimes ?? []) {
       // Un texte vide ne cite rien, et désignerait les lignes dont la citation est déjà partie.
       if (!net(p.texte) || ditEncore(elements.get(c.element), p.auteur, p.texte)) continue
-      base.retirerCitation(tableau, { element: c.element, auteur: p.auteur, libelle: court(p.texte, LIBELLE_MAX), extrait: court(p.texte, EXTRAIT_MAX) })
+      const citation = { element: c.element, auteur: p.auteur, libelle: court(p.texte, LIBELLE_MAX), extrait: court(p.texte, EXTRAIT_MAX) }
+      if (p.nouveau === undefined) base.retirerCitation(tableau, citation)
+      else base.remplacerCitation(tableau, citation, { libelle: court(p.nouveau, LIBELLE_MAX), extrait: court(p.nouveau, EXTRAIT_MAX) })
     }
   }
 }

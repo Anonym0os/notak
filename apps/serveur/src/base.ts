@@ -399,6 +399,8 @@ export interface Base {
    * supprimé » ferait sonner la cloche pour rien, et montrerait qu'on a retiré quelque chose.
    */
   retirerCitation(tableau: string, c: Citation): void
+  /** Un message récrit : ce qui le citait le cite dans sa nouvelle version. */
+  remplacerCitation(tableau: string, c: Citation, nouvelle: Pick<Citation, 'libelle' | 'extrait'>): void
 
   /**
    * Remplace tout ce qu'on sait chercher dans ce tableau (`element` vide : le titre du tableau), et la liste des
@@ -1150,6 +1152,24 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
       )
       executer(
         "DELETE FROM notifications WHERE tableau = ? AND element = ? AND auteur = ? AND genre IN ('commentaire', 'mention') AND extrait = ?",
+        tableau,
+        c.element,
+        c.auteur,
+        c.extrait,
+      )
+    },
+    remplacerCitation(tableau, c, nouvelle) {
+      executer(
+        "UPDATE activite SET libelle = ? WHERE tableau = ? AND element = ? AND auteur = ? AND genre = 'commente' AND libelle = ?",
+        nouvelle.libelle,
+        tableau,
+        c.element,
+        c.auteur,
+        c.libelle,
+      )
+      executer(
+        "UPDATE notifications SET extrait = ? WHERE tableau = ? AND element = ? AND auteur = ? AND genre IN ('commentaire', 'mention') AND extrait = ?",
+        nouvelle.extrait,
         tableau,
         c.element,
         c.auteur,

@@ -114,7 +114,7 @@ describe('l’activité déduite de la synchro', () => {
   })
 })
 
-describe('un message supprimé ne se lit plus ailleurs', () => {
+describe('un message supprimé ou récrit ne se lit plus ailleurs dans ce qu’il disait', () => {
   /** Le tableau d'Ana, où Bob écrit et que Cléo commente. */
   function avecCleo() {
     const m = monde()
@@ -169,6 +169,19 @@ describe('un message supprimé ne se lit plus ailleurs', () => {
     await cleo.transact((doc) => changerFil(doc, () => null))
     expect(seLit(base, 'Une idée')).toBe(false)
     await cleo.disconnect()
+    base.fermer()
+  })
+
+  it('récrit, il est cité dans sa nouvelle version', async () => {
+    const { base, ouvrir } = avecCleo()
+    const bob = await ouvrir('bob')
+    await bob.transact((doc) => void poser(doc, { type: 'commentaire', messages: [message('m1', 'bob', 'Rendez-vous lundi, @Cléo')] }, { id: 'fil' }))
+    await bob.transact((doc) => messages(doc, ([m1]) => [{ ...(m1 as object), texte: 'Rendez-vous mardi, @Cléo' }]))
+    expect(seLit(base, 'lundi')).toBe(false)
+    expect(notes(base, 'cleo')).toEqual([['mention', 'Rendez-vous mardi, @Cléo', false]])
+    expect(notes(base, 'ana')).toEqual([['commentaire', 'Rendez-vous mardi, @Cléo', false]])
+    expect(commentes(base)).toEqual([['bob', 'Rendez-vous mardi, @Cléo']])
+    await bob.disconnect()
     base.fermer()
   })
 
