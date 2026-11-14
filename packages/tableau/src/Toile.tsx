@@ -2067,21 +2067,25 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
 
   const choisis = () => tableau.elements.filter((e) => selection.has(e.id))
 
-  const deplacer = (dx: number, dy: number) =>
-    magasin.faire(
-      choisis()
-        .filter(libre)
-        .map((e) => ({ type: 'deplacer', id: e.id, de: [e.x, e.y], vers: [e.x + dx, e.y + dy] })),
-    )
+  // Un élément verrouillé ne bouge par aucun geste, pas plus aux flèches qu'à la souris : dans une sélection mêlée, les
+  // autres se déplacent et lui reste où il est.
+  const deplacer = (dx: number, dy: number) => {
+    const pas: Operation[] = choisis()
+      .filter((e) => libre(e) && !e.verrou)
+      .map((e) => ({ type: 'deplacer', id: e.id, de: [e.x, e.y], vers: [e.x + dx, e.y + dy] }))
+    if (pas.length > 0) magasin.faire(pas)
+  }
 
-  /** Dans une colonne, les flèches font monter ou descendre d'un rang ce qui est choisi. */
+  /** Dans une colonne, les flèches font monter ou descendre d'un rang ce qui est choisi, sauf ce qui est verrouillé. */
   const reordonner = (colonne: Id, sens: -1 | 1) => {
     const freres = tableau.elements.filter((x) => x.parent === colonne).sort((a, b) => comparerOrdre(a.ordre, b.ordre))
-    const choisisIci = freres.filter((x) => selection.has(x.id))
-    const autres = freres.filter((x) => !selection.has(x.id))
+    const bouge = (x: Element) => selection.has(x.id) && !x.verrou
+    const choisisIci = freres.filter(bouge)
+    if (choisisIci.length === 0) return
+    const autres = freres.filter((x) => !bouge(x))
     const premier = freres.indexOf(choisisIci[0]!)
     // La place du groupe parmi les autres, décalée d'un cran.
-    const avant = freres.slice(0, premier).filter((x) => !selection.has(x.id)).length
+    const avant = freres.slice(0, premier).filter((x) => !bouge(x)).length
     const ou = Math.max(0, Math.min(autres.length, avant + sens))
     if (ou === avant) return
     const cles = clesEntre(autres[ou - 1]?.ordre, autres[ou]?.ordre, choisisIci.length)
