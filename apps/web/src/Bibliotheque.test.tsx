@@ -505,6 +505,47 @@ describe('les gestes', () => {
       expect(hote.querySelector('.biblio-fil')).toBeNull()
     })
 
+    it('glisser dans un dossier : la tuile qui crée devient celle qui remonte au parent, en grille comme en liste', async () => {
+      history.replaceState(null, '', '/?dossier=voyage')
+      const espace = monde()
+      await act(async () => racine.render(<PageBibliotheque charger={async () => AVEC_DOSSIER} espace={espace} rangerToile={async () => ({ nouveaux: 0, perdus: 0, permanents: 0, liensOuverts: 0, liensEteints: 0, fait: true })} />))
+      const zone = () => hote.querySelector<HTMLElement>('[data-remonter]')
+      const glisserDe = (cle: string) => {
+        act(() => void tuile(cle).dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 10, clientY: 10 })))
+        act(() => void window.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 60, clientY: 40 })))
+      }
+      expect(zone()).toBeNull()
+      glisserDe('voyage/plan')
+      // À la place de « Nouvelle toile », sans rien décaler : le dossier du dessus, qui prend ce qu'on y lâche.
+      expect(hote.querySelector('.biblio-tuile-neuve')).toBe(zone())
+      expect(zone()!.textContent).toBe('Remonterdans « Accueil »')
+      expect(zone()!.dataset.depot).toBe('racine')
+      const sous = document.elementFromPoint
+      document.elementFromPoint = () => zone()
+      onTestFinished(() => void (document.elementFromPoint = sous))
+      act(() => void window.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 70, clientY: 45 })))
+      expect(zone()!.hasAttribute('data-survol-depot')).toBe(true)
+      await act(async () => void window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true })))
+      expect(espace.tableau('racine')!.elements.some((e) => e.contenu.type === 'arbre')).toBe(true)
+      expect(espace.tableau('voyage')!.elements.some((e) => e.contenu.type === 'arbre')).toBe(false)
+      expect(hote.querySelector('.notak-avis')!.textContent).toContain('Déplacé dans « Accueil »')
+      expect(zone()).toBeNull()
+      expect(hote.querySelector('.biblio-tuile-neuve .biblio-tuile-titre')!.textContent).toBe('Nouvelle toile')
+      // En liste aussi ; Échap y renonce.
+      act(() => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-tri-choix')].find((b) => b.getAttribute('aria-label') === 'Liste')!.click())
+      glisserDe('voyage/notes')
+      expect(hote.querySelector('.biblio-grille[data-affichage="liste"] [data-remonter]')).not.toBeNull()
+      touche('Escape')
+      expect(zone()).toBeNull()
+      // À l'accueil, rien au-dessus : la tuile reste celle qui crée.
+      act(() => hote.querySelector<HTMLButtonElement>('.biblio-fil button')!.click())
+      document.elementFromPoint = () => null
+      glisserDe('atelier/')
+      expect(hote.querySelector('.biblio-fantome')).not.toBeNull()
+      expect(zone()).toBeNull()
+      act(() => void window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true })))
+    })
+
     it('une toile se montre en dossier, et de nouveau en toile ; chaque fois, le menu le propose et Annuler le défait', async () => {
       const espace = await ouvrir()
       menu(tuile('atelier/'))

@@ -3550,6 +3550,30 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 }
 
 /*
+ * Pendant qu'on glisse dans un dossier, la tuile qui crée devient celle qui remonte au dossier du dessus : un cadre
+ * pointillé l'offre au dépôt avant qu'on la survole, puis elle s'allume comme les autres.
+ */
+.biblio-tuile[data-remonter] {
+  cursor: inherit;
+}
+
+.biblio-tuile[data-remonter] .biblio-vignette {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  box-shadow: none;
+  outline: 2px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: -2px;
+  color: var(--accent);
+  transform: none;
+}
+
+.biblio-tuile[data-remonter][data-survol-depot] .biblio-vignette {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: 0 0 0 3px var(--accent), 0 14px 30px -10px rgb(27 37 54 / 0.3);
+  outline: none;
+  transform: scale(1.03);
+}
+
+/*
  * L'affichage en liste : une ligne par tuile, la vignette en petit à gauche, le titre et où elle est, le « ••• » au bout,
  * comme la vue en liste de Fichiers. Les mêmes gestes (choisir, glisser, ouvrir) valent : seule la forme change.
  */

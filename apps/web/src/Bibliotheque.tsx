@@ -1423,6 +1423,8 @@ function BibliothequeBureau({
     ) : null
   /** Le chemin du dossier qu'on parcourt, depuis l'accueil, sans lui. */
   const fil = dossier && toutes ? filDAriane(dossier, toutes, espace?.racine ?? null).slice(0, -1) : []
+  /** Pendant qu'on glisse dans un dossier, son parent : la tuile qui crée devient celle qui y remonte. */
+  const remonter = glisse && dossier && !cherche ? (fil[fil.length - 1] ?? null) : null
   const glissees = new Set(glisse?.cles)
   const premiereFocalisable = courante && ordre.includes(courante) ? courante : (choisies[0] ?? ordre[0])
 
@@ -1703,13 +1705,24 @@ function BibliothequeBureau({
                 <ul className="biblio-grille" data-affichage={affichageVu} role="listbox" aria-multiselectable aria-label={s.titre || titreDeLaVue(vue)}>
                   {i === 0 && neuf && (
                     <li role="presentation">
-                      <button type="button" className="biblio-tuile biblio-tuile-neuve" disabled={creation} onClick={() => void creerPuisOuvrir(neuf)}>
-                        <span className="biblio-vignette" aria-hidden>
-                          <Icone nom="ajouter" taille={36} trait={1.2} />
-                        </span>
-                        <span className="biblio-tuile-titre">{t(`biblio.neuf.${neuf}`)}</span>
-                        <span className="biblio-tuile-ou">{dossier && dossier !== espace?.racine ? t('biblio.neuf.aideDans', { toile: titreToile(dossier) }) : t('biblio.neuf.aide')}</span>
-                      </button>
+                      {remonter ? (
+                        // À la même place, sans que rien ne bouge sous le pointeur : y lâcher range dans le dossier du dessus.
+                        <div className="biblio-tuile biblio-tuile-neuve" data-remonter data-depot={remonter} data-survol-depot={survolDepot === remonter || undefined}>
+                          <span className="biblio-vignette" aria-hidden>
+                            <Icone nom="haut" taille={36} trait={1.2} />
+                          </span>
+                          <span className="biblio-tuile-titre">{t('biblio.remonter')}</span>
+                          <span className="biblio-tuile-ou">{t('biblio.remonter.vers', { toile: titreToile(remonter) })}</span>
+                        </div>
+                      ) : (
+                        <button type="button" className="biblio-tuile biblio-tuile-neuve" disabled={creation} onClick={() => void creerPuisOuvrir(neuf)}>
+                          <span className="biblio-vignette" aria-hidden>
+                            <Icone nom="ajouter" taille={36} trait={1.2} />
+                          </span>
+                          <span className="biblio-tuile-titre">{t(`biblio.neuf.${neuf}`)}</span>
+                          <span className="biblio-tuile-ou">{dossier && dossier !== espace?.racine ? t('biblio.neuf.aideDans', { toile: titreToile(dossier) }) : t('biblio.neuf.aide')}</span>
+                        </button>
+                      )}
                     </li>
                   )}
                   {s.entrees.map((e) => {
