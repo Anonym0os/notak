@@ -4,7 +4,7 @@ import { BarreEtiquette } from './elements/decor/BarreEtiquette'
 import { BoutonEtiquettes } from './elements/decor/BoutonEtiquettes'
 import { useFilOuvert, usePuce } from './elements/decor/etat'
 import { t } from './langue'
-import { RANG_APRES_TETE, definition, tousLesOutilsCommunsRanges, tousLesTypes } from './elements/registre'
+import { RANG_APRES_TETE, definition, tousLesOutilsCommunsRanges, tousLesTypes, toutesLesEntreesMenu } from './elements/registre'
 import type { ContexteToile, Outil } from './elements/types'
 import { ContexteOutils } from './BoutonOutil'
 import { type EntreeRepli, ORDRE, type Palier, useRepli } from './repli'
@@ -124,6 +124,12 @@ export function useLibellesEntiers(ref: RefObject<HTMLElement | null>) {
     }
   }, [barre])
 }
+
+/**
+ * Les lignes du menu d'un élément que la feuille d'actions d'un téléphone ne répète pas, parce qu'une tuile des outils
+ * les fait déjà juste au-dessus : « Commenter », et les gestes que leur tuile fait (`EntreeMenu.faitParSaTuile`).
+ */
+const faitsParLesTuiles = () => new Set([t('menu.commenter'), ...toutesLesEntreesMenu().filter((x) => x.faitParSaTuile).map((x) => x.libelle)])
 
 /** Le nom de la corbeille pour qui lit à haute voix : avec ce qu'elle contient, que la pastille montre à l'œil. */
 export const libelleCorbeille = (nombre: number) => (nombre > 0 ? `${t('corbeille.titre')} (${nombre})` : t('corbeille.titre'))
@@ -520,8 +526,9 @@ export function BarreSelection({
         {feuilleActions && (
           <Feuille fermer={() => setFeuilleActions(false)} role="presentation" className="notak-tiroir-bas-actions">
             <ActionsFeuille
-              // « Commenter » est déjà une tuile des outils, au-dessus : pas une seconde fois en ligne.
-              entrees={(contexte.actions?.() ?? []).filter((e) => !e || e.libelle !== t('menu.commenter'))}
+              // Ce que fait déjà une tuile des outils, au-dessus (« Commenter », « Ajouter une légende » sous la tuile
+              // « Légende »…) : pas une seconde fois en ligne.
+              entrees={(contexte.actions?.() ?? []).filter((e) => !e || !faitsParLesTuiles().has(e.libelle))}
               fermer={() => setFeuilleActions(false)}
               avant={
                 <>

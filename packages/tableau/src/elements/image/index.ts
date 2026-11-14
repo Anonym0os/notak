@@ -53,13 +53,15 @@ const legendables = (els: Element[], contexte: ContexteToile): els is Element<Im
 
 // La légende au clic droit, et au doigt dans le menu de l'appui long et du « ••• » : on la cherchait là. Sa tuile
 // « Légende » reste dans la barre de gauche, après l'arrangement comme chez Milanote, et taper sur l'image choisie
-// l'écrit aussi : le tiroir « ••• » de la barre ne la répète pas (`tuile`).
+// l'écrit aussi : le tiroir « ••• » de la barre ne la répète pas (`tuile`). La feuille d'un téléphone, qui montre la
+// tuile au-dessus de ses lignes, ne garde que ce que la tuile ne fait pas : la retirer (`faitParSaTuile`).
 registre.entreeMenu({
   icone: 'legende',
   get libelle() {
     return t('image.ajouterLegende')
   },
   tuile: true,
+  faitParSaTuile: true,
   visible: (els, contexte) => legendables(els, contexte) && els.length === 1 && gestesLegende(els).ajouter,
   faire: ([e], contexte) => {
     if (e?.contenu.type !== 'image') return
@@ -75,6 +77,7 @@ registre.entreeMenu({
     return t('image.ajouterLegendes')
   },
   tuile: true,
+  faitParSaTuile: true,
   visible: (els, contexte) => legendables(els, contexte) && els.length > 1 && gestesLegende(els).ajouter,
   faire: (els, contexte) => {
     const montrer = toutesImages(els) ? afficherLegendes(els.filter(assezLarge)) : []
@@ -88,6 +91,7 @@ registre.entreeMenu({
     return t('image.modifierLegende')
   },
   tuile: true,
+  faitParSaTuile: true,
   visible: (els, contexte) => legendables(els, contexte) && gestesLegende(els).modifier,
   faire: ([e], contexte) => e && contexte.commencerEdition(e.id),
 })
