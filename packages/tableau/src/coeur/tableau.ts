@@ -142,6 +142,17 @@ export interface TraitImage {
   points: [number, number][]
 }
 
+/**
+ * Un trait posé sur une page d'un PDF (le dessin de la visionneuse) : celui d'une image, en fractions de la page telle
+ * qu'elle se montre, et son épaisseur en fraction de sa largeur ; il suit la page au zoom.
+ */
+export interface TraitPage extends TraitImage {
+  /** De quoi le reconnaître quand deux personnes dessinent sur la même page en même temps. */
+  id: Id
+  /** Un trait de surligneur : translucide, le texte dessous reste lisible. */
+  surligneur?: boolean
+}
+
 export interface TailleImage {
   largeur: number
   fichier: Id
@@ -239,6 +250,8 @@ export interface Fichier {
   boucle?: boolean
   /** Le son ou la vidéo se lance dès que la carte est là. */
   lectureAuto?: boolean
+  /** Ce qu'on a dessiné sur les pages d'un PDF, par numéro de page (« 1 » pour la première), du plus ancien au plus récent. */
+  annotations?: Record<string, TraitPage[]>
 }
 
 /** Une colonne : ses éléments portent `parent` = l'id de la colonne, et un `ordre`. */

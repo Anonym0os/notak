@@ -28,7 +28,8 @@
   z-index: 3;
   flex: none;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  /* Le milieu reste au milieu tant qu'il y a la place ; sinon c'est le nom qui cède, jamais les actions. */
+  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
   align-items: center;
   gap: 8px;
   box-sizing: border-box;
@@ -244,6 +245,28 @@
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* Le dessin : sous le calque de texte (le texte reste à choisir), le surligneur mêlé à l'encre de la page. */
+.notak-pdf-traits {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.notak-pdf-traits [data-surligneur] {
+  mix-blend-mode: multiply;
+}
+
+/* En dessin, une couche prend le crayon au-dessus de la page : un doigt trace, deux font défiler et zoomer. */
+.notak-pdf-saisie {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  touch-action: none;
 }
 
 .notak-pdf-etat {

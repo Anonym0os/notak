@@ -5,68 +5,23 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import type { Fichier } from '../../../coeur/tableau'
 import type { ContexteToile } from '../../types'
 import { ModaleFichier } from '../ModaleFichier'
+import { etatFaux as faux, mesuresFausses } from './fauxPdf'
 
 // pdf.js ne tourne pas sous jsdom : un faux moteur rend trois pages A4, chacune avec une ligne de texte.
-const faux = vi.hoisted(() => ({ detruit: 0, pages: 3 }))
-vi.mock('../apercuPdf', () => {
-  class TextLayer {
-    textDivs: HTMLElement[] = []
-    textContentItemsStr: string[] = []
-    constructor(private o: { container: HTMLElement; textContentSource: { page: number } }) {}
-    render() {
-      const s = document.createElement('span')
-      s.textContent = `Page ${this.o.textContentSource.page} hippopotame`
-      this.o.container.append(s)
-      this.textDivs = [s]
-      this.textContentItemsStr = [s.textContent]
-      return Promise.resolve()
-    }
-    cancel() {}
-  }
-  const page = (n: number) => ({
-    getViewport: ({ scale }: { scale: number }) => ({ width: 595 * scale, height: 842 * scale, scale }),
-    render: () => ({ promise: Promise.resolve(), cancel() {} }),
-    streamTextContent: () => ({ page: n }),
-    getTextContent: async () => ({ items: [{ str: `Page ${n} hippopotame`, hasEOL: false }] }),
-  })
-  const pdfjs = {
-    TextLayer,
-    getDocument: () => ({
-      promise: Promise.resolve({
-        numPages: faux.pages,
-        getPage: async (n: number) => page(n),
-        destroy: async () => void faux.detruit++,
-      }),
-      destroy: async () => {},
-    }),
-  }
-  return { moteurPdf: async () => pdfjs }
-})
+vi.mock('../apercuPdf', async () => (await import('./fauxPdf')).moduleFaux)
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
-// jsdom ne mesure rien : la vue fait 1000 × 800 px, et le navigateur ne sait pas dessiner une toile.
-const largeur = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth')
-const hauteur = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight')
+let rendre: () => void
 beforeAll(() => {
-  Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 1000 })
-  Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 800 })
-  HTMLCanvasElement.prototype.getContext = (() => null) as never
-  globalThis.ResizeObserver = class {
-    observe() {}
-    disconnect() {}
-    unobserve() {}
-  } as never
+  rendre = mesuresFausses()
 })
-afterAll(() => {
-  if (largeur) Object.defineProperty(HTMLElement.prototype, 'clientWidth', largeur)
-  if (hauteur) Object.defineProperty(HTMLElement.prototype, 'clientHeight', hauteur)
-})
+afterAll(() => rendre())
 
 let racine: Root
 let hote: HTMLElement
 beforeEach(() => {
-  faux.detruit = 0
+  faux.detruits = 0
   vi.stubGlobal('fetch', async () => new Response(new Uint8Array([37, 80, 68, 70])))
   hote = document.createElement('div')
   document.body.append(hote)
@@ -177,7 +132,7 @@ describe('la visionneuse PDF', () => {
     expect(fermer).toHaveBeenCalledTimes(2)
     act(() => racine.render(<></>))
     await attendre()
-    expect(faux.detruit).toBe(1)
+    expect(faux.detruits).toBe(1)
   })
 
   it('ce qu’on fait dans la visionneuse ne remonte pas à la toile', async () => {

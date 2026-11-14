@@ -9,6 +9,7 @@ import { useThemeDeLaToile } from '../../image/barreOutil'
 import { moteurPdf } from '../apercuPdf'
 import { ouvrirDehors } from '../ouverture'
 import { type MoteurPdf, PagePdf } from './PagePdf'
+import { CalqueTraits, useDessinPdf } from './DessinPdf'
 import {
   type Disposition,
   type TaillePage,
@@ -100,13 +101,17 @@ const RECHERCHE_VIDE: Recherche = { texte: '', enCours: false, resultats: [], co
  * dans Notak de bureau, un nouvel onglet dans un navigateur). ⌘+ ⌘− ⌘0 zooment, ⌘F cherche, les flèches et ⇞ ⇟ tournent
  * les pages, Échap ferme ; au doigt, on pince pour zoomer. Le texte reste sélectionnable et copiable.
  *
+ * « Dessiner » (⇧D) trace sur les pages au crayon, au surligneur, et gomme (`DessinPdf`) ; les traits se rangent dans
+ * l'élément, page par page, et se montrent à tous, même en lecture seule.
+ *
  * `element` et `contexte` (absents dans la bibliothèque, hors de toute toile) servent à ce que la toile prête : ouvrir
- * avec l'app de bureau.
+ * avec l'app de bureau, dessiner, l'historique.
  */
 export function VisionneusePdf({
   contenu,
   adresse,
   fermer,
+  element,
   contexte,
 }: {
   contenu: Fichier
@@ -124,6 +129,7 @@ export function VisionneusePdf({
   const document_ = useDocumentPdf(adresse)
   const pret = document_.etat === 'pret' ? document_ : null
   const tailles = useMemo(() => pret?.tailles ?? [], [pret?.tailles])
+  const dessin = useDessinPdf({ element, contexte, annotations: contenu.annotations })
 
   const [vue, setVue] = useState({ haut: 0, hauteur: 0, largeur: 0 })
   const [zoom, setZoom] = useState<number | null>(null)
@@ -397,8 +403,13 @@ export function VisionneusePdf({
     if (cmd && (k === '-' || k === '_')) return faire(() => zoomer(zoomSuivant(z, -1)))
     if (cmd && k === '0') return faire(ajuster)
     if (cmd && k.toLowerCase() === 'f') return faire(ouvrirRecherche)
+    if (!estSaisie(e.target) && dessin.clavier(e)) return
     if (k === 'Escape') return faire(() => (recherche ? fermerRecherche() : fermer()))
-    if (estSaisie(e.target) || cmd || e.altKey) return
+    if (estSaisie(e.target)) return
+    // ⌘Z et ⌘⇧Z défont et refont ici comme sur la toile : un dessin enregistré, par exemple.
+    if (cmd && k.toLowerCase() === 'z' && contexte && dessin.autorise) return faire(() => void (e.shiftKey ? contexte.magasin.retablir() : contexte.magasin.annuler()))
+    if (e.shiftKey && !cmd && !e.altKey && k.toLowerCase() === 'd' && dessin.autorise && pret) return faire(dessin.commencer)
+    if (cmd || e.altKey) return
     const s = defile.current
     if (!s) return
     const page = etat.current.courante
@@ -503,6 +514,12 @@ export function VisionneusePdf({
         </div>
         <div className="notak-pdf-groupe notak-pdf-actions">
           {bouton('recherche', t('pdf.rechercher'), () => (recherche ? fermerRecherche() : ouvrirRecherche()), { actif: !!pret, presse: !!recherche })}
+          {dessin.autorise &&
+            bouton('croquis', t('pdf.dessiner.titre'), () => (dessin.actif ? dessin.enregistrer() : dessin.commencer()), {
+              court: t('pdf.dessiner'),
+              actif: !!pret,
+              presse: dessin.actif,
+            })}
           <span className="notak-pdf-sep" role="separator" />
           <a className="notak-pdf-bouton" href={adresse} download={contenu.nom} rel="noopener" aria-label={t('pdf.telecharger.titre')} title={t('pdf.telecharger.titre')}>
             <Icone nom="exporter" taille={18} />
@@ -560,7 +577,7 @@ export function VisionneusePdf({
           // Un clic à côté des pages ferme, comme sur le voile de l'image en grand ; pas la fin d'une sélection de texte.
           const presse = fondPresse.current
           fondPresse.current = false
-          if (presse && estFond(e.target, e.currentTarget) && !window.getSelection()?.toString()) fermer()
+          if (presse && !dessin.actif && estFond(e.target, e.currentTarget) && !window.getSelection()?.toString()) fermer()
         }}
       >
         {document_.etat === 'charge' && (
@@ -587,11 +604,15 @@ export function VisionneusePdf({
                   largeur={d.largeurs[i]!}
                   hauteur={d.hauteurs[i]!}
                   bouts={boutsParPage.get(i)}
-                />
+                  dessous={<CalqueTraits traits={dessin.traitsDe(i + 1)} taille={tailles[i]!} vise={dessin.viseDe(i + 1)} contour={dessin.contour / Math.max(1, d.largeurs[i]!)} />}
+                >
+                  {dessin.saisie(i + 1, tailles[i]!)}
+                </PagePdf>
               ))}
           </div>
         )}
       </div>
+      {dessin.barre}
     </div>,
     document.body,
   )

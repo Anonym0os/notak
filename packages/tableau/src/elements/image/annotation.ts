@@ -107,7 +107,7 @@ export function traitVise(traits: readonly TraitImage[], p: Point2, rayon: numbe
  * Les traits qui restent quand la gomme passe en `p` avec ce rayon (en fraction de la largeur d'origine) : un trait
  * que la gomme touche s'en va tout entier. Les traits non touchés gardent leur identité.
  */
-export function gommer(traits: readonly TraitImage[], p: Point2, rayon: number, c: Pick<Image, 'largeurOrigine' | 'hauteurOrigine'>): TraitImage[] {
+export function gommer<T extends TraitImage>(traits: readonly T[], p: Point2, rayon: number, c: Pick<Image, 'largeurOrigine' | 'hauteurOrigine'>): T[] {
   const centre: Point2 = [p[0] * c.largeurOrigine, p[1] * c.hauteurOrigine]
   const portee = rayon * c.largeurOrigine
   return traits.filter((t) => !touche(t, centre, portee, c))
