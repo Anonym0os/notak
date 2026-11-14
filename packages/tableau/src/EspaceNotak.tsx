@@ -168,6 +168,7 @@ export function EspaceNotak({
   habillages: offreHabillages,
   bibliotheque,
   dossier,
+  espacesDEquipe,
 }: {
   espace: EspaceNavigable
   services?: Services
@@ -207,6 +208,11 @@ export function EspaceNotak({
    * du dossier ne reste pas dans l'historique (on y était arrivé sans le vouloir). Sans lui, un dossier s'ouvre en toile.
    */
   dossier?(id: Id, o: { remplacer: boolean }): void
+  /**
+   * Les espaces d'équipe dont on est membre, la racine et le nom de chacun : le fil d'une toile rangée dans l'un d'eux
+   * part de son nom, à la place de « Mon espace ».
+   */
+  espacesDEquipe?: readonly { racine: Id; nom: string }[]
 }) {
   const racine = espace.racine
   const [parcours, setParcours] = useState(() => parcoursDepart(racine))
@@ -266,6 +272,22 @@ export function EspaceNotak({
       dossier!(id, { remplacer: false })
     },
     [enListe, ouvrirEnToile, dossier],
+  )
+  /** Les racines des espaces d'équipe, avec leur nom. */
+  const equipes = useMemo(() => new Map((espacesDEquipe ?? []).map((e) => [e.racine, e.nom])), [espacesDEquipe])
+  /**
+   * Mène à un niveau du fil (son maillon, ‹, la page ou la carte ouvertes en grand). La racine d'un espace n'est plus une
+   * toile qu'on ouvre depuis le fil : avec une bibliothèque, elle y mène, sur « Mon espace » pour la sienne, comme la
+   * maison au téléphone. Sans bibliothèque, elle s'ouvre en toile, comme tout niveau.
+   */
+  const allerAuNiveau = useCallback(
+    (id: Id) => {
+      if (!bibliotheque || (id !== racine && !equipes.has(id))) return ouvrir(id)
+      demanderRenommage(null)
+      if (id === racine && dossier) dossier(racine, { remplacer: false })
+      else bibliotheque()
+    },
+    [bibliotheque, dossier, equipes, ouvrir, racine],
   )
 
   // Le tableau qu'on regarde est vu tel qu'il est, à chaque changement : la pastille d'activité des cartes ne s'allume
@@ -460,12 +482,17 @@ export function EspaceNotak({
   })
   const segments = useMemo(() => {
     const chemin = (JSON.parse(fil) as [Id, string, boolean][]).map(([id, titre, estDossier]): Segment => ({ id, titre, genre: estDossier ? 'dossier' : 'toile' }))
-    // Un tableau orphelin n'est pas sous l'accueil, mais on garde une sortie.
+    // Le fil part de la racine de l'espace où la toile est rangée, sous son nom, comme dans la bibliothèque : un espace
+    // d'équipe (on y est entré depuis son accueil), sinon « Mon espace ».
+    let equipe = -1
+    for (let i = chemin.length - 1; i >= 0 && equipe < 0; i--) if (equipes.has(chemin[i]!.id)) equipe = i
+    if (equipe >= 0) return [{ id: chemin[equipe]!.id, titre: equipes.get(chemin[equipe]!.id)!, genre: 'accueil' as const }, ...chemin.slice(equipe + 1)]
+    // Un tableau orphelin n'est pas sous la racine, mais on garde une sortie.
     const accueil: Segment = { id: racine, titre: t('espace.accueil'), genre: 'accueil' }
     if (chemin[0]?.id !== racine) chemin.unshift(accueil)
     else chemin[0] = accueil
     return chemin
-  }, [fil, racine, langue])
+  }, [fil, racine, langue, equipes])
 
   // Les raccourcis de navigation, sur le document : la toile qui avait le focus disparaît à chaque changement.
   const basculerThemeRef = useRef(() => {})
@@ -635,7 +662,7 @@ export function EspaceNotak({
   const barreTelephone = telephone && enFeuille() ? telephone(courant, ouvrir, { aide: ouvrirAide, reglages: ouvrirReglages }) : null
   const entete: EnteteEspace = {
     fil: segments,
-    ouvrir,
+    ouvrir: allerAuNiveau,
     ...(bibliotheque ? { bibliotheque } : {}),
     // Sans partage ni présence (l'édition locale), pas d'îlot vide ; au téléphone, le partage est dans la feuille de « ••• ».
     partage: !barreTelephone && (partage || presence) && (
@@ -669,7 +696,7 @@ export function EspaceNotak({
         key={`entete:${langue}`}
         segments={segments}
         charge={charge}
-        ouvrir={ouvrir}
+        ouvrir={allerAuNiveau}
         renommer={courant === racine || lectureSeule ? undefined : (titre) => espace.renommer(courant, titre)}
         actions={barreTelephone ? barreTelephone.plus : actions?.(courant, ouvrir, ouvrirAide)}
         actionsTableau={barreTelephone ? undefined : actionsTableau?.(courant, ouvrir)}
@@ -768,6 +795,7 @@ function Entete({
 }: {
   /** De l'accueil au tableau ouvert, le dernier. */
   segments: Segment[]
+  /** Mène à un niveau du fil ou au parent (‹) : la racine de l'espace, à la bibliothèque quand il y en a une. */
   ouvrir(id: Id): void
   /** Le titre du tableau ouvert se change en place, au bout du fil (pas celui de l'accueil). */
   renommer?(titre: string): void

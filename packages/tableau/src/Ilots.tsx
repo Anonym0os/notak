@@ -17,6 +17,7 @@ import './ilots.css'
 export interface EnteteEspace {
   /** De l'accueil au tableau ouvert, chacun avec son titre et ce qu'il est (l'accueil, un dossier, une toile). */
   fil: Niveau[]
+  /** Mène à un niveau du fil : la racine de l'espace, à la bibliothèque quand l'application en a une. */
   ouvrir(id: Id): void
   /** Mène à la bibliothèque, quand l'application en a une : une maison en tête du fil. */
   bibliotheque?(): void

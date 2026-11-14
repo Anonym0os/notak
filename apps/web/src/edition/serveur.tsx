@@ -21,6 +21,7 @@ import {
   accepterInvitation,
   ecouterSessionFinie,
   lireInstance,
+  listerEspaces,
   listerTableaux,
   moi as lireMoi,
   noterElementVu,
@@ -416,6 +417,18 @@ function Espace({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
   // Les droits d'un élément, réglés par le propriétaire du tableau depuis le menu de la toile.
   const [droitsElement, setDroitsElement] = useState<{ tableau: string; element: string } | null>(null)
   const servicesIci = useMemo(() => ({ ...services, reglerDroitsElementDe: (tableau: string, element: string) => setDroitsElement({ tableau, element }) }), [])
+  // Les espaces d'équipe du compte : le fil d'une toile rangée dans l'un d'eux part de son nom, pas de « Mon espace ».
+  const [equipes, setEquipes] = useState<{ racine: string; nom: string }[]>([])
+  useEffect(() => {
+    let vivant = true
+    listerEspaces().then(
+      (l) => vivant && setEquipes(l.filter((e) => !e.personnel).map(({ racine, nom }) => ({ racine, nom }))),
+      () => {},
+    )
+    return () => {
+      vivant = false
+    }
+  }, [])
   return (
     <>
       {droitsElement && <DroitsElement {...droitsElement} fermer={() => setDroitsElement(null)} />}
@@ -427,6 +440,7 @@ function Espace({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
         adresse={adresse}
         bibliotheque={() => allerA('/')}
         dossier={(id, o) => allerA(adresseDuDossier(id), o)}
+        espacesDEquipe={equipes}
         actions={(courant, ouvrir) => (
           <>
             <BullesDecouverte espace={espace} tableau={courant} compte={moi.id} />

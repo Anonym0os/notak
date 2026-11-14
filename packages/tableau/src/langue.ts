@@ -211,7 +211,7 @@ export const fr: Textes = {
   'commun.sansTitre': 'Sans titre',
   'rangement.copie': '{titre} (copie)',
 
-  'espace.accueil': 'Accueil',
+  'espace.accueil': 'Mon espace',
   'espace.accesRetire': 'Accès retiré',
   'espace.horsLigneGarde': 'Hors ligne : gardé sur cet appareil, envoyé au retour du réseau',
   'espace.toutSEnregistre': 'Tout s’enregistre tout seul',
@@ -2334,7 +2334,7 @@ export const en: Textes = {
   'commun.sansTitre': 'Untitled',
   'rangement.copie': '{titre} (copy)',
 
-  'espace.accueil': 'Home',
+  'espace.accueil': 'My space',
   'espace.accesRetire': 'Access removed',
   'espace.horsLigneGarde': 'Offline: kept on this device, sent when the network returns',
   'espace.toutSEnregistre': 'Everything saves itself',

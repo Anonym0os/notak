@@ -538,7 +538,7 @@ describe('les gestes', () => {
       await act(async () => racine.render(<PageBibliotheque charger={async () => AVEC_DOSSIER} espace={monde()} />))
       const fil = hote.querySelector('nav.biblio-fil.notak-fil.notak-fil-dessous')!
       expect(fil.getAttribute('aria-label')).toBe('Chemin du dossier')
-      expect([...fil.querySelectorAll<HTMLElement>('.notak-fil-segment')].map((b) => [b.textContent, b.dataset.genre, b.dataset.depot])).toEqual([['Accueil', 'accueil', 'racine']])
+      expect([...fil.querySelectorAll<HTMLElement>('.notak-fil-segment')].map((b) => [b.textContent, b.dataset.genre, b.dataset.depot])).toEqual([['Mon espace', 'accueil', 'racine']])
       const ici = fil.querySelector<HTMLElement>('[aria-current="page"]')!
       expect(ici.dataset.genre).toBe('dossier')
       expect(ici.querySelector('svg')).not.toBeNull()

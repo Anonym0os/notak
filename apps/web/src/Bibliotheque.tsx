@@ -1436,7 +1436,7 @@ function BibliothequeBureau({
   /** Le chemin du dossier qu'on parcourt, depuis l'accueil, sans lui. */
   const fil = dossier && toutes ? filDAriane(dossier, toutes, espace?.racine ?? null).slice(0, -1) : []
   /** Ce qu'est un niveau du chemin, pour son icône : l'accueil, un dossier, ou une toile qu'on parcourt comme un dossier. */
-  const genreDuNiveau = (id: string): GenreNiveau => (id === espace?.racine ? 'accueil' : sousDossier(id) ? 'dossier' : 'toile')
+  const genreDuNiveau = (id: string): GenreNiveau => (id === espace?.racine ? 'accueil' : enDossier(id) ? 'dossier' : 'toile')
   // Le fil prend la place que lui laissent les îlots de droite : ce qui ne tient pas passe dans « … ».
   const [placeDuFil, filDuDossier] = usePlaceDuFil('parent')
   const glissees = new Set(glisse?.cles)
