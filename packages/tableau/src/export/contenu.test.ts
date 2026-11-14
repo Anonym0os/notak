@@ -102,3 +102,46 @@ describe('les résumés d’une toile pour la bibliothèque', () => {
     expect(image).not.toHaveProperty('cree')
   })
 })
+
+describe('le plan d’une toile, pour sa vignette', () => {
+  const planDe = (elements: ElementLu[]) => {
+    const r = resumesDuTableau(toile(elements))[0]!
+    return r.genre === 'toile' ? r : null
+  }
+
+  it('une photo y porte son fichier (sa plus petite copie d’abord) et la hauteur qu’elle a sur la toile', () => {
+    const plan = planDe([
+      poser('en-hauteur', { type: 'image', fichier: 'f-portrait', largeurOrigine: 2000, hauteurOrigine: 3000 }),
+      poser('petite', { type: 'image', fichier: 'f-grande', largeurOrigine: 4000, hauteurOrigine: 3000, tailles: [{ largeur: 400, fichier: 'f-400' }] }),
+      // Couchée d'un quart de tour, recadrée de moitié en largeur, ou dans un cadre libre.
+      poser('couchee', { type: 'image', fichier: 'f-c', largeurOrigine: 2000, hauteurOrigine: 1000, rotation: 90 }),
+      poser('recadree', { type: 'image', fichier: 'f-r', largeurOrigine: 2000, hauteurOrigine: 1000, recadrage: { x: 0, y: 0, largeur: 0.5, hauteur: 1 } }),
+      poser('cadre', { type: 'image', fichier: 'f-k', largeurOrigine: 2000, hauteurOrigine: 1000, rapportCadre: 4 }),
+      poser('note', { type: 'note', texte: { type: 'doc', content: [] } }),
+    ])!
+    expect(plan.boites.map((b) => [b[3], b[7]])).toEqual([
+      [30, 'f-portrait'],
+      [15, 'f-400'],
+      [40, 'f-c'],
+      [20, 'f-r'],
+      [5, 'f-k'],
+      [7, undefined],
+    ])
+  })
+
+  it('un dessin a la hauteur de ses traits, pas celle d’une note', () => {
+    const plan = planDe([poser('d', { type: 'dessin', traits: [], largeurOrigine: 40, hauteurOrigine: 10 })])!
+    expect(plan.boites[0]!.slice(2, 6)).toEqual([20, 5, '', 'dessin'])
+  })
+
+  it('ce qui attend dans les non triés se compte : une toile sans rien de posé n’est pas forcément vide', () => {
+    const plan = planDe([
+      poser('a', { type: 'image', fichier: 'f', largeurOrigine: 1, hauteurOrigine: 1 }, { nonTrie: 1 }),
+      poser('b', { type: 'note', texte: { type: 'doc', content: [] } }, { nonTrie: 2 }),
+      poser('c', { type: 'note', texte: { type: 'doc', content: [] } }, { nonTrie: 3, corbeille: 4 }),
+    ])!
+    expect(plan.boites).toEqual([])
+    expect(plan.nonTries).toBe(2)
+    expect(planDe([])).not.toHaveProperty('nonTries')
+  })
+})

@@ -2,7 +2,7 @@ import { type GenreNeuf, Icone, type NomIcone, type ResultatRecherche, type Resu
 import { Fragment, type ReactNode, useCallback, useRef, useState, useSyncExternalStore } from 'react'
 import type { EntreeBibliotheque } from '../api'
 import { t, tn } from '../langue'
-import { Vignette } from './Vignettes'
+import { Vignette, texteSansPlan } from './Vignettes'
 
 /**
  * Les pièces de la bibliothèque au doigt, celle d'un téléphone : le grand titre qui se replie quand on cherche, la
@@ -230,7 +230,14 @@ export function VedetteAccueil({
   return (
     <button type="button" className="biblio-locale-vedette" onClick={onClick}>
       <span className="biblio-locale-vedette-plan">
-        {vide ? <span className="biblio-locale-vedette-vide">{t('biblio.accueilVide')}</span> : resume ? <Vignette resume={resume} /> : <span className="biblio-vignette" aria-hidden />}
+        {vide ? (
+          // Ce qu'on partage depuis un téléphone attend dans ses non triés : l'accueil n'est pas vide pour autant.
+          <span className="biblio-locale-vedette-vide">{resume.nonTries ? texteSansPlan(resume) : t('biblio.accueilVide')}</span>
+        ) : resume ? (
+          <Vignette resume={resume} />
+        ) : (
+          <span className="biblio-vignette" aria-hidden />
+        )}
       </span>
       <span className="biblio-locale-vedette-texte">
         <span className="biblio-locale-vedette-titre">

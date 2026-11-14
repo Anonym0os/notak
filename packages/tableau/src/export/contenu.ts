@@ -205,6 +205,8 @@ export type ResumeContenu =
        * le nombre de lignes à y dessiner (le texte d'une note ou d'une liste, les cartes d'une colonne).
        */
       boites: BoitePlan[]
+      /** Ce qui attend dans ses non triés : une toile sans rien de posé n'est pas vide pour autant. */
+      nonTries?: number
       /**
        * Les toiles dont elle porte la carte (pas un raccourci), et celles dont elle a jeté la carte à sa corbeille :
        * ce qui dit dans quel dossier est une toile, et qu'elle est à la corbeille.
@@ -257,8 +259,11 @@ export function dateDeLId(id: string): number | undefined {
   return t > Date.UTC(2020, 0, 1) && t < Date.UTC(2100, 0, 1) ? t : undefined
 }
 
-/** Une boîte du plan d'une toile (voir `ResumeContenu`). */
-export type BoitePlan = [x: number, y: number, largeur: number, hauteur: number, couleur: string, type: string, lignes: number]
+/**
+ * Une boîte du plan d'une toile (voir `ResumeContenu`) ; celle d'une photo porte aussi son fichier (sa plus petite
+ * copie, s'il en a une) : la vignette montre la photo elle-même.
+ */
+export type BoitePlan = [x: number, y: number, largeur: number, hauteur: number, couleur: string, type: string, lignes: number, fichier?: string]
 
 /** Au plus tant de boîtes dans le plan d'une toile, de branches d'une carte, de lignes d'un document. */
 const BOITES_MAX = 120
@@ -291,13 +296,39 @@ const HAUTEURS: Record<string, number> = {
 function hauteurProbable(e: ElementLu, lignes: number): number {
   const c = e.contenu
   const h = (e as { hauteur?: { max?: number; min?: number } }).hauteur
-  if (c.type === 'image' && typeof c.largeurOrigine === 'number' && typeof c.hauteurOrigine === 'number' && c.largeurOrigine > 0)
-    return (e.largeur * c.hauteurOrigine) / c.largeurOrigine
+  const rapport = rapportAffiche(c)
+  if (rapport !== null) return e.largeur / rapport
   if (typeof h?.max === 'number') return h.max
   if (typeof h?.min === 'number') return h.min
   if (c.type === 'note' || c.type === 'taches') return Math.min(40, Math.max(HAUTEURS[c.type]!, 2 + lignes * 2.6))
   if (c.type === 'colonne') return Math.min(80, 6 + lignes * 9)
   return HAUTEURS[c.type] ?? 6
+}
+
+const positif = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null)
+
+/**
+ * Largeur sur hauteur d'une photo ou d'un dessin tels que la toile les montre : le cadre libre d'une photo, sinon sa
+ * partie gardée, couchée d'un quart de tour ; `null` pour un autre élément, ou sans proportions connues.
+ */
+function rapportAffiche(c: ContenuLu): number | null {
+  if (c.type !== 'image' && c.type !== 'dessin') return null
+  const [lo, ho] = [positif(c.largeurOrigine), positif(c.hauteurOrigine)]
+  if (lo === null || ho === null) return null
+  if (c.type === 'dessin') return lo / ho
+  const cadre = positif(c.rapportCadre)
+  if (cadre !== null) return cadre
+  const r = (c.recadrage ?? {}) as { largeur?: unknown; hauteur?: unknown }
+  const p = (lo * (positif(r.largeur) ?? 1)) / (ho * (positif(r.hauteur) ?? 1))
+  return c.rotation === 90 || c.rotation === 270 ? 1 / p : p
+}
+
+/** La plus petite copie d'une photo, ou rien : la bibliothèque ne charge pas l'image entière quand elle peut l'éviter. */
+function petiteCopie(c: ContenuLu): string | undefined {
+  const tailles = (Array.isArray(c.tailles) ? (c.tailles as { largeur?: unknown; fichier?: unknown }[]) : []).filter(
+    (x) => typeof x?.largeur === 'number' && chaine(x.fichier),
+  ) as { largeur: number; fichier: string }[]
+  return tailles.sort((a, b) => a.largeur - b.largeur)[0]?.fichier
 }
 
 /** Les lignes de texte d'une note ou d'une liste, à la largeur de sa carte (environ 1,4 caractère par UG). */
@@ -313,10 +344,7 @@ const court = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…
 function resumePiece(e: ElementLu, cree: { cree?: number }): ResumeContenu | null {
   const c = e.contenu
   if (c.type === 'image' && chaine(c.fichier)) {
-    const tailles = (Array.isArray(c.tailles) ? (c.tailles as { largeur?: unknown; fichier?: unknown }[]) : []).filter(
-      (x) => typeof x?.largeur === 'number' && chaine(x.fichier),
-    ) as { largeur: number; fichier: string }[]
-    const petite = tailles.sort((a, b) => a.largeur - b.largeur)[0]?.fichier
+    const petite = petiteCopie(c)
     const [largeur, hauteur] = [c.largeurOrigine, c.hauteurOrigine].map((v) => (typeof v === 'number' && v > 0 ? v : 1)) as [number, number]
     return { genre: 'image', element: e.id, titre: court(chaine(c.legende).trim(), 200), fichier: chaine(c.fichier), ...(petite ? { petite } : {}), largeur, hauteur, ...cree }
   }
@@ -366,11 +394,15 @@ export function resumesDuTableau(t: TableauLu): ResumeContenu[] {
   const boites: BoitePlan[] = vivants
     .filter((e) => !e.parent && e.nonTrie === undefined && e.contenu.type !== 'ligne')
     .slice(0, BOITES_MAX)
-    .map((e) => {
+    .map((e): BoitePlan => {
       const c = e.contenu
       const lignes = c.type === 'note' || c.type === 'taches' ? lignesDeTexte(e) : c.type === 'colonne' ? (enfants.get(e.id) ?? 0) : 0
-      return [Math.round(e.x), Math.round(e.y), Math.max(1, Math.round(e.largeur)), Math.max(1, Math.round(hauteurProbable(e, lignes))), chaine(c.couleur), c.type, lignes]
+      const [x, y, l, h] = [Math.round(e.x), Math.round(e.y), Math.max(1, Math.round(e.largeur)), Math.max(1, Math.round(hauteurProbable(e, lignes)))]
+      // Une toile de photos se reconnaît à ses photos, pas à des cadres gris.
+      const fichier = c.type === 'image' ? (petiteCopie(c) ?? chaine(c.fichier)) : ''
+      return fichier ? [x, y, l, h, chaine(c.couleur), c.type, lignes, fichier] : [x, y, l, h, chaine(c.couleur), c.type, lignes]
     })
+  const nonTries = vivants.filter((e) => !e.parent && e.nonTrie !== undefined).length
   const cartesDe = (jetee: boolean) => [
     ...new Set(
       t.elements.flatMap((e) =>
@@ -387,6 +419,7 @@ export function resumesDuTableau(t: TableauLu): ResumeContenu[] {
       ...(t.couleur ? { couleur: t.couleur } : {}),
       ...(t.dossier ? { dossier: true as const } : {}),
       boites,
+      ...(nonTries ? { nonTries } : {}),
       ...(cartes.length ? { cartes } : {}),
       ...(jetees.length ? { jetees } : {}),
     },

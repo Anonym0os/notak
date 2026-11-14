@@ -1,6 +1,6 @@
 import { type BoitePlan, FOND_NOTE, ICONE_DU_GENRE, Icone, type ResumeContenu, extensionDe, genreDe } from '@notak/tableau'
-import { createContext, useContext, useEffect, useState } from 'react'
-import { t } from '../langue'
+import { createContext, useContext, useEffect, useId, useState } from 'react'
+import { t, tn } from '../langue'
 
 /**
  * Ce que les vignettes demandent à l'édition : l'adresse d'un fichier (une photo, l'image choisie d'un lien), et si
@@ -73,10 +73,14 @@ export function Vignette({ resume, tableau }: { resume: ResumeContenu; tableau?:
     )
   return (
     <span className="biblio-vignette" data-genre="toile" aria-hidden>
-      {resume.boites.length === 0 ? <span className="biblio-vignette-vide">{t('tableau.vide')}</span> : <PlanToile boites={resume.boites} />}
+      {resume.boites.length === 0 ? <span className="biblio-vignette-vide">{texteSansPlan(resume)}</span> : <PlanToile boites={resume.boites} />}
     </span>
   )
 }
+
+/** Une toile sans rien de posé : vide, ou ce qui attend dans ses non triés (rien ne s'en voit sur la toile non plus). */
+export const texteSansPlan = (resume: Extract<ResumeContenu, { genre: 'toile' }>) =>
+  resume.nonTries ? tn('biblio.vignette.nonTries', resume.nonTries) : t('tableau.vide')
 
 /** Le format des vignettes, celui des tuiles de Xmind. */
 const [VL, VH] = [206, 136]
@@ -103,12 +107,34 @@ export function PlanToile({ boites }: { boites: BoitePlan[] }) {
   const rogne = l > PLAN_LARGEUR_MAX
   if (rogne) [l, h] = [PLAN_LARGEUR_MAX, (PLAN_LARGEUR_MAX * VH) / VL]
   const [gauche, haut] = rogne ? [x0 - marge, y0 - marge] : [(x0 + x1) / 2 - l / 2, (y0 + y1) / 2 - h / 2]
+  // Les photos qu'on voit dans la vignette s'y montrent elles-mêmes ; au-delà de quelques-unes, ou hors du cadre, on ne
+  // les charge pas : la bibliothèque porte des dizaines de vignettes.
+  const vue = (b: BoitePlan) => b[0] < gauche + l && b[0] + b[2] > gauche && b[1] < haut + h && b[1] + b[3] > haut
+  let photos = 0
   return (
     <svg viewBox={`${gauche} ${haut} ${l} ${h}`} preserveAspectRatio="xMidYMid meet">
-      {boites.map((b, i) => (
-        <Boite key={i} boite={b} />
-      ))}
+      {boites.map((b, i) => (b[5] === 'image' && b[7] && vue(b) && photos++ < PHOTOS_PAR_PLAN ? <PhotoPlan key={i} boite={b} fichier={b[7]} /> : <Boite key={i} boite={b} />))}
     </svg>
+  )
+}
+
+/** Au plus tant de photos chargées dans le plan d'une toile ; les autres gardent leur dessin. */
+const PHOTOS_PAR_PLAN = 24
+
+/** Une photo du plan : elle-même, au format de sa boîte ; en attendant, le dessin d'une photo. */
+function PhotoPlan({ boite, fichier }: { boite: BoitePlan; fichier: string }) {
+  const adresse = useAdresse(fichier, largeurDesVignettes())
+  const coupe = `plan-photo-${useId().replace(/[^\w-]/g, '')}`
+  const [x, y, l, h] = boite
+  if (!adresse) return <Boite boite={boite} />
+  return (
+    <g>
+      <clipPath id={coupe}>
+        <rect x={x} y={y} width={l} height={h} rx={0.8} />
+      </clipPath>
+      <rect x={x} y={y} width={l} height={h} rx={0.8} fill="#cfd4da" />
+      <image href={adresse} x={x} y={y} width={l} height={h} preserveAspectRatio="xMidYMid slice" clipPath={`url(#${coupe})`} />
+    </g>
   )
 }
 
@@ -147,6 +173,17 @@ function Boite({ boite: [x, y, l, h, couleur, type = 'note', lignes = 1] }: { bo
           <path d={`M${x} ${y + h * 0.82} L${x + l * 0.32} ${y + h * 0.5} L${x + l * 0.52} ${y + h * 0.7} L${x + l * 0.7} ${y + h * 0.56} L${x + l} ${y + h * 0.84} V${y + h} H${x} Z`} fill="#b3bac3" />
           <circle cx={x + l * 0.72} cy={y + h * 0.28} r={Math.min(l, h) * 0.08} fill="#e6e9ec" />
         </g>
+      )
+    case 'dessin':
+      // Un dessin à main levée : un trait, sans carte autour (il n'en a pas sur la toile).
+      return (
+        <path
+          d={`M${x + l * 0.1} ${y + h * 0.62} C${x + l * 0.28} ${y + h * 0.08} ${x + l * 0.42} ${y + h * 0.95} ${x + l * 0.6} ${y + h * 0.45} S${x + l * 0.84} ${y + h * 0.22} ${x + l * 0.9} ${y + h * 0.55}`}
+          fill="none"
+          stroke="rgb(50 59 74 / 0.5)"
+          strokeWidth={Math.max(0.5, Math.min(l, h) * 0.07)}
+          strokeLinecap="round"
+        />
       )
     case 'tableau': {
       const c = Math.min(l, h - 3.5)
