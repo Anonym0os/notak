@@ -2,17 +2,31 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { Id, Image } from '../../coeur/tableau'
 import type { ContexteToile } from '../types'
 import { miseEnPage, proportionsAffichees } from './geometrie'
-import { CADRE_PLEIN, type Cadre, type Poignee, avecRecadrage, deplacerCadre, tirerCadre } from './recadrage'
+import { CADRE_PLEIN, type Cadre, type Poignee, avecRecadrage, cadreDe, deplacerCadre, recadrageChange, tirerCadre } from './recadrage'
+import { Traits } from './Annotateur'
+import { BarreOutil, useAmenerALaVue } from './barreOutil'
 import { t } from '../../langue'
 
-/** L'image dont on règle le recadrage, une seule à la fois. */
+/** L'image dont on règle le recadrage, une seule à la fois, et où revenir quand on le termine (la visionneuse). */
 let ouvert: Id | null = null
+let retour: (() => void) | undefined
 const ecouteurs = new Set<() => void>()
 
-export function recadrer(id: Id | null) {
+/**
+ * Ouvre le recadrage de cette image, ou le ferme (`null`). `depuis.retour` : ce qui l'a ouvert, à rouvrir quand on
+ * le termine soi-même (valider, annuler) ; pas quand il se ferme parce qu'on a choisi autre chose.
+ */
+export function recadrer(id: Id | null, depuis?: { retour?: () => void }) {
   if (ouvert === id) return
   ouvert = id
+  retour = id === null ? undefined : depuis?.retour
   for (const f of ecouteurs) f()
+}
+/** Valider ou annuler : le recadrage se ferme, et l'on revient d'où on l'a ouvert. */
+function terminer() {
+  const revenir = retour
+  recadrer(null)
+  revenir?.()
 }
 const ecouter = (f: () => void) => {
   ecouteurs.add(f)
@@ -22,22 +36,24 @@ export const useRecadrageOuvert = () => useSyncExternalStore(ecouter, () => ouve
 
 type Geste = { mode: 'deplacer' } | { mode: 'tirer'; poignee: Poignee }
 
-const POIGNEES: Poignee[] = ['nw', 'ne', 'sw', 'se']
+const POIGNEES: Poignee[] = ['n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se']
 
 /**
- * L'image montrée en entier, avec un cadre qu'on glisse et qu'on tire par ses coins. Entrée valide, Échap annule ;
- * « Tout l'image » rend le cadre à l'image entière.
+ * L'image montrée en entier, avec un cadre qu'on glisse et qu'on tire par ses coins et ses bords ; il s'ouvre sur ce
+ * qui est déjà gardé, traits dessinés compris. Entrée valide, Échap annule ; « Toute l'image » rend le cadre à l'image
+ * entière. Les boutons sont dans la barre du bas, hors du zoom ; les poignées gardent leur taille à l'écran.
  */
 export function Recadreur({ id, contenu, adresse, contexte }: { id: Id; contenu: Image; adresse: string; contexte: ContexteToile }) {
-  const [cadre, setCadre] = useState<Cadre>(CADRE_PLEIN)
+  const [cadre, setCadre] = useState<Cadre>(() => cadreDe(contenu))
+  const racine = useRef<HTMLDivElement>(null)
   const boite = useRef<HTMLDivElement>(null)
-  const geste = useRef<{ geste: Geste; x: number; y: number; depart: Cadre } | null>(null)
+  const geste = useRef<{ geste: Geste; pointeur: number; x: number; y: number; depart: Cadre } | null>(null)
   const page = miseEnPage(contenu, true)
+  useAmenerALaVue(racine, contexte, true)
 
   const valider = () => {
-    const apres = avecRecadrage(contenu, cadre)
-    if (JSON.stringify(apres) !== JSON.stringify(contenu)) contexte.magasin.faire([{ type: 'contenu', id, avant: contenu, apres }])
-    recadrer(null)
+    if (recadrageChange(contenu, cadre)) contexte.magasin.faire([{ type: 'contenu', id, avant: contenu, apres: avecRecadrage(contenu, cadre) }])
+    terminer()
   }
   const valide = useRef(valider)
   valide.current = valider
@@ -45,10 +61,12 @@ export function Recadreur({ id, contenu, adresse, contexte }: { id: Id; contenu:
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' && e.key !== 'Enter') return
+      // Entrée sur un bouton de la barre (Annuler, Toute l'image) le laisse faire ce qu'il dit.
+      if (e.key === 'Enter' && (e.target as HTMLElement | null)?.closest?.('button')) return
       e.preventDefault()
       e.stopPropagation()
       if (e.key === 'Enter') valide.current()
-      else recadrer(null)
+      else terminer()
     }
     document.addEventListener('keydown', touche, true)
     return () => document.removeEventListener('keydown', touche, true)
@@ -57,25 +75,28 @@ export function Recadreur({ id, contenu, adresse, contexte }: { id: Id; contenu:
   const commencer = (g: Geste) => (e: React.PointerEvent) => {
     e.stopPropagation()
     e.preventDefault()
+    // Un second doigt ne reprend pas le cadre que le premier tient.
+    if (e.button !== 0 || geste.current) return
     e.currentTarget.setPointerCapture(e.pointerId)
-    geste.current = { geste: g, x: e.clientX, y: e.clientY, depart: cadre }
+    geste.current = { geste: g, pointeur: e.pointerId, x: e.clientX, y: e.clientY, depart: cadre }
   }
   const bouger = (e: React.PointerEvent) => {
     const en = geste.current
     const r = boite.current?.getBoundingClientRect()
-    if (!en || !r || r.width === 0 || r.height === 0) return
+    if (!en || en.pointeur !== e.pointerId || !r || r.width === 0 || r.height === 0) return
     const [du, dv] = [(e.clientX - en.x) / r.width, (e.clientY - en.y) / r.height]
     setCadre(en.geste.mode === 'deplacer' ? deplacerCadre(en.depart, du, dv) : tirerCadre(en.depart, en.geste.poignee, du, dv))
   }
-  const finir = () => {
-    geste.current = null
+  const finir = (e: React.PointerEvent) => {
+    if (geste.current?.pointeur === e.pointerId) geste.current = null
   }
 
   return (
-    <div className="notak-recadreur" onPointerDown={(e) => e.stopPropagation()}>
+    <div ref={racine} className="notak-recadreur" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
       <div ref={boite} className="notak-image-cadre" style={{ aspectRatio: String(proportionsAffichees(contenu, true)) }}>
         <div className="notak-image-plan" style={page.plan}>
           <img className="notak-image" src={adresse} alt="" draggable={false} style={page.image} />
+          {contenu.traits && contenu.traits.length > 0 && <Traits contenu={contenu} traits={contenu.traits} style={page.image} />}
         </div>
         <div
           className="notak-recadre"
@@ -98,17 +119,18 @@ export function Recadreur({ id, contenu, adresse, contexte }: { id: Id; contenu:
           ))}
         </div>
       </div>
-      <div className="notak-recadreur-actions">
-        <button type="button" onClick={valider}>
-          {t('recadreur.valider')}
-        </button>
-        <button type="button" onClick={() => recadrer(null)}>
-          {t('commun.annuler')}
-        </button>
-        <button type="button" onClick={() => setCadre(CADRE_PLEIN)}>
+      <BarreOutil etiquette={t('image.recadrer')} className="notak-outil-image-barre">
+        <button type="button" className="notak-croquis-texte" onClick={() => setCadre(CADRE_PLEIN)}>
           {t('recadreur.toute')}
         </button>
-      </div>
+        <span className="notak-croquis-espace" />
+        <button type="button" className="notak-croquis-texte" title="Esc" onClick={terminer}>
+          {t('commun.annuler')}
+        </button>
+        <button type="button" className="notak-croquis-texte notak-croquis-enregistrer" title="↵" onClick={valider}>
+          {t('recadreur.valider')}
+        </button>
+      </BarreOutil>
     </div>
   )
 }
