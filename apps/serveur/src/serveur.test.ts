@@ -230,7 +230,9 @@ describe('serveur de bout en bout', () => {
     // Une seconde demande relit la copie gardée.
     expect((await largeurDe(`/api/fichiers/${idGrande}?l=800`)).octets.equals(reduite.octets)).toBe(true)
     expect((await largeurDe(`/api/fichiers/${idGrande}?l=300`)).largeur).toBe(400)
-    expect((await largeurDe(`/api/fichiers/${idGrande}?l=9999`)).largeur).toBe(1600)
+    // Plus large que l'image (2000 px), la copie n'y gagnerait rien : l'original.
+    expect((await largeurDe(`/api/fichiers/${idGrande}?l=2400`)).largeur).toBe(2000)
+    expect((await largeurDe(`/api/fichiers/${idGrande}?l=9999`)).largeur).toBe(2000)
     // Sans `l`, l'original.
     expect((await largeurDe(`/api/fichiers/${idGrande}`)).largeur).toBe(2000)
 

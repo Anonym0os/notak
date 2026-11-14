@@ -169,15 +169,22 @@ describe('ce que la visionneuse charge', () => {
     expect(onglet).toHaveBeenCalledWith('/api/fichiers/ab', '_blank', 'noopener,noreferrer')
   })
 
-  it('sur un écran Retina, la plus grande copie ; l’original seulement quand on zoome, et une fois prêt, sans revenir en arrière', async () => {
+  it('sur un écran Retina, la copie de 2400 px ; au zoom celle de 3200, puis l’original, chacun une fois prêt, sans revenir en arrière', async () => {
     const decodages = ecran(1200, 900, 2)
     await ouvrir(grande)
-    expect(peinte()).toBe('/api/fichiers/ab?l=1600')
+    // 1200 px de large, 2400 pixels de l'écran.
+    expect(peinte()).toBe('/api/fichiers/ab?l=2400')
     zoomer('=')
-    // L'original se charge à part ; la copie reste peinte jusqu'à ce qu'il soit décodé.
-    expect(decodages.map((d) => d.src)).toEqual([expect.stringMatching(/\/api\/fichiers\/ab$/)])
-    expect(peinte()).toBe('/api/fichiers/ab?l=1600')
+    // La suivante se charge à part ; celle qu'on voit reste peinte jusqu'à ce qu'elle soit décodée.
+    expect(decodages.map((d) => d.src)).toEqual([expect.stringMatching(/\/api\/fichiers\/ab\?l=3200$/)])
+    expect(peinte()).toBe('/api/fichiers/ab?l=2400')
     await act(async () => decodages[0]!.finir())
+    expect(peinte()).toBe('/api/fichiers/ab?l=3200')
+    // Au-delà de ce que couvre la plus grande copie, l'original.
+    zoomer('=')
+    expect(decodages.map((d) => d.src).at(-1)).toMatch(/\/api\/fichiers\/ab$/)
+    expect(peinte()).toBe('/api/fichiers/ab?l=3200')
+    await act(async () => decodages.at(-1)!.finir())
     expect(peinte()).toBe('/api/fichiers/ab')
     zoomer('0')
     expect(peinte()).toBe('/api/fichiers/ab')

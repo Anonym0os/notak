@@ -13,8 +13,14 @@ describe('largeurDemandee', () => {
     expect(largeurDemandee('800')).toBe(800)
     expect(largeurDemandee('1200')).toBe(1600)
   })
+  it('fabrique aussi les grandes copies d’un écran Retina', () => {
+    expect(largeurDemandee('1601')).toBe(2400)
+    expect(largeurDemandee('2400')).toBe(2400)
+    expect(largeurDemandee('3000')).toBe(3200)
+  })
   it('plafonne à la plus grande largeur', () => {
-    expect(largeurDemandee('5000')).toBe(LARGEURS[LARGEURS.length - 1])
+    expect(LARGEURS[LARGEURS.length - 1]).toBe(3200)
+    expect(largeurDemandee('5000')).toBe(3200)
   })
   it('refuse ce qui n’est pas un entier positif', () => {
     for (const v of [undefined, '', '0', '-5', '12.5', 'abc', '800px', '123456']) expect(largeurDemandee(v)).toBeNull()

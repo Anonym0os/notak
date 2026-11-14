@@ -2085,7 +2085,7 @@ export function creerApp(ctx: Contexte): Hono {
     return fabrication
   }
 
-  /** Le fichier, ou avec `?l=800` l'image réduite à cette largeur (400, 800 ou 1600), quand elle y gagne. */
+  /** Le fichier, ou avec `?l=800` l'image réduite à cette largeur (une des `LARGEURS`, de 400 à 3200), quand elle y gagne. */
   const servirALargeur = async (c: Context, f: Fichier, cache: string): Promise<Response> => {
     const demande = c.req.query('l')
     if (demande !== undefined) {

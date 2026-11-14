@@ -15,11 +15,15 @@ describe('palierPour', () => {
     expect(palierPour(image(), 300, 2)).toBe(800)
     expect(palierPour(image(), 300, 3)).toBe(1600)
   })
+  it('sur un écran Retina, une grande image prend la copie de 2400 ou de 3200 px', () => {
+    expect(palierPour(image(), 1200, 2)).toBe(2400)
+    expect(palierPour(image(), 1500, 2)).toBe(3200)
+  })
   it('une densité sous 1 ne réduit pas la demande', () => {
     expect(palierPour(image(), 300, 0.5)).toBe(400)
   })
   it('sert l’original quand aucun palier ne suffit', () => {
-    expect(palierPour(image(), 1700, 1)).toBeNull()
+    expect(palierPour(image(), 3300, 1)).toBeNull()
   })
   it('sert l’original quand le palier ne gagnerait rien', () => {
     expect(palierPour(image({ largeurOrigine: 800 }), 700, 1)).toBeNull()
@@ -39,13 +43,18 @@ describe('palierVisionneuse', () => {
     expect(palierVisionneuse(photo, 390, 1, 3)).toBe(1600)
     expect(palierVisionneuse(photo, 700, 1, 1)).toBe(800)
   })
+  it('sur un écran Retina, la copie de 2400 ou de 3200 px : nette sans l’original', () => {
+    expect(palierVisionneuse(photo, 1200, 1, 2)).toBe(2400)
+    expect(palierVisionneuse(photo, 1500, 1, 2)).toBe(3200)
+  })
   it('sans zoom, la plus grande copie suffit même quand l’écran en voudrait plus : l’original attend qu’on zoome', () => {
-    expect(palierVisionneuse(photo, 1200, 1, 2)).toBe(1600)
-    expect(palierVisionneuse(photo, 1200, 1.25, 2)).toBeNull()
+    expect(palierVisionneuse(photo, 1800, 1, 2)).toBe(3200)
+    expect(palierVisionneuse(photo, 1800, 1.25, 2)).toBeNull()
   })
   it('un zoom que la copie couvre encore ne charge pas l’original', () => {
     expect(palierVisionneuse(photo, 390, 1.25, 3)).toBe(1600)
-    expect(palierVisionneuse(photo, 390, 1.5, 3)).toBeNull()
+    expect(palierVisionneuse(photo, 390, 2.5, 3)).toBe(3200)
+    expect(palierVisionneuse(photo, 390, 3, 3)).toBeNull()
   })
   it('une petite image, un GIF ou un SVG s’ouvrent tels quels', () => {
     expect(palierVisionneuse(image({ largeurOrigine: 1200, typeMime: 'image/png' }), 1200, 1, 2)).toBeNull()

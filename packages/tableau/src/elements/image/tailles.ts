@@ -1,8 +1,11 @@
 import type { Image } from '../../coeur/tableau'
 import { LARGEUR_COLONNE, proportionsAffichees, rotationDe } from './geometrie'
 
-/** Les largeurs, en pixels, que le serveur fabrique (`/api/fichiers/:id?l=800`). */
-export const PALIERS = [400, 800, 1600] as const
+/**
+ * Les largeurs, en pixels, que le serveur fabrique (`/api/fichiers/:id?l=800`, ses `LARGEURS`). 2400 et 3200 sont pour
+ * les écrans Retina, où une carte large de 1200 px couvre 2400 pixels de l'écran, et la visionneuse d'un Mac davantage.
+ */
+export const PALIERS = [400, 800, 1600, 2400, 3200] as const
 
 /** Les formats que le serveur réduit ; un SVG n'a pas de pixels, un GIF perdrait son animation. */
 export const REDUCTIBLES: ReadonlySet<string> = new Set(['image/png', 'image/jpeg', 'image/webp'])
@@ -35,7 +38,7 @@ export function palierPour(c: Image, largeurEntierePx: number, densite: number):
  * La copie que charge la visionneuse : celle qui couvre l'écran (la place de l'image entière, son zoom, la densité),
  * ou la plus grande que le serveur fabrique quand l'écran en voudrait plus, tant qu'on ne zoome pas ; l'original
  * (`null`) quand on zoome au-delà de ce qu'elle couvre, ou qu'aucune copie n'y gagnerait (petite image, GIF, SVG).
- * Une photo de 48 Mpx s'ouvre ainsi sur 300 Ko au lieu de 20 Mo.
+ * Une photo de 48 Mpx s'ouvre ainsi sur 1 à 2 Mo, la copie de 3200 px d'un écran Retina, au lieu de 20 Mo.
  */
 export function palierVisionneuse(c: Image, largeurEntierePx: number, zoom: number, densite: number): number | null {
   const palier = palierPour(c, largeurEntierePx * zoom, densite)

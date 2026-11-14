@@ -1,13 +1,17 @@
 import sharp from 'sharp'
 
-/** Les largeurs en pixels que le serveur sait fabriquer, de la plus petite à la plus grande. */
-export const LARGEURS = [400, 800, 1600] as const
+/**
+ * Les largeurs en pixels que le serveur sait fabriquer, de la plus petite à la plus grande : celles que la toile demande
+ * (`PALIERS`, dans `elements/image/tailles.ts` du paquet de la toile). 2400 et 3200 servent les écrans Retina, où une
+ * grande image sur la toile, ou la visionneuse d'un Mac ou d'un iPad, couvre plus de 1600 pixels ; au-delà, l'original.
+ */
+export const LARGEURS = [400, 800, 1600, 2400, 3200] as const
 
 /** Les formats qu'on réduit : un SVG se redimensionne seul, un GIF perdrait son animation. */
 const REDUCTIBLES = new Set(['image/png', 'image/jpeg', 'image/webp'])
 
 /**
- * La largeur à fabriquer pour une demande `?l=…` : le plus petit palier qui couvre la valeur, 1600 au plus.
+ * La largeur à fabriquer pour une demande `?l=…` : le plus petit palier qui couvre la valeur, le plus grand au plus.
  * `null` si la valeur n'est pas un nombre entier positif.
  */
 export function largeurDemandee(valeur: string | undefined): number | null {

@@ -54,6 +54,22 @@ describe('les copies réduites d’une photo', () => {
     }
   })
 
+  it('une photo de 48 Mpx a ses copies de 2400 et 3200 px, gardées comme les autres ; au-delà, la plus grande', async () => {
+    const grande = await sharp({ create: { width: 8064, height: 6048, channels: 3, background: '#2255aa' } }).jpeg().toBuffer()
+    const depot = await m.appeler('/api/fichiers', { compte: ana, corps: new Uint8Array(grande), type: 'image/jpeg' })
+    const id = ((await depot.json()) as { id: string }).id
+    for (const [demande, l, h] of [
+      [2400, 2400, 1800],
+      [3200, 3200, 2400],
+      [9999, 3200, 2400],
+    ] as const) {
+      const copie = await lireImage(await m.appeler(`/api/fichiers/${id}?l=${demande}`, { compte: ana }))
+      expect([copie.largeur, copie.hauteur]).toEqual([l, h])
+    }
+    const rangees = readdirSync(join(m.dossier, 'fichiers')).filter((n) => n.startsWith(id))
+    expect(rangees.sort()).toEqual([id, `${id}.2400`, `${id}.3200`])
+  })
+
   it('des demandes simultanées de la même copie n’en fabriquent qu’une, et toutes la reçoivent', async () => {
     const depot = await m.appeler('/api/fichiers', { compte: ana, corps: new Uint8Array(await photoPortrait()), type: 'image/jpeg' })
     const id = ((await depot.json()) as { id: string }).id
