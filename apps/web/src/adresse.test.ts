@@ -24,6 +24,22 @@ describe('adressePour', () => {
     expect(a.lireElement!()).toBe('carte')
   })
 
+  it('dans les deux éditions de l’app, toute toile et tout élément en grand sont sous `/t/<toile>` : la coque d’iOS y reconnaît une toile', () => {
+    // `GardeDuBord.swift` : sur une toile, le geste du bord ne ramène en arrière que juste après l’arrivée ; ensuite,
+    // le doigt qui part du bord tire la toile. Une toile ailleurs que sous `/t/` garderait le geste, et le pouce qui la
+    // tire depuis le bord ramènerait à la bibliothèque.
+    const toile = /^\/t\/[^/]+(?:\/e\/[^/]+)?$/
+    const a = adressePour('racine', { accueilAPart: true })
+    const vus: string[] = []
+    for (const id of ['racine', 'voyage', 'é t é']) {
+      a.ecrire(id)
+      vus.push(location.pathname)
+      a.ecrireElement!(id, 'carte')
+      vus.push(location.pathname)
+    }
+    expect(vus.filter((c) => !toile.test(c))).toEqual([])
+  })
+
   it('fermer un élément ouvert par son adresse ramène à sa toile, jamais à la bibliothèque', () => {
     history.replaceState(null, '', '/t/racine/e/carte')
     adressePour('racine', { accueilAPart: true }).ecrireElement!('racine', null)

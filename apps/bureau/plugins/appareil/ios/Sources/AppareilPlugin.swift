@@ -91,7 +91,8 @@ class AppareilPlugin: Plugin {
     }
     // Le geste du bord gauche fait le retour de l'historique : chaque toile, la bibliothèque et l'élément ouvert en
     // grand ont leur adresse (`adresse.ts`), et le retour y ramène comme le bouton ‹. Jamais vers une page d'un autre
-    // site que celle où l'on est (`GardeDuBord`).
+    // site que celle où l'on est, et, sur une toile, seulement juste après y être arrivé : ensuite, le doigt qui part
+    // du bord déplace la toile (`GardeDuBord`).
     webview.allowsBackForwardNavigationGestures = true
     gardeDuBord = GardeDuBord(webview)
     masquerBarreDuClavier(webview)
