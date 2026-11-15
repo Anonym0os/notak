@@ -7,8 +7,9 @@ import { texteOuvrirAilleurs } from '../bureau/ailleurs'
 import { AnnoncesServeur, annoncerBureau } from './annonces'
 import { servicesDeLaFenetre } from './ouvrirAilleurs'
 
-const m = vi.hoisted(() => ({ ouvrirAilleurs: vi.fn() }))
-vi.mock('../bureau', async (origine) => ({ ...(await origine<typeof import('../bureau')>()), ouvrirAilleurs: m.ouvrirAilleurs }))
+const m = vi.hoisted(() => ({ ouvrirAilleurs: vi.fn(), applicationParDefaut: vi.fn(), telechargerFichier: vi.fn() }))
+vi.mock('../bureau', async (origine) => ({ ...(await origine<typeof import('../bureau')>()), ouvrirAilleurs: m.ouvrirAilleurs, applicationParDefaut: m.applicationParDefaut }))
+vi.mock('@notak/tableau', async (origine) => ({ ...(await origine<typeof import('@notak/tableau')>()), telechargerFichier: m.telechargerFichier }))
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 let racine: Root
@@ -121,5 +122,32 @@ describe('ce que la fenêtre donne à la toile', () => {
     services.ouvrirAilleurs!('blob:x', 'Plan.pdf')
     await regler()
     expect(m.ouvrirAilleurs).toHaveBeenCalledExactlyOnceWith('blob:x', 'Plan.pdf')
+  })
+
+  it('dans l’app de bureau, le bouton demande à la coque quelle application ouvrira le fichier', async () => {
+    m.applicationParDefaut.mockReset().mockResolvedValue({ sorte: 'application', nom: 'Aperçu' })
+    const services = servicesDeLaFenetre(true, vi.fn())
+    expect(await services.applicationPour!('Plan.pdf')).toEqual({ sorte: 'application', nom: 'Aperçu' })
+    expect(m.applicationParDefaut).toHaveBeenCalledExactlyOnceWith('Plan.pdf')
+    // La même fonction d'une fois sur l'autre : la toile garde ses réponses par fonction.
+    expect(servicesDeLaFenetre(true, vi.fn()).applicationPour).toBe(services.applicationPour)
+  })
+
+  it('dans un navigateur, rien à demander : le bouton dit « nouvel onglet »', () => {
+    expect(servicesDeLaFenetre(false, vi.fn(), false).applicationPour).toBeUndefined()
+  })
+
+  it('dans l’app d’un iPhone ou d’un iPad : « Ouvrir dans… », la feuille de partage, et toujours l’onglet d’une toile', async () => {
+    m.telechargerFichier.mockReset().mockResolvedValue(undefined)
+    const services = servicesDeLaFenetre(false, vi.fn(), true)
+    expect(services.ouvrirDansOnglet).toBeTypeOf('function')
+    expect(await services.applicationPour!('Plan.pdf')).toEqual({ sorte: 'partage' })
+    services.ouvrirAilleurs!('/api/fichiers/ab', 'Plan.pdf')
+    services.ouvrirAilleurs!('/api/fichiers/cd')
+    expect(m.telechargerFichier.mock.calls).toEqual([
+      ['/api/fichiers/ab', 'Plan.pdf'],
+      ['/api/fichiers/cd', ''],
+    ])
+    expect(m.ouvrirAilleurs).not.toHaveBeenCalled()
   })
 })

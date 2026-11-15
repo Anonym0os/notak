@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import {
   FICHIER_OUVERT,
   acces,
+  applicationParDefaut,
   annulerJonction,
   confierCopie,
   ecouter,
@@ -314,6 +315,33 @@ describe('les commandes de la coque', () => {
     })
     await expect(ecouter(FICHIER_OUVERT, () => {})).rejects.toBe('event.listen not allowed')
     expect(rappels.size).toBe(0)
+  })
+})
+
+describe('l’application qui ouvrira un fichier', () => {
+  it('la coque la nomme, dans la langue de la page', async () => {
+    document.documentElement.lang = 'fr'
+    onTestFinished(() => void (document.documentElement.lang = ''))
+    const { appels } = poserCoque(() => ({ sorte: 'application', nom: ' Aperçu ' }))
+    expect(await applicationParDefaut('devis.pdf')).toEqual({ sorte: 'application', nom: 'Aperçu' })
+    expect(appels.map((a) => [a.commande, a.arguments_])).toEqual([['application_par_defaut', { nom: 'devis.pdf', langue: 'fr' }]])
+  })
+
+  it('aucune : la coque le dit tel quel', async () => {
+    poserCoque(() => ({ sorte: 'aucune' }))
+    expect(await applicationParDefaut('plan.key')).toEqual({ sorte: 'aucune' })
+  })
+
+  it('une app de Mac d’avant la commande, hors de la coque, ou une réponse qu’on ne lit pas : on ne sait pas', async () => {
+    expect(await applicationParDefaut('devis.pdf')).toEqual({ sorte: 'inconnue' })
+    poserCoque(() => {
+      throw 'Command application_par_defaut not found'
+    })
+    expect(await applicationParDefaut('devis.pdf')).toEqual({ sorte: 'inconnue' })
+    for (const r of [null, { sorte: 'application' }, { sorte: 'application', nom: '  ' }, { sorte: 'inconnue' }, 'Aperçu']) {
+      poserCoque(() => r)
+      expect(await applicationParDefaut('devis.pdf'), JSON.stringify(r)).toEqual({ sorte: 'inconnue' })
+    }
   })
 })
 

@@ -42,10 +42,10 @@ afterEach(() => {
 
 const element: Element<Image> = { id: 'i1', x: 0, y: 0, largeur: 20, contenu: { type: 'image', fichier: 'f1', largeurOrigine: 300, hauteurOrigine: 200, typeMime: 'image/png' } }
 
-async function rendre(ouvrirAilleurs?: (adresse: string, nom?: string) => void) {
+async function rendre(ouvrirAilleurs?: (adresse: string, nom?: string) => void, applicationPour?: ContexteToile['services']['applicationPour']) {
   const contexte = {
     magasin: creerMagasin({ titre: '', etiquettes: [], elements: [element] }),
-    services: { lectureSeule: true, ouvrirAilleurs },
+    services: { lectureSeule: true, ouvrirAilleurs, applicationPour },
     choisir: () => {},
   } as unknown as ContexteToile
   await act(async () => {
@@ -211,15 +211,25 @@ describe('« Ouvrir » de la visionneuse', () => {
   it('l’hôte, s’il sait ouvrir ailleurs, reçoit l’adresse et le nom de l’image ; aucun onglet', async () => {
     const ailleurs = vi.fn()
     await rendre(ailleurs)
-    expect(boutonOuvrir()!.getAttribute('aria-label')).toBe('Ouvrir avec une autre application')
+    expect(boutonOuvrir()!.getAttribute('aria-label')).toBe('Ouvrir sur l’ordinateur')
     act(() => boutonOuvrir()!.click())
     expect(ailleurs).toHaveBeenCalledExactlyOnceWith('/api/fichiers/ab', 'image.png')
     expect(onglet).not.toHaveBeenCalled()
   })
 
+  it('le bouton nomme l’application que l’hôte dit pour cette sorte d’image, et s’efface s’il n’y en a aucune', async () => {
+    const demander = vi.fn(async (nom: string) => (nom.endsWith('.png') ? { sorte: 'application' as const, nom: 'Aperçu' } : { sorte: 'aucune' as const }))
+    await rendre(vi.fn(), demander)
+    expect(boutonOuvrir()!.getAttribute('aria-label')).toBe('Ouvrir dans Aperçu')
+    expect(demander).toHaveBeenCalledExactlyOnceWith('image.png')
+    act(() => racine.render(<></>))
+    await rendre(vi.fn(), async () => ({ sorte: 'aucune' }))
+    expect(boutonOuvrir()).toBeNull()
+  })
+
   it('sans hôte pour cela, un nouvel onglet, détaché de la page', async () => {
     await rendre()
-    expect(boutonOuvrir()!.getAttribute('aria-label')).toBe('Ouvrir dans un nouvel onglet')
+    expect(boutonOuvrir()!.getAttribute('aria-label')).toBe('Ouvrir dans un nouvel onglet du navigateur')
     act(() => boutonOuvrir()!.click())
     expect(onglet).toHaveBeenCalledExactlyOnceWith('/api/fichiers/ab', '_blank', 'noopener,noreferrer')
   })

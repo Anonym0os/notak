@@ -214,6 +214,27 @@ export const reglerMajAuto = (actif: boolean) => invoquer<void>('regler_maj_auto
 export const ouvrirFichier = (octets: Uint8Array, nom: string) =>
   invoquer<void>('ouvrir_fichier', octets, { headers: { ...avecNom(nom).headers, 'x-notak-langue': document.documentElement.lang || '' } })
 
+/** Ce que la coque dit de l'application qui ouvrira un fichier (`fichiers::ApplicationParDefaut`). */
+export type ApplicationParDefaut = { sorte: 'application'; nom: string } | { sorte: 'aucune' } | { sorte: 'inconnue' }
+
+/**
+ * L'application que le système associe à la sorte de `nom` (« Aperçu » pour un PDF), dans la langue de la page quand
+ * elle la parle, pour que le bouton la nomme. Aucune : le bouton s'efface. Une coque qui ne le sait pas (Windows,
+ * Linux), une app de Mac d'avant la commande, une réponse qu'on ne lit pas : `inconnue`.
+ */
+export async function applicationParDefaut(nom: string, fenetre: Window = window): Promise<ApplicationParDefaut> {
+  let r: unknown
+  try {
+    r = await invoquer<unknown>('application_par_defaut', { nom, langue: fenetre.document.documentElement.lang || null })
+  } catch {
+    return { sorte: 'inconnue' }
+  }
+  const c = r as Partial<{ sorte: string; nom: unknown }> | null
+  if (c?.sorte === 'application' && typeof c.nom === 'string' && c.nom.trim()) return { sorte: 'application', nom: c.nom.trim() }
+  if (c?.sorte === 'aucune') return { sorte: 'aucune' }
+  return { sorte: 'inconnue' }
+}
+
 /**
  * Les copies `.notak` ouvertes depuis le système (un double clic, « Ouvrir avec »…), qui attendent la page ; à lire au
  * chargement, puis à chaque `FICHIER_OUVERT`. La page d'un serveur y trouve aussi la copie que la page embarquée lui a

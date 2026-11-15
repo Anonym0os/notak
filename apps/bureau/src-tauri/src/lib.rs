@@ -369,6 +369,8 @@ pub fn run() {
             #[cfg(desktop)]
             fichiers::ouvrir_fichier,
             #[cfg(desktop)]
+            fichiers::application_par_defaut,
+            #[cfg(desktop)]
             fichiers::fichiers_ouverts,
             #[cfg(desktop)]
             fichiers::lire_fichier_ouvert,

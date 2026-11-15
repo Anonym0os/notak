@@ -100,6 +100,12 @@ export interface ResultatRecherche {
 }
 
 /** Ce que l'application hôte prête à la toile. Tout est facultatif : un type sans son service se dégrade. */
+/**
+ * Ce qui recevra un fichier ouvert hors de Notak (`Services.applicationPour`) : une application du système, nommée ;
+ * aucune ; on ne sait pas laquelle ; ou la feuille de partage, où la personne choisit.
+ */
+export type ApplicationOuverture = { sorte: 'application'; nom: string } | { sorte: 'aucune' } | { sorte: 'inconnue' } | { sorte: 'partage' }
+
 export interface Services {
   fichiers?: DepotFichiers
   apercu?: ChercheurApercu
@@ -137,6 +143,13 @@ export interface Services {
    * « Enregistrer sous ». `nom` : le nom que le fichier porte. Absent, les éléments gardent leur façon d'ouvrir (un onglet).
    */
   ouvrirAilleurs?: (adresse: string, nom?: string) => void
+  /**
+   * Avec quoi `ouvrirAilleurs` ouvrira un fichier de ce nom, pour que son bouton le dise : l'application du système
+   * (« Ouvrir dans Aperçu »), aucune (le bouton s'efface), on ne sait pas (« Ouvrir sur l'ordinateur »), ou la feuille
+   * de partage d'un iPhone ou d'un iPad (« Ouvrir dans… »). Demandé une fois par extension. Absent, ou en échec (une
+   * app de bureau d'avant la question) : « Ouvrir sur l'ordinateur ».
+   */
+  applicationPour?: (nom: string) => Promise<ApplicationOuverture>
   /**
    * Où enregistrer un fichier que la toile fabrique (le PDF annoté) : « Enregistrer sous » de l'app de bureau ou du
    * navigateur, la feuille de partage d'un iPhone, sinon un téléchargement. À demander au clic, avant de fabriquer le

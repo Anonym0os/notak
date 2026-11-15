@@ -120,10 +120,10 @@ describe('la visionneuse PDF', () => {
     expect(onglet).toHaveBeenCalledWith('/api/fichiers/f1', '_blank', 'noopener,noreferrer')
   })
 
-  it('dans Notak de bureau, il s’ouvre avec l’app par défaut', async () => {
+  it('dans Notak de bureau, le bouton nomme l’application qui l’ouvrira', async () => {
     const ailleurs = vi.fn()
-    await ouvrir({ ouvrirAilleurs: ailleurs })
-    act(() => bouton('Ouvrir avec l’app par défaut').click())
+    await ouvrir({ ouvrirAilleurs: ailleurs, applicationPour: async () => ({ sorte: 'application', nom: 'Aperçu' }) })
+    act(() => bouton('Ouvrir dans Aperçu').click())
     expect(ailleurs).toHaveBeenCalledExactlyOnceWith('/api/fichiers/f1', 'devis.pdf')
   })
 

@@ -10,6 +10,7 @@ import { refuserLeDepot, useCouvrirLaToile, useTenirLaPlaceEnPartant } from '../
 import { moteurPdf } from '../apercuPdf'
 import { optionsDocument } from './ressources'
 import { ouvrirDehors } from '../ouverture'
+import { useOuvrirAvec } from '../ouvrirAvec'
 import { type MoteurPdf, PagePdf } from './PagePdf'
 import { CalqueTraits, useDessinPdf } from './DessinPdf'
 import { useCommentairesPdf } from './CommentairesPdf'
@@ -105,8 +106,8 @@ const RECHERCHE_VIDE: Recherche = { texte: '', enCours: false, resultats: [], co
  * La visionneuse PDF de Notak, à la place de celle du navigateur : les pages en colonne qu'on fait défiler, dessinées
  * nettes par pdf.js à la densité de l'écran, et seulement celles qui sont près de la vue (un PDF de 200 pages reste
  * fluide). En haut, une barre à nous, dont chaque bouton dit ce qu'il fait : fermer, le zoom (−, +, la valeur, ajuster à
- * la largeur), la page (n sur N, qu'on tape pour y sauter), rechercher, télécharger, et ouvrir ailleurs (l'app par défaut
- * dans Notak de bureau, un nouvel onglet dans un navigateur). ⌘+ ⌘− ⌘0 zooment, ⌘F cherche, les flèches et ⇞ ⇟ tournent
+ * la largeur), la page (n sur N, qu'on tape pour y sauter), rechercher, télécharger, et ouvrir ailleurs (là où le bouton
+ * le dit : « Ouvrir dans Aperçu », un nouvel onglet…, `ouvrirAvec.ts`). ⌘+ ⌘− ⌘0 zooment, ⌘F cherche, les flèches et ⇞ ⇟ tournent
  * les pages, Échap ferme ; au doigt, on pince pour zoomer. Le texte reste sélectionnable et copiable.
  *
  * « Dessiner » (⇧D) trace sur les pages au crayon, au surligneur, et gomme (`DessinPdf`) ; les traits se rangent dans
@@ -114,7 +115,7 @@ const RECHERCHE_VIDE: Recherche = { texte: '', enCours: false, resultats: [], co
  * endroit d'une page (`CommentairesPdf`), le même fil que sur la toile.
  *
  * `element` et `contexte` (absents dans la bibliothèque, hors de toute toile) servent à ce que la toile prête : ouvrir
- * avec l'app de bureau, dessiner, commenter, l'historique.
+ * dans une autre application, dessiner, commenter, l'historique.
  */
 export function VisionneusePdf({
   contenu,
@@ -496,7 +497,7 @@ export function VisionneusePdf({
       {plus.court && <span className="notak-pdf-libelle">{plus.court}</span>}
     </button>
   )
-  const ailleurs = !!services?.ouvrirAilleurs
+  const ouvrirAvec = useOuvrirAvec(services, contenu.nom)
 
   // « Télécharger avec les annotations » : le PDF d'origine et, sur ses pages, les traits enregistrés (`exportPdf.ts`).
   const aDesTraits = nombreDeTraits(contenu.annotations) > 0
@@ -627,9 +628,7 @@ export function VisionneusePdf({
               court: t('pdf.telechargerAnnote.court'),
               actif: !!pret && !preparation && !dessin.actif,
             })}
-          {bouton('ouvrir', t(ailleurs ? 'pdf.ouvrirAilleurs' : 'pdf.ouvrirOnglet'), () => ouvrirDehors(services ?? {}, adresse, contenu.nom), {
-            court: t(ailleurs ? 'pdf.ouvrirAilleurs.court' : 'pdf.ouvrirOnglet.court'),
-          })}
+          {ouvrirAvec && bouton('ouvrir', ouvrirAvec.libelle, () => ouvrirDehors(services ?? {}, adresse, contenu.nom), { court: ouvrirAvec.court })}
           <span className="notak-pdf-sep" role="separator" />
           {bouton('fermer', t('pdf.fermer'), fermer)}
         </div>

@@ -8,6 +8,7 @@ import type { ContexteToile } from '../types'
 import { variablesDe } from '../surcouche'
 import { refuserLeDepot, useCouvrirLaToile, useTenirLaPlaceEnPartant } from '../enGrand'
 import { ouvrirDehors } from '../fichier/ouverture'
+import { useOuvrirAvec } from '../fichier/ouvrirAvec'
 import { nomTelecharge } from '../fichier/telechargement'
 import { telechargerFichier } from '../../telecharger'
 import { BandeauAvis } from '../../avis'
@@ -200,6 +201,8 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
   useCouvrirLaToile()
   // Fermée sous le pointeur (le fond, « Dessiner », « Modifier », « Fond »), elle laisse sa place tenue le temps du geste.
   const enPartant = useTenirLaPlaceEnPartant()
+  // « Ouvrir dans Aperçu », « Nouvel onglet »… : le bouton dit avec quoi l'image s'ouvre hors de Notak (`ouvrirAvec.ts`).
+  const ouvrirAvec = useOuvrirAvec(contexte.services, nomTelecharge(c))
 
   const reglerZoom = (vers: number) => {
     const z = borneZoom(vers)
@@ -387,7 +390,7 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
         {envoi === null && plusieurs && outil('precedent', t('visionneuse.precedent'), () => aller(-1))}
         {envoi === null && plusieurs && outil('suivant', t('visionneuse.suivant'), () => aller(1))}
         {envoi === null && plusieurs && <span className="notak-visionneuse-sep" role="separator" />}
-        {envoi === null && outil('ouvrir', t(contexte.services.ouvrirAilleurs ? 'visionneuse.ouvrirAilleurs' : 'visionneuse.ouvrir'), () => adresse && ouvrirDehors(contexte.services, adresse, nomTelecharge(c)), !!adresse)}
+        {envoi === null && ouvrirAvec && outil('ouvrir', ouvrirAvec.libelle, () => adresse && ouvrirDehors(contexte.services, adresse, nomTelecharge(c)), !!adresse)}
         {envoi === null && outil('exporter', t('visionneuse.telecharger'), () => adresse && void telechargerFichier(adresse, nomTelecharge(c), c.typeMime), !!adresse)}
       </div>
       <BandeauAvis enGrand />

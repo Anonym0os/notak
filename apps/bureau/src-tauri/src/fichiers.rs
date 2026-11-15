@@ -7,7 +7,8 @@
 ///   propose de l'enregistrer (`apps/web/src/bureau.ts`). Cinq au plus en dix secondes, 64 Mio chacune, et marquées
 ///   comme venues d'Internet (sous Windows et macOS) : la page d'un serveur ne lance pas d'applications en rafale, ni un
 ///   document hors mode protégé. Pour elle, la personne dit d'abord oui, dans une boîte de la coque qui nomme le
-///   fichier et le serveur.
+///   fichier, le serveur et l'application. La page nomme celle-ci dans son bouton (« Ouvrir dans Aperçu ») : sur un
+///   Mac, la coque la lui dit (`application_par_defaut`).
 /// - **Une copie `.notak` ouverte depuis le système** (un double clic, « Ouvrir avec », une seconde Notak lancée) : la
 ///   coque la met en file, prévient la page (`notak://fichier-ouvert`) et lui en donne les octets par morceaux
 ///   (`fichiers_ouverts`, `lire_fichier_ouvert`). Le fichier est ouvert dès son arrivée : c'est lui qu'on lit, même si
@@ -222,13 +223,98 @@ fn en_francais(entetes: &HeaderMap) -> bool {
     }
 }
 
-/// La question avant d'ouvrir un fichier venu d'un serveur, et ses deux boutons.
-fn question_d_ouverture(nom: &str, hote: &str, francais: bool) -> (String, String, String) {
-    if francais {
-        (format!("« {nom} » vient de {hote}. L’ouvrir avec l’application de votre ordinateur ?"), "Ouvrir".into(), "Annuler".into())
-    } else {
-        (format!("“{nom}” comes from {hote}. Open it with the app on your computer?"), "Open".into(), "Cancel".into())
+/// La question avant d'ouvrir un fichier venu d'un serveur (en titre de la boîte), d'où il vient, et ses deux boutons.
+/// Elle nomme l'application qui l'ouvrira quand le système la dit : « Ouvrir dans Aperçu », pas « l'application de
+/// votre ordinateur », qu'on ne sait pas laquelle.
+fn question_d_ouverture(nom: &str, hote: &str, francais: bool, application: Option<&str>) -> (String, String, String, String) {
+    match (francais, application) {
+        (true, Some(a)) => (format!("Ouvrir « {nom} » dans {a} ?"), format!("Ce fichier vient de {hote}."), format!("Ouvrir dans {a}"), "Annuler".into()),
+        (true, None) => (format!("Ouvrir « {nom} » sur cet ordinateur ?"), format!("Ce fichier vient de {hote}."), "Ouvrir".into(), "Annuler".into()),
+        (false, Some(a)) => (format!("Open “{nom}” in {a}?"), format!("This file comes from {hote}."), format!("Open in {a}"), "Cancel".into()),
+        (false, None) => (format!("Open “{nom}” on this computer?"), format!("This file comes from {hote}."), "Open".into(), "Cancel".into()),
     }
+}
+
+/// L'application qui ouvrira un fichier, pour que la page la nomme (« Ouvrir dans Aperçu ») et que la question la dise.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "sorte", rename_all = "snake_case")]
+pub enum ApplicationParDefaut {
+    /// Son nom, tel que le Finder le montre, dans la langue de la page quand l'application la parle (« Aperçu »,
+    /// « Preview »).
+    Application { nom: String },
+    /// Rien sur cet ordinateur n'ouvre cette sorte de fichier, ou la coque ne l'ouvre pas ainsi (`ouvrable`).
+    Aucune,
+    /// Le système ne le dit pas à la coque (Windows, Linux).
+    Inconnue,
+}
+
+/// Le nom d'une application, tel qu'on peut l'écrire dans un bouton : sans caractères invisibles ni `.app`, 60
+/// caractères au plus.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn nom_d_application(brut: &str) -> Option<String> {
+    let net: String = brut.chars().filter(|&c| !invisible(c)).collect();
+    let net = net.trim();
+    let net = net.strip_suffix(".app").unwrap_or(net).trim();
+    (!net.is_empty()).then(|| net.chars().take(60).collect())
+}
+
+/// L'application que macOS associe à la sorte de `nom` (son extension), et son nom dans `langue` (`fr`, `en-US`…) si
+/// elle la parle, sinon tel que le Finder le montre. Le système ne répond que d'après un fichier qui existe (pour une
+/// adresse sans fichier, il ne dit rien) : on lui en montre un, vide, de cette extension, dans `dossier`.
+#[cfg(target_os = "macos")]
+fn application_pour(nom: &str, langue: Option<&str>, dossier: &Path) -> ApplicationParDefaut {
+    use objc2::runtime::NSObjectProtocol;
+    use objc2::sel;
+    use objc2_app_kit::NSWorkspace;
+    use objc2_foundation::{ns_string, NSArray, NSBundle, NSFileManager, NSString, NSURL};
+
+    let Some(extension) = extension(nom).filter(|e| !e.is_empty() && e.chars().all(|c| c.is_alphanumeric())) else { return ApplicationParDefaut::Aucune };
+    let exemple = dossier.join(format!("exemple.{extension}"));
+    if std::fs::create_dir_all(dossier).is_err() || (!exemple.is_file() && std::fs::write(&exemple, b"").is_err()) {
+        return ApplicationParDefaut::Inconnue;
+    }
+    let url = NSURL::fileURLWithPath(&NSString::from_str(&exemple.to_string_lossy()));
+    let Some(application) = NSWorkspace::sharedWorkspace().URLForApplicationToOpenURL(&url) else { return ApplicationParDefaut::Aucune };
+    // Dans la langue de la page : l'app de Mac n'a pas de traductions à elle, le Finder parlerait celle du système.
+    // `localizedStringForKey:value:table:localizations:` est récent : un macOS d'avant ne l'a pas, on le lui demande d'abord.
+    let localise = langue.filter(|l| !l.trim().is_empty()).and_then(|l| {
+        let paquet = NSBundle::bundleWithURL(&application)?;
+        if !paquet.respondsToSelector(sel!(localizedStringForKey:value:table:localizations:)) {
+            return None;
+        }
+        let absent = ns_string!("\u{1}");
+        let langues = NSArray::from_retained_slice(&[NSString::from_str(l.trim())]);
+        [ns_string!("CFBundleDisplayName"), ns_string!("CFBundleName")].into_iter().find_map(|cle| {
+            let texte = paquet.localizedStringForKey_value_table_localizations(cle, Some(absent), Some(ns_string!("InfoPlist")), &langues).to_string();
+            (texte != "\u{1}").then(|| nom_d_application(&texte)).flatten()
+        })
+    });
+    let nom = localise.or_else(|| application.path().and_then(|p| nom_d_application(&NSFileManager::defaultManager().displayNameAtPath(&p).to_string())));
+    nom.map_or(ApplicationParDefaut::Inconnue, |nom| ApplicationParDefaut::Application { nom })
+}
+
+/// Ailleurs que sur un Mac, la coque ne lit pas l'association du système : la page dit « Ouvrir sur l'ordinateur ».
+#[cfg(not(target_os = "macos"))]
+fn application_pour(_nom: &str, _langue: Option<&str>, _dossier: &Path) -> ApplicationParDefaut {
+    ApplicationParDefaut::Inconnue
+}
+
+/// Où l'on montre au système un fichier vide de chaque sorte (`application_pour`).
+fn dossier_des_sortes(app: &AppHandle) -> Result<PathBuf, Erreur> {
+    Ok(app.path().app_cache_dir().map_err(Erreur::echec)?.join("sortes"))
+}
+
+/// L'application qui ouvrira `nom` par `ouvrir_fichier`, pour que le bouton de la page la nomme. Une sorte que la coque
+/// n'ouvre pas ainsi (un SVG, une archive…) n'en a aucune. `langue` : celle de la page.
+#[tauri::command]
+pub async fn application_par_defaut(app: AppHandle, webview: Webview, garde: State<'_, Origines>, nom: String, langue: Option<String>) -> Result<ApplicationParDefaut, Erreur> {
+    exiger(&webview, &garde, LOCALE_OU_SERVEUR)?;
+    let nom = nom_sur(&nom);
+    if !ouvrable(&nom) {
+        return Ok(ApplicationParDefaut::Aucune);
+    }
+    let dossier = dossier_des_sortes(&app)?;
+    tauri::async_runtime::spawn_blocking(move || application_pour(&nom, langue.as_deref(), &dossier)).await.map_err(Erreur::echec)
 }
 
 /// Ouvre une pièce jointe dans l'application que le système lui associe. Pour la page d'un serveur, après un oui de la
@@ -250,8 +336,22 @@ pub async fn ouvrir_fichier(app: AppHandle, webview: Webview, garde: State<'_, O
     if appelant == Appelant::Serveur {
         let hote = garde.serveur.lire().map(|o| hote_de(&o)).ok_or(Erreur::Interdit)?;
         let _une_seule = ouvertures.poser_question().ok_or(Erreur::TropVite)?;
-        let (texte, oui, non) = question_d_ouverture(&nom, &hote, en_francais(requete.headers()));
-        let question = app.dialog().message(texte).title("Notak").buttons(MessageDialogButtons::OkCancelCustom(oui, non));
+        let langue = requete.headers().get("x-notak-langue").and_then(|v| v.to_str().ok()).map(str::to_owned);
+        let application = match dossier_des_sortes(&app) {
+            Ok(dossier) => {
+                let (n, l) = (nom.clone(), langue.clone());
+                tauri::async_runtime::spawn_blocking(move || application_pour(&n, l.as_deref(), &dossier)).await.unwrap_or(ApplicationParDefaut::Inconnue)
+            }
+            Err(_) => ApplicationParDefaut::Inconnue,
+        };
+        let application = match &application {
+            ApplicationParDefaut::Application { nom } => Some(nom.as_str()),
+            _ => None,
+        };
+        let (titre, texte, oui, non) = question_d_ouverture(&nom, &hote, en_francais(requete.headers()), application);
+        // Sur un Mac, le titre est la question en gras de la boîte ; ailleurs, celui de sa fenêtre : tout va dedans.
+        let (titre, texte) = if cfg!(target_os = "macos") { (titre, texte) } else { ("Notak".to_string(), format!("{titre}\n{texte}")) };
+        let question = app.dialog().message(texte).title(titre).buttons(MessageDialogButtons::OkCancelCustom(oui, non));
         // Hors du fil principal, comme « Enregistrer sous » : la boîte attend la personne sans figer la fenêtre.
         let accord = tauri::async_runtime::spawn_blocking(move || question.blocking_show()).await.map_err(Erreur::echec)?;
         // Un oui ne vaut que pour la page qui a demandé, encore là : vu dans l'app, une boîte restée ouverte pendant
@@ -701,15 +801,50 @@ mod essais {
         assert_eq!(hote_de("https://notak.exemple.fr"), "notak.exemple.fr");
         assert_eq!(hote_de("https://notak.exemple.fr:8443"), "notak.exemple.fr:8443");
         assert_eq!(hote_de("http://127.0.0.1:3005"), "127.0.0.1:3005");
-        let (texte, oui, non) = question_d_ouverture("devis.pdf", "notak.exemple.fr", true);
-        assert_eq!((texte.as_str(), oui.as_str(), non.as_str()), ("« devis.pdf » vient de notak.exemple.fr. L’ouvrir avec l’application de votre ordinateur ?", "Ouvrir", "Annuler"));
-        let (texte, oui, non) = question_d_ouverture("quote.pdf", "notak.example.com", false);
-        assert_eq!((texte.as_str(), oui.as_str(), non.as_str()), ("“quote.pdf” comes from notak.example.com. Open it with the app on your computer?", "Open", "Cancel"));
+        let q = |nom, hote, francais, application| {
+            let (titre, texte, oui, non) = question_d_ouverture(nom, hote, francais, application);
+            [titre, texte, oui, non]
+        };
+        assert_eq!(q("devis.pdf", "notak.exemple.fr", true, Some("Aperçu")), ["Ouvrir « devis.pdf » dans Aperçu ?", "Ce fichier vient de notak.exemple.fr.", "Ouvrir dans Aperçu", "Annuler"]);
+        assert_eq!(q("devis.pdf", "notak.exemple.fr", true, None), ["Ouvrir « devis.pdf » sur cet ordinateur ?", "Ce fichier vient de notak.exemple.fr.", "Ouvrir", "Annuler"]);
+        assert_eq!(q("quote.pdf", "notak.example.com", false, Some("Preview")), ["Open “quote.pdf” in Preview?", "This file comes from notak.example.com.", "Open in Preview", "Cancel"]);
+        assert_eq!(q("quote.pdf", "notak.example.com", false, None), ["Open “quote.pdf” on this computer?", "This file comes from notak.example.com.", "Open", "Cancel"]);
         let mut e = HeaderMap::new();
         e.insert("x-notak-langue", "en".parse().unwrap());
         assert!(!en_francais(&e));
         e.insert("x-notak-langue", "fr".parse().unwrap());
         assert!(en_francais(&e));
+    }
+
+    #[test]
+    fn le_nom_d_une_application_s_ecrit_dans_un_bouton() {
+        assert_eq!(nom_d_application(" Aperçu.app ").as_deref(), Some("Aperçu"));
+        assert_eq!(nom_d_application("Adobe\u{202e} Acrobat").as_deref(), Some("Adobe Acrobat"));
+        assert_eq!(nom_d_application(".app"), None);
+        assert_eq!(nom_d_application(&"A".repeat(200)).map(|n| n.chars().count()), Some(60));
+        assert_eq!(serde_json::to_value(ApplicationParDefaut::Application { nom: "Aperçu".into() }).unwrap(), serde_json::json!({ "sorte": "application", "nom": "Aperçu" }));
+        assert_eq!(serde_json::to_value(ApplicationParDefaut::Aucune).unwrap(), serde_json::json!({ "sorte": "aucune" }));
+        assert_eq!(serde_json::to_value(ApplicationParDefaut::Inconnue).unwrap(), serde_json::json!({ "sorte": "inconnue" }));
+    }
+
+    /// Sur ce Mac, pour de vrai : un PDF s'ouvre dans une application qui a un nom (Aperçu, s'il n'en a pas d'autre),
+    /// une sorte que personne ne connaît dans aucune.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn le_mac_dit_quelle_application_ouvre_un_pdf() {
+        let d = dossier_d_essai("sortes");
+        let ApplicationParDefaut::Application { nom } = application_pour("devis.pdf", Some("fr"), &d) else { panic!("aucune application pour un PDF") };
+        assert!(!nom.is_empty() && !nom.ends_with(".app"), "{nom}");
+        eprintln!("un PDF s'ouvre dans {nom}");
+        if std::path::Path::new("/System/Applications/Preview.app").exists() {
+            if let ApplicationParDefaut::Application { nom } = application_pour("photo.png", Some("fr"), &d) {
+                eprintln!("une image s'ouvre dans {nom}");
+            }
+        }
+        assert!(d.join("exemple.pdf").is_file(), "le fichier montré au système reste pour la prochaine fois");
+        assert_eq!(application_pour("x.sortezzz", Some("fr"), &d), ApplicationParDefaut::Aucune);
+        assert_eq!(application_pour("sans-extension", Some("fr"), &d), ApplicationParDefaut::Aucune);
+        std::fs::remove_dir_all(&d).unwrap();
     }
 
     #[test]

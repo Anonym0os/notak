@@ -15,6 +15,7 @@ fn main() {
         "regler_maj_auto",
         "regler_ouverture",
         "ouvrir_fichier",
+        "application_par_defaut",
         "fichiers_ouverts",
         "lire_fichier_ouvert",
         "ecarter_fichier_ouvert",

@@ -43,12 +43,12 @@ tauri-plugin-single-instance = "2"
 tauri-plugin-updater = "2"
 
 # La photo de la fenêtre pour un signalement : `takeSnapshot` du WKWebView, l'image exacte de la page ; la langue du
-# système, pour le menu de l'app.
+# système, pour le menu de l'app ; l'application qui ouvre une sorte de fichier, et son nom (`src/fichiers.rs`).
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6"
 objc2 = "0.6"
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSImage", "NSImageRep", "NSBitmapImageRep", "NSGraphics"] }
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSData", "NSDictionary", "NSError", "NSFileManager", "NSLocale", "NSString", "NSURL"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSImage", "NSImageRep", "NSBitmapImageRep", "NSGraphics", "NSWorkspace"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSBundle", "NSData", "NSDictionary", "NSError", "NSFileManager", "NSLocale", "NSString", "NSURL"] }
 objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-app-kit", "WKWebView", "WKSnapshotConfiguration"] }
 
 # La langue du système, pour ce que dit la coque d'un lien `notak://` qui ne s'ouvre pas (`src/lien.rs`).

@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { adressePour } from '../adresse'
 import { estMobile, vibrer } from '../appareil'
 import { dansCoque, estBureau } from '../bureau'
-import { ouvrirAilleursAvecAvis } from '../bureau/ailleurs'
+import { ouvrirParLePartage, ouvrirSurLOrdinateur } from '../bureau/ailleurs'
 import { choisirEmplacement } from '../enregistrer'
 import { DialogueAcces } from '../bureau/FormulaireAcces'
 import { ouvrirDialogueAcces } from '../bureau/etat'
@@ -143,16 +143,17 @@ function Espace({ el }: { el: EspaceLocal }) {
       contenuExterne: (id) => (index.recu(id) ? 'demander' : undefined),
       permettreContenuExterne: (id) => index.retirerRecu(id),
       ecouterContenuExterne: index.ecouterRecus,
-      // L'app de bureau n'a qu'une fenêtre, et n'en ouvre pas d'autre (`apps/bureau/src-tauri/src/navigation.rs`) : un
-      // fichier s'y ouvre dans l'application du système, ou se propose à l'enregistrement.
       // Une toile glissée sur une autre y est rangée : l'index le note (la bibliothèque le lit aussi dans les cartes).
       toileRangee: (toile: Id, dans: Id) => index.declarer(toile, '', dans),
       // Ce que la toile fabrique (un PDF annoté) s'enregistre comme un export : « Enregistrer sous », ou la feuille de partage.
       choisirEmplacement,
       ...(estMobile() ? { vibrer: () => vibrer() } : {}),
+      // L'app de bureau n'a qu'une fenêtre, et n'en ouvre pas d'autre (`apps/bureau/src-tauri/src/navigation.rs`) : un
+      // fichier s'y ouvre dans l'application du système, que son bouton nomme, ou se propose à l'enregistrement. Sur un
+      // iPhone ou un iPad, il passe par la feuille de partage (« Ouvrir dans… »).
       ...(estBureau()
-        ? { ouvrirAilleurs: (adresse: string, nom?: string) => ouvrirAilleursAvecAvis(adresse, nom, alerter) }
-        : { ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank') }),
+        ? ouvrirSurLOrdinateur(alerter)
+        : { ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank'), ...(estMobile() ? ouvrirParLePartage() : {}) }),
     }),
     [el, index, alerter],
   )
