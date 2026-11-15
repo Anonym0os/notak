@@ -50,8 +50,12 @@
   min-width: 0;
 }
 
+/* Le nom s'étire sur toute sa colonne, et pas plus : calé au début (`justify-self: start`), il prenait la largeur de
+   son texte, que rien ne coupe, et s'écrivait par-dessus le zoom et les boutons. Sa colonne peut tomber à zéro :
+   c'est le palier de la barre (`barre.ts`) qui lui garde sa place. */
 .notak-pdf-titre-groupe {
-  justify-self: start;
+  justify-self: stretch;
+  overflow: hidden;
   padding-left: 8px;
 }
 
@@ -620,41 +624,54 @@
   display: none;
 }
 
-/* Une fenêtre plus étroite : les boutons gardent leur info-bulle et leur nom pour qui lit à haute voix, pas leur libellé. */
-@media (max-width: 860px) {
-  .notak-pdf-libelle {
-    display: none;
-  }
+/* Au palier `deux-rangs` (le téléphone, `barre.ts`), la barre passe sur deux rangs : le nom, la recherche, « ••• » et
+   fermer, puis le zoom et la page. */
+.notak-pdf[data-palier='deux-rangs'] {
+  --notak-pdf-hauteur-barre: 96px;
 }
 
-/* Au téléphone, la barre passe sur deux rangs : le nom et les actions, puis le zoom et la page. */
+.notak-pdf[data-palier='deux-rangs'] .notak-pdf-barre {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'titre actions' 'milieu milieu';
+  row-gap: 0;
+  padding-bottom: 4px;
+}
+
+.notak-pdf[data-palier='deux-rangs'] .notak-pdf-titre-groupe {
+  grid-area: titre;
+}
+
+.notak-pdf[data-palier='deux-rangs'] .notak-pdf-actions {
+  grid-area: actions;
+}
+
+.notak-pdf[data-palier='deux-rangs'] .notak-pdf-milieu {
+  grid-area: milieu;
+}
+
 @media (max-width: 600px) {
-  .notak-pdf {
-    --notak-pdf-hauteur-barre: 96px;
-  }
-
-  .notak-pdf-barre {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: 'titre actions' 'milieu milieu';
-    row-gap: 0;
-    padding-bottom: 4px;
-  }
-
-  .notak-pdf-titre-groupe {
-    grid-area: titre;
-  }
-
-  .notak-pdf-actions {
-    grid-area: actions;
-  }
-
-  .notak-pdf-milieu {
-    grid-area: milieu;
-  }
-
   .notak-pdf-recherche-champ {
     width: 140px;
   }
+}
+
+/* Dans l'application de bureau, la barre tient lieu de barre de titre : comme l'en-tête de la toile (toile.css), elle
+   commence à 96 px du bord, après les boutons de la fenêtre, et sa rangée se centre avec eux, à 34 px du haut
+   (tauri.conf.json) : 16 px au-dessus, 16 px dessous. En plein écran, plus de boutons : la barre d'origine. */
+:root[data-bureau]:not([data-plein-ecran]) .notak-pdf {
+  --notak-pdf-hauteur-barre: 68px;
+}
+
+:root[data-bureau]:not([data-plein-ecran]) .notak-pdf[data-palier='deux-rangs'] {
+  --notak-pdf-hauteur-barre: 104px;
+}
+
+:root[data-bureau]:not([data-plein-ecran]) .notak-pdf-barre {
+  padding: 16px 8px 16px 96px;
+}
+
+:root[data-bureau]:not([data-plein-ecran]) .notak-pdf-titre-groupe {
+  padding-left: 0;
 }
 
 /* Au doigt, des cibles de 44 px. */

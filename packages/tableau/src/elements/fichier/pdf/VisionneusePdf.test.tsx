@@ -178,6 +178,93 @@ describe('la visionneuse PDF', () => {
   })
 })
 
+describe('la barre se range à la place qu’elle a', () => {
+  /**
+   * La largeur que le nom obtient à chaque palier (le reste de la barre mesure 1000 px) : ce que la page mesurerait
+   * dans une fenêtre étroite, où le nom de 400 px ne tient qu’au palier `jusqua`.
+   */
+  function fenetreEtroite(jusqua: 'menu' | 'deux-rangs') {
+    const place = { libelles: 40, icones: 120, menu: jusqua === 'menu' ? 200 : 100, 'deux-rangs': 220 } as Record<string, number>
+    const proto = HTMLElement.prototype
+    const largeur = Object.getOwnPropertyDescriptor(proto, 'clientWidth')!
+    const entiere = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollWidth')!
+    Object.defineProperty(proto, 'clientWidth', {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.classList.contains('notak-pdf-titre') ? place[this.closest<HTMLElement>('.notak-pdf')?.dataset.palier ?? ''] : largeur.get!.call(this)
+      },
+    })
+    Object.defineProperty(Element.prototype, 'scrollWidth', {
+      configurable: true,
+      get(this: Element) {
+        return this.classList.contains('notak-pdf-titre') ? 400 : entiere.get!.call(this)
+      },
+    })
+    return () => {
+      Object.defineProperty(proto, 'clientWidth', largeur)
+      Object.defineProperty(Element.prototype, 'scrollWidth', entiere)
+    }
+  }
+
+  it('sur un grand écran, tout est là, avec les libellés', async () => {
+    await ouvrir()
+    expect(visionneuse().dataset.palier).toBe('libelles')
+    expect(bouton('Télécharger le PDF d’origine').textContent).toBe('Télécharger')
+    expect(bouton('Plus d’actions')).toBeNull()
+  })
+
+  it('le nom n’a plus sa place : les icônes perdent leur libellé, puis les actions secondaires passent dans « ••• »', async () => {
+    const rendre = fenetreEtroite('menu')
+    try {
+      await ouvrir()
+      expect(visionneuse().dataset.palier).toBe('menu')
+      expect(bouton('Télécharger le PDF d’origine')).toBeNull()
+      expect(bouton('Ouvrir dans un nouvel onglet du navigateur')).toBeNull()
+      expect(bouton('Rechercher dans le PDF (⌘F)')).not.toBeNull()
+      expect(bouton('Fermer (Échap)')).not.toBeNull()
+      expect(document.querySelector('.notak-pdf-libelle')).toBeNull()
+      const plus = bouton('Plus d’actions')
+      expect(plus.getAttribute('aria-haspopup')).toBe('menu')
+      act(() => plus.click())
+      expect(plus.getAttribute('aria-expanded')).toBe('true')
+      const lignes = [...document.querySelectorAll<HTMLButtonElement>('.notak-pdf .notak-menu-ctx [role^=menuitem]')]
+      expect(lignes.map((l) => l.textContent)).toEqual(['Télécharger le PDF d’origine', 'Ouvrir dans un nouvel onglet du navigateur'])
+      expect(telechargeAuClic(lignes[0]!)).toEqual([{ href: '/api/fichiers/f1', download: 'devis.pdf' }])
+      // Choisir ferme le menu ; la visionneuse reste ouverte.
+      expect(document.querySelector('.notak-menu-ctx')).toBeNull()
+      expect(visionneuse()).not.toBeNull()
+    } finally {
+      rendre()
+    }
+  })
+
+  it('Échap ferme le menu « ••• », pas la visionneuse', async () => {
+    const rendre = fenetreEtroite('menu')
+    try {
+      const fermer = await ouvrir()
+      act(() => bouton('Plus d’actions').click())
+      expect(document.querySelector('.notak-menu-ctx')).not.toBeNull()
+      await touche('Escape')
+      expect(document.querySelector('.notak-menu-ctx')).toBeNull()
+      expect(fermer).not.toHaveBeenCalled()
+      expect(document.activeElement).toBe(bouton('Plus d’actions'))
+    } finally {
+      rendre()
+    }
+  })
+
+  it('plus étroit encore, la barre passe sur deux rangs', async () => {
+    const rendre = fenetreEtroite('deux-rangs')
+    try {
+      await ouvrir()
+      expect(visionneuse().dataset.palier).toBe('deux-rangs')
+      expect(bouton('Plus d’actions')).not.toBeNull()
+    } finally {
+      rendre()
+    }
+  })
+})
+
 describe('télécharger avec les annotations', () => {
   const ANNOTE = 'Télécharger avec les annotations : le PDF et, sur ses pages, les traits qu’on y a dessinés'
   const annote: Fichier = { ...pdf, annotations: { '1': [{ id: 't', couleur: '#ff5757', epaisseur: 0.01, points: [[0.1, 0.1], [0.5, 0.1]] }] } }

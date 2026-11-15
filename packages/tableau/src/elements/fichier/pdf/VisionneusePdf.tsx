@@ -1,4 +1,4 @@
-import { type KeyboardEvent as ToucheReact, type SyntheticEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { type KeyboardEvent as ToucheReact, type SyntheticEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import type { Element, Fichier } from '../../../coeur/tableau'
@@ -19,6 +19,8 @@ import { nombreDeTraits } from './annotations'
 import { telechargerOctets } from '../../document/export'
 import { telechargerFichier } from '../../../telecharger'
 import { BandeauAvis, annoncer } from '../../../avis'
+import { type Entree, MenuContextuel } from '../../../communs'
+import { usePalierBarre } from './barre'
 import {
   type Disposition,
   type TaillePage,
@@ -494,7 +496,7 @@ export function VisionneusePdf({
       onClick={onClick}
     >
       <Icone nom={icone} taille={18} />
-      {plus.court && <span className="notak-pdf-libelle">{plus.court}</span>}
+      {plus.court && palier === 'libelles' && <span className="notak-pdf-libelle">{plus.court}</span>}
     </button>
   )
   const ouvrirAvec = useOuvrirAvec(services, contenu.nom)
@@ -528,6 +530,49 @@ export function VisionneusePdf({
     }
   }
 
+  // La barre choisit son palier à la place qu'elle a (`barre.ts`) : jamais le nom par-dessus un bouton. Ce qui ne tient
+  // plus sur la rangée passe dans « ••• », un menu (une feuille qui monte du bas, au doigt sur un téléphone).
+  const barre = useRef<HTMLDivElement>(null)
+  const nom = useRef<HTMLSpanElement>(null)
+  const cleBarre = [titre, ouvrirAvec?.court, dessin.autorise, commentaires.autorise, commentaires.visible, commentaires.nombre, aDesTraits].join('|')
+  const palier = usePalierBarre(barre, nom, cleBarre)
+  const replie = palier === 'menu' || palier === 'deux-rangs'
+  const deuxRangs = palier === 'deux-rangs'
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
+  const boutonPlus = useRef<HTMLButtonElement>(null)
+  // Le « ••• » pressé pendant que le menu est ouvert : le menu se ferme à l'appui (clic dehors), le clic ne le rouvre pas.
+  const fermeAuPointer = useRef(false)
+  const fermerMenu = useCallback(() => {
+    // Le focus était dans le menu : il revient au « ••• », pas au fond de la page.
+    if (document.activeElement?.closest('.notak-menu-ctx, .notak-feuille')) boutonPlus.current?.focus({ preventScroll: true })
+    setMenu(null)
+  }, [])
+  const entreesMenu: Entree[] = [
+    ...(deuxRangs && dessin.autorise
+      ? [{ libelle: t('pdf.dessiner'), icone: 'croquis' as const, raccourci: '⇧D', coche: dessin.actif, desactive: !pret, faire: () => (dessin.actif ? dessin.enregistrer() : commencerDessin()) }]
+      : []),
+    ...(deuxRangs && commentaires.autorise
+      ? [{ libelle: t('pdf.commenter'), icone: 'commentaire' as const, raccourci: '⌥⌘M', coche: commentaires.actif, desactive: !pret, faire: basculerCommentaire }]
+      : []),
+    ...(commentaires.visible
+      ? [
+          {
+            libelle: commentaires.nombre > 0 ? `${t('pdf.fils')} (${commentaires.nombre})` : t('pdf.fils'),
+            icone: 'vueListe' as const,
+            coche: commentaires.liste,
+            desactive: !pret,
+            faire: commentaires.basculerListe,
+          },
+        ]
+      : []),
+    null,
+    { libelle: t('pdf.telecharger.titre'), icone: 'exporter', faire: () => void telechargerFichier(adresse, contenu.nom, 'application/pdf') },
+    ...(aDesTraits
+      ? [{ libelle: t('pdf.telechargerAnnote.menu'), icone: 'telechargerAnnote' as const, desactive: !pret || preparation || dessin.actif, faire: () => void telechargerAnnote() }]
+      : []),
+    ...(ouvrirAvec ? [{ libelle: ouvrirAvec.libelle, icone: 'ouvrir' as const, faire: () => ouvrirDehors(services ?? {}, adresse, contenu.nom) }] : []),
+  ]
+
   const portail = createPortal(
     <div
       ref={racine}
@@ -538,6 +583,7 @@ export function VisionneusePdf({
       tabIndex={-1}
       data-sombre={theme?.colorScheme === 'dark' || undefined}
       data-dessin={dessin.actif || undefined}
+      data-palier={palier}
       style={theme ?? undefined}
       onKeyDown={clavier}
       onKeyUp={clos}
@@ -551,9 +597,10 @@ export function VisionneusePdf({
       onContextMenu={clos}
       {...refuserLeDepot}
     >
-      <div className="notak-pdf-barre" role="toolbar" aria-label={t('pdf.barre')}>
+      {/* Dans l'app de bureau, la barre tient lieu de barre de titre : on y saisit la fenêtre, hors de ses boutons. */}
+      <div ref={barre} className="notak-pdf-barre" role="toolbar" aria-label={t('pdf.barre')} data-tauri-drag-region="deep">
         <div className="notak-pdf-groupe notak-pdf-titre-groupe">
-          <span className="notak-pdf-titre" title={contenu.nom}>
+          <span ref={nom} className="notak-pdf-titre" title={contenu.nom}>
             {titre}
           </span>
         </div>
@@ -603,36 +650,63 @@ export function VisionneusePdf({
         </div>
         <div className="notak-pdf-groupe notak-pdf-actions">
           {bouton('recherche', t('pdf.rechercher'), () => (recherche ? fermerRecherche() : ouvrirRecherche()), { actif: !!pret, presse: !!recherche })}
-          {dessin.autorise &&
+          {!deuxRangs &&
+            dessin.autorise &&
             bouton('croquis', t('pdf.dessiner.titre'), () => (dessin.actif ? dessin.enregistrer() : commencerDessin()), {
               court: t('pdf.dessiner'),
               actif: !!pret,
               presse: dessin.actif,
             })}
-          {commentaires.autorise &&
+          {!deuxRangs &&
+            commentaires.autorise &&
             bouton('commentaire', t('pdf.commenter.titre'), basculerCommentaire, {
               court: t('pdf.commenter'),
               actif: !!pret,
               presse: commentaires.actif,
             })}
-          {commentaires.visible &&
+          {!replie &&
+            commentaires.visible &&
             bouton('vueListe', t('pdf.fils.titre'), commentaires.basculerListe, {
               court: commentaires.nombre > 0 ? `${t('pdf.fils')} (${commentaires.nombre})` : t('pdf.fils'),
               actif: !!pret,
               presse: commentaires.liste,
             })}
-          <span className="notak-pdf-sep" role="separator" />
-          {bouton('exporter', t('pdf.telecharger.titre'), () => void telechargerFichier(adresse, contenu.nom, 'application/pdf'), { court: t('pdf.telecharger') })}
-          {aDesTraits &&
+          {!replie && <span className="notak-pdf-sep" role="separator" />}
+          {!replie && bouton('exporter', t('pdf.telecharger.titre'), () => void telechargerFichier(adresse, contenu.nom, 'application/pdf'), { court: t('pdf.telecharger') })}
+          {!replie &&
+            aDesTraits &&
             bouton('telechargerAnnote', t('pdf.telechargerAnnote'), () => void telechargerAnnote(), {
               court: t('pdf.telechargerAnnote.court'),
               actif: !!pret && !preparation && !dessin.actif,
             })}
-          {ouvrirAvec && bouton('ouvrir', ouvrirAvec.libelle, () => ouvrirDehors(services ?? {}, adresse, contenu.nom), { court: ouvrirAvec.court })}
+          {!replie && ouvrirAvec && bouton('ouvrir', ouvrirAvec.libelle, () => ouvrirDehors(services ?? {}, adresse, contenu.nom), { court: ouvrirAvec.court })}
+          {replie && (
+            <button
+              ref={boutonPlus}
+              type="button"
+              className="notak-pdf-bouton"
+              aria-label={t('pdf.plus')}
+              title={t('pdf.plus')}
+              aria-haspopup="menu"
+              aria-expanded={!!menu}
+              onPointerDown={() => (fermeAuPointer.current = !!menu)}
+              onClick={(e) => {
+                if (fermeAuPointer.current) {
+                  fermeAuPointer.current = false
+                  return
+                }
+                const r = e.currentTarget.getBoundingClientRect()
+                setMenu(menu ? null : { x: r.right, y: r.bottom + 4 })
+              }}
+            >
+              <Icone nom="plus" taille={18} />
+            </button>
+          )}
           <span className="notak-pdf-sep" role="separator" />
           {bouton('fermer', t('pdf.fermer'), fermer)}
         </div>
       </div>
+      {replie && menu && <MenuContextuel x={menu.x} y={menu.y} entrees={entreesMenu} fermer={fermerMenu} />}
       {recherche && (
         <div className="notak-pdf-recherche" role="search">
           <Icone nom="recherche" taille={16} />
