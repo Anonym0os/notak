@@ -8,7 +8,7 @@ import { BulleFil, GlypheEpingle, aDuNouveau, couleurEpingle, useFermerAuClicDeh
 import { AUTEUR_INCONNU, dateLisible, resoudre } from '../../commentaire/fil'
 import { prendreFil, useFilDemande } from '../../tableau/montrer'
 import { pointSurPage } from './annotations'
-import { type FilSurPage, auteurDuFil, cleFilPdf, deplacerFilPdf, filNeuf, filVoisin, filsDeLaPage, filsDesPages, poserFilPdf, resumeDuFil } from './filsPdf'
+import { type FilSurPage, auteurDuFil, cleFilPdf, deplacerFilPdf, filNeuf, filVoisin, filsDeLaPage, filsDesPages, filsParcourus, nombreOuverts, poserFilPdf, resumeDuFil } from './filsPdf'
 
 const garder = (e: React.SyntheticEvent) => e.stopPropagation()
 
@@ -20,6 +20,8 @@ function enLecture(contexte: ContexteToile): ContexteToile {
 
 /** Au-delà de cette fraction de la largeur de la page, la bulle s'ouvre à gauche de son épingle : elle resterait dehors. */
 const BULLE_A_GAUCHE = 0.55
+/** L'épingle d'un fil résolu : grise, quelle que soit la couleur du fil, avec une coche à la place du compte. */
+const GRIS_RESOLU = '#9aa0a6'
 /** Un appui sur l'épingle qui bouge de moins que ça (en pixels) reste un clic : il ouvre le fil. */
 const SEUIL_GLISSER = 4
 
@@ -102,6 +104,7 @@ function EpinglePdf({
       ref={racine}
       className="notak-epingle notak-pdf-epingle"
       data-fil-pdf={id}
+      data-resolu={fil.resolu || undefined}
       data-gauche={x > BULLE_A_GAUCHE || undefined}
       data-deplacable={deplacer ? '' : undefined}
       data-glisse={decalage ? '' : undefined}
@@ -115,7 +118,7 @@ function EpinglePdf({
         className="notak-epingle-bouton"
         data-resolu={fil.resolu || undefined}
         aria-expanded={ouvert}
-        aria-label={`${titre} (${n})`}
+        aria-label={fil.resolu ? `${titre} (${n}, ${t('commentaire.resolu').toLocaleLowerCase()})` : `${titre} (${n})`}
         title={deplacer ? `${titre} · ${t('pdf.epingle.deplacer')}` : titre}
         onPointerDown={appuyer}
         onPointerMove={bouger}
@@ -126,7 +129,12 @@ function EpinglePdf({
           ouvrir(ouvert ? null : id)
         }}
       >
-        <GlypheEpingle n={n} hex={couleurEpingle(fil)} nonLu={!ouvert && aDuNouveau(cle, fil, jeSuis)} />
+        <GlypheEpingle n={n} hex={fil.resolu ? GRIS_RESOLU : couleurEpingle(fil)} nonLu={!ouvert && aDuNouveau(cle, fil, jeSuis)} />
+        {fil.resolu && (
+          <span className="notak-pdf-epingle-coche" aria-hidden>
+            <Icone nom="coche" taille={10} trait={3} />
+          </span>
+        )}
       </button>
       {ouvert && <BulleFil fil={fil} maj={poser} contexte={contexte} element={element} cle={cle} cles={[cle]} signal={cle} fermer={() => ouvrir(null)} />}
     </div>
@@ -138,8 +146,10 @@ function EpinglePdf({
  * vivent dans l'élément (`Fichier.fils`) et suivent le chemin des autres commentaires (notifications, mentions, « lu »,
  * « est en train d'écrire »). Un commentateur y écrit ; en lecture seule, on les lit. Une notification qui parle d'un de
  * ces fils ouvre la visionneuse sur lui (`montrer` amène sa page dans la vue). La liste des fils, à droite, les dit
- * tous dans l'ordre de lecture (page, auteur, début du texte, résolu ou non) ; « précédent » et « suivant » vont de l'un
- * à l'autre, en amenant chaque épingle dans la vue.
+ * ouverts dans l'ordre de lecture (page, auteur, début du texte) ; « précédent » et « suivant » vont de l'un à l'autre,
+ * en amenant chaque épingle dans la vue, et « Nouveau commentaire » passe en mode Commenter. Un fil résolu se tait : son
+ * épingle s'efface, la barre ne le compte plus, et la liste le range sous « Résolus », replié. Déplier « Résolus » les
+ * montre (épingles grises et cochées, « Rouvrir ») et les remet dans le parcours.
  */
 export function useCommentairesPdf({
   element,
@@ -167,10 +177,18 @@ export function useCommentairesPdf({
   const [actif, setActif] = useState(false)
   const [liste, setListe] = useState(false)
   const [ouvert, setOuvert] = useState<Id | null>(null)
+  /** Les résolus se montrent : sur les pages, dans la liste, et dans « précédent » et « suivant ». */
+  const [resolusMontres, setResolusMontres] = useState(false)
   /** Le fil qu'on vient d'épingler, pas encore écrit : il n'existe que le temps d'y écrire le premier message. */
   const [nouveau, setNouveau] = useState<FilSurPage | null>(null)
   const fils = useMemo(() => filsDesPages(contenu), [contenu])
-  const filsMontres = useMemo(() => (nouveau && !fils.some((f) => f.id === nouveau.id) ? [...fils, nouveau] : fils), [fils, nouveau])
+  const parcourus = useMemo(() => filsParcourus(fils, resolusMontres), [fils, resolusMontres])
+  // Sur les pages : les fils parcourus, celui qu'on a ouvert même résolu (une notification, ou qu'on vient de résoudre),
+  // et le fil neuf qu'on écrit.
+  const filsMontres = useMemo(() => {
+    const montres = fils.filter((f) => !f.fil.resolu || resolusMontres || f.id === ouvert)
+    return nouveau && !fils.some((f) => f.id === nouveau.id) ? [...montres, nouveau] : montres
+  }, [fils, resolusMontres, ouvert, nouveau])
 
   /**
    * Le dernier fil ouvert : « suivant » part de lui même quand sa bulle s'est refermée (un appui sur la liste la ferme
@@ -198,7 +216,7 @@ export function useCommentairesPdf({
     montrer(f.page, f.y)
     ouvrir(f.id)
   }
-  const voisin = (pas: 1 | -1) => aller(filVoisin(fils, fils.some((f) => f.id === courant) ? courant : null, pas, page))
+  const voisin = (pas: 1 | -1) => aller(filVoisin(parcourus, parcourus.some((f) => f.id === courant) ? courant : null, pas, page))
 
   // Arrivé par une notification qui parle d'un fil de ce PDF : sa page vient dans la vue, et son fil s'ouvre.
   const demande = useFilDemande(element?.id ?? '')
@@ -263,53 +281,78 @@ export function useCommentairesPdf({
     return false
   }
 
-  /** La liste des fils, à droite des pages : chacun mène à son épingle ; « Résoudre » le range sans l'effacer. */
+  /** Une ligne de la liste : elle mène à l'épingle ; « Résoudre » range le fil sans l'effacer, « Rouvrir » le rend. */
+  const ligne = (f: FilSurPage) => {
+    const r = resumeDuFil(f.fil)
+    return (
+      <li key={f.id} data-fil={f.id} data-courant={courant === f.id || undefined} data-resolu={f.fil.resolu || undefined}>
+        <button type="button" className="notak-pdf-fil" onClick={() => aller(f)}>
+          <span className="notak-pdf-fil-ligne">
+            <span className="notak-pdf-fil-page">{t('pdf.pageN', { n: f.page })}</span>
+            <span className="notak-pdf-fil-auteur">{r.auteur}</span>
+            {r.date > 0 && <span className="notak-pdf-fil-date">{dateLisible(r.date)}</span>}
+          </span>
+          <span className="notak-pdf-fil-texte">{r.texte}</span>
+          <span className="notak-pdf-fil-ligne">
+            <span className="notak-pdf-fil-etat">
+              {f.fil.resolu && <Icone nom="coche" taille={12} trait={2.4} />}
+              {f.fil.resolu ? t('commentaire.resolu') : t('pdf.fils.ouvert')}
+            </span>
+            {r.reponses > 0 && <span className="notak-pdf-fil-reponses">{t('pdf.fils.reponses', { n: r.reponses })}</span>}
+          </span>
+        </button>
+        {autorise && (
+          <button type="button" className="notak-pdf-fil-resoudre" onClick={() => ecrire((c) => poserFilPdf(c, f.id, resoudre(f.fil, !f.fil.resolu)))}>
+            {f.fil.resolu ? t('pdf.fils.rouvrir') : t('commentaire.resoudre')}
+          </button>
+        )}
+      </li>
+    )
+  }
+  const ouverts = fils.filter((f) => !f.fil.resolu)
+  const resolus = fils.filter((f) => f.fil.resolu)
+
+  /**
+   * La liste des fils, à droite des pages (en bas au téléphone) : « Nouveau commentaire », les fils ouverts, puis les
+   * résolus, repliés sous leur titre.
+   */
   const panneau = visible && liste && (
     <aside className="notak-pdf-fils" aria-label={t('pdf.fils.titre')} onPointerDown={garder}>
       <div className="notak-pdf-fils-tete">
         <span className="notak-pdf-fils-titre">
-          {t('pdf.fils')} <span className="notak-pdf-fils-compte">{fils.length}</span>
+          {t('pdf.fils')} <span className="notak-pdf-fils-compte">{ouverts.length}</span>
         </span>
-        <button type="button" className="notak-pdf-fils-bouton" aria-label={t('pdf.fils.precedent')} title={t('pdf.fils.precedent')} disabled={fils.length === 0} onClick={() => voisin(-1)}>
+        <button type="button" className="notak-pdf-fils-bouton" aria-label={t('pdf.fils.precedent')} title={t('pdf.fils.precedent')} disabled={parcourus.length === 0} onClick={() => voisin(-1)}>
           <Icone nom="haut" taille={16} />
         </button>
-        <button type="button" className="notak-pdf-fils-bouton" aria-label={t('pdf.fils.suivant')} title={t('pdf.fils.suivant')} disabled={fils.length === 0} onClick={() => voisin(1)}>
+        <button type="button" className="notak-pdf-fils-bouton" aria-label={t('pdf.fils.suivant')} title={t('pdf.fils.suivant')} disabled={parcourus.length === 0} onClick={() => voisin(1)}>
           <Icone nom="bas" taille={16} />
         </button>
         <button type="button" className="notak-pdf-fils-bouton" aria-label={t('pdf.fils.fermer')} title={t('pdf.fils.fermer')} onClick={() => setListe(false)}>
           <Icone nom="fermer" taille={16} />
         </button>
       </div>
-      {fils.length === 0 ? (
-        <p className="notak-pdf-fils-vide">{t('pdf.fils.aucun')}</p>
-      ) : (
-        <ol className="notak-pdf-fils-liste">
-          {fils.map((f) => {
-            const r = resumeDuFil(f.fil)
-            return (
-              <li key={f.id} data-fil={f.id} data-courant={courant === f.id || undefined} data-resolu={f.fil.resolu || undefined}>
-                <button type="button" className="notak-pdf-fil" onClick={() => aller(f)}>
-                  <span className="notak-pdf-fil-ligne">
-                    <span className="notak-pdf-fil-page">{t('pdf.pageN', { n: f.page })}</span>
-                    <span className="notak-pdf-fil-auteur">{r.auteur}</span>
-                    {r.date > 0 && <span className="notak-pdf-fil-date">{dateLisible(r.date)}</span>}
-                  </span>
-                  <span className="notak-pdf-fil-texte">{r.texte}</span>
-                  <span className="notak-pdf-fil-ligne">
-                    <span className="notak-pdf-fil-etat">{f.fil.resolu ? t('commentaire.resolu') : t('pdf.fils.ouvert')}</span>
-                    {r.reponses > 0 && <span className="notak-pdf-fil-reponses">{t('pdf.fils.reponses', { n: r.reponses })}</span>}
-                  </span>
-                </button>
-                {autorise && (
-                  <button type="button" className="notak-pdf-fil-resoudre" onClick={() => ecrire((c) => poserFilPdf(c, f.id, resoudre(f.fil, !f.fil.resolu)))}>
-                    {f.fil.resolu ? t('pdf.fils.rouvrir') : t('commentaire.resoudre')}
-                  </button>
-                )}
-              </li>
-            )
-          })}
-        </ol>
+      {autorise && (
+        <div className="notak-pdf-fils-nouveau">
+          <button type="button" className="notak-pdf-fils-ajouter" aria-pressed={actif} onClick={basculer}>
+            <Icone nom="ajouter" taille={16} />
+            {t('pdf.fils.nouveau')}
+          </button>
+        </div>
       )}
+      <div className="notak-pdf-fils-corps">
+        {ouverts.length === 0 && <p className="notak-pdf-fils-vide">{t(fils.length === 0 ? 'pdf.fils.aucun' : 'pdf.fils.aucunOuvert')}</p>}
+        {ouverts.length > 0 && <ol className="notak-pdf-fils-liste">{ouverts.map(ligne)}</ol>}
+        {resolus.length > 0 && (
+          <>
+            <button type="button" className="notak-pdf-fils-resolus" aria-expanded={resolusMontres} onClick={() => setResolusMontres((m) => !m)}>
+              <Icone nom={resolusMontres ? 'chevronBas' : 'chevronDroite'} taille={14} />
+              {t('pdf.fils.resolus')} <span className="notak-pdf-fils-compte">{resolus.length}</span>
+            </button>
+            {resolusMontres && <ol className="notak-pdf-fils-liste notak-pdf-fils-liste-resolus">{resolus.map(ligne)}</ol>}
+          </>
+        )}
+      </div>
     </aside>
   )
 
@@ -322,7 +365,7 @@ export function useCommentairesPdf({
     epingles,
     saisie,
     clavier,
-    nombre: fils.length,
+    nombre: nombreOuverts(fils),
     ouvert,
     liste,
     basculerListe: () => setListe((l) => !l),

@@ -330,6 +330,26 @@
   cursor: grabbing;
 }
 
+/* Le fil résolu : l'épingle grise (Epingle.tsx l'atténue déjà), et une coche verte à la place du compte. */
+.notak-pdf-epingle[data-resolu] .notak-epingle-compte {
+  visibility: hidden;
+}
+
+.notak-pdf-epingle-coche {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  border-radius: 50%;
+  background: #1f9d55;
+  color: #fff;
+  pointer-events: none;
+}
+
 /* La liste des commentaires : une colonne de 320 px à droite des pages, sur le fond des cartes du thème. */
 .notak-pdf-fils {
   flex: none;
@@ -397,13 +417,78 @@
   color: #8d929a;
 }
 
-.notak-pdf-fils-liste {
+/* « Nouveau commentaire » : en tête de la liste, toujours là, même quand elle est vide. */
+.notak-pdf-fils-nouveau {
+  flex: none;
+  padding: 8px 8px 4px;
+}
+
+.notak-pdf-fils-ajouter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgb(127 127 127 / 0.28);
+  border-radius: 8px;
+  background: none;
+  color: var(--notak-accent, #2f63f7);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notak-pdf-fils-ajouter:hover {
+  background: rgb(47 99 247 / 0.08);
+}
+
+.notak-pdf-fils-ajouter[aria-pressed='true'] {
+  border-color: transparent;
+  background: rgb(47 99 247 / 0.14);
+}
+
+/* Les fils ouverts, puis les résolus : c'est ce corps qui défile. */
+.notak-pdf-fils-corps {
   flex: 1;
   min-height: 0;
   overflow: auto;
+}
+
+.notak-pdf-fils-liste {
   margin: 0;
   padding: 4px 0;
   list-style: none;
+}
+
+/* Le titre des résolus, qui les déplie : sous les ouverts, séparé d'eux par un filet. */
+.notak-pdf-fils-resolus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 36px;
+  margin-top: 4px;
+  padding: 0 16px;
+  border: 0;
+  border-top: 1px solid rgb(127 127 127 / 0.18);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-pdf-fils-resolus:hover {
+  background: rgb(127 127 127 / 0.08);
+}
+
+.notak-pdf-fils-resolus .notak-pdf-fils-compte {
+  margin-left: 0;
 }
 
 .notak-pdf-fils-liste > li {
@@ -419,6 +504,16 @@
 
 .notak-pdf-fils-liste > li[data-resolu] .notak-pdf-fil {
   opacity: 0.6;
+}
+
+.notak-pdf-fils-liste > li[data-resolu] .notak-pdf-fil-etat {
+  color: #1f9d55;
+}
+
+.notak-pdf-fil-etat {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 
 .notak-pdf-fil {

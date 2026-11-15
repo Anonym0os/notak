@@ -159,62 +159,164 @@ describe('la liste des fils du PDF', () => {
   const LISTE = 'Liste des commentaires du PDF'
   const deux = () => pdf({ fils: { b: { ...filDe(2, 0.5, 0.5, 'Résolu depuis', ana), resolu: true }, a: filDe(1, 0.4, 0.3, 'Pourquoi ce total ?') } })
   const lignes = () => [...document.querySelectorAll<HTMLElement>('.notak-pdf-fils-liste > li')]
+  const titreResolus = () => document.querySelector<HTMLButtonElement>('.notak-pdf-fils-resolus')!
 
-  it('dit chaque fil dans l’ordre de lecture : page, auteur, début du texte, résolu ou non', async () => {
+  it('dit chaque fil ouvert dans l’ordre de lecture : page, auteur, début du texte ; les résolus à part, repliés', async () => {
     await ouvrir(deux())
-    expect(bouton(LISTE)?.textContent).toBe('Commentaires (2)')
+    // La barre ne compte que les fils ouverts.
+    expect(bouton(LISTE)?.textContent).toBe('Commentaires (1)')
     act(() => bouton(LISTE)!.click())
-    expect(lignes().map((l) => l.dataset.fil)).toEqual(['a', 'b'])
-    const [a, b] = lignes()
+    expect(document.querySelector('.notak-pdf-fils-tete .notak-pdf-fils-compte')?.textContent).toBe('1')
+    expect(lignes().map((l) => l.dataset.fil)).toEqual(['a'])
+    const [a] = lignes()
     expect(a!.querySelector('.notak-pdf-fil-page')?.textContent).toBe('Page 1')
     expect(a!.querySelector('.notak-pdf-fil-auteur')?.textContent).toBe('Bob Martin')
     expect(a!.querySelector('.notak-pdf-fil-texte')?.textContent).toBe('Pourquoi ce total ?')
     expect(a!.querySelector('.notak-pdf-fil-etat')?.textContent).toBe('Ouvert')
-    expect(b!.querySelector('.notak-pdf-fil-etat')?.textContent).toBe('Résolu')
-    expect(b!.hasAttribute('data-resolu')).toBe(true)
+    // Les résolus, sous leur titre : repliés, puis dépliés.
+    expect(titreResolus().textContent).toBe('Résolus 1')
+    expect(titreResolus().getAttribute('aria-expanded')).toBe('false')
+    act(() => titreResolus().click())
+    expect(titreResolus().getAttribute('aria-expanded')).toBe('true')
+    const b = document.querySelector<HTMLElement>('.notak-pdf-fils-liste-resolus > li[data-fil="b"]')!
+    expect(b.querySelector('.notak-pdf-fil-etat')?.textContent).toBe('Résolu')
+    expect(b.hasAttribute('data-resolu')).toBe(true)
+    expect(b.querySelector('.notak-pdf-fil-resoudre')?.textContent).toBe('Rouvrir')
   })
 
-  it('un clic sur un fil amène son épingle dans la vue et l’ouvre ; « suivant » et « précédent » vont de l’un à l’autre', async () => {
+  it('l’épingle d’un fil résolu s’efface ; déplier « Résolus » la montre, grise et cochée', async () => {
     await ouvrir(deux())
+    expect(epingles().map((e) => e.dataset.filPdf)).toEqual(['a'])
     act(() => bouton(LISTE)!.click())
-    act(() => lignes()[1]!.querySelector<HTMLButtonElement>('.notak-pdf-fil')!.click())
-    await attendre()
-    expect(document.querySelector('.notak-pdf-epingle[data-fil-pdf="b"] .notak-fil-attache')?.textContent).toContain('Résolu depuis')
-    // Comme un vrai clic : l'appui sur la flèche referme d'abord la bulle ouverte (un appui hors d'elle), puis le clic.
-    const fleche = (nom: string) => {
-      const b = document.querySelector<HTMLButtonElement>(`.notak-pdf-fils [aria-label="${nom}"]`)!
-      act(() => void b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })))
-      act(() => b.click())
-    }
+    act(() => titreResolus().click())
+    expect(epingles().map((e) => e.dataset.filPdf).sort()).toEqual(['a', 'b'])
+    const b = document.querySelector<HTMLElement>('.notak-pdf-epingle[data-fil-pdf="b"]')!
+    expect(b.hasAttribute('data-resolu')).toBe(true)
+    expect(b.querySelector('.notak-pdf-epingle-coche')).not.toBeNull()
+    expect(b.querySelector('.notak-epingle-forme path')?.getAttribute('fill')).toBe('#9aa0a6')
+    expect(b.querySelector('.notak-epingle-bouton')?.getAttribute('aria-label')).toContain('résolu')
+    expect(document.querySelector('.notak-pdf-epingle[data-fil-pdf="a"] .notak-pdf-epingle-coche')).toBeNull()
+  })
+
+  // Comme un vrai clic : l'appui sur la flèche referme d'abord la bulle ouverte (un appui hors d'elle), puis le clic.
+  const fleche = (nom: string) => {
+    const b = document.querySelector<HTMLButtonElement>(`.notak-pdf-fils [aria-label="${nom}"]`)!
+    act(() => void b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })))
+    act(() => b.click())
+  }
+  const ouvertSur = (id: string) => document.querySelector(`.notak-pdf-epingle[data-fil-pdf="${id}"] .notak-fil-attache`)
+
+  it('« suivant » et « précédent » ne parcourent que les fils ouverts', async () => {
+    const trois = pdf({ fils: { ...deux().contenu.fils, c: filDe(3, 0.5, 0.5, 'Et ici ?') } })
+    await ouvrir(trois)
+    act(() => bouton(LISTE)!.click())
     fleche('Commentaire suivant')
     await attendre()
-    expect(document.querySelector('.notak-pdf-epingle[data-fil-pdf="a"] .notak-fil-attache')).not.toBeNull()
+    expect(ouvertSur('a')).not.toBeNull()
+    fleche('Commentaire suivant')
+    await attendre()
+    // Le résolu de la page 2 est sauté.
+    expect(ouvertSur('c')).not.toBeNull()
+    fleche('Commentaire suivant')
+    await attendre()
+    expect(ouvertSur('a')).not.toBeNull()
+  })
+
+  it('les résolus affichés, un clic sur un fil amène son épingle et l’ouvre ; « suivant » et « précédent » passent par tous', async () => {
+    await ouvrir(deux())
+    act(() => bouton(LISTE)!.click())
+    act(() => titreResolus().click())
+    act(() => document.querySelector<HTMLButtonElement>('li[data-fil="b"] .notak-pdf-fil')!.click())
+    await attendre()
+    expect(ouvertSur('b')?.textContent).toContain('Résolu depuis')
+    fleche('Commentaire suivant')
+    await attendre()
+    expect(ouvertSur('a')).not.toBeNull()
     expect(lignes()[0]!.hasAttribute('data-courant')).toBe(true)
     fleche('Commentaire suivant')
     await attendre()
-    expect(document.querySelector('.notak-pdf-epingle[data-fil-pdf="b"] .notak-fil-attache')).not.toBeNull()
+    expect(ouvertSur('b')).not.toBeNull()
     fleche('Commentaire précédent')
     await attendre()
-    expect(document.querySelector('.notak-pdf-epingle[data-fil-pdf="a"] .notak-fil-attache')).not.toBeNull()
+    expect(ouvertSur('a')).not.toBeNull()
   })
 
-  it('« Résoudre » range un fil sans l’effacer, « Rouvrir » le rend', async () => {
+  it('« Résoudre » range un fil sans l’effacer, sous « Résolus » ; « Rouvrir » le rend', async () => {
     const m = await ouvrir(deux())
     act(() => bouton(LISTE)!.click())
-    const resoudre = () => lignes()[0]!.querySelector<HTMLButtonElement>('.notak-pdf-fil-resoudre')!
-    expect(resoudre().textContent).toBe('Résoudre')
-    act(() => resoudre().click())
+    const resoudre = (id: string) => document.querySelector<HTMLButtonElement>(`li[data-fil="${id}"] .notak-pdf-fil-resoudre`)!
+    expect(resoudre('a').textContent).toBe('Résoudre')
+    act(() => resoudre('a').click())
     expect(fils(m)?.a?.resolu).toBe(true)
     expect(fils(m)?.a?.messages).toHaveLength(1)
-    expect(resoudre().textContent).toBe('Rouvrir')
-    act(() => resoudre().click())
+    expect(bouton(LISTE)?.textContent).toBe('Commentaires')
+    expect(document.querySelector('.notak-pdf-fils-vide')?.textContent).toBe('Aucun commentaire ouvert : tout est résolu.')
+    act(() => titreResolus().click())
+    expect(resoudre('a').textContent).toBe('Rouvrir')
+    act(() => resoudre('a').click())
     expect(fils(m)?.a?.resolu).toBeUndefined()
+    expect(document.querySelector('.notak-pdf-fils-liste:not(.notak-pdf-fils-liste-resolus) > li[data-fil="a"]')).not.toBeNull()
   })
 
-  it('sans fil, la liste le dit', async () => {
+  it('sans fil, la liste le dit, et propose d’en écrire un', async () => {
     await ouvrir()
     act(() => bouton(LISTE)!.click())
     expect(document.querySelector('.notak-pdf-fils-vide')?.textContent).toBe('Aucun commentaire sur ce PDF.')
+    expect(document.querySelector('.notak-pdf-fils-ajouter')?.textContent).toBe('Nouveau commentaire')
+  })
+
+  it('« Nouveau commentaire » passe en mode Commenter : un clic sur la page y épingle le fil', async () => {
+    const m = await ouvrir(deux())
+    act(() => bouton(LISTE)!.click())
+    const nouveau = document.querySelector<HTMLButtonElement>('.notak-pdf-fils-ajouter')!
+    act(() => nouveau.click())
+    expect(nouveau.getAttribute('aria-pressed')).toBe('true')
+    expect(document.querySelector('.notak-pdf-consigne')).not.toBeNull()
+    act(() => void document.querySelector('.notak-pdf-page[data-page="1"] .notak-pdf-saisie-fil')!.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 200, clientY: 400 })))
+    ecrire('Une question')
+    expect(Object.keys(fils(m)!)).toHaveLength(3)
+    expect(bouton(LISTE)?.textContent).toBe('Commentaires (2)')
+  })
+
+  it('en lecture seule, pas de « Nouveau commentaire » ni de « Résoudre »', async () => {
+    await ouvrir(deux(), { lectureSeule: true })
+    act(() => bouton(LISTE)!.click())
+    expect(document.querySelector('.notak-pdf-fils-ajouter')).toBeNull()
+    expect(document.querySelector('.notak-pdf-fil-resoudre')).toBeNull()
+  })
+})
+
+describe('un clic à côté des pages', () => {
+  const fond = () => document.querySelector<HTMLElement>('.notak-pdf-defile')!
+  const cliquerLeFond = () => {
+    act(() => void fond().dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })))
+    act(() => void fond().dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })))
+  }
+
+  it('ne ferme jamais la visionneuse ; il referme la bulle du fil, par sa fermeture à elle', async () => {
+    await ouvrir(pdf({ fils: { a: filDe(1, 0.4, 0.3, 'Pourquoi ce total ?') } }))
+    act(() => document.querySelector<HTMLButtonElement>('.notak-pdf-epingle[data-fil-pdf="a"] .notak-epingle-bouton')!.click())
+    expect(document.querySelector('.notak-fil-attache')).not.toBeNull()
+    cliquerLeFond()
+    expect(document.querySelector('.notak-fil-attache')).toBeNull()
+    expect(document.querySelector('.notak-pdf')).not.toBeNull()
+    // Rien d'ouvert : le clic ne fait rien.
+    cliquerLeFond()
+    expect(document.querySelector('.notak-pdf')).not.toBeNull()
+  })
+
+  it('sort du mode Commenter sans épingler, et range la recherche', async () => {
+    await ouvrir()
+    act(() => bouton(COMMENTER)!.click())
+    expect(document.querySelector('.notak-pdf-consigne')).not.toBeNull()
+    cliquerLeFond()
+    expect(document.querySelector('.notak-pdf-consigne')).toBeNull()
+    expect(epingles()).toHaveLength(0)
+    act(() => bouton('Rechercher dans le PDF (⌘F)')!.click())
+    expect(document.querySelector('.notak-pdf-recherche')).not.toBeNull()
+    cliquerLeFond()
+    expect(document.querySelector('.notak-pdf-recherche')).toBeNull()
+    expect(document.querySelector('.notak-pdf')).not.toBeNull()
   })
 })
 

@@ -95,5 +95,14 @@ export function filVoisin(fils: readonly FilSurPage[], ouvert: Id | null, pas: 1
   return [...fils].reverse().find((f) => f.page <= page) ?? fils[fils.length - 1]
 }
 
+/**
+ * Les fils qu'on montre et qu'on parcourt : les ouverts, et les résolus seulement quand on les affiche. Un résolu reste
+ * dans l'élément (on le rouvre), mais il ne parle plus : ni épingle, ni « suivant », ni compte dans la barre.
+ */
+export const filsParcourus = (fils: readonly FilSurPage[], resolusMontres: boolean): FilSurPage[] => (resolusMontres ? [...fils] : fils.filter((f) => !f.fil.resolu))
+
+/** Le nombre de fils encore ouverts : celui que dit la barre. */
+export const nombreOuverts = (fils: readonly FilSurPage[]) => fils.filter((f) => !f.fil.resolu).length
+
 /** Le nombre de messages sur tout le document. */
 export const nombreDeMessages = (fils: readonly FilSurPage[]) => fils.reduce((n, f) => n + f.fil.messages.length, 0)

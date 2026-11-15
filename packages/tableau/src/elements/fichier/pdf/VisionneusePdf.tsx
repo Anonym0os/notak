@@ -750,10 +750,16 @@ export function VisionneusePdf({
           onScroll={mesurer}
           onPointerDown={(e) => (fondPresse.current = estFond(e.target, e.currentTarget))}
           onClick={(e) => {
-            // Un clic à côté des pages ferme, comme sur le voile de l'image en grand ; pas la fin d'une sélection de texte.
+            // Un clic à côté des pages ne ferme jamais la visionneuse : on y clique pour sortir d'un commentaire, et tout
+            // partait avec. Il referme ce qui est ouvert, et c'est tout : la bulle d'un fil se ferme seule à l'appui
+            // dehors (sa fermeture à elle), la recherche se range, on sort du mode Commenter ou Dessiner (le dessin
+            // s'enregistre). Pas à la fin d'une sélection de texte. Fermer, c'est la croix ou Échap.
             const presse = fondPresse.current
             fondPresse.current = false
-            if (presse && !dessin.actif && !commentaires.actif && estFond(e.target, e.currentTarget) && !window.getSelection()?.toString()) fermer()
+            if (!presse || !estFond(e.target, e.currentTarget) || window.getSelection()?.toString()) return
+            if (recherche) fermerRecherche()
+            if (commentaires.actif) commentaires.quitter()
+            if (dessin.actif) dessin.enregistrer()
           }}
         >
           {document_.etat === 'charge' && (

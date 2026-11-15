@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Commentaire, Fichier, Message } from '../../../coeur/tableau'
-import { ancre, auteurDuFil, cleFilPdf, deplacerFilPdf, filNeuf, filVoisin, filsDeLaPage, filsDesPages, nombreDeMessages, poserFilPdf, resumeDuFil } from './filsPdf'
+import { ancre, auteurDuFil, cleFilPdf, deplacerFilPdf, filNeuf, filVoisin, filsDeLaPage, filsDesPages, filsParcourus, nombreDeMessages, nombreOuverts, poserFilPdf, resumeDuFil } from './filsPdf'
 
 const pdf: Fichier = { type: 'fichier', fichier: 'f1', nom: 'devis.pdf', typeMime: 'application/pdf', taille: 10 }
 const message = (id: string, texte = 'Ici ?'): Message => ({ id, auteur: { id: 'ana', nom: 'Ana' }, date: 1, texte })
@@ -93,5 +93,17 @@ describe('naviguer et déplacer', () => {
     const r = resumeDuFil(f, 20)
     expect(r).toMatchObject({ auteur: 'Ana', date: 42, reponses: 1 })
     expect(r.texte).toBe('Un long texte xxxxx…')
+  })
+})
+
+describe('les fils résolus', () => {
+  const c: Fichier = { ...pdf, fils: { a: fil(1, 0.5, 0.1, message('1')), b: { ...fil(1, 0.5, 0.5, message('2')), resolu: true }, c: fil(2, 0.5, 0.5, message('3')) } }
+
+  it('se taisent : la barre ne les compte pas, et on ne les parcourt que quand on les affiche', () => {
+    const fils = filsDesPages(c)
+    expect(nombreOuverts(fils)).toBe(2)
+    expect(filsParcourus(fils, false).map((f) => f.id)).toEqual(['a', 'c'])
+    expect(filsParcourus(fils, true).map((f) => f.id)).toEqual(['a', 'b', 'c'])
+    expect(filVoisin(filsParcourus(fils, false), 'a', 1, 1)?.id).toBe('c')
   })
 })
