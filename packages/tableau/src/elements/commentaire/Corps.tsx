@@ -15,6 +15,8 @@ import { estVisiteur, peutCommenter, peutSupprimerMessage } from '../../coeur/dr
 import { personneAJour } from '../../personne'
 import { Confirmation, type Entree } from '../../communs'
 import { MenuMessage } from './MenuMessage'
+import { brouillonGarde, garderBrouillon } from './brouillon'
+import { BandeauResolu, BoutonResoudre } from './Resolu'
 
 /** Les boutons et le champ de la carte ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
@@ -114,16 +116,23 @@ interface PropsLigne {
 export function Ligne({ message, retirer, dernier, modifier, contexte, reagir, nonLu, ecrit, enMarge, actionsFil, entreesFil, citation }: PropsLigne) {
   const { auteur } = message
   const maintenant = useMinute()
-  const [edition, setEdition] = useState(false)
+  // Une modification laissée en cours (la fiche démontée sans l'enregistrer ni l'abandonner) se rouvre où on l'a laissée.
+  const cleModif = `modif:${message.id}`
+  const [edition, setEdition] = useState(() => !!contexte && !!modifier && !!brouillonGarde(cleModif))
   const racine = useRef<HTMLDivElement>(null)
   // La suppression attend qu'on la confirme : le message part pour tout le monde.
   const [confirmer, setConfirmer] = useState(false)
-  const brouillon = useRef<{ texte: string; riche?: NoeudTexte }>({ texte: message.texte, ...(message.riche ? { riche: message.riche } : {}) })
+  const brouillon = useRef<{ texte: string; riche?: NoeudTexte }>(brouillonGarde(cleModif) ?? { texte: message.texte, ...(message.riche ? { riche: message.riche } : {}) })
   const enregistrer = () => {
     const { texte, riche } = brouillon.current
     if (texte.trim() && (texte.trim() !== message.texte || riche)) modifier?.(texte, riche)
     // Un message vidé qu'on enregistre, c'est un message qu'on veut retirer.
     else if (!texte.trim() && retirer) setConfirmer(true)
+    finirModif()
+  }
+  /** La modification s'arrête, enregistrée ou annulée de la main : rien à garder pour la prochaine fois. */
+  function finirModif() {
+    garderBrouillon(cleModif, null)
     setEdition(false)
   }
   const date = new Date(message.date)
@@ -183,6 +192,7 @@ export function Ligne({ message, retirer, dernier, modifier, contexte, reagir, n
             </button>
           )}
           {!enMarge && ecrire && reagir && reactions.length === 0 && auteur.id !== jeSuis && <BoutonAjoutReaction className="notak-commentaire-reagir" choisir={reagir} />}
+          {!enMarge && !edition && actionsFil}
           {!enMarge && !edition && <MenuMessage entrees={entrees} className="notak-commentaire-plus" />}
         </div>
         {citation && <blockquote className="notak-commentaire-citation">{citation}</blockquote>}
@@ -193,6 +203,8 @@ export function Ligne({ message, retirer, dernier, modifier, contexte, reagir, n
             placeholder={t('commentaire.modifierPoints')}
             autoFocus
             className="notak-commentaire-champ"
+            garde={cleModif}
+            surAbandon={() => setEdition(false)}
             surChangement={(texte, riche) => (brouillon.current = { texte, ...(riche ? { riche } : {}) })}
             envoyer={enregistrer}
             echapper={() => {
@@ -210,7 +222,7 @@ export function Ligne({ message, retirer, dernier, modifier, contexte, reagir, n
           >
             {enMarge && (
               <span className="notak-compositeur-gestes">
-                <button type="button" className="notak-compositeur-rond" data-genre="annuler" aria-label={t('commentaire.annulerModif')} title={t('commentaire.annulerModif')} onMouseDown={(e) => e.preventDefault()} onClick={() => setEdition(false)}>
+                <button type="button" className="notak-compositeur-rond" data-genre="annuler" aria-label={t('commentaire.annulerModif')} title={t('commentaire.annulerModif')} onMouseDown={(e) => e.preventDefault()} onClick={finirModif}>
                   <Icone nom="fermer" taille={14} trait={2.5} />
                 </button>
                 <button type="button" className="notak-compositeur-rond" data-genre="valider" aria-label={t('commentaire.enregistrer')} title={t('commentaire.enregistrer')} onMouseDown={(e) => e.preventDefault()} onClick={enregistrer}>
@@ -269,6 +281,8 @@ export interface SaisieFil {
   retourVide?(): void
   surFrappe?(): void
   poignee?: React.Ref<PoigneeCompositeur>
+  /** La clé du brouillon : ce qu'on n'a pas publié est retenu à la sortie, et rendu à la réouverture (`brouillon.ts`). */
+  garde?: string
   /** Le texte tapé est-il vide ? Grise « Publier ». */
   vide: boolean
   /** « Publier » : envoie ce qui est tapé. */
@@ -292,6 +306,7 @@ export function CorpsFil({
   saisie,
   vide,
   pied,
+  resoudre,
 }: {
   fil: Commentaire
   /** Les messages montrés, quand le fil est abrégé. */
@@ -311,6 +326,11 @@ export function CorpsFil({
   saisie?: SaisieFil
   vide?: string
   pied?: React.ReactNode
+  /**
+   * Résoudre le fil, ou le rouvrir. Donné, un fil ouvert porte « Résoudre » sur son premier message ; un fil résolu
+   * s'annonce en tête (« Résolu · Rouvrir ») et ses messages s'estompent. Répondre le rouvre aussi.
+   */
+  resoudre?(resolu: boolean): void
 }) {
   const auteur = moi(contexte)
   const ecrire = peutCommenter(contexte.services)
@@ -337,7 +357,8 @@ export function CorpsFil({
   const lesNonLus = new Set(nonLus.map((m) => m.id))
   const lesEcrivent = new Set(ecrivent.map((u) => u.id))
   return (
-    <div ref={defile} className="notak-commentaire-defile" data-defile={deborde || undefined}>
+    <div ref={defile} className="notak-commentaire-defile" data-defile={deborde || undefined} data-resolu={fil.resolu || undefined}>
+      {fil.resolu && fil.messages.length > 0 && <BandeauResolu {...(resoudre && ecrire ? { rouvrir: () => resoudre(false) } : {})} />}
       {vide && fil.messages.length === 0 && <p className="notak-commentaire-vide">{vide}</p>}
       {messages.map((m, i) => {
         const mien = ecrire && m.auteur.id === auteur.id
@@ -353,6 +374,7 @@ export function CorpsFil({
               reagir={ecrire ? (emoji) => maj(reagirAuMessage(fil, m.id, emoji, auteur.id)) : undefined}
               {...(mien ? { modifier: (texte: string, riche?: NoeudTexte) => maj(modifierMessage(fil, m.id, texte, riche)) } : {})}
               {...(supprimable ? { retirer: () => maj(retirerMessage(fil, m.id)), dernier: fil.messages.length === 1 } : {})}
+              {...(i === 0 && resoudre && ecrire && !fil.resolu ? { actionsFil: <BoutonResoudre className="notak-commentaire-resoudre" resoudre={() => resoudre(true)} /> } : {})}
             />
             {i === 0 && caches > 0 && <p className="notak-commentaire-caches">{tn('commentaire.autresReponses', caches)}</p>}
           </div>
@@ -381,6 +403,7 @@ export function CorpsFil({
             {...(saisie.surFrappe ? { surFrappe: saisie.surFrappe } : {})}
             {...(saisie.echapper ? { echapper: saisie.echapper } : {})}
             {...(saisie.retourVide ? { retourVide: saisie.retourVide } : {})}
+            {...(saisie.garde ? { garde: saisie.garde } : {})}
             envoyer={saisie.envoyer}
           >
             <button

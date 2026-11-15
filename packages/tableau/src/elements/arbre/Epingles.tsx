@@ -109,7 +109,7 @@ function EpingleSujet({ carte, id, cle, fil, x, y, ouvert, ouvrir, contexte, pos
         title={titre}
         onClick={() => ouvrir(ouvert ? null : id)}
       >
-        <GlypheEpingle n={n} hex={couleurEpingle(fil)} nonLu={!ouvert && aDuNouveau(cle, fil, jeSuis)} />
+        <GlypheEpingle n={n} hex={couleurEpingle(fil)} resolu={!!fil.resolu} nonLu={!ouvert && aDuNouveau(cle, fil, jeSuis)} />
       </button>
       {ouvert && <BulleFil fil={fil} maj={(apres) => poser(id, apres)} contexte={contexte} element={carte} cle={cle} cles={[cle]} signal={cle} fermer={() => ouvrir(null)} />}
     </div>

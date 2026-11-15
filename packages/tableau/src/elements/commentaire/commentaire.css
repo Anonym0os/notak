@@ -513,3 +513,201 @@
 .notak-epingle-bulle > .notak-fil-attache {
   top: -29px;
 }
+
+/*
+ * La garde du brouillon (`brouillon.ts`) : le champ et sa ligne d'avertissement vont ensemble. Un geste de sortie avec
+ * du texte non publié secoue le champ, d'une légère oscillation (rien sous « mouvement réduit »), et son bord passe à
+ * l'orange ; dessous, « Commentaire non publié · Publier · Abandonner ».
+ */
+.notak-compositeur-bloc {
+  flex: 1;
+  min-width: 0;
+}
+
+.notak-compositeur[data-alerte] {
+  border-color: #e08a1e;
+  box-shadow: 0 0 0 1px #e08a1e40;
+}
+
+/* Deux noms pour la même secousse : changer de nom la rejoue à chaque geste retenu. */
+.notak-compositeur-bloc[data-secousse='a'] > .notak-compositeur {
+  animation: notak-secousse-a 0.32s ease-out;
+}
+
+.notak-compositeur-bloc[data-secousse='b'] > .notak-compositeur {
+  animation: notak-secousse-b 0.32s ease-out;
+}
+
+@keyframes notak-secousse-a {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes notak-secousse-b {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notak-compositeur-bloc[data-secousse] > .notak-compositeur {
+    animation: none;
+  }
+}
+
+.notak-compositeur-alerte {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+  margin: 5px 0 0;
+  color: #b4630f;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.notak-compositeur-alerte button {
+  padding: 0 !important;
+  border: 0;
+  background: none;
+  color: #2f63f7 !important;
+  font: inherit;
+  font-weight: 600 !important;
+  cursor: pointer;
+}
+
+.notak-compositeur-alerte button[data-genre='abandonner'] {
+  color: #6b717a !important;
+}
+
+.notak-espace[data-theme='sombre'] .notak-compositeur-alerte {
+  color: #f0a24a;
+}
+
+/*
+ * Le fil résolu (`Resolu.tsx`) : « ✓ Résolu · Rouvrir » en tête, en vert, et ses messages estompés ; la fiche de la
+ * toile passe au gris-vert, le fil reste lisible.
+ */
+.notak-resolu {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 10px 14px 0 24px;
+  color: #2f9a5a;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.notak-resolu-compte {
+  color: #8d929a;
+  font-weight: 400;
+}
+
+.notak-resolu-rouvrir {
+  margin-left: auto;
+  padding: 0 !important;
+  color: #2f63f7 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.notak-commentaire-defile[data-resolu] .notak-commentaire-message {
+  opacity: 0.6;
+}
+
+.notak-carte[data-type='commentaire']:has(.notak-commentaire[data-resolu]) {
+  background: #f1f6f2;
+}
+
+.notak-espace[data-theme='sombre'] .notak-carte[data-type='commentaire']:has(.notak-commentaire[data-resolu]) {
+  background: #24302a;
+}
+
+/* « Résoudre », au survol du premier message d'un fil ouvert, au bord droit de l'en-tête. */
+.notak-commentaire-resoudre {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  height: 20px;
+  margin-left: auto;
+  padding: 2px 3px !important;
+  border-radius: 3px;
+  color: #8d929a !important;
+  opacity: 0;
+}
+
+.notak-commentaire-modifier ~ .notak-commentaire-resoudre,
+.notak-commentaire-resoudre + .notak-commentaire-plus {
+  margin-left: 0;
+}
+
+.notak-commentaire-resoudre:hover {
+  background: #e8e9eb !important;
+  color: #2f9a5a !important;
+}
+
+.notak-commentaire-message:hover .notak-commentaire-resoudre,
+.notak-commentaire-resoudre:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .notak-commentaire-resoudre {
+    opacity: 1;
+  }
+}
+
+/* La coche d'une épingle résolue, à la place du compte. */
+.notak-epingle-compte[data-resolu] svg {
+  display: block;
+}
+
+/* La rubrique « Résolus (n) » d'une liste de fils, repliée tant qu'on ne l'ouvre pas. */
+.notak-resolus-entete {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  background: none;
+  color: #6b717a;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-resolus-entete:hover {
+  color: #323b4a;
+}

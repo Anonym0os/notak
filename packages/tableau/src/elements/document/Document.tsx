@@ -5,7 +5,7 @@ import { prendreFil } from '../tableau/montrer'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { type Commentaire, type DocumentTexte, type Element as ElementTableau, type Id, type NoeudTexte, type PageDocument, nouvelId } from '../../coeur/tableau'
 import { type Fils, MARQUE_FIL, avecFil, filsVivants, sansPassagesMuets } from '../note/fils'
-import { Marge } from '../note/Marge'
+import { Marge, PassagesResolus } from '../note/Marge'
 import { type Pont, Propositions, extensionPropositions } from '../note/Propositions'
 import { Surcouche } from '../surcouche'
 import { BoutonIlot, FilEcran, FiletIlot, ILOTS_APPLICATION, Ilot, IlotCompte, IlotHistorique, IlotPartage, fermerMenuDesIlots } from '../../Ilots'
@@ -490,6 +490,7 @@ function Lecture({
           {t('document.plusRecent')}
         </p>
       )}
+      <PassagesResolus fils={contenu.fils} />
       <Lu texte={contenu.texte} fils={contenu.fils} adresse={adresse} externe={externe} />
     </Modale>
   )

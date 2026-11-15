@@ -5,7 +5,9 @@ import { type Commentaire, type Id, type NoeudTexte, annoter, nouvelId } from '.
 import { Ligne } from '../commentaire/Commentaire'
 import { Compositeur, type PoigneeCompositeur } from '../commentaire/Compositeur'
 import { filDuBlocChoisi, placeDuFil } from '../../blocs/commentaires'
-import { AUTEUR_INCONNU, ajouterMessage, epinglerEn, initiales, modifierMessage, reagirAuMessage, retirerMessage } from '../commentaire/fil'
+import { AUTEUR_INCONNU, ajouterMessage, epinglerEn, initiales, modifierMessage, reagirAuMessage, resoudre, retirerMessage } from '../commentaire/fil'
+import { BandeauResolu, BoutonResoudre } from '../commentaire/Resolu'
+import { retenirSortie } from '../commentaire/brouillon'
 import { CLASSE_MENU_MESSAGE } from '../commentaire/MenuMessage'
 import { peutSupprimerMessage } from '../../coeur/droitsElements'
 import type { Entree } from '../../communs'
@@ -103,6 +105,20 @@ function bornesDuFil(editeur: Editor, id: Id): { top: number; bottom: number } |
 const reglePassage = (id: Id) =>
   `.notak-page .notak-fil-texte[data-fil="${CSS.escape(id)}"] { background: rgb(255 203 0 / 0.24); border-bottom-color: rgb(255 203 0); }
 .notak-page [data-fil-bloc="${CSS.escape(id)}"] { outline: 2px solid rgb(255 203 0 / 0.8); outline-offset: 2px; border-radius: 4px; }`
+
+/**
+ * Les passages dont le fil est résolu ne s'éclairent plus : un pointillé vert, discret, dit seulement qu'un fil y a
+ * été réglé (un clic hors édition le rouvre encore, pour le relire). Une règle de style, sans toucher au texte.
+ */
+export function PassagesResolus({ fils }: { fils: Fils | undefined }) {
+  const ids = Object.entries(fils ?? {})
+    .filter(([, f]) => f.resolu && f.messages.length > 0)
+    .map(([id]) => id)
+  if (ids.length === 0) return null
+  // Dans une valeur entre guillemets, seuls le guillemet et la barre oblique inverse s'échappent.
+  const cibles = ids.map((id) => `.notak-texte .notak-fil-texte[data-fil="${id.replace(/["\\]/g, '\\$&')}"]`).join(', ')
+  return <style>{`${cibles} { background: none; border-bottom: 1px dashed rgb(47 154 90 / 0.6); }`}</style>
+}
 
 /**
  * Les fils des passages commentés, en marge de la note en édition : chacun à la hauteur de son passage, sans
@@ -216,7 +232,7 @@ export function Marge({ editeur, fils, ouvert, surOuvert, ecrire, contexte, enPa
     }
   }, [editeur, mesurer, enPage])
 
-  // Page étroite : un clic hors du fil ouvert, ou Échap, le referme.
+  // Page étroite : un clic hors du fil ouvert, ou Échap, le referme (un brouillon l'a déjà retenu, `brouillon.ts`).
   useEffect(() => {
     if (!enPage || !etroit || !actif) return
     const hors = (e: PointerEvent) => {
@@ -230,6 +246,7 @@ export function Marge({ editeur, fils, ouvert, surOuvert, ecrire, contexte, enPa
   const regles = enPage && [survol, actif].filter((x, i, t): x is Id => !!x && t.indexOf(x) === i).map(reglePassage).join('\n')
   return (
     <aside className="notak-note-marge" data-page={enPage || undefined} data-etroit={(enPage && etroit) || undefined} aria-label={t('commentaire.dutexte')} onPointerDown={garder} onDoubleClick={garder}>
+      <PassagesResolus fils={fils} />
       {regles && <style>{regles}</style>}
       {enPage &&
         etroit &&
@@ -258,6 +275,7 @@ export function Marge({ editeur, fils, ouvert, surOuvert, ecrire, contexte, enPa
         return (
         <Fiche
           key={id}
+          cle={id}
           ref={(n) => {
             if (n) fiches.current.set(id, n)
             else fiches.current.delete(id)
@@ -293,6 +311,7 @@ const VIDE: Commentaire = { type: 'commentaire', messages: [] }
 
 function Fiche({
   ref,
+  cle,
   haut,
   centre,
   citation,
@@ -308,6 +327,8 @@ function Fiche({
   contexte,
 }: {
   ref: (n: HTMLElement | null) => void
+  /** Le fil, pour garder son brouillon (`brouillon.ts`). */
+  cle: Id
   /** Sa place ; inconnue au premier rendu, la fiche attend d'être mesurée, cachée (elle ne glisse pas depuis le haut). */
   haut: number | undefined
   /** Le fil ouvert sous son passage (page étroite) : centré sur la colonne, le passage cité en tête. */
@@ -337,14 +358,23 @@ function Fiche({
     setVide(true)
   }
   const n = fil.messages.length
-  // Les gestes du fil (NOTION.md § 9) : sur son premier message, « Retirer » dans la barre (à la place de « Résoudre »),
-  // « Détacher » dans son menu « ⋯ » ; plus de pied « Fermer » : Échap, ou le curseur hors du passage, ferment la fiche.
-  const gestesFil = peutEcrire && retirer && (
-    <button type="button" className="notak-commentaire-geste" aria-label={t('commentaire.retirerFil')} title={t('commentaire.retirerFil')} onClick={retirer}>
-      <Icone nom="resoudre" taille={16} />
-    </button>
+  // Les gestes du fil (NOTION.md § 9) : sur son premier message, « Résoudre » dans la barre, comme chez Notion (le fil
+  // passe au second plan, son passage ne s'éclaire plus, « Rouvrir » le ramène) ; « Détacher » et « Retirer le
+  // commentaire » (le fil part avec la marque de son passage) dans son menu « ⋯ » ; plus de pied « Fermer » : Échap,
+  // ou le curseur hors du passage, ferment la fiche.
+  const gestesFil = peutEcrire && n > 0 && !fil.resolu && (
+    <BoutonResoudre
+      className="notak-commentaire-geste"
+      resoudre={() => {
+        ecrire(resoudre(fil, true))
+        fermer()
+      }}
+    />
   )
-  const entreesFil: Entree[] = peutEcrire && detacher && n > 0 ? [{ libelle: t('commentaire.detacher'), icone: 'detacher', faire: detacher }] : []
+  const entreesFil: Entree[] = [
+    ...(peutEcrire && detacher && n > 0 ? [{ libelle: t('commentaire.detacher'), icone: 'detacher' as const, faire: detacher }] : []),
+    ...(peutEcrire && retirer ? [{ libelle: t('commentaire.retirerFil'), icone: 'fermer' as const, faire: retirer }] : []),
+  ]
   // Un message supprimé ; le dernier parti, le fil n'a plus rien à dire : sa fiche se ferme et son passage n'est plus commenté.
   const supprimer = (id: Id) => {
     const apres = retirerMessage(fil, id)
@@ -359,12 +389,14 @@ function Fiche({
       data-survol={(survolee && !actif) || undefined}
       data-flottant={centre !== undefined || undefined}
       data-neuf={n === 0 || undefined}
+      data-resolu={fil.resolu || undefined}
       style={haut === undefined ? { visibility: 'hidden' } : centre !== undefined ? { top: haut, left: centre } : { top: haut }}
       onClick={actif ? undefined : ouvrir}
       onPointerEnter={() => surSurvol?.(true)}
       onPointerLeave={() => surSurvol?.(false)}
     >
-      {fil.messages.map((m, i) => (
+      {fil.resolu && n > 0 && <BandeauResolu {...(actif && peutEcrire ? { rouvrir: () => ecrire(resoudre(fil, false)) } : { n })} />}
+      {(actif || !fil.resolu) && fil.messages.map((m, i) => (
         <Ligne
           key={m.id}
           message={m}
@@ -389,6 +421,7 @@ function Fiche({
             autoFocus
             placeholder={n > 0 && centre === undefined ? t('commentaire.repondrePoints') : t('commentaire.ecrire')}
             className="notak-fil-marge-champ"
+            garde={`marge:${cle}`}
             surChangement={(texte) => setVide(!texte)}
             envoyer={envoyer}
             echapper={() => {
@@ -439,6 +472,7 @@ export function FilOuvert({
   contexte: ContexteToile
 }) {
   const plan = carte.closest<HTMLElement>('.notak-plan')
+  const fiche = useRef<HTMLElement>(null)
   const [place, setPlace] = useState<{ x: number; y: number } | null>(null)
   useLayoutEffect(() => {
     if (!plan) return
@@ -456,7 +490,7 @@ export function FilOuvert({
       const cible = e.target as HTMLElement | null
       if (!cible?.closest?.(`.notak-note-marge, [data-fil], ${HORS_FICHE}`)) fermer()
     }
-    const touche = (e: KeyboardEvent) => e.key === 'Escape' && fermer()
+    const touche = (e: KeyboardEvent) => e.key === 'Escape' && !retenirSortie(fiche.current) && fermer()
     document.addEventListener('pointerdown', hors, true)
     document.addEventListener('keydown', touche)
     return () => {
@@ -466,8 +500,8 @@ export function FilOuvert({
   }, [fermer])
   if (!plan || !place) return null
   return createPortal(
-    <aside className="notak-note-marge" data-fige aria-label={t('commentaire.dutexte')} style={{ left: place.x, top: place.y }} onPointerDown={garder} onPointerUp={garder} onDoubleClick={garder} onClick={garder}>
-      <Fiche ref={() => {}} haut={0} {...(fil ? { fil } : {})} actif ouvrir={() => {}} fermer={fermer} ecrire={ecrire} retirer={null} detacher={null} contexte={contexte} />
+    <aside ref={fiche} className="notak-note-marge" data-fige aria-label={t('commentaire.dutexte')} style={{ left: place.x, top: place.y }} onPointerDown={garder} onPointerUp={garder} onDoubleClick={garder} onClick={garder}>
+      <Fiche ref={() => {}} cle={id} haut={0} {...(fil ? { fil } : {})} actif ouvrir={() => {}} fermer={fermer} ecrire={ecrire} retirer={null} detacher={null} contexte={contexte} />
     </aside>,
     plan,
   )

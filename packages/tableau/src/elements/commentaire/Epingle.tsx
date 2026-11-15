@@ -5,7 +5,10 @@ import { ouvrirFil, useFilOuvert } from '../decor/etat'
 import { FOND_NOTE, contraste } from '../note/couleurs'
 import type { ContexteToile } from '../types'
 import { CorpsFil } from './Corps'
-import { AUTEUR_INCONNU, ajouterMessage } from './fil'
+import { AUTEUR_INCONNU, ajouterMessage, resoudre } from './fil'
+import { retenirSortie } from './brouillon'
+import { VERT_RESOLU } from './Resolu'
+import { Icone } from '../../icones'
 import { type PoigneeCompositeur } from './Compositeur'
 import { marquerLu, nonLus, useSignalerFrappe } from './suivi'
 import { peutCommenter } from '../../coeur/droitsElements'
@@ -24,16 +27,17 @@ const texteEpingle = (hex: string) => (contraste(hex, '#ffffff') >= contraste(he
 /**
  * Le dessin d'une épingle de commentaire : 24 × 29 px, la pointe en bas, le nombre de messages dedans (99 au plus),
  * un point orange quand le fil a du nouveau. Elle ne grossit pas avec le zoom : la contre-échelle, ancrée à sa
- * pointe, la garde à sa taille d'écran.
+ * pointe, la garde à sa taille d'écran. Le fil résolu a l'épingle verte, une coche à la place du compte (`Resolu.tsx`).
  */
-export function GlypheEpingle({ n, hex, nonLu }: { n: number; hex: string; nonLu?: boolean }) {
+export function GlypheEpingle({ n, hex, nonLu, resolu }: { n: number; hex: string; nonLu?: boolean; resolu?: boolean }) {
+  const fond = resolu ? VERT_RESOLU : hex
   return (
     <>
       <svg className="notak-epingle-forme" viewBox="0 0 24 29" width="24" height="29" aria-hidden>
-        <path d="M12 28.5 3.2 18.2A11.2 11.2 0 0 1 1 11.5C1 5.4 5.9.5 12 .5s11 4.9 11 11c0 2.5-.8 4.8-2.2 6.7z" fill={hex} stroke="#fff" strokeWidth="1" />
+        <path d="M12 28.5 3.2 18.2A11.2 11.2 0 0 1 1 11.5C1 5.4 5.9.5 12 .5s11 4.9 11 11c0 2.5-.8 4.8-2.2 6.7z" fill={fond} stroke="#fff" strokeWidth="1" />
       </svg>
-      <span className="notak-epingle-compte" style={{ color: texteEpingle(hex) }}>
-        {n > 99 ? 99 : n}
+      <span className="notak-epingle-compte" data-resolu={resolu || undefined} style={{ color: texteEpingle(fond) }}>
+        {resolu ? <Icone nom="coche" taille={13} trait={3} /> : n > 99 ? 99 : n}
       </span>
       {nonLu && <span className="notak-epingle-nonlu" role="img" aria-label={t('commentaire.nonLu')} />}
     </>
@@ -88,6 +92,11 @@ export function BulleFil({
 }) {
   const auteur = contexte.services.presence?.moi?.() ?? AUTEUR_INCONNU
   const ecrire = peutCommenter(contexte.services)
+  // La croix de la feuille, Échap sur la bulle : un brouillon les retient d'abord (`brouillon.ts`).
+  const racine = useRef<HTMLDivElement>(null)
+  const sortir = () => {
+    if (!retenirSortie(racine.current)) fermer()
+  }
   // Son dernier message supprimé, le fil n'a plus rien à montrer : la bulle se ferme avec lui.
   const maj = (apres: Commentaire) => {
     poser(apres)
@@ -104,6 +113,7 @@ export function BulleFil({
   const texteCourant = useRef<{ texte: string; riche?: NoeudTexte }>({ texte: '' })
   const bulle = (
     <div
+      ref={racine}
       className="notak-fil-attache"
       data-bande={fil.couleur ? '' : undefined}
       style={fil.couleur ? ({ '--bande': couleurEpingle(fil) } as React.CSSProperties) : undefined}
@@ -113,7 +123,7 @@ export function BulleFil({
       onDoubleClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
         e.stopPropagation()
-        if (e.key === 'Escape') fermer()
+        if (e.key === 'Escape') sortir()
       }}
     >
       <div className="notak-commentaire">
@@ -126,17 +136,20 @@ export function BulleFil({
           vu
           maj={maj}
           vide={t('commentaire.aucun')}
+          resoudre={(oui) => maj(resoudre(fil, oui))}
           {...(ecrire
             ? {
                 saisie: {
                   vide,
                   poignee: champ,
+                  garde: `bulle:${cle}`,
                   surFrappe: frappe,
                   surChangement: (texte: string, riche: NoeudTexte | undefined) => {
                     texteCourant.current = { texte, ...(riche ? { riche } : {}) }
                     setVide(!texte.trim())
                   },
                   envoyer,
+                  // Le champ a déjà retenu son brouillon (`Compositeur`) : Échap qui arrive ici ferme.
                   echapper: () => {
                     fermer()
                     return true
@@ -150,7 +163,7 @@ export function BulleFil({
     </div>
   )
   return enFeuille() ? (
-    <Feuille titre={t('commentaire.titre')} fermer={fermer} className="notak-tiroir-bas-fil">
+    <Feuille titre={t('commentaire.titre')} fermer={sortir} className="notak-tiroir-bas-fil">
       {bulle}
     </Feuille>
   ) : (
@@ -195,11 +208,12 @@ export function EpingleLibre({ element, enEdition, contexte, changer }: { elemen
       <button
         type="button"
         className="notak-epingle-bouton notak-epingle-libre"
+        data-resolu={fil.resolu || undefined}
         aria-expanded={ouvert}
         aria-label={`${t('decor.ouvrirCommentaires')} (${fil.messages.length})`}
         onClick={() => !ouvert && ouvrirFil(cle)}
       >
-        <GlypheEpingle n={fil.messages.length} hex={couleurEpingle(fil)} nonLu={!ouvert && aDuNouveau(element.id, fil, jeSuis)} />
+        <GlypheEpingle n={fil.messages.length} hex={couleurEpingle(fil)} resolu={!!fil.resolu} nonLu={!ouvert && aDuNouveau(element.id, fil, jeSuis)} />
       </button>
       {ouvert && (
         <div className="notak-epingle-bulle">

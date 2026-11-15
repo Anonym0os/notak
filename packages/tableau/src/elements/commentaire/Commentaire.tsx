@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { type Auteur, type Commentaire, type NoeudTexte, nouvelId } from '../../coeur/tableau'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
-import { AUTEUR_INCONNU, ajouterMessage, filVide, plier, replier } from './fil'
+import { AUTEUR_INCONNU, ajouterMessage, filVide, plier, replier, resoudre } from './fil'
 import { t } from '../../langue'
 import { BoutonOutil, OutilAvecMenu } from '../../BoutonOutil'
 import { useMenu } from '../../menuUnique'
@@ -53,9 +53,10 @@ function FilLu({ element, choisie, contexte, changer }: { element: PropsRendu<Co
   const { montres, caches } = choisie ? { montres: c.messages, caches: 0 } : replier(c.messages)
   const ecrire = peutCommenter(contexte.services, element.id)
   return (
-    <div className="notak-commentaire" {...bande(c)}>
+    <div className="notak-commentaire" data-resolu={c.resolu || undefined} {...bande(c)}>
       <CorpsFil
         fil={c}
+        resoudre={(oui) => changer(resoudre(c, oui))}
         messages={montres}
         caches={caches}
         contexte={contexte}
@@ -133,9 +134,10 @@ function Fil({ id, contenu, contexte, ecrire }: { id: string; contenu: Commentai
     ecrire(brouillonDe(apres, courant.current.texte, courant.current.riche))
   }
   return (
-    <div className="notak-commentaire" data-edition {...bande(contenu)}>
+    <div className="notak-commentaire" data-edition data-resolu={base.current.resolu || undefined} {...bande(contenu)}>
       <CorpsFil
         fil={base.current}
+        resoudre={(oui) => maj(resoudre(base.current, oui))}
         contexte={contexte}
         cle={id}
         cles={[id]}
@@ -193,7 +195,7 @@ function OutilCouleurFil({ elements, contexte }: PropsOutils<Commentaire>) {
 
 /**
  * Les outils d'un fil choisi, comme chez Milanote : la couleur, puis l'épingle (le fil se réduit à une épingle de la
- * couleur du fil, qui s'ouvre d'un clic ; on le redéploie du même geste).
+ * couleur du fil, qui s'ouvre d'un clic ; on le redéploie du même geste), puis Résoudre, ou Rouvrir le fil résolu.
  */
 export function OutilsCommentaire({ elements, contexte }: PropsOutils<Commentaire>) {
   const ouvert = useFilOuvert()
@@ -204,6 +206,7 @@ export function OutilsCommentaire({ elements, contexte }: PropsOutils<Commentair
       elements.map((e) => ({ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: plier(e.contenu, !touteEpingle) })),
     )
   const epinglable = elements.every((e) => e.contenu.messages.length > 0)
+  const toutResolu = elements.every((e) => e.contenu.resolu)
   return (
     <>
       <OutilCouleurFil elements={elements} contexte={contexte} />
@@ -218,6 +221,16 @@ export function OutilsCommentaire({ elements, contexte }: PropsOutils<Commentair
             if (ouvert && elements.some((e) => e.id === ouvert || cleEpingleLibre(e.id) === ouvert)) ouvrirFil(null)
             basculer()
           }}
+        />
+      )}
+      {epinglable && (
+        <BoutonOutil
+          icone="resoudre"
+          secondaire
+          actif={toutResolu}
+          titre={toutResolu ? t('commentaire.rouvrirFil') : t('commentaire.resoudreFil')}
+          libelle={toutResolu ? t('commentaire.rouvrir') : t('commentaire.resoudre')}
+          onClick={() => contexte.magasin.faire(elements.map((e) => ({ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: resoudre(e.contenu, !toutResolu) })))}
         />
       )}
     </>

@@ -9,7 +9,7 @@ import { ContexteBarreEdition } from '../../barreEdition'
 import { BarreTexte } from './Barre'
 import { OutilsTexteGauche } from './OutilsTexte'
 import { Extraction } from './PoigneeExtraction'
-import { FilOuvert, Marge } from './Marge'
+import { FilOuvert, Marge, PassagesResolus } from './Marge'
 import { prendreFil, useFilDemande } from '../tableau/montrer'
 import { MARQUE_FIL, type Fils, avecFil, filsVivants, sansPassagesMuets } from './fils'
 import { type Pont, Propositions, extensionPropositions } from './Propositions'
@@ -85,6 +85,7 @@ export function RenduNote(props: PropsRendu<Note>) {
       }}
     >
       {contenu.barre && <div className="notak-note-bande" style={{ background: contenu.barre }} aria-hidden />}
+      {!enEdition && <PassagesResolus fils={contenu.fils} />}
       {enEdition ? <Editeur {...props} /> : <TexteFige texte={contenu.variante === 'titre' ? sansLignesVidesEnFin(contenu.texte) : contenu.texte} fils={contenu.fils} />}
       {filOuvert && !enEdition && racine.current?.parentElement && (
         <FilOuvert

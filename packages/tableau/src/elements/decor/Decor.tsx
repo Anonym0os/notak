@@ -162,7 +162,7 @@ function Epingle({ element, contexte, ouvert }: { element: Element; contexte: Co
           ouvrirFil(ouvert ? null : element.id)
         }}
       >
-        <GlypheEpingle n={n} hex={hex} nonLu={!ouvert && aDuNouveau(`fil:${element.id}`, fil, jeSuis)} />
+        <GlypheEpingle n={n} hex={hex} resolu={!!fil?.resolu} nonLu={!ouvert && aDuNouveau(`fil:${element.id}`, fil, jeSuis)} />
       </button>
       {ouvert && !glisse && <FilAttache element={element} contexte={contexte} fermer={() => ouvrirFil(null)} />}
     </div>
