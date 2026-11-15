@@ -330,26 +330,6 @@
   cursor: grabbing;
 }
 
-/* Le fil résolu : l'épingle grise (Epingle.tsx l'atténue déjà), et une coche verte à la place du compte. */
-.notak-pdf-epingle[data-resolu] .notak-epingle-compte {
-  visibility: hidden;
-}
-
-.notak-pdf-epingle-coche {
-  position: absolute;
-  top: 4px;
-  left: 50%;
-  display: grid;
-  place-items: center;
-  width: 14px;
-  height: 14px;
-  margin-left: -7px;
-  border-radius: 50%;
-  background: #1f9d55;
-  color: #fff;
-  pointer-events: none;
-}
-
 /* La liste des commentaires : une colonne de 320 px à droite des pages, sur le fond des cartes du thème. */
 .notak-pdf-fils {
   flex: none;
@@ -387,7 +367,8 @@
 }
 
 .notak-pdf-fils-bouton,
-.notak-pdf-fil-resoudre {
+.notak-pdf-fil-resoudre,
+.notak-pdf-fil-rouvrir {
   display: inline-grid;
   place-items: center;
   min-width: 32px;
@@ -402,7 +383,8 @@
 }
 
 .notak-pdf-fils-bouton:hover:not(:disabled),
-.notak-pdf-fil-resoudre:hover {
+.notak-pdf-fil-resoudre:hover,
+.notak-pdf-fil-rouvrir:hover {
   background: rgb(127 127 127 / 0.14);
 }
 
@@ -463,32 +445,16 @@
   list-style: none;
 }
 
-/* Le titre des résolus, qui les déplie : sous les ouverts, séparé d'eux par un filet. */
-.notak-pdf-fils-resolus {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 36px;
+/* La rubrique « Résolus (n) » commune (`Resolu.tsx`), sous les ouverts : un filet, et le bord des autres titres. */
+.notak-pdf-fils .notak-resolus {
   margin-top: 4px;
-  padding: 0 16px;
-  border: 0;
   border-top: 1px solid rgb(127 127 127 / 0.18);
-  background: none;
+}
+
+.notak-pdf-fils .notak-resolus-entete {
+  min-height: 36px;
+  padding: 0 16px;
   color: inherit;
-  font: inherit;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-}
-
-.notak-pdf-fils-resolus:hover {
-  background: rgb(127 127 127 / 0.08);
-}
-
-.notak-pdf-fils-resolus .notak-pdf-fils-compte {
-  margin-left: 0;
 }
 
 .notak-pdf-fils-liste > li {
@@ -507,7 +473,7 @@
 }
 
 .notak-pdf-fils-liste > li[data-resolu] .notak-pdf-fil-etat {
-  color: #1f9d55;
+  color: #2f9a5a;
 }
 
 .notak-pdf-fil-etat {
@@ -567,11 +533,25 @@
   overflow-wrap: anywhere;
 }
 
-.notak-pdf-fil-resoudre {
+/* « Résoudre » (la coche ronde commune, `BoutonResoudre`) et « Rouvrir », au bord droit de chaque fil de la liste. */
+.notak-pdf-fil-resoudre,
+.notak-pdf-fil-rouvrir {
   flex: none;
   margin-top: 6px;
-  color: #8d929a;
   font-size: 12px;
+}
+
+.notak-pdf-fil-resoudre {
+  color: #8d929a;
+}
+
+.notak-pdf-fil-resoudre:hover {
+  color: #2f9a5a;
+}
+
+.notak-pdf-fil-rouvrir {
+  color: var(--notak-accent, #2f63f7);
+  font-weight: 600;
 }
 
 /* Au téléphone, la liste prend toute la largeur, sous les pages qu'elle laisse voir à moitié. */

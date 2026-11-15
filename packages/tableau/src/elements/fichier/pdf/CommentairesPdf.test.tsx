@@ -10,6 +10,7 @@ import '../../note'
 import '../../decor'
 import { chargerEmojis } from '../../decor/emojis'
 import { oublierLus } from '../../commentaire/suivi'
+import { afficherResolus } from '../../commentaire/Resolu'
 import { demanderLeFil, filDemande } from '../../tableau/montrer'
 import { ModaleFichier } from '../ModaleFichier'
 import { mesuresFausses } from './fauxPdf'
@@ -29,6 +30,8 @@ let racine: Root
 let hote: HTMLElement
 beforeEach(() => {
   oublierLus()
+  // « Afficher les résolus » est un réglage retenu d'une fois à l'autre : chaque essai part replié.
+  afficherResolus(false)
   vi.stubGlobal('fetch', async () => new Response(new Uint8Array([37, 80, 68, 70])))
   hote = document.createElement('div')
   document.body.append(hote)
@@ -159,7 +162,7 @@ describe('la liste des fils du PDF', () => {
   const LISTE = 'Liste des commentaires du PDF'
   const deux = () => pdf({ fils: { b: { ...filDe(2, 0.5, 0.5, 'Résolu depuis', ana), resolu: true }, a: filDe(1, 0.4, 0.3, 'Pourquoi ce total ?') } })
   const lignes = () => [...document.querySelectorAll<HTMLElement>('.notak-pdf-fils-liste > li')]
-  const titreResolus = () => document.querySelector<HTMLButtonElement>('.notak-pdf-fils-resolus')!
+  const titreResolus = () => document.querySelector<HTMLButtonElement>('.notak-pdf-fils .notak-resolus-entete')!
 
   it('dit chaque fil ouvert dans l’ordre de lecture : page, auteur, début du texte ; les résolus à part, repliés', async () => {
     await ouvrir(deux())
@@ -174,14 +177,15 @@ describe('la liste des fils du PDF', () => {
     expect(a!.querySelector('.notak-pdf-fil-texte')?.textContent).toBe('Pourquoi ce total ?')
     expect(a!.querySelector('.notak-pdf-fil-etat')?.textContent).toBe('Ouvert')
     // Les résolus, sous leur titre : repliés, puis dépliés.
-    expect(titreResolus().textContent).toBe('Résolus 1')
+    expect(titreResolus().textContent).toBe('Résolus (1)')
     expect(titreResolus().getAttribute('aria-expanded')).toBe('false')
     act(() => titreResolus().click())
     expect(titreResolus().getAttribute('aria-expanded')).toBe('true')
     const b = document.querySelector<HTMLElement>('.notak-pdf-fils-liste-resolus > li[data-fil="b"]')!
     expect(b.querySelector('.notak-pdf-fil-etat')?.textContent).toBe('Résolu')
     expect(b.hasAttribute('data-resolu')).toBe(true)
-    expect(b.querySelector('.notak-pdf-fil-resoudre')?.textContent).toBe('Rouvrir')
+    expect(b.querySelector('.notak-pdf-fil-rouvrir')?.textContent).toBe('Rouvrir')
+    expect(b.querySelector('.notak-pdf-fil-resoudre')).toBeNull()
   })
 
   it('l’épingle d’un fil résolu s’efface ; déplier « Résolus » la montre, grise et cochée', async () => {
@@ -192,10 +196,11 @@ describe('la liste des fils du PDF', () => {
     expect(epingles().map((e) => e.dataset.filPdf).sort()).toEqual(['a', 'b'])
     const b = document.querySelector<HTMLElement>('.notak-pdf-epingle[data-fil-pdf="b"]')!
     expect(b.hasAttribute('data-resolu')).toBe(true)
-    expect(b.querySelector('.notak-pdf-epingle-coche')).not.toBeNull()
-    expect(b.querySelector('.notak-epingle-forme path')?.getAttribute('fill')).toBe('#9aa0a6')
+    // L'épingle résolue de toute l'app (`GlypheEpingle`) : verte, une coche à la place du compte.
+    expect(b.querySelector('.notak-epingle-compte[data-resolu] svg')).not.toBeNull()
+    expect(b.querySelector('.notak-epingle-forme path')?.getAttribute('fill')).toBe('#2f9a5a')
     expect(b.querySelector('.notak-epingle-bouton')?.getAttribute('aria-label')).toContain('résolu')
-    expect(document.querySelector('.notak-pdf-epingle[data-fil-pdf="a"] .notak-pdf-epingle-coche')).toBeNull()
+    expect(document.querySelector('.notak-pdf-epingle[data-fil-pdf="a"] .notak-epingle-compte[data-resolu]')).toBeNull()
   })
 
   // Comme un vrai clic : l'appui sur la flèche referme d'abord la bulle ouverte (un appui hors d'elle), puis le clic.
@@ -245,15 +250,16 @@ describe('la liste des fils du PDF', () => {
     const m = await ouvrir(deux())
     act(() => bouton(LISTE)!.click())
     const resoudre = (id: string) => document.querySelector<HTMLButtonElement>(`li[data-fil="${id}"] .notak-pdf-fil-resoudre`)!
-    expect(resoudre('a').textContent).toBe('Résoudre')
+    const rouvrir = (id: string) => document.querySelector<HTMLButtonElement>(`li[data-fil="${id}"] .notak-pdf-fil-rouvrir`)!
+    expect(resoudre('a').getAttribute('aria-label')).toBe('Résoudre le fil')
     act(() => resoudre('a').click())
     expect(fils(m)?.a?.resolu).toBe(true)
     expect(fils(m)?.a?.messages).toHaveLength(1)
     expect(bouton(LISTE)?.textContent).toBe('Commentaires')
     expect(document.querySelector('.notak-pdf-fils-vide')?.textContent).toBe('Aucun commentaire ouvert : tout est résolu.')
     act(() => titreResolus().click())
-    expect(resoudre('a').textContent).toBe('Rouvrir')
-    act(() => resoudre('a').click())
+    expect(rouvrir('a').textContent).toBe('Rouvrir')
+    act(() => rouvrir('a').click())
     expect(fils(m)?.a?.resolu).toBeUndefined()
     expect(document.querySelector('.notak-pdf-fils-liste:not(.notak-pdf-fils-liste-resolus) > li[data-fil="a"]')).not.toBeNull()
   })

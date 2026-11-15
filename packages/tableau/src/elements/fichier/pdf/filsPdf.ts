@@ -1,4 +1,5 @@
 import type { Commentaire, Fichier, Id } from '../../../coeur/tableau'
+import { estResolu } from '../../commentaire/Resolu'
 
 /**
  * Les commentaires épinglés sur les pages d'un PDF. Le fil est celui de la toile (`commentaire/fil.ts`) : mêmes
@@ -99,10 +100,10 @@ export function filVoisin(fils: readonly FilSurPage[], ouvert: Id | null, pas: 1
  * Les fils qu'on montre et qu'on parcourt : les ouverts, et les résolus seulement quand on les affiche. Un résolu reste
  * dans l'élément (on le rouvre), mais il ne parle plus : ni épingle, ni « suivant », ni compte dans la barre.
  */
-export const filsParcourus = (fils: readonly FilSurPage[], resolusMontres: boolean): FilSurPage[] => (resolusMontres ? [...fils] : fils.filter((f) => !f.fil.resolu))
+export const filsParcourus = (fils: readonly FilSurPage[], resolusMontres: boolean): FilSurPage[] => (resolusMontres ? [...fils] : fils.filter((f) => !estResolu(f.fil)))
 
 /** Le nombre de fils encore ouverts : celui que dit la barre. */
-export const nombreOuverts = (fils: readonly FilSurPage[]) => fils.filter((f) => !f.fil.resolu).length
+export const nombreOuverts = (fils: readonly FilSurPage[]) => fils.filter((f) => !estResolu(f.fil)).length
 
 /** Le nombre de messages sur tout le document. */
 export const nombreDeMessages = (fils: readonly FilSurPage[]) => fils.reduce((n, f) => n + f.fil.messages.length, 0)
