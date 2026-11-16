@@ -29,7 +29,7 @@
     "livrer": "node scripts/livrer.ts"
   },
   "devDependencies": {
-    "fake-indexeddb": "6.2.5",
+    "fake-indexeddb": "6.2.8",
     "jsdom": "^27.0.0",
     "typescript": "6.0.3",
     "vitest": "4.1.12"
