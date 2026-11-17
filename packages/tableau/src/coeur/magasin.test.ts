@@ -180,6 +180,23 @@ for (const [nom, nouveau] of [
       expect([ids(m), place(m, o.id)]).toEqual([[o.id], [40, 0]])
     })
 
+    it('les pas fermés qui n’écrivaient que lui (sa pose, un déplacement) partent avec lui : Annuler ne s’allume pas pour rien', () => {
+      const m = nouveau()
+      const [n, o] = [nouvelleNote(0, 0), nouvelleNote(30, 0)]
+      m.faire([{ type: 'creer', element: o }])
+      m.faire([{ type: 'creer', element: n }])
+      m.faire([{ type: 'deplacer', id: n.id, de: [0, 0], vers: [5, 0] }])
+      m.transferer([{ type: 'supprimer', element: trouver(m, n.id)! }])
+      expect(ids(m)).toEqual([o.id])
+      expect(m.peutAnnuler()).toBe(true)
+      expect(m.annuler()).toBe(true)
+      expect(ids(m)).toEqual([])
+      expect(m.peutAnnuler()).toBe(false)
+      expect(m.retablir()).toBe(true)
+      expect(ids(m)).toEqual([o.id])
+      expect(m.peutRetablir()).toBe(false)
+    })
+
     it('arrivé d’une autre toile, l’élément ne part pas à l’annulation, et le glisser qui reprend fait son propre pas', () => {
       const m = nouveau()
       const [n, o] = [nouvelleNote(0, 0), nouvelleNote(30, 0)]

@@ -249,8 +249,10 @@ export function comparer(id: string, avant: Stocke | undefined, apres: Stocke | 
     if (contenuDe(apres)?.type === 'commentaire') return null
     return decrire(apres, 'cree')
   }
-  if (!apres) return aLaCorbeille(avant) ? null : decrire(avant, 'supprime')
-  if (!aLaCorbeille(avant) && aLaCorbeille(apres)) return decrire(avant, 'supprime')
+  // De même, une fiche posée puis retirée sans un message (rien écrit, ou son brouillon abandonné) n'a pas existé.
+  const filMuet = (s: Stocke) => contenuDe(s)?.type === 'commentaire' && messagesDe(contenuDe(s)).length === 0
+  if (!apres) return aLaCorbeille(avant) || filMuet(avant) ? null : decrire(avant, 'supprime')
+  if (!aLaCorbeille(avant) && aLaCorbeille(apres)) return filMuet(avant) ? null : decrire(avant, 'supprime')
   if (aLaCorbeille(avant) && !aLaCorbeille(apres)) return decrire(apres, 'restaure')
   if (aLaCorbeille(apres)) return null
 

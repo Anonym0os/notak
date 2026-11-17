@@ -254,6 +254,15 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
       return true
     })
 
+  /** Ce pas a écrit l'un de ces éléments (son entrée de `elements`, ses sujets). */
+  const ecritUnDe = (pas: PasYjs, ids: ReadonlySet<Id>) =>
+    [...entreesDuPas(doc, pas.insertions), ...entreesDuPas(doc, pas.deletions)].some((e) => {
+      const r = aLaRacine(e)
+      if (r.parent === elements) return ids.has(r.parentSub ?? '')
+      if (r.parent === arbres) return ids.has(decouper(r.parentSub ?? '')?.[0] ?? '')
+      return false
+    })
+
   const plusHaut = () => {
     let max: string | undefined
     elements.forEach((s) => {
@@ -403,6 +412,19 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
       if (ouvert && partants.size > 0 && neToucheQue(ouvert, partants)) {
         historique.undoStack.pop()
         prevenir()
+      }
+      // De même des pas déjà fermés qui n'écrivaient qu'eux (leur création, un déplacement), à annuler ou à rétablir :
+      // Yjs les sauterait, mais l'en-tête les compterait encore, et Annuler resterait allumé pour rien.
+      if (partants.size > 0) {
+        let oublies = false
+        for (const pile of [historique.undoStack, historique.redoStack]) {
+          for (let i = pile.length - 1; i >= 0; i--) {
+            if (!ecritUnDe(pile[i]!, partants) || !neToucheQue(pile[i]!, partants)) continue
+            pile.splice(i, 1)
+            oublies = true
+          }
+        }
+        if (oublies) prevenir()
       }
       // Ce qui continue (le glisser qui reprend dans l'autre toile, ou ici à l'arrivée) fait un pas neuf.
       historique.stopCapturing()

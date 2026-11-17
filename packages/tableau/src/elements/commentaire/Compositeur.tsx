@@ -64,7 +64,7 @@ export interface PropsCompositeur {
   /**
    * La clé du brouillon (`brouillon.ts`) : le champ retient ce qu'on n'a pas publié. Un geste de sortie le signale
    * d'abord, le second l'abandonne ; une fiche démontée le garde sous cette clé, et le champ remonté le rend. Sans
-   * clé, le champ ne retient rien (le fil de la toile, dont le brouillon vit dans l'élément).
+   * clé, le champ ne retient rien.
    */
   garde?: string
   /** Le brouillon abandonné (le second geste de sortie, « Abandonner ») : la modification d'un message s'arrête. */
@@ -114,6 +114,11 @@ export function Compositeur({ contexte, initial, placeholder, autoFocus, surChan
         addKeyboardShortcuts() {
           return {
             Enter: () => {
+              envoyerLu(this.editor)
+              return true
+            },
+            // ⌘Entrée publie aussi, comme dans les autres champs qui envoient (et non le saut de ligne du texte riche).
+            'Mod-Enter': () => {
               envoyerLu(this.editor)
               return true
             },

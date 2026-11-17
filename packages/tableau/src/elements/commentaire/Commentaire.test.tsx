@@ -247,9 +247,10 @@ describe('supprimer un message', () => {
 
 describe('écrire dans un fil', () => {
   type Champ = HTMLElement & { editor: { commands: { insertContent(t: string): boolean } } }
-  it('le champ est l’éditeur de la note : ce qu’on tape part en brouillon, « Publier » le poste', () => {
-    const { element, courant, magasin } = monde({ messages: [] })
+  it('le champ est l’éditeur de la note : ce qu’on tape reste chez soi, « Publier » le poste d’un coup', () => {
+    const { courant, magasin } = monde({ messages: [] })
     const brouillons: Commentaire[] = []
+    const publies: Commentaire[] = []
     const contexte = {
       magasin,
       jeter() {},
@@ -257,17 +258,18 @@ describe('écrire dans un fil', () => {
       finirEdition() {},
       services: { presence: { moi: () => ({ id: 'ana', nom: 'Ana Dupont', couleur: '#e33' }), autres: () => [], ecouter: () => () => {}, signaler() {} } },
     } as unknown as ContexteToile
-    act(() => racine.render(<RenduCommentaire element={courant()} choisie enEdition contexte={contexte} brouillon={(c) => brouillons.push(c)} changer={() => {}} />))
+    act(() => racine.render(<RenduCommentaire element={courant()} choisie enEdition contexte={contexte} brouillon={(c) => brouillons.push(c)} changer={(c) => publies.push(c)} />))
     const champ = hote.querySelector<Champ>('.ProseMirror')!
     expect(hote.querySelector<HTMLButtonElement>('.notak-commentaire-publier')!.disabled).toBe(true)
     act(() => void champ.editor.commands.insertContent('Bonjour'))
-    expect(brouillons.at(-1)!.messages.map((m) => m.texte)).toEqual(['Bonjour'])
+    // Rien ne part pendant la frappe : ni brouillon vers la toile, ni changement.
+    expect([brouillons, publies]).toEqual([[], []])
     expect(hote.querySelector<HTMLButtonElement>('.notak-commentaire-publier')!.disabled).toBe(false)
     act(() => hote.querySelector<HTMLButtonElement>('.notak-commentaire-publier')!.click())
-    // Posté : le message reste, le champ est vide, et le brouillon d’après ne le duplique pas.
-    expect(brouillons.at(-1)!.messages).toHaveLength(1)
+    // Posté : un seul changement, le message, et le champ est vide.
+    expect(publies.map((c) => c.messages.map((m) => m.texte))).toEqual([['Bonjour']])
+    expect(brouillons).toEqual([])
     expect(hote.querySelector('.notak-commentaire-texte')?.textContent).toBe('Bonjour')
     expect(hote.querySelector<HTMLButtonElement>('.notak-commentaire-publier')!.disabled).toBe(true)
-    expect(element.id).toBeTruthy()
   })
 })

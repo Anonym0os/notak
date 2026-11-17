@@ -40,6 +40,10 @@ describe('comparer deux états d’un élément', () => {
     expect(changementsDe('c', undefined, fil(m1))).toMatchObject([{ genre: 'commente', fil: '', typeElement: 'commentaire', messages: [{ texte: 'Bonjour' }], participants: [] }])
     expect(changementsDe('c', fil(), fil(m1))).toMatchObject([{ genre: 'commente', messages: [{ texte: 'Bonjour' }], participants: [] }])
     expect(changementsDe('c', fil(m1), fil(m1, m2))).toMatchObject([{ genre: 'commente', libelle: 'Salut @Bob', participants: ['ana'] }])
+    // Posée, puis retirée sans un message (rien d'écrit, ou le brouillon abandonné) : la fiche n'a pas existé.
+    expect(changementsDe('c', fil(), undefined)).toEqual([])
+    expect(changementsDe('c', fil(), { ...fil(), corbeille: 5 })).toEqual([])
+    expect(changementsDe('c', fil(m1), undefined)).toMatchObject([{ genre: 'supprime' }, { genre: 'fil', perimes: [{ texte: 'Bonjour' }] }])
   })
 
   it('une épingle n’est que son fil : y réagir, la résoudre, la replier ou la recolorer ne modifie pas le tableau', () => {

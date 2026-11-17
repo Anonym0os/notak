@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { type Auteur, type Commentaire, type NoeudTexte, nouvelId } from '../../coeur/tableau'
+import { type Auteur, type Commentaire, type Element, type NoeudTexte, nouvelId } from '../../coeur/tableau'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { AUTEUR_INCONNU, ajouterMessage, filVide, plier, replier, resoudre } from './fil'
 import { t } from '../../langue'
@@ -11,6 +11,7 @@ import { ouvrirFil, useFilOuvert } from '../decor/etat'
 import { CorpsFil } from './Corps'
 import type { PoigneeCompositeur } from './Compositeur'
 import { EpingleLibre, cleEpingleLibre } from './Epingle'
+import { brouillonGarde } from './brouillon'
 import { peutCommenter } from '../../coeur/droitsElements'
 
 export { Avatar, Ligne } from './Corps'
@@ -36,13 +37,34 @@ export function effacerFil(contexte: ContexteToile, id: string) {
   else contexte.magasin.faire([{ type: 'supprimer', element: e }])
 }
 
-export function RenduCommentaire({ element, choisie, enEdition, contexte, brouillon, changer }: PropsRendu<Commentaire>) {
+/** Une ligne s'accroche à cet élément, par son départ ou son arrivée. */
+const accrochee = (elements: readonly Element[], id: string) =>
+  elements.some((x) => x.contenu.type === 'ligne' && [x.contenu.depart, x.contenu.arrivee].some((b) => 'element' in b && b.element === id))
+
+/**
+ * Un fil qui n'a jamais rien dit (posé sur la toile, puis quitté sans rien écrire ou son brouillon abandonné) s'en va
+ * sans trace : ni corbeille, ni pas à annuler. Il n'existait dans le document que pour avoir sa place, être choisi et
+ * dire aux autres qu'on y écrit ; `transferer` le retire hors historique, et l'historique oublie le pas qui l'avait
+ * posé. Une ligne qui s'y accroche le fait passer par la corbeille, comme tout élément qu'on jette avec ses lignes.
+ */
+export function retirerFilVide(contexte: ContexteToile, id: string) {
+  const elements = contexte.magasin.lire().elements
+  const e = elements.find((x) => x.id === id)
+  if (e?.contenu.type !== 'commentaire' || !filVide(e.contenu)) return
+  if (accrochee(elements, id)) return effacerFil(contexte, id)
+  contexte.magasin.transferer([{ type: 'supprimer', element: e }])
+}
+
+/** La clé du brouillon d'un fil posé sur la toile (`brouillon.ts`) : ce qu'on y a tapé sans le publier. */
+export const cleBrouillonFil = (id: string) => `toile:${id}`
+
+export function RenduCommentaire({ element, choisie, enEdition, contexte, changer }: PropsRendu<Commentaire>) {
   const c = element.contenu
   const n = c.messages.length
   // Son dernier message supprimé, le fil quitte la toile : pas de fiche vide ni d'épingle sans compte.
   const maj = (apres: Commentaire) => (apres.messages.length === 0 && n > 0 ? effacerFil(contexte, element.id) : changer(apres))
   if (c.replie && n > 0) return <EpingleLibre element={element} enEdition={enEdition} contexte={contexte} changer={maj} />
-  if (enEdition) return <Fil id={element.id} contenu={c} contexte={contexte} ecrire={brouillon} />
+  if (enEdition) return <Fil id={element.id} contenu={c} contexte={contexte} changer={changer} />
   return <FilLu element={element} choisie={choisie} contexte={contexte} changer={maj} />
 }
 
@@ -79,49 +101,52 @@ function FilLu({ element, choisie, contexte, changer }: { element: PropsRendu<Co
 }
 
 /**
- * Le fil en édition : on écrit sous les messages. Entrée envoie (Maj+Entrée va à la ligne). Ce qu'on tape fait
- * partie du brouillon : sortir de l'édition sans envoyer garde le message, et les autres le voient venir.
+ * Le fil en édition : on écrit sous les messages, dans le champ commun de tous les fils (`Compositeur`). Ce qu'on tape
+ * reste chez soi tant qu'on ne l'a pas publié (Entrée, ⌘Entrée ou « Publier ») : les autres voient qu'on écrit, pas ce
+ * qu'on écrit. La garde des brouillons (`brouillon.ts`) retient le premier geste de sortie et abandonne au second ; une
+ * fiche démontée par le code garde le sien, rendu à la réouverture. Quitté sans rien d'écrit, ou son brouillon
+ * abandonné, un fil qui n'a encore rien dit s'en va sans trace (`retirerFilVide`). Chaque message publié prend tout de
+ * suite, d'un pas qu'Annuler défait : les autres le lisent, et en sont prévenus une fois.
  */
-function Fil({ id, contenu, contexte, ecrire }: { id: string; contenu: Commentaire; contexte: ContexteToile; ecrire(c: Commentaire): void }) {
-  // Le fil tel qu'il est posté (sans le brouillon) : une référence, car le champ se vide pendant qu'on envoie.
+function Fil({ id, contenu, contexte, changer }: { id: string; contenu: Commentaire; contexte: ContexteToile; changer(c: Commentaire): void }) {
+  // Le fil tel qu'il est publié : celui que la toile rend, ou ce qu'on vient d'y écrire tant qu'elle ne l'a pas rendu.
   const base = useRef(contenu)
+  const recu = useRef(contenu)
+  if (recu.current !== contenu) {
+    recu.current = contenu
+    base.current = contenu
+  }
   const [, redessiner] = useState(0)
   const poser = (c: Commentaire) => {
     base.current = c
     redessiner((n) => n + 1)
+    changer(c)
   }
   const [vide, setVide] = useState(true)
   const courant = useRef<{ texte: string; riche?: NoeudTexte }>({ texte: '' })
-  const enCours = useRef<{ id: string; date: number } | null>(null)
   const champ = useRef<PoigneeCompositeur>(null)
   const auteur = moi(contexte)
-  // Sortir de l'édition d'un fil resté vide le jette. On regarde le tableau une fois la sortie inscrite, et on
-  // attend un tour : en développement, React démonte puis remonte le composant sur-le-champ, ce n'est pas une sortie.
+  const garde = cleBrouillonFil(id)
+  // Sortir de l'édition d'un fil resté vide le retire. On regarde le tableau une fois la sortie inscrite, et on attend
+  // un tour : en développement, React démonte puis remonte le composant sur-le-champ, ce n'est pas une sortie. Un
+  // brouillon gardé (la fiche démontée par le code : un autre tableau, une autre édition) laisse le fil l'attendre.
   const monte = useRef(false)
   useEffect(() => {
     monte.current = true
     return () => {
       monte.current = false
       queueMicrotask(() => {
-        if (monte.current) return
-        const e = contexte.magasin.lire().elements.find((x) => x.id === id)
-        if (e?.contenu.type === 'commentaire' && filVide(e.contenu)) effacerFil(contexte, id)
+        if (monte.current || brouillonGarde(garde)) return
+        retirerFilVide(contexte, id)
       })
     }
-  }, [id, contexte])
+  }, [id, contexte, garde])
 
-  const brouillonDe = (fil: Commentaire, texte: string, riche?: NoeudTexte) => {
-    if (!texte.trim()) return fil
-    enCours.current ??= { id: nouvelId(), date: Date.now() }
-    return ajouterMessage(fil, { ...enCours.current, auteur, texte, ...(riche ? { riche } : {}) })
-  }
   const envoyer = (texte: string, riche: NoeudTexte | undefined) => {
-    const suite = brouillonDe(base.current, texte, riche)
-    enCours.current = null
+    if (!texte.trim()) return
     courant.current = { texte: '' }
     setVide(true)
-    poser(suite)
-    ecrire(suite)
+    poser(ajouterMessage(base.current, { id: nouvelId(), auteur, date: Date.now(), texte, ...(riche ? { riche } : {}) }))
     champ.current?.vider()
   }
   const maj = (apres: Commentaire) => {
@@ -131,7 +156,6 @@ function Fil({ id, contenu, contexte, ecrire }: { id: string; contenu: Commentai
       return effacerFil(contexte, id)
     }
     poser(apres)
-    ecrire(brouillonDe(apres, courant.current.texte, courant.current.riche))
   }
   return (
     <div className="notak-commentaire" data-edition data-resolu={base.current.resolu || undefined} {...bande(contenu)}>
@@ -146,17 +170,21 @@ function Fil({ id, contenu, contexte, ecrire }: { id: string; contenu: Commentai
         saisie={{
           vide,
           poignee: champ,
+          garde,
           surChangement: (texte, riche) => {
             courant.current = { texte, ...(riche ? { riche } : {}) }
             setVide(!texte.trim())
-            ecrire(brouillonDe(base.current, texte, riche))
           },
           envoyer,
           publier: () => envoyer(courant.current.texte, courant.current.riche),
-          // Retour arrière dans le champ d'un fil neuf resté vide : le fil est jeté.
+          // Le champ a déjà retenu son brouillon : l'Échap qui arrive jusqu'ici ferme la fiche.
+          echapper: () => {
+            contexte.finirEdition()
+            return true
+          },
+          // Retour arrière dans le champ d'un fil neuf resté vide : la fiche se ferme, et le fil s'en va avec.
           retourVide: () => {
-            if (base.current.messages.length > 0) return
-            effacerFil(contexte, id)
+            if (base.current.messages.length === 0) contexte.finirEdition()
           },
         }}
         element={id}

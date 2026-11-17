@@ -51,6 +51,25 @@ describe('le contrôle des mises à jour', () => {
     expect(client.getMap('meta').get('titre')).toBe('Atelier')
   })
 
+  it('un commentateur pose une fiche Commentaire vide, la publie ou la retire sans trace ; pas celle où d’autres ont écrit', () => {
+    const { serveur, envoyer } = paire({ role: 'commentaire', elements: {} })
+    const neuve = (id: string, messages: unknown[]) => ({ ...fil(messages), id })
+    // Retirée hors historique, la clé scellée (`magasinYjs.transferer`) : posée puis ôtée dans la même transaction.
+    const retirer = (d: Y.Doc, id: string) =>
+      d.transact(() => {
+        elements(d).set(id, null as never)
+        elements(d).delete(id)
+      })
+    expect(envoyer((d) => elements(d).set('f1', neuve('f1', [])))).toBe(true)
+    expect(envoyer((d) => elements(d).set('f1', neuve('f1', [message('m9', 'bob', 'Publié')])))).toBe(true)
+    expect((elements(serveur).get('f1')!.contenu as { messages: unknown[] }).messages).toHaveLength(1)
+    expect(envoyer((d) => elements(d).set('f2', neuve('f2', [])))).toBe(true)
+    expect(envoyer((d) => retirer(d, 'f2'))).toBe(true)
+    expect(elements(serveur).has('f2')).toBe(false)
+    expect(envoyer((d) => retirer(d, 'fil'))).toBe(false)
+    expect(elements(serveur).has('fil')).toBe(true)
+  })
+
   it('un commentateur écrit dans le fil d’un sujet de carte mentale, pas dans ses sujets ni dans les messages des autres', () => {
     const { serveur, client, envoyer } = paire({ role: 'commentaire', elements: {} })
     const arbres = (d: Y.Doc) => d.getMap<unknown>('arbres')
