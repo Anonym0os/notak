@@ -229,6 +229,8 @@ export interface Base {
   espacePersonnel(utilisateur: string): string | null
   /** L'émetteur d'un fournisseur SSO déclaré, par son identifiant. */
   emetteurSso(fournisseur: string): string | null
+  /** L'identifiant de l'unique fournisseur SSO déclaré sur le serveur, s'il n'y en a qu'un : l'écran d'entrée peut alors y aller sans demander d'adresse (elle ne sert qu'à le départir de plusieurs). */
+  fournisseurSsoUnique(): string | null
   /**
    * La demande de connexion d'une app de bureau qui porte ce code (table `deviceCode` de Better Auth) : le compte qui
    * l'a prise en main (`null` tant que personne), son expiration (ms) et où elle en est.
@@ -650,6 +652,10 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
       (un("SELECT e.espace FROM espaces e JOIN member m ON m.organizationId = e.espace WHERE e.personnel = 1 AND m.userId = ? AND m.role = 'owner'", u)
         ?.espace as string | undefined) ?? null,
     emetteurSso: (f) => (un('SELECT issuer FROM ssoProvider WHERE providerId = ?', f)?.issuer as string | undefined) ?? null,
+    fournisseurSsoUnique: () => {
+      const lignes = tous('SELECT providerId FROM ssoProvider')
+      return lignes.length === 1 ? (lignes[0]!.providerId as string) : null
+    },
     demandeAppareil(code) {
       const l = un('SELECT userId, expiresAt, status FROM deviceCode WHERE userCode = ?', code)
       if (!l) return null

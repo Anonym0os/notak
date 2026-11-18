@@ -12,14 +12,14 @@ let hote: HTMLElement
 /** Ce que le serveur répond, adresse par adresse ; `/api/connexion/moyens` répond toujours. */
 let reponses: Record<string, () => Response>
 /** Ce que `/api/connexion/moyens` propose : aucun fournisseur, par défaut. */
-let moyens: { fournisseurs: string[]; courriel: boolean }
+let moyens: { fournisseurs: string[]; courriel: boolean; motDePasse: boolean; sso: string | null }
 const appels: string[] = []
 
 beforeEach(() => {
   definirLangue('fr')
   appels.length = 0
   reponses = {}
-  moyens = { fournisseurs: [], courriel: true }
+  moyens = { fournisseurs: [], courriel: true, motDePasse: true, sso: null }
   vi.stubGlobal('fetch', async (adresse: string) => {
     appels.push(adresse)
     if (adresse === '/api/connexion/moyens') return Response.json(moyens)
@@ -162,7 +162,7 @@ describe('ce qu’on sait en arrivant sur l’écran de connexion', () => {
 
 describe('l’écran de connexion dans un navigateur', () => {
   it('n’a ni la ligne du serveur ni la sortie vers cet ordinateur, et un fournisseur y mène chez lui', async () => {
-    moyens = { fournisseurs: ['google'], courriel: true }
+    moyens = { fournisseurs: ['google'], courriel: true, motDePasse: true, sso: null }
     reponses['/api/auth/sign-in/social'] = () => Response.json({})
     await monter()
     expect(hote.querySelector('.connexion-bureau')).toBeNull()
@@ -193,7 +193,7 @@ describe('l’écran de connexion dans l’app de bureau', () => {
     ouvrir.mockReset()
     ;(window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__ = { invoke }
     vi.stubGlobal('open', ouvrir)
-    moyens = { fournisseurs: ['google', 'github'], courriel: true }
+    moyens = { fournisseurs: ['google', 'github'], courriel: true, motDePasse: true, sso: null }
     reponses['/api/auth/device/code'] = () => Response.json(CODE)
     reponses['/api/auth/device/token'] = jeton
   })
@@ -230,7 +230,7 @@ describe('l’écran de connexion dans l’app de bureau', () => {
   })
 
   it('la note sous les connexions ne nomme aucun fournisseur : le serveur n’en propose peut-être aucun', async () => {
-    moyens = { fournisseurs: ['github'], courriel: true }
+    moyens = { fournisseurs: ['github'], courriel: true, motDePasse: true, sso: null }
     await monter()
     const note = hote.querySelector('.connexion-fournisseurs .connexion-note')?.textContent
     expect(note).toBe('Ces connexions se terminent dans votre navigateur.')
@@ -394,7 +394,7 @@ describe('l’écran de connexion dans l’app de bureau', () => {
   })
 
   it('« Se connecter dans le navigateur » : un lien discret sous le formulaire, qui dit à quoi il sert', async () => {
-    moyens = { fournisseurs: [], courriel: true }
+    moyens = { fournisseurs: [], courriel: true, motDePasse: true, sso: null }
     await monter()
     const lien = bouton(/Se connecter dans le navigateur/)
     // Un lien, pas un second bouton plein : le formulaire reste le chemin principal.
@@ -411,7 +411,7 @@ describe('l’écran de connexion dans l’app de bureau', () => {
   })
 
   it('« Se connecter dans le navigateur » lance la connexion par code, sans fournisseur ni mot de passe envoyé ici', async () => {
-    moyens = { fournisseurs: [], courriel: true }
+    moyens = { fournisseurs: [], courriel: true, motDePasse: true, sso: null }
     vi.useFakeTimers()
     await monter()
     expect(hote.querySelector('.connexion-fournisseurs button:not(.bouton-lien)')).not.toBeNull()
@@ -586,5 +586,52 @@ describe('l’écran de connexion dans l’app d’un iPhone ou d’un iPad', ()
     invoke.mockImplementation((commande: string) => (commande === 'plugin:appareil|connexion_web' ? Promise.reject(new Error('inconnue')) : Promise.resolve(undefined)))
     await lancer()
     expect(invoke).toHaveBeenCalledWith('ouvrir_dans_le_navigateur', { adresse: 'http://localhost:3000/bureau/autoriser?user_code=ABCD2345' }, undefined)
+  })
+})
+describe('les mots de passe fermés', () => {
+  it('l’écran attend ce que le serveur propose : pas de formulaire fantôme pour les gestionnaires de mots de passe', async () => {
+    let libérer!: (m: { fournisseurs: string[]; courriel: boolean; motDePasse: boolean; sso: string | null }) => void
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((r) => (libérer = (m) => r(Response.json(m))))))
+    await monter()
+    expect(hote.querySelector('input')).toBeNull()
+    expect(hote.querySelector('button[type=submit]')).toBeNull()
+    expect(hote.querySelector('form')?.getAttribute('aria-busy')).toBe('true')
+    await act(async () => libérer({ fournisseurs: [], courriel: true, motDePasse: false, sso: null }))
+    expect(champ('email')).not.toBeNull()
+    expect(bouton(/Continuer/).textContent).toBe('Continuer')
+    expect(hote.querySelector('form')?.getAttribute('aria-busy')).toBe('false')
+  })
+
+  it('l’écran s’ouvre sur le SSO, sans mot de passe, sans inscription', async () => {
+    moyens = { fournisseurs: [], courriel: true, motDePasse: false, sso: null }
+    await monter()
+    expect(hote.querySelector('input[type=password]')).toBeNull()
+    expect(champ('email')).not.toBeNull()
+    expect(bouton(/Continuer/).textContent).toBe('Continuer')
+    expect(bouton(/Mot de passe oublié/)).toBeUndefined()
+    expect(bouton(/Créer un compte/)).toBeUndefined()
+    expect(bouton(/J’ai déjà un compte/)).toBeUndefined()
+  })
+
+  it('le fournisseur déclaré par l’environnement reste proposé à côté du SSO', async () => {
+    moyens = { fournisseurs: ['github'], courriel: true, motDePasse: false, sso: null }
+    await monter()
+    expect(hote.querySelector('input[type=password]')).toBeNull()
+    expect(bouton(/Continuer avec GitHub/)).toBeTruthy()
+  })
+
+  it('un seul fournisseur SSO déclaré : droit à lui, sans adresse', async () => {
+    moyens = { fournisseurs: [], courriel: true, motDePasse: false, sso: 'asym' }
+    await monter()
+    expect(champ('email')).toBeNull()
+    expect(hote.querySelector('.connexion-aide')).toBeNull()
+    expect(bouton(/Continuer/).textContent).toBe('Continuer')
+    const corps: unknown[] = []
+    vi.stubGlobal('fetch', async (adresse: string, init?: RequestInit) => {
+      if (String(adresse).endsWith('/api/auth/sign-in/sso')) corps.push(JSON.parse(String(init?.body)))
+      return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } })
+    })
+    await act(async () => bouton(/Continuer/).click())
+    expect(corps).toEqual([{ providerId: 'asym', callbackURL: location.href, errorCallbackURL: location.href }])
   })
 })

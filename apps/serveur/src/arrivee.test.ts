@@ -247,7 +247,7 @@ describe('POST /api/arrivee : le débit', () => {
         base,
         auth: authEssai(base),
         autorisation: autorisationEssai(base),
-        moyens: { fournisseurs: [], courriel: false },
+        moyens: { fournisseurs: [], courriel: false, motDePasse: true },
         dossierFichiers: join(dossier, 'fichiers'),
         limiteur: creerLimiteur(1000, 60_000),
         limiteurArrivee: creerLimiteur(2, 60_000),

@@ -145,11 +145,16 @@ export interface Contexte {
 
 export interface MoyensConnexion {
   fournisseurs: Fournisseur[]
+  /** La connexion par mot de passe est proposée (`NOTAK_MOTS_DE_PASSE`) ; fermée, le serveur refuse ses routes. */
+  motDePasse: boolean
   /** Les courriels partent (réinitialisation du mot de passe, vérification d'adresse). */
   courriel: boolean
 }
 
 export const FICHIER_MAX = 25 * 1024 * 1024
+
+/** Les routes du mot de passe, que le serveur refuse quand il le ferme (`NOTAK_MOTS_DE_PASSE=desactives`). */
+const ROUTES_MOT_DE_PASSE = ['/sign-in/email', '/sign-up/email', '/forget-password', '/reset-password', '/change-password']
 /** Le corps d'une requête de la connexion par code (`/api/auth/device/*`), ouverte à tous : quelques champs courts. */
 export const CORPS_APPAREIL_MAX = 2048
 const ID_TABLEAU = /^[A-Za-z0-9_-]{8,64}$/
@@ -464,6 +469,10 @@ export function creerApp(ctx: Contexte): Hono {
 
   app.on(['GET', 'POST'], `${CHEMIN_AUTH}/*`, async (c) => {
     const chemin = c.req.path.slice(CHEMIN_AUTH.length)
+    // Les mots de passe sont fermés : ni connexion, ni inscription, ni réinitialisation. Le SSO d'un espace et les
+    // fournisseurs restent, et le compte en ligne de commande ne passe pas ici (API interne de Better Auth).
+    if (!ctx.moyens.motDePasse && ROUTES_MOT_DE_PASSE.includes(chemin))
+      return c.json({ message: 'la connexion par mot de passe est fermée', code: 'MOTS_DE_PASSE_FERMES' }, 403)
     const poste = c.req.method === 'POST'
     const route = (poste ? LIMITES_AUTH : LIMITES_AUTH_GET)[chemin]
     // Le jeton de l'app de bureau a sa propre limite, large : elle le redemande toutes les cinq secondes, dix minutes
@@ -527,8 +536,10 @@ export function creerApp(ctx: Contexte): Hono {
     return c.json(base.espacesDe(u.id))
   })
 
-  // Ce que l'écran de connexion peut proposer : les fournisseurs configurés, et si les courriels partent.
-  app.get('/api/connexion/moyens', async (c) => c.json(ctx.moyens))
+  // Ce que l'écran de connexion peut proposer : les fournisseurs configurés, si le mot de passe se propose,
+  // l'unique fournisseur SSO déclaré (relu à chaque appel : un espace peut le déclarer pendant que le serveur tourne),
+  // et si les courriels partent.
+  app.get('/api/connexion/moyens', (c) => c.json({ ...ctx.moyens, sso: base.fournisseurSsoUnique() }))
 
   app.get('/api/moi', async (c) => {
     const u = await utilisateurCourant(c)

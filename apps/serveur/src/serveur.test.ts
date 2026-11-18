@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { DatabaseSync } from 'node:sqlite'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { networkInterfaces, tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -185,7 +186,33 @@ describe('serveur de bout en bout', () => {
   })
 
   it('l’écran de connexion sait ce qu’il peut proposer', async () => {
-    expect(await lire(await appeler('/api/connexion/moyens'))).toEqual({ fournisseurs: [], courriel: false })
+    expect(await lire(await appeler('/api/connexion/moyens'))).toEqual({ fournisseurs: [], courriel: false, motDePasse: true, sso: null })
+  })
+
+  it('les mots de passe fermés : le serveur refuse leurs routes, et dit l’unique fournisseur SSO', async () => {
+    const dossierFermé = mkdtempSync(join(tmpdir(), 'notak-essai-'))
+    const fermé = await demarrer({ port: 0, dossier: dossierFermé, secret: SECRET, openfga: openfgaEssai(), motsDePasseDesactives: true })
+    const origineFermée = `http://localhost:${fermé.port}`
+    const moyensDe = async () => (await (await fetch(origineFermée + '/api/connexion/moyens', { headers: { origin: origineFermée } })).json()) as {
+      fournisseurs: string[]
+      courriel: boolean
+      motDePasse: boolean
+      sso: string | null
+    }
+    expect(await moyensDe()).toEqual({ fournisseurs: [], courriel: false, motDePasse: false, sso: null })
+    // Un fournisseur SSO déclaré pendant que le serveur tourne (par un admin d'espace) : l'écran le lit à chaque appel.
+    const db = new DatabaseSync(join(dossierFermé, 'notak.db'))
+    db.prepare("INSERT INTO utilisateurs (id, email, nom, couleur, racine) VALUES ('u1', 'ana@exemple.fr', 'Ana', '#123456', 'r1')").run()
+    db.prepare("INSERT INTO ssoProvider (id, issuer, userId, providerId, domain) VALUES ('s1', 'https://idp.exemple.fr', 'u1', 'asym', 'asym.me')").run()
+    db.close()
+    expect((await moyensDe()).sso).toBe('asym')
+    for (const route of ['/sign-in/email', '/sign-up/email', '/forget-password', '/reset-password', '/change-password']) {
+      const refus = await fetch(origineFermée + '/api/auth' + route, { method: 'POST', headers: { origin: origineFermée, 'content-type': 'application/json' }, body: '{}' })
+      expect(refus.status, route).toBe(403)
+      expect(await refus.json(), route).toMatchObject({ code: 'MOTS_DE_PASSE_FERMES' })
+    }
+    await fermé.fermer()
+    rmSync(dossierFermé, { recursive: true, force: true })
   })
 
   it('les fichiers : dépôt, lecture, refus sans session, largeur demandée', async () => {

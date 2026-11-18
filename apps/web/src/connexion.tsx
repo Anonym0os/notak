@@ -90,6 +90,11 @@ export function EcranConnexion({
   const [envoi, setEnvoi] = useState(false)
   const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([])
   const [courriel, setCourriel] = useState(false)
+  const [motsDePasse, setMotsDePasse] = useState(true)
+  const [sso, setSso] = useState<string | null>(null)
+  /** Ce que le serveur propose n'est pas encore connu : rien qui ressemble à un identifiant ne s'affiche d'ici là, pour
+   * ne pas faire courir les gestionnaires de mots de passe (Bitwarden & cie) après un formulaire fantôme. */
+  const [moyensLus, setMoyensLus] = useState(false)
   const champs = useRef<HTMLFormElement>(null)
   // Dans l'app (ordinateur ou téléphone), la fenêtre ne va pas chez le fournisseur : le navigateur de la personne s'en charge
   // (`serveur/appareil.ts`). Google refuse les vues web intégrées, sur iOS comme ailleurs.
@@ -100,6 +105,12 @@ export function EcranConnexion({
     void moyensConnexion().then((m) => {
       setFournisseurs(m.fournisseurs)
       setCourriel(m.courriel)
+      setSso(m.sso ?? null)
+      // Le mot de passe est fermé : l'écran d'entrée s'ouvre sur le SSO, sa seule porte. (`=== false` : un serveur
+      // d'avant ne disait rien, et proposait ses mots de passe.)
+      if (m.motDePasse === false) setMode('sso')
+      setMotsDePasse(m.motDePasse !== false)
+      setMoyensLus(true)
     })
   }, [])
 
@@ -121,17 +132,19 @@ export function EcranConnexion({
     if (mode === 'inscription' && !nom.trim()) return echouer(t('connexion.nomRequis'), 'nom')
     // Dans l'app, l'adresse du SSO se donne dans le navigateur, pas ici.
     if (mode === 'sso' && enApp) return setParCode(true)
-    if (mode !== 'nouveau' && !adressePlausible(adresse)) return echouer(t('connexion.adresseInvalide'), 'email')
     if ((mode === 'inscription' || mode === 'nouveau') && motDePasse.length < MDP_MIN) return echouer(t('connexion.mdpCourt'), 'mdp')
     if (mode === 'connexion' && !motDePasse) return echouer(t('connexion.mdpRequis'), 'mdp')
+    // Droit au fournisseur SSO : pas d'adresse à juger, l'écran n'en demande pas.
+    if (mode !== 'nouveau' && !(mode === 'sso' && sso) && !adressePlausible(adresse)) return echouer(t('connexion.adresseInvalide'), 'email')
     setErreur(null)
     setFautif(null)
     setAvis(null)
     setEnvoi(true)
     try {
       if (mode === 'sso') {
-        // La page part chez le fournisseur : le bouton reste « Un instant… » jusqu'au départ.
-        await connexionSso(adresse)
+        // La page part chez le fournisseur : le bouton reste « Un instant… » jusqu'au départ. Un seul fournisseur SSO
+        // est déclaré, et l'adresse ne servirait qu'à le trouver : on va droit à lui.
+        await connexionSso(sso ? { providerId: sso } : { email: adresse })
         return
       } else if (mode === 'oubli') {
         await demanderReinitialisation(adresse)
@@ -204,7 +217,7 @@ export function EcranConnexion({
   return (
     <div className="notak-espace" data-theme={theme}>
       <main className="connexion" data-tauri-drag-region>
-        <form className="connexion-carte" onSubmit={valider} noValidate ref={champs} aria-busy={envoi}>
+        <form className="connexion-carte" onSubmit={valider} noValidate ref={champs} aria-busy={envoi || !moyensLus}>
           <Marque />
           <h1>{instance.nom}</h1>
           {entete}
@@ -215,7 +228,8 @@ export function EcranConnexion({
           )}
           {mode === 'oubli' && <p className="connexion-aide">{t(courriel ? 'connexion.oubliAide' : 'connexion.oubliSansCourriel')}</p>}
           {mode === 'oubli' && enApp && <p className="connexion-aide">{t('serveur.connexion.oubliNavigateur')}</p>}
-          {mode === 'sso' && <p className="connexion-aide">{t(enApp ? 'serveur.connexion.ssoNavigateur' : 'connexion.ssoAide')}</p>}
+          {/* Droit au fournisseur SSO : ni l'aide (elle parle d'une adresse à donner) ni le champ, ci-dessous. */}
+          {mode === 'sso' && !(sso && !enApp) && <p className="connexion-aide">{t(enApp ? 'serveur.connexion.ssoNavigateur' : 'connexion.ssoAide')}</p>}
           {mode === 'inscription' && (
             <label>
               {t('connexion.nom')}
@@ -231,7 +245,7 @@ export function EcranConnexion({
               />
             </label>
           )}
-          {mode !== 'nouveau' && !(mode === 'sso' && enApp) && (
+          {moyensLus && mode !== 'nouveau' && !(mode === 'sso' && enApp) && !(mode === 'sso' && sso && !enApp) && (
             <label>
               {t('connexion.adresse')}
               <input
@@ -251,7 +265,7 @@ export function EcranConnexion({
               />
             </label>
           )}
-          {mode !== 'oubli' && mode !== 'sso' && (
+          {moyensLus && motsDePasse && mode !== 'oubli' && mode !== 'sso' && (
             <label>
               {mode === 'nouveau' ? t('connexion.nouveauMdp') : t('connexion.mdp')}
               <span className="connexion-mdp">
@@ -305,11 +319,13 @@ export function EcranConnexion({
               {avis}
             </p>
           )}
-          <button type="submit" className="bouton bouton-plein" disabled={envoi}>
-            {envoi ? t('connexion.enCours') : titreBouton}
-          </button>
+          {moyensLus && (
+            <button type="submit" className="bouton bouton-plein" disabled={envoi}>
+              {envoi ? t('connexion.enCours') : titreBouton}
+            </button>
+          )}
           {/* Dans la fenêtre de l'app, ni extension ni trousseau ne remplissent le formulaire : le navigateur, où ils servent, peut faire la connexion. */}
-          {enApp && mode === 'connexion' && (
+          {moyensLus && enApp && mode === 'connexion' && (
             <div className="connexion-navigateur">
               <button type="button" className="bouton-lien" disabled={envoi} aria-describedby="connexion-navigateur-aide" onClick={() => setParCode(true)}>
                 {t('serveur.connexion.dansNavigateur')}
@@ -319,7 +335,7 @@ export function EcranConnexion({
               </small>
             </div>
           )}
-          {mode === 'connexion' && (
+          {moyensLus && (mode === 'connexion' || (!motsDePasse && fournisseurs.length > 0)) && (
             <div className="connexion-fournisseurs">
               <span className="connexion-ou">{t('connexion.ou')}</span>
               {fournisseurs.map((f) => (
@@ -327,30 +343,34 @@ export function EcranConnexion({
                   {t('connexion.avec', { fournisseur: NOMS_FOURNISSEURS[f] })}
                 </button>
               ))}
-              <button type="button" className="bouton" disabled={envoi} onClick={() => passerA('sso')}>
-                {t('connexion.sso')}
-              </button>
+              {mode === 'connexion' && (
+                <button type="button" className="bouton" disabled={envoi} onClick={() => passerA('sso')}>
+                  {t('connexion.sso')}
+                </button>
+              )}
               {enApp && <p className="connexion-note">{t('serveur.connexion.ouvreNavigateur')}</p>}
             </div>
           )}
-          <div className="connexion-liens">
-            {mode === 'connexion' && (
-              <button type="button" className="bouton-lien" onClick={() => passerA('oubli')}>
-                {t('connexion.oubli')}
-              </button>
-            )}
-            {mode !== 'connexion' ? (
-              <button type="button" className="bouton-lien" onClick={() => passerA('connexion')}>
-                {t('connexion.dejaCompte')}
-              </button>
-            ) : ouvertes ? (
-              <button type="button" className="bouton-lien" onClick={() => passerA('inscription')}>
-                {t('connexion.creer')}
-              </button>
-            ) : (
-              <p className="connexion-note">{t('connexion.fermees')}</p>
-            )}
-          </div>
+          {moyensLus && motsDePasse && (
+            <div className="connexion-liens">
+              {mode === 'connexion' && (
+                <button type="button" className="bouton-lien" onClick={() => passerA('oubli')}>
+                  {t('connexion.oubli')}
+                </button>
+              )}
+              {mode !== 'connexion' ? (
+                <button type="button" className="bouton-lien" onClick={() => passerA('connexion')}>
+                  {t('connexion.dejaCompte')}
+                </button>
+              ) : ouvertes ? (
+                <button type="button" className="bouton-lien" onClick={() => passerA('inscription')}>
+                  {t('connexion.creer')}
+                </button>
+              ) : (
+                <p className="connexion-note">{t('connexion.fermees')}</p>
+              )}
+            </div>
+          )}
           {enApp && <LigneServeur />}
         </form>
       </main>
