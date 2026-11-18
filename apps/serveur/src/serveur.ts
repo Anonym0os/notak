@@ -44,6 +44,8 @@ export interface OptionsServeur {
   magasinOpenfga?: string
   /** Les origines des fournisseurs d'identité du réseau interne, qu'un espace peut déclarer en SSO. */
   idpInternes?: readonly string[]
+  /** La connexion par mot de passe est fermée (`NOTAK_MOTS_DE_PASSE=desactives`) : le serveur refuse ses routes et l'écran d'entrée va droit au SSO. Le compte créé en ligne de commande (`serveur:compte`) passe par l'API interne de Better Auth et reste possible. */
+  motsDePasseDesactives?: boolean
   /** L'adresse du SMTP (`smtps://compte:motdepasse@hote:465`) ; sans elle, les courriels vont au journal. */
   smtp?: string
   expediteur?: string
@@ -121,7 +123,11 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     base,
     auth,
     autorisation,
-    moyens: { fournisseurs: Object.keys(options.fournisseurs ?? {}) as Fournisseur[], courriel: courrier.actif },
+    moyens: {
+      fournisseurs: Object.keys(options.fournisseurs ?? {}) as Fournisseur[],
+      courriel: courrier.actif,
+      motDePasse: !options.motsDePasseDesactives,
+    },
     idpInternes: options.idpInternes,
     dossierFichiers: join(options.dossier, 'fichiers'),
     limiteur: creerLimiteur(10, 60_000),

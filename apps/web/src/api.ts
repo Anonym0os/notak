@@ -228,11 +228,11 @@ export async function sInscrire(email: string, motDePasse: string, nom: string):
 
 export type Fournisseur = 'google' | 'microsoft' | 'github'
 
-/** Ce que l'écran de connexion peut proposer en plus du mot de passe. */
-export async function moyensConnexion(): Promise<{ fournisseurs: Fournisseur[]; courriel: boolean }> {
+/** Ce que l'écran de connexion peut proposer : le mot de passe, les fournisseurs configurés, l'unique fournisseur SSO déclaré. */
+export async function moyensConnexion(): Promise<{ fournisseurs: Fournisseur[]; courriel: boolean; motDePasse: boolean; sso: string | null }> {
   const r = await appeler('/api/connexion/moyens')
-  if (!r.ok) return { fournisseurs: [], courriel: false }
-  return (await r.json()) as { fournisseurs: Fournisseur[]; courriel: boolean }
+  if (!r.ok) return { fournisseurs: [], courriel: false, motDePasse: true, sso: null }
+  return (await r.json()) as { fournisseurs: Fournisseur[]; courriel: boolean; motDePasse: boolean; sso: string | null }
 }
 
 /** Part se connecter chez le fournisseur ; on revient sur la page courante une fois connecté. */
@@ -263,9 +263,9 @@ export async function reinitialiser(jeton: string, motDePasse: string): Promise<
   if (!r.ok) throw await refus(r, REFUS_AUTH)
 }
 
-/** Part se connecter par le SSO de l'entreprise de cette adresse ; on revient sur la page courante une fois connecté. */
-export async function connexionSso(email: string): Promise<void> {
-  const r = await appeler('/api/auth/sign-in/sso', { email, callbackURL: location.href, errorCallbackURL: location.href })
+/** Part se connecter par le SSO : par l'adresse, dont le domaine route vers le fournisseur, ou droit au fournisseur connu. */
+export async function connexionSso(connexion: { email?: string; providerId?: string }): Promise<void> {
+  const r = await appeler('/api/auth/sign-in/sso', { ...connexion, callbackURL: location.href, errorCallbackURL: location.href })
   if (!r.ok) throw await refus(r, { ...REFUS_AUTH, 404: 'erreur.sso_inconnu', 400: 'erreur.sso_inconnu', 401: 'erreur.sso_inconnu' })
   const { url } = (await r.json()) as { url?: string }
   if (url) location.assign(url)

@@ -30,7 +30,7 @@ describe('la limite par compte', () => {
       base,
       auth,
       autorisation: autorisationEssai(base),
-      moyens: { fournisseurs: [], courriel: false },
+      moyens: { fournisseurs: [], courriel: false, motDePasse: true },
       dossierFichiers: join(dossier, 'fichiers'),
       limiteur: creerLimiteur(1000, 60_000),
       limiteurCompte: creerLimiteur(3, 15 * 60_000),

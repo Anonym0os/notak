@@ -18,6 +18,13 @@ mkdirSync(dossier, { recursive: true })
 // Le dossier des thèmes existe d'office : on y dépose un fichier sans avoir à le créer (docs/AUTO-HEBERGER.md).
 if (!process.env.NOTAK_HABILLAGES) mkdirSync(join(dossier, 'habillages'), { recursive: true })
 
+// `NOTAK_MOTS_DE_PASSE=desactives` ferme la connexion par mot de passe : l'écran d'entrée ne propose plus que le SSO
+// d'un espace et les fournisseurs déclarés. Une valeur inconnue se dit, puis laisse les mots de passe actifs :
+// mieux vaut un réglage ignoré qu'un serveur dont on ne sait plus comment entrer.
+const motsDePasse = process.env.NOTAK_MOTS_DE_PASSE?.trim()
+if (motsDePasse && motsDePasse !== 'actives' && motsDePasse !== 'desactives')
+  console.warn(`Notak : NOTAK_MOTS_DE_PASSE=${motsDePasse} n'est ni « actives » ni « desactives » : ils restent actifs`)
+
 /** Un réglage qui ne se lit pas : comme une clé fausse, on s'arrête avant d'avoir servi quoi que ce soit. */
 class ErreurReglage extends Error {}
 
@@ -70,6 +77,7 @@ try {
     cookieSecurise: process.env.NOTAK_COOKIE_SECURISE === '1',
     dossierWeb: process.env.NOTAK_WEB || undefined,
     instance: instanceDe(process.env, dossier),
+    motsDePasseDesactives: motsDePasse === 'desactives',
     cle,
     // Les signalements de bugs (⇧⌘S) : d'office en développement, dans les données ; ailleurs, là où le dit l'instance.
     dossierSignalements: process.env.NOTAK_SIGNALEMENTS || (origine ? null : join(dossier, 'signalements')),

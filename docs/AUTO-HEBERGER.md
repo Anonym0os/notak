@@ -138,6 +138,7 @@ Toutes se mettent dans le `.env`, sauf les trois dernières, que l'image règle 
 | `NOTAK_OPENFGA_URL` | `http://localhost:8080` | l'OpenFGA qui évalue les droits (`compose.yaml` le fixe à `http://openfga:8080`) |
 | `NOTAK_NOM` | `Notak` | le nom affiché sur l'écran de connexion et dans l'aperçu des liens |
 | `NOTAK_INSCRIPTIONS` | `ouvertes` | `fermees` : personne ne crée de compte seul (voir plus bas) |
+| `NOTAK_MOTS_DE_PASSE` | `actives` | `desactives` : la connexion par mot de passe se ferme, l'écran d'entrée ne propose plus que le SSO d'un espace et les fournisseurs (voir plus bas) |
 | `NOTAK_HABILLAGES` | `/donnees/habillages` | le dossier des thèmes à fournir aux comptes |
 | `NOTAK_HABILLAGE_DEFAUT` | aucun | l'identifiant du thème proposé à qui n'en a pas choisi |
 | `NOTAK_HABILLAGE` | aucun | l'identifiant du thème imposé à tous : le choix de chacun ne compte plus |
@@ -274,6 +275,16 @@ docker compose exec notak node apps/serveur/src/compte.ts --email ana@exemple.fr
 Le mot de passe est tiré au hasard et écrit une fois dans le terminal, ou pris dans `NOTAK_MOT_DE_PASSE`. Il ne passe
 jamais par la ligne de commande, qui reste dans l'historique. Un tableau partagé avec une adresse sans compte
 attend toujours son invitée : il la retrouve quand son compte est créé.
+
+## Fermer la connexion par mot de passe
+
+Avec `NOTAK_MOTS_DE_PASSE=desactives` dans le `.env` (puis `docker compose up -d`), le serveur refuse la connexion,
+l'inscription et la réinitialisation par mot de passe (`403`, code `MOTS_DE_PASSE_FERMES`) : l'écran d'entrée ouvre
+sur le SSO, sa seule porte. Un seul fournisseur SSO déclaré sur le serveur, et l'écran y va droit, sans même demander
+d'adresse — elle ne sert qu'à le départir de plusieurs. Les fournisseurs déclarés par l'environnement (Google,
+Microsoft, GitHub) restent proposés à côté. Le compte créé en ligne de commande (`serveur:compte`) passe par l'API
+interne de Better Auth et reste possible, mais personne ne se connecte plus par son mot de passe. Pour reprendre la
+main si le SSO tombe, remettez `NOTAK_MOTS_DE_PASSE=actives` (ou ôtez la ligne) et redémarrez.
 
 ## L'aperçu des liens
 
