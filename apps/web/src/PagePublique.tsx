@@ -209,7 +209,10 @@ function Lecture({ jeton, initial, relire }: { jeton: string; initial: TableauPu
         </p>
       )}
       <div className="public-corps">
-        <Toile magasin={visiteur.magasin} services={services} />
+        {/* `arriver` : comme dans l'espace connecté, la première visite cadre le contenu (haut à gauche sous les
+        barres). Sans lui, la caméra restait à l'origine et une toile dont le contenu monte au-dessus de l'origine
+        s'affichait le bas à l'écran, comme si elle avait été défilée. */}
+        <Toile magasin={visiteur.magasin} services={services} arriver />
       </div>
       {/* Une bande à part, sous la toile : la mention ne recouvre jamais une carte. */}
       <footer className="public-pied">
