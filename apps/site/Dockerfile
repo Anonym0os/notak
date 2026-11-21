@@ -2,7 +2,7 @@
 # statiques par nginx, et la page « À propos ». À construire depuis la racine du dépôt :
 #   docker build -f apps/site/Dockerfile --build-arg VITE_CONTACT=contact@exemple.fr -t notak-site .
 
-FROM oven/bun:1.3.12 AS construction
+FROM oven/bun:1.4.4 AS construction
 WORKDIR /notak
 COPY package.json bun.lock ./
 COPY apps/web/package.json apps/web/
