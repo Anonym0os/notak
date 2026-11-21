@@ -8,6 +8,7 @@ import { coque, dansCoque, estBureau, marquerBureau, peutJoindreUnServeur } from
 import { brancherMenuNatif } from './menuNatif'
 import { brancherPrecedentSuivant } from './precedentSuivant'
 import { simulerCoqueSiDemandee } from './ios/coqueSimulee'
+import { brancherRattrapage, rattraperChargement } from './rattrapage'
 
 // En développement, `?coque=ios` fait croire à la page qu'elle est dans l'app d'un iPhone : de quoi essayer dans le
 // navigateur ce qui passe par la coque (se connecter à un serveur). Rien de cela n'est construit pour la production.
@@ -18,6 +19,13 @@ marquerBureau()
 brancherPrecedentSuivant()
 // Le menu du clic droit du système ne paraît que dans ce qu'on écrit ; ailleurs, celui de Notak ou rien.
 brancherMenuNatif()
+// Un morceau de l'app qui ne vient pas au démarrage (une page d'avant le dernier déploiement) : la page se recharge, au
+// lieu d'attendre sans fin.
+brancherRattrapage()
+const rattraper = (e: unknown) => {
+  console.error('Notak : une partie de l’app ne s’est pas chargée', e)
+  rattraperChargement()
+}
 // Sur un iPhone ou un iPad : le thème du système au premier lancement, la vue native au fond du thème, le clavier suivi.
 if (estMobile()) void import('./ios/demarrage').then((m) => m.demarrerMobile(window, coque()!))
 
@@ -32,9 +40,9 @@ if (import.meta.env.VITE_EDITION !== 'locale' || peutJoindreUnServeur()) void im
 // ou l'édition serveur (comptes, partage, temps réel). Le choix se fait à la construction : le paquet de l'une ne
 // contient rien de l'autre.
 if (import.meta.env.VITE_EDITION === 'locale') {
-  const monterLocal = () => void import('./edition/locale')
+  const monterLocal = () => void import('./edition/locale').catch(rattraper)
   // Sur sa page embarquée, l'app (ordinateur, iPhone, iPad) regarde d'abord où Notak doit s'ouvrir : les toiles d'ici,
   // ou le serveur retenu.
   if (peutJoindreUnServeur()) void import('./bureau/Porte').then((m) => m.passerLaPorte(monterLocal)).catch(monterLocal)
   else monterLocal()
-} else void import('./edition/serveur')
+} else void import('./edition/serveur').catch(rattraper)

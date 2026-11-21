@@ -280,6 +280,7 @@ describe("l'application web servie par le serveur", () => {
     mkdirSync(join(racine, 'assets'))
     writeFileSync(join(racine, 'index.html'), '<!doctype html><title>Notak</title>')
     writeFileSync(join(racine, 'assets', 'app.js'), 'console.log(1)')
+    writeFileSync(join(racine, 'sw.js'), 'self.addEventListener("fetch", () => {})')
     web = await demarrer({ port: 0, dossier: join(racine, 'donnees'), dossierWeb: racine, secret: SECRET, openfga: openfgaEssai() })
     adresse = `http://127.0.0.1:${web.port}`
   })
@@ -312,6 +313,23 @@ describe("l'application web servie par le serveur", () => {
     expect(page.headers.get('strict-transport-security')).toBeNull()
     expect((await fetch(`${adresse}/assets/app.js`)).headers.get('content-security-policy')).toBe(csp)
     expect((await fetch(`${adresse}/api/inexistant`)).headers.get('content-security-policy')).toBeNull()
+  })
+
+  it('la page se revérifie à chaque fois, les fichiers à empreinte se gardent un an', async () => {
+    // La page d'une toile privée ou inconnue dit `no-store` (son aperçu, `apercuLien.ts`) : jamais gardée sans revérifier.
+    for (const chemin of ['/', '/t/abcdefgh', '/index.html', '/sw.js']) {
+      expect((await fetch(adresse + chemin)).headers.get('cache-control')).toMatch(/^no-(cache|store)$/)
+    }
+    expect((await fetch(`${adresse}/assets/app.js`)).headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
+    expect((await fetch(`${adresse}/api/inexistant`)).headers.get('cache-control')).toBeNull()
+  })
+
+  it('un fichier de assets/ disparu au déploiement répond 404, pas la page qu’on prendrait pour un script', async () => {
+    const r = await fetch(`${adresse}/assets/index-ancien.js`)
+    expect(r.status).toBe(404)
+    expect(r.headers.get('content-type')).not.toContain('text/html')
+    expect(r.headers.get('cache-control')).toBe('no-store')
+    expect(await r.text()).not.toContain('<title>Notak</title>')
   })
 
   it('un partage reçu sans service worker revient à l’accueil au lieu d’une erreur', async () => {

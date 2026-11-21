@@ -2845,11 +2845,25 @@ export function creerApp(ctx: Contexte): Hono {
         c.header('x-robots-tag', 'noindex')
       }
     })
+    // Ce que le navigateur garde. Les fichiers de `assets/` portent l'empreinte de leur contenu dans leur nom : ils ne
+    // changent jamais, on les garde un an. Le reste (`sw.js`, `demarrage.js`, le manifeste, les icônes) se revérifie à
+    // chaque fois, sauf consigne déjà posée (la page et ses aperçus disent la leur) : sans consigne, WebKit garde un
+    // fichier à l'estime, et la page d'avant un déploiement réclame des fichiers qui n'existent plus. Vu dans l'app
+    // d'iPhone : l'écran de chargement figé, puis « notak.silak.fr n'a pas répondu ».
+    app.use('*', async (c, suite) => {
+      await suite()
+      if (c.res.status !== 200 && c.res.status !== 304) return
+      if (/^\/assets\//.test(c.req.path)) c.res.headers.set('cache-control', 'public, max-age=31536000, immutable')
+      else if (!c.res.headers.has('cache-control')) c.res.headers.set('cache-control', 'no-cache')
+    })
     // La page de l'app reçoit les balises de l'aperçu de son adresse ; l'accueil d'abord, que `serveStatic` servirait tel quel.
     const page = (c: Context) => apercus.page(c, origineDe(c))
     app.get('/', page)
     app.get('/index.html', page)
     app.use('*', serveStatic({ root: ctx.dossierWeb }))
+    // Un fichier de `assets/` absent : un 404, pas la page. Servie à sa place, le navigateur la refuserait comme script
+    // sans rien dire, et l'app ne démarrerait pas ; un 404, la page le voit (`rattrapage.ts`) et se recharge.
+    app.get('/assets/*', (c) => c.text('introuvable', 404, { 'cache-control': 'no-store' }))
     app.get('*', page)
   }
   return app
