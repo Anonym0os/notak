@@ -1,6 +1,6 @@
 import { type FormEvent, type KeyboardEvent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import { Icone } from '@notak/tableau'
-import { t } from './langue'
+import { type EspaceNavigable, Icone } from '@notak/tableau'
+import { t, tn } from './langue'
 import { usePanneau } from './panneaux'
 
 /** Un échange du fil de l'agent sur ce tableau, tel que l'outil le garde. */
@@ -46,7 +46,55 @@ async function appeler<T>(adresse: string, corps?: unknown): Promise<T> {
 }
 
 export const lireAgent = (tableau: string) => appeler<EtatAgent>(chemin(tableau))
-export const demanderAgent = (tableau: string, message: string) => appeler<{ tour: string; etat: string }>(chemin(tableau), { message })
+export const demanderAgent = (tableau: string, message: string, selection: SelectionAgent = []) =>
+  appeler<{ tour: string; etat: string }>(chemin(tableau), selection.length > 0 ? { message, selection } : { message })
+
+/** Ce que la personne a sélectionné sur le tableau, chaque élément avec un extrait de ce qu'il dit. */
+export type SelectionAgent = { id: string; texte: string }[]
+
+const EXTRAIT = 120
+
+/** Le texte d'un contenu d'élément, quelle que soit sa forme (note, titre, liste, document) : ses chaînes lisibles mises bout à bout. */
+export function extraitDe(contenu: unknown): string {
+  const morceaux: string[] = []
+  let longueur = 0
+  const parcourir = (v: unknown, cle?: string) => {
+    if (longueur >= EXTRAIT) return
+    if (typeof v === 'string') {
+      if (cle === 'text' || cle === 'texte' || cle === 'titre' || cle === 'libelle') {
+        const propre = v.replace(/\s+/g, ' ').trim()
+        if (propre) {
+          morceaux.push(propre)
+          longueur += propre.length + 1
+        }
+      }
+      return
+    }
+    if (Array.isArray(v)) for (const x of v) parcourir(x)
+    else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) parcourir(x, k)
+  }
+  parcourir(contenu)
+  const texte = morceaux.join(' ')
+  return texte.length > EXTRAIT ? `${texte.slice(0, EXTRAIT - 1)}…` : texte
+}
+
+/**
+ * La sélection de la personne sur ce tableau, lue dans sa présence (que la toile tient à jour) au moment d'envoyer, chaque
+ * élément avec un extrait de ce qu'il dit, ou son genre. Hors connexion ou sans sélection : rien.
+ */
+export function selectionDe(espace: EspaceNavigable | undefined, tableau: string): SelectionAgent {
+  const canal = espace?.presence?.(tableau)?.canal?.() as { getLocalState?(): Record<string, unknown> | null } | null | undefined
+  const ids = canal?.getLocalState?.()?.selection
+  if (!Array.isArray(ids) || ids.length === 0) return []
+  const elements = espace?.tableau(tableau)?.elements ?? []
+  return ids
+    .filter((x): x is string => typeof x === 'string')
+    .slice(0, 50)
+    .map((id) => {
+      const contenu = elements.find((e) => e.id === id)?.contenu as { type?: string } | undefined
+      return { id, texte: extraitDe(contenu) || contenu?.type || 'élément' }
+    })
+}
 export const lireTourAgent = (tableau: string, tour: string) => appeler<EtatTour>(`${chemin(tableau)}/tours/${encodeURIComponent(tour)}`)
 
 /** Le gras, l'italique et le code d'une ligne, en éléments React : rien de ce que l'agent écrit ne devient du HTML. */
@@ -112,7 +160,7 @@ export function TexteAgent({ texte }: { texte: string }) {
  * tour en cours suivi jusqu'à son repos (trois minutes au plus), et l'envoi d'une demande. Le bouton du bureau et la
  * feuille du téléphone le partagent.
  */
-export function useAgent(tableau: string) {
+export function useAgent(tableau: string, espace?: EspaceNavigable) {
   const [etat, setEtat] = useState<EtatAgent | null>(null)
   const [tour, setTour] = useState<string | null>(null)
   const [attendCartes, setAttendCartes] = useState(false)
@@ -120,6 +168,7 @@ export function useAgent(tableau: string) {
   const [message, setMessage] = useState('')
   const [envoi, setEnvoi] = useState(false)
   const [dit, setDit] = useState<string | null>(null)
+  const [avecSelection, setAvecSelection] = useState(0)
 
   const relire = useCallback(async () => {
     try {
@@ -193,8 +242,10 @@ export function useAgent(tableau: string) {
     setEnvoi(true)
     setErreur(null)
     setDit(texte)
+    const selection = selectionDe(espace, tableau)
+    setAvecSelection(selection.length)
     try {
-      const r = await demanderAgent(tableau, texte.slice(0, MESSAGE_MAX))
+      const r = await demanderAgent(tableau, texte.slice(0, MESSAGE_MAX), selection)
       setMessage('')
       setTour(r.tour)
     } catch (x) {
@@ -205,14 +256,14 @@ export function useAgent(tableau: string) {
     }
   }
 
-  return { disponible: etat?.disponible === true, nom, echanges: etat?.echanges ?? [], tour, attendCartes, erreur, message, setMessage, envoi, dit, relire, envoyer }
+  return { disponible: etat?.disponible === true, nom, echanges: etat?.echanges ?? [], tour, attendCartes, erreur, message, setMessage, envoi, dit, avecSelection, relire, envoyer }
 }
 
 export type Agent = ReturnType<typeof useAgent>
 
 /** Le fil, l'état du tour et la saisie : le contenu du panneau, au bureau comme au téléphone. Relit le fil à l'ouverture. */
 export function FilAgent({ agent }: { agent: Agent }) {
-  const { nom, echanges, tour, attendCartes, erreur, message, setMessage, envoi, dit, relire, envoyer } = agent
+  const { nom, echanges, tour, attendCartes, erreur, message, setMessage, envoi, dit, avecSelection, relire, envoyer } = agent
   const fil = useRef<HTMLOListElement>(null)
 
   useEffect(() => {
@@ -261,6 +312,7 @@ export function FilAgent({ agent }: { agent: Agent }) {
           <li className="agent-echange agent-moi">
             <strong>{t('agent.vous')}</strong>
             <p>{dit}</p>
+            {avecSelection > 0 && <small className="agent-selection">{tn('agent.avecSelection', avecSelection)}</small>}
           </li>
         )}
         {tour && (
@@ -299,9 +351,9 @@ export function FilAgent({ agent }: { agent: Agent }) {
  * synchro, sous les yeux de la personne. Rien ne paraît si le serveur n'a pas d'agent, si la personne n'est pas liée à
  * l'outil, ou si l'outil ne le lui ouvre pas encore.
  */
-export function Agent({ tableau }: { tableau: string }) {
+export function Agent({ tableau, espace }: { tableau: string; espace?: EspaceNavigable }) {
   const { ouvert, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
-  const agent = useAgent(tableau)
+  const agent = useAgent(tableau, espace)
   if (!agent.disponible) return null
   const { nom } = agent
 

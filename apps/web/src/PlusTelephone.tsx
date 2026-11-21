@@ -46,7 +46,7 @@ export function PlusTelephone({
   const { activite, erreur } = useActivite(tableau, moi.id, surNouveaux)
   const importer = useImport({ espace, tableau, ouvrir, fichiers })
   // L'agent d'un outil rattaché (Fram), quand il est là pour cette personne : en tête, c'est à lui qu'on parle.
-  const agent = useAgent(tableau)
+  const agent = useAgent(tableau, espace)
 
   const entrees: EntreeMenu[] = [
     ...(agent.disponible ? [{ libelle: t('agent.demander', { nom: agent.nom }), icone: 'idee' as const, faire: () => setOuverte('agent') }, null] : []),

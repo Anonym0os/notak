@@ -1280,6 +1280,11 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   background: color-mix(in srgb, var(--texte) 7%, transparent);
 }
 
+.agent-selection {
+  color: var(--app-pale);
+  font-size: 11.5px;
+}
+
 .agent-travaille {
   color: var(--app-pale);
   animation: agent-souffle 1.4s ease-in-out infinite;

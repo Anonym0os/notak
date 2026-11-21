@@ -2,7 +2,7 @@
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Agent, TexteAgent } from './Agent'
+import { Agent, TexteAgent, extraitDe, selectionDe } from './Agent'
 import './langue'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -91,5 +91,20 @@ describe('Le panneau de l’agent', () => {
     expect(hote.querySelector('ul em')?.textContent).toBe('lundi')
     expect(hote.querySelectorAll('ol li')).toHaveLength(2)
     expect(hote.querySelector('b')).toBeNull()
+  })
+
+  it('lit la sélection dans la présence du tableau, avec un extrait de chaque élément', () => {
+    const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Relancer  Rœderer' }, { type: 'text', text: 'lundi' }] }] }
+    const espace = {
+      presence: () => ({ canal: () => ({ getLocalState: () => ({ selection: ['e1', 'e2', 'e3', 7] }) }) }),
+      tableau: () => ({ elements: [{ id: 'e1', contenu: { type: 'note', doc } }, { id: 'e2', contenu: { type: 'image', fichier: 'x.png' } }] }),
+    } as unknown as Parameters<typeof selectionDe>[0]
+    expect(selectionDe(espace, 't1')).toEqual([
+      { id: 'e1', texte: 'Relancer Rœderer lundi' },
+      { id: 'e2', texte: 'image' },
+      { id: 'e3', texte: 'élément' },
+    ])
+    expect(selectionDe(undefined, 't1')).toEqual([])
+    expect(extraitDe({ titre: 'x'.repeat(200) })).toHaveLength(120)
   })
 })

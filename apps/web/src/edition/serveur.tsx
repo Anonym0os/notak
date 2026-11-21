@@ -457,7 +457,7 @@ function Espace({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
         actions={(courant, ouvrir) => (
           <>
             <BullesDecouverte espace={espace} tableau={courant} compte={moi.id} />
-            <Agent tableau={courant} />
+            <Agent tableau={courant} espace={espace} />
             <Favori tableau={courant} accueil={moi.racine} />
             <PlusEntete>
               <Activite tableau={courant} moi={moi.id} surNouveaux={recents.noter} />
