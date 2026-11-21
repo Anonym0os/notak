@@ -2911,8 +2911,9 @@ export function creerApp(ctx: Contexte): Hono {
         return [...parTitre, ...dedans].slice(0, limite)
       },
       estDossier,
+      // Les anciens dossiers sont rangés avant la demande (la route), hors de la file des écritures : ici, l'attendre
+      // pendant une écriture, qui tient la file, ne finirait jamais.
       fiche: async (u, cle) => {
-        await anciensDossiersRanges()
         const espace = espaceDeLaSource(u)
         const etat = espace ? await etatDuDossier(u, base.rattachement(espace, source.source, cle)) : { etat: 'absent' as const }
         if (etat.etat === 'cache') return { etat: 'inaccessible' }
@@ -2988,6 +2989,8 @@ export function creerApp(ctx: Contexte): Hono {
       return refus(403, 'personne_inconnue', 'Aucun compte Notak n’est lié à cette personne : elle doit se connecter une fois à Notak avec son compte de l’outil. Aucun compte n’est créé pour elle.')
     }
     const id = b!.id as string
+    // Avant la file des écritures, comme la route des outils : ce rangement passe lui-même par elle.
+    await anciensDossiersRanges()
     const executer = async () => {
       try {
         return { ok: true as const, reponse: JSON.stringify({ ok: true, operation, resultat: await porteDe(source).executer(u, operation, args) }) }
