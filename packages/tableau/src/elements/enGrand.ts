@@ -84,6 +84,9 @@ const GESTE = [
  * est pris. Rend de quoi libérer la place tout de suite.
  */
 export function tenirLaPlace(x: number, y: number, pointeur?: number): () => void {
+  // La fenêtre, prise une fois : le minuteur peut sonner après elle (à la fin d'un fichier d'essais, l'environnement
+  // suivant l'a déjà retirée), et `liberer` n'a plus à la relire.
+  const vue = window
   const garde = document.createElement('div')
   garde.className = 'notak-place-tenue'
   garde.setAttribute('aria-hidden', 'true')
@@ -124,12 +127,12 @@ export function tenirLaPlace(x: number, y: number, pointeur?: number): () => voi
   const liberer = () => {
     clearTimeout(minuteur)
     garde.remove()
-    window.removeEventListener('pointerup', releve, true)
-    window.removeEventListener('pointercancel', releve, true)
+    vue.removeEventListener('pointerup', releve, true)
+    vue.removeEventListener('pointercancel', releve, true)
   }
   for (const type of GESTE) garde.addEventListener(type, prendre, { passive: false })
-  window.addEventListener('pointerup', releve, true)
-  window.addEventListener('pointercancel', releve, true)
+  vue.addEventListener('pointerup', releve, true)
+  vue.addEventListener('pointercancel', releve, true)
   document.body.append(garde)
   if (pointeur === undefined) attendre()
   else tenir(pointeur)
