@@ -613,9 +613,12 @@ describe('les gestes', () => {
       history.replaceState(null, '', '/?vue=tout')
       const charger = vi.fn(async () => PROFOND)
       await act(async () => racine.render(<PageBibliotheque charger={charger} espace={monde()} />))
+      // jsdom fait le pas plus tard, et sous charge plus de 20 ms après : on attend que l'adresse ait bougé.
       const pas = (sens: 'back' | 'forward') =>
         act(async () => {
+          const avant = location.href
           history[sens]()
+          for (let i = 0; i < 200 && location.href === avant; i++) await new Promise((fin) => setTimeout(fin, 10))
           await new Promise((fin) => setTimeout(fin, 20))
         })
       const titre = () => hote.querySelector('h1')!.textContent
