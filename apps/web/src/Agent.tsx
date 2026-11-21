@@ -18,13 +18,20 @@ export interface EtatAgent {
   tour?: { id: string; etat: string } | null
 }
 
+/** Une carte : un geste de l'agent qui attend l'accord de la personne. `definitif` : il ne se rattrape pas. */
+export interface CarteAgent {
+  id: string
+  resume: string
+  definitif: boolean
+}
+
 export interface EtatTour {
   tour: string
   etat: string
   fini: boolean
   texte: string | null
   echec: string | null
-  cartes: unknown[]
+  cartes: CarteAgent[]
 }
 
 /** Un tour se relit à ce rythme, et trois minutes au plus : au-delà, l'agent répondra dans le fil. */
@@ -96,6 +103,8 @@ export function selectionDe(espace: EspaceNavigable | undefined, tableau: string
     })
 }
 export const lireTourAgent = (tableau: string, tour: string) => appeler<EtatTour>(`${chemin(tableau)}/tours/${encodeURIComponent(tour)}`)
+export const deciderCartes = (tableau: string, tour: string, cartes: { id: string; accord: boolean; toujours: boolean }[]) =>
+  appeler<{ tour: string; etat: string }>(`${chemin(tableau)}/tours/${encodeURIComponent(tour)}/cartes`, { cartes })
 
 /** Le gras, l'italique et le code d'une ligne, en éléments React : rien de ce que l'agent écrit ne devient du HTML. */
 function enLigne(texte: string): ReactNode[] {
@@ -164,6 +173,9 @@ export function useAgent(tableau: string, espace?: EspaceNavigable) {
   const [etat, setEtat] = useState<EtatAgent | null>(null)
   const [tour, setTour] = useState<string | null>(null)
   const [attendCartes, setAttendCartes] = useState(false)
+  const [cartes, setCartes] = useState<CarteAgent[]>([])
+  // Relancé à chaque réponse aux cartes : le suivi du même tour reprend, avec ses trois minutes.
+  const [relance, setRelance] = useState(0)
   const [erreur, setErreur] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [envoi, setEnvoi] = useState(false)
@@ -212,6 +224,7 @@ export function useAgent(tableau: string, espace?: EspaceNavigable) {
         const e = await lireTourAgent(tableau, tour)
         if (!vivant) return
         setAttendCartes(e.etat === 'awaiting_approval')
+        setCartes(e.etat === 'awaiting_approval' ? e.cartes : [])
         if (e.fini) {
           if (e.etat === 'failed') setErreur(e.echec || t('agent.echec'))
           setTour(null)
@@ -234,7 +247,7 @@ export function useAgent(tableau: string, espace?: EspaceNavigable) {
       vivant = false
       clearTimeout(minuteur)
     }
-  }, [tour, tableau, relire, nom])
+  }, [tour, tableau, relire, nom, relance])
 
   const envoyer = async () => {
     const texte = message.trim()
@@ -256,14 +269,28 @@ export function useAgent(tableau: string, espace?: EspaceNavigable) {
     }
   }
 
-  return { disponible: etat?.disponible === true, nom, echanges: etat?.echanges ?? [], tour, attendCartes, erreur, message, setMessage, envoi, dit, avecSelection, relire, envoyer }
+  /** Répond aux cartes du tour en cours : l'outil reprend le tour, et le suivi avec lui. */
+  const decider = async (reponses: { id: string; accord: boolean; toujours: boolean }[]) => {
+    if (!tour || reponses.length === 0) return
+    setErreur(null)
+    try {
+      await deciderCartes(tableau, tour, reponses)
+      setCartes([])
+      setAttendCartes(false)
+      setRelance((n) => n + 1)
+    } catch (x) {
+      setErreur((x as Error).message || t('agent.echec'))
+    }
+  }
+
+  return { disponible: etat?.disponible === true, nom, echanges: etat?.echanges ?? [], tour, attendCartes, cartes, decider, erreur, message, setMessage, envoi, dit, avecSelection, relire, envoyer }
 }
 
 export type Agent = ReturnType<typeof useAgent>
 
 /** Le fil, l'état du tour et la saisie : le contenu du panneau, au bureau comme au téléphone. Relit le fil à l'ouverture. */
 export function FilAgent({ agent }: { agent: Agent }) {
-  const { nom, echanges, tour, attendCartes, erreur, message, setMessage, envoi, dit, avecSelection, relire, envoyer } = agent
+  const { nom, echanges, tour, attendCartes, cartes, decider, erreur, message, setMessage, envoi, dit, avecSelection, relire, envoyer } = agent
   const fil = useRef<HTMLOListElement>(null)
 
   useEffect(() => {
@@ -315,9 +342,35 @@ export function FilAgent({ agent }: { agent: Agent }) {
             {avecSelection > 0 && <small className="agent-selection">{tn('agent.avecSelection', avecSelection)}</small>}
           </li>
         )}
-        {tour && (
+        {tour && cartes.length > 0 && (
+          <li className="agent-cartes" aria-live="polite">
+            <strong>{t('agent.cartes', { nom })}</strong>
+            {cartes.map((c) => (
+              <div key={c.id} className="agent-carte">
+                <p>
+                  {c.resume}
+                  {c.definitif && <span className="agent-definitif">{t('agent.definitif')}</span>}
+                </p>
+                <div className="agent-carte-gestes">
+                  <button type="button" className="bouton" onClick={() => void decider([{ id: c.id, accord: true, toujours: false }])}>
+                    {t('agent.autoriser')}
+                  </button>
+                  {!c.definitif && (
+                    <button type="button" className="bouton" onClick={() => void decider([{ id: c.id, accord: true, toujours: true }])}>
+                      {t('agent.toujours')}
+                    </button>
+                  )}
+                  <button type="button" className="bouton" onClick={() => void decider([{ id: c.id, accord: false, toujours: false }])}>
+                    {t('agent.refuser')}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </li>
+        )}
+        {tour && cartes.length === 0 && (
           <li className="agent-travaille" aria-live="polite">
-            {attendCartes ? t('agent.cartes', { nom }) : t('agent.travaille', { nom })}
+            {attendCartes ? t('agent.cartesAilleurs', { nom }) : t('agent.travaille', { nom })}
           </li>
         )}
       </ol>

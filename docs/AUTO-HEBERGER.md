@@ -279,8 +279,9 @@ sujet de son compte lié (`sub`) et son adresse :
 | `fram.demander` | `{ id, personne: { sub, email }, tableau: { id, titre, lien }, selection: [{ id, texte }], message }`, `id` un UUID neuf par demande | `{ tour, fil, etat }` |
 | `fram.lire` | `{ personne, tableau, tour }` | `{ tour, etat, fini, texte, echec, cartes }` |
 | `fram.fil` | `{ personne, tableau }` | `{ fil, echanges: [{ qui, texte, quand }], tour }` |
+| `fram.decider` | `{ id, personne, tableau, tour, cartes: [{ id, accord, toujours }] }`, `id` un UUID neuf | `{ tour, etat }` |
 
-Un 404 de l'outil vaut « pas pour cette personne » : le panneau ne paraît pas. Un 409 se dit (« ne peut pas prendre ce
+`fram.lire` rend aussi les cartes du tour arrêté sur elles, `[{ id, resume, definitif }]` : le panneau les montre avec « Autoriser », « Toujours sur ce tableau » (jamais pour un geste définitif) et « Refuser », et relaie la réponse par `fram.decider`. Un 404 de l'outil vaut « pas pour cette personne » : le panneau ne paraît pas. Un 409 se dit (« ne peut pas prendre ce
 message maintenant ») ; le reste vaut une panne passagère.
 
 ## Fermer les inscriptions

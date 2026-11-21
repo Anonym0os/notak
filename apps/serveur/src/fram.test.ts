@@ -3,7 +3,7 @@ import type { Context } from 'hono'
 import { describe, expect, it } from 'vitest'
 import { type Base, type Utilisateur, ouvrirBase } from './base.ts'
 import type { Role } from './droits.ts'
-import { type AgentRelaye, agentsRelayes, routesAgent, selectionLue } from './fram.ts'
+import { type AgentRelaye, agentsRelayes, cartesLues, reponsesLues, routesAgent, selectionLue } from './fram.ts'
 import { signatureValable, sourcesDe } from './rattachements.ts'
 
 const SECRET = 'un-secret-partage-de-plus-de-trente-deux-signes'
@@ -124,5 +124,29 @@ describe('L’agent sollicité depuis un tableau', () => {
   it('borne la sélection à des éléments du tableau', () => {
     expect(selectionLue([{ id: 'abcdef', texte: 'x'.repeat(400) }, { id: 'a b' }, 'rien'])).toEqual([{ id: 'abcdef', texte: 'x'.repeat(300) }])
     expect(selectionLue(null)).toEqual([])
+  })
+
+  it('relaie les réponses aux cartes d’un tour, et ne laisse « toujours » qu’à un accord', async () => {
+    const { envoyer, recus } = silak({
+      'fram.decider': { corps: { tour: TOUR, etat: 'queued' } },
+      'fram.lire': { corps: { tour: TOUR, etat: 'awaiting_approval', fini: false, texte: null, echec: null, cartes: [{ id: 'call-1', resume: 'Créer la carte', definitif: false }, { id: '../x' }] } },
+    })
+    const a = app({ base: base(), envoyer })
+    const etat = (await (await a.request(`/api/tableaux/t1/agent/tours/${TOUR}`)).json()) as { cartes: unknown }
+    expect(etat.cartes).toEqual([{ id: 'call-1', resume: 'Créer la carte', definitif: false }])
+
+    const r = await poster(a, `/api/tableaux/t1/agent/tours/${TOUR}/cartes`, { cartes: [{ id: 'call-1', accord: true, toujours: true }, { id: 'call-2', accord: false, toujours: true }, { id: 'call-3' }] })
+    expect(r.status).toBe(202)
+    expect(await r.json()).toEqual({ tour: TOUR, etat: 'queued' })
+    const envoye = recus.find((x) => x.type === 'fram.decider')!
+    expect(envoye).toMatchObject({ personne: { sub: 'sub-42', email: 'samy@silak.fr' }, tableau: 't1', tour: TOUR, cartes: [{ id: 'call-1', accord: true, toujours: true }, { id: 'call-2', accord: false, toujours: false }] })
+    expect(String(envoye.id)).toMatch(/^[0-9a-f-]{36}$/)
+    expect((await poster(a, `/api/tableaux/t1/agent/tours/${TOUR}/cartes`, { cartes: [] })).status).toBe(400)
+    expect((await poster(a, '/api/tableaux/t1/agent/tours/pas-un-tour/cartes', { cartes: [{ id: 'call-1', accord: true }] })).status).toBe(404)
+  })
+
+  it('borne les cartes lues et les réponses', () => {
+    expect(cartesLues([{ id: 'a', resume: 'x'.repeat(600), definitif: 'oui' }, null])).toEqual([{ id: 'a', resume: 'x'.repeat(500), definitif: false }])
+    expect(reponsesLues([{ id: 'a', accord: 'oui' }, { id: 'b', accord: false, toujours: true }])).toEqual([{ id: 'b', accord: false, toujours: false }])
   })
 })

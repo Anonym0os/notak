@@ -107,6 +107,8 @@ type Garde = (c: Context, minimum: Role) => Promise<{ u: Utilisateur; id: string
  * - `GET /api/tableaux/:id/agent` : l'agent est-il là pour cette personne, et le fil de ses échanges sur ce tableau ;
  * - `POST /api/tableaux/:id/agent` `{ message, selection? }` : une demande, qui rend le tour à suivre ;
  * - `GET /api/tableaux/:id/agent/tours/:tour` : où en est ce tour, et la réponse une fois au repos.
+ * - `POST /api/tableaux/:id/agent/tours/:tour/cartes` `{ cartes: [{ id, accord, toujours }] }` : les cartes d'un tour
+ *   arrêté sur elles, répondues depuis le panneau (`fram.decider`).
  */
 export function routesAgent(
   app: Hono,
@@ -184,8 +186,42 @@ export function routesAgent(
     const r = await relayer(agent!, { type: 'fram.lire', personne: g.personne, tableau: g.id, tour }, o.maintenant(), o.envoyer)
     if (!r || r.statut !== 200 || !r.corps) return echec(c, r)
     const { etat, fini, texte, echec: raison, cartes } = r.corps
-    return c.json({ tour, etat, fini: fini === true, texte: typeof texte === 'string' ? texte : null, echec: raison ?? null, cartes: Array.isArray(cartes) ? cartes : [] }, 200, {
+    return c.json({ tour, etat, fini: fini === true, texte: typeof texte === 'string' ? texte : null, echec: raison ?? null, cartes: cartesLues(cartes) }, 200, {
       'cache-control': 'no-store',
     })
+  })
+
+  // Les cartes d'un tour arrêté sur elles, répondues depuis le panneau : l'outil les décide par sa propre porte.
+  app.post('/api/tableaux/:id/agent/tours/:tour/cartes', async (c) => {
+    const g = await ouvrir(c)
+    if (g instanceof Response) return g
+    const tour = c.req.param('tour') ?? ''
+    if (!g.personne || !ID_TOUR.test(tour)) return introuvable(c)
+    const b = (await c.req.json().catch(() => null)) as Record<string, unknown> | null
+    const cartes = reponsesLues(b?.cartes)
+    if (cartes.length === 0) return c.json({ erreur: 'aucune carte', code: 'cartes_vides' }, 400)
+    const r = await relayer(agent!, { type: 'fram.decider', id: randomUUID(), personne: g.personne, tableau: g.id, tour, cartes }, o.maintenant(), o.envoyer)
+    if (!r || r.statut !== 200 || !r.corps) return echec(c, r)
+    return c.json({ tour, etat: r.corps.etat ?? 'queued' }, 202)
+  })
+}
+
+const ID_CARTE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/
+
+/** Les cartes qu'un tour attend, telles que l'outil les dit : un identifiant, une phrase, et si c'est définitif. */
+export function cartesLues(brute: unknown): { id: string; resume: string; definitif: boolean }[] {
+  if (!Array.isArray(brute)) return []
+  return brute.slice(0, 20).flatMap((e) => {
+    const o = e && typeof e === 'object' ? (e as Record<string, unknown>) : {}
+    return typeof o.id === 'string' && ID_CARTE.test(o.id) ? [{ id: o.id, resume: typeof o.resume === 'string' ? o.resume.slice(0, 500) : '', definitif: o.definitif === true }] : []
+  })
+}
+
+/** Les réponses du panneau : une carte, oui ou non, et « toujours » (pour la conversation de ce tableau). */
+export function reponsesLues(brute: unknown): { id: string; accord: boolean; toujours: boolean }[] {
+  if (!Array.isArray(brute)) return []
+  return brute.slice(0, 20).flatMap((e) => {
+    const o = e && typeof e === 'object' ? (e as Record<string, unknown>) : {}
+    return typeof o.id === 'string' && ID_CARTE.test(o.id) && typeof o.accord === 'boolean' ? [{ id: o.id, accord: o.accord, toujours: o.accord && o.toujours === true }] : []
   })
 }
