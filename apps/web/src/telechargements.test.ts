@@ -23,7 +23,9 @@ function fenetre(coque: Coque | null) {
   const appels: Appel[] = []
   const rappels = new Map<number, (message: unknown) => void>()
   let suivant = 0
-  const w = Object.assign(Object.create(window), {
+  // Des propriétés propres, posées et non affectées : depuis Vitest 5, `navigator` et `location` de la fenêtre de jsdom
+  // n'ont qu'un accesseur de lecture, qu'une affectation (Object.assign) heurterait.
+  const proprietes = {
     location: window.location,
     navigator: window.navigator,
     ...(coque
@@ -45,7 +47,8 @@ function fenetre(coque: Coque | null) {
           },
         }
       : {}),
-  }) as Window
+  }
+  const w = Object.create(window, Object.getOwnPropertyDescriptors(proprietes)) as Window
   return { w, appels, rappels }
 }
 
