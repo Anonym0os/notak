@@ -38,6 +38,7 @@ import { PagePartage, PageRapide } from '../Arrivees'
 import { PageEnvoyer } from '../Envoyer'
 import { PageEspaces } from '../Espaces'
 import { Activite } from '../Activite'
+import { Agent } from '../Agent'
 import { Cloche, elementDuFilDemande } from '../Cloche'
 import { PageBibliotheque } from '../Bibliotheque'
 import { Compte, CompteTelephone } from '../Compte'
@@ -456,6 +457,7 @@ function Espace({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
         actions={(courant, ouvrir) => (
           <>
             <BullesDecouverte espace={espace} tableau={courant} compte={moi.id} />
+            <Agent tableau={courant} />
             <Favori tableau={courant} accueil={moi.racine} />
             <PlusEntete>
               <Activite tableau={courant} moi={moi.id} surNouveaux={recents.noter} />

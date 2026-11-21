@@ -48,6 +48,7 @@ import type { Limiteur } from './debit.ts'
 import { AUCUN_CHANGEMENT, bilanDuRangement, rienNeChange } from './rangement.ts'
 import { RELATION_DU_ROLE, type Role, auMoins, role, roleDeRelation } from './droits.ts'
 import { decouvrirOidc } from './sso.ts'
+import { routesAgent } from './fram.ts'
 import { estFormatExport, exporterTexte, langueExport } from './exporter.ts'
 import { ErreurBanque, chercherImages } from './images.ts'
 import { indexerDocument, requeteIndex } from './indexation.ts'
@@ -2418,6 +2419,8 @@ export function creerApp(ctx: Contexte): Hono {
     await poserDansLAccueil(u, elements)
     return repondre({ ajoutes: elements.length }, 201)
   })
+
+  routesAgent(app, { garde, base, sources: () => ctx.rattachements ?? [], maintenant: ctx.maintenant, origine: ctx.origine })
 
   // ---- Les dossiers des fiches d'un autre outil (rattachements.ts) ----
 

@@ -1173,6 +1173,130 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   padding: 8px;
 }
 
+/* L'agent d'un outil rattaché (Agent.tsx) : le fil de ce qu'on lui a demandé sur ce tableau, puis la saisie. */
+.agent {
+  position: relative;
+}
+
+.agent-pastille {
+  width: 7px;
+  height: 7px;
+  margin-left: 2px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: agent-souffle 1.4s ease-in-out infinite;
+}
+
+.agent-panneau {
+  display: flex;
+  flex-direction: column;
+  width: min(380px, calc(100vw - 32px));
+  max-height: min(75vh, 600px, calc(100vh - 64px));
+  padding: 0;
+  overflow: hidden;
+}
+
+.agent-fil {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 96px;
+  margin: 0;
+  padding: 14px 14px 10px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.agent-vide {
+  padding: 16px 8px;
+}
+
+.agent-echange {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 92%;
+}
+
+.agent-echange strong {
+  color: var(--app-pale);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.agent-echange p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.agent-moi {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.agent-moi p {
+  padding: 7px 11px;
+  border-radius: 14px 14px 4px 14px;
+  background: color-mix(in srgb, var(--texte) 7%, transparent);
+}
+
+.agent-travaille {
+  color: var(--app-pale);
+  animation: agent-souffle 1.4s ease-in-out infinite;
+}
+
+.agent-erreur {
+  margin: 0 14px 8px;
+  color: #c2410c;
+  font-size: 12.5px;
+}
+
+.agent-saisie {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid color-mix(in srgb, var(--texte) 9%, transparent);
+}
+
+.agent-saisie textarea {
+  flex: 1;
+  min-height: 38px;
+  max-height: 160px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--texte) 14%, transparent);
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  resize: none;
+}
+
+.agent-saisie textarea:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--texte) 30%, transparent);
+  outline-offset: -1px;
+}
+
+.agent-envoyer:disabled {
+  opacity: 0.4;
+}
+
+@keyframes agent-souffle {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-pastille,
+  .agent-travaille {
+    animation: none;
+  }
+}
+
 .activite-liste,
 .cloche-liste {
   display: flex;

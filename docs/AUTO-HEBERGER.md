@@ -195,6 +195,7 @@ NOTAK_RATTACHEMENTS=[{"source":"crm","nom":"Mon CRM","dossier":"Clients","origin
 | `secret` | facultatif, 32 caractères au moins : il signe ce que l'outil demande à Notak et ce que Notak lui envoie (voir « Le catalogue »). Jamais rendu par l'API |
 | `webhook` | facultatif, avec `secret` : l'adresse, en https, où Notak prévient l'outil de ce que les gens font des dossiers |
 | `signalements` | facultatif, `true`, avec `secret` et `webhook` : l'outil reçoit aussi les signalements de bugs (⇧⌘S) pour en faire des tickets (voir « Le catalogue ») |
+| `agentAdresse` | facultatif, avec la porte des agents ouverte (`agents`, voir `docs/AGENTS.md`) : l'adresse, en https, où Notak relaie ce qu'on demande à l'agent de l'outil depuis un tableau (voir « Solliciter l'agent depuis un tableau »). Sans elle, le panneau de l'agent ne paraît pas |
 
 Le bouton de la fiche ouvre :
 
@@ -260,6 +261,27 @@ geste. Un outil qui reçoit les signalements reçoit aussi `signalement.depose`,
 sont annoncés au démarrage du serveur, une seule fois chacun. Un envoi qui n'obtient pas de réponse 2xx est relancé (une minute, puis le double, une heure au plus) pendant
 environ une semaine. Un geste que l'outil a lui-même demandé ne lui est pas renvoyé. L'envoi ne fait que prévenir :
 l'outil relit l'état par `lire` avant d'en tirer quoi que ce soit.
+
+### Solliciter l'agent depuis un tableau
+
+Avec `agents: true` et `agentAdresse`, un bouton au nom de l'agent (`agent`, « Fram ») paraît dans la barre d'un
+tableau, pour qui peut le modifier et dont le compte est lié au SSO de l'outil (`fournisseur`, à défaut le nom de la
+source). On y écrit ce qu'on attend (« fais une carte mentale de ce client à côté », « range ce tableau ») ; Notak relaie
+la demande, signée du `secret`, à `agentAdresse`, et suit le tour jusqu'à sa réponse, trois minutes au plus. L'agent
+agit sur le tableau par la porte des agents : ses gestes arrivent en direct. Rien n'est gardé dans Notak : le fil des
+échanges est celui de l'outil (`apps/serveur/src/fram.ts`).
+
+Ce que Notak envoie, `POST agentAdresse`, signé comme le reste (`Notak-Signature`) ; la personne y est désignée par le
+sujet de son compte lié (`sub`) et son adresse :
+
+| `type` | Corps | Réponse attendue |
+|---|---|---|
+| `fram.demander` | `{ id, personne: { sub, email }, tableau: { id, titre, lien }, selection: [{ id, texte }], message }`, `id` un UUID neuf par demande | `{ tour, fil, etat }` |
+| `fram.lire` | `{ personne, tableau, tour }` | `{ tour, etat, fini, texte, echec, cartes }` |
+| `fram.fil` | `{ personne, tableau }` | `{ fil, echanges: [{ qui, texte, quand }], tour }` |
+
+Un 404 de l'outil vaut « pas pour cette personne » : le panneau ne paraît pas. Un 409 se dit (« ne peut pas prendre ce
+message maintenant ») ; le reste vaut une panne passagère.
 
 ## Fermer les inscriptions
 
