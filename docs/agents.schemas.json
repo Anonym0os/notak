@@ -1,0 +1,899 @@
+{
+  "version": 1,
+  "route": "POST /api/outils/{source}/agent",
+  "signature": "Notak-Signature: t=<secondes>,v1=<hex de HMAC-SHA256(secret, \"<t>.<corps>\")>",
+  "corps_max": 524288,
+  "demande": {
+    "type": "object",
+    "additionalProperties": false,
+    "description": "Une demande d’un agent, signée du secret de son outil.",
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$",
+        "description": "Unique par demande : la même renvoyée rend la même réponse, sans rien refaire."
+      },
+      "au_nom_de": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "La personne pour qui l’agent agit : son identifiant chez l’outil (le sujet de son compte lié par le SSO), sinon son courriel vérifié.",
+        "properties": {
+          "sujet": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "courriel": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 320
+          }
+        }
+      },
+      "operation": {
+        "type": "string",
+        "enum": [
+          "trouver",
+          "lire_tableau",
+          "creer_tableau",
+          "ajouter_elements",
+          "modifier_elements",
+          "ranger",
+          "jeter_elements",
+          "remettre_elements"
+        ]
+      },
+      "arguments": {
+        "type": "object"
+      }
+    },
+    "required": [
+      "id",
+      "au_nom_de",
+      "operation"
+    ]
+  },
+  "operations": {
+    "trouver": {
+      "description": "Trouve où travailler. Sans argument : les espaces de la personne (et leur accueil) et ses tableaux récents. `texte` cherche dans les titres et dans le contenu de tous les tableaux qu’elle lit. `dans` liste ce que range un tableau ou un dossier. `fiche` rend le dossier d’une fiche de l’outil par sa clé de rattachement (societe:42).",
+      "ecrit": false,
+      "arguments": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "",
+        "properties": {
+          "texte": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "dans": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{8,64}$",
+            "description": "L’identifiant d’un tableau (ou d’un dossier), tel que `trouver` ou `lire_tableau` le rendent."
+          },
+          "fiche": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9:._-]{0,127}$"
+          },
+          "limite": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "description": "Combien de résultats au plus (20 par défaut)."
+          }
+        }
+      }
+    },
+    "lire_tableau": {
+      "description": "Lit un tableau : chaque élément avec son type, son texte lisible, sa place et sa taille en unités de grille, sa colonne ; les cartes mentales en plan imbriqué, les tables en lignes. `structure` décrit la mise en page : les zones (groupes d’éléments proches), les chevauchements, et une place libre où poser du neuf. Relis le tableau avant de modifier ou de ranger.",
+      "ecrit": false,
+      "arguments": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "",
+        "properties": {
+          "tableau": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{8,64}$",
+            "description": "L’identifiant d’un tableau (ou d’un dossier), tel que `trouver` ou `lire_tableau` le rendent."
+          },
+          "elements": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "description": "L’identifiant d’un élément, tel que `lire_tableau` le rend."
+            },
+            "minItems": 1,
+            "maxItems": 200,
+            "description": "Seulement ces éléments (et ce que rangent leurs colonnes)."
+          },
+          "corbeille": {
+            "type": "boolean",
+            "description": "Inclure les éléments jetés à la corbeille du tableau."
+          }
+        },
+        "required": [
+          "tableau"
+        ]
+      }
+    },
+    "creer_tableau": {
+      "description": "Crée un tableau (une toile vide), dans un tableau ou un dossier (`dans`), dans le dossier d’une fiche de l’outil (`fiche`), ou à défaut dans l’accueil de l’espace personnel. Sa carte y est posée, il en hérite les accès. Rend son identifiant.",
+      "ecrit": true,
+      "arguments": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "",
+        "properties": {
+          "titre": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "dans": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{8,64}$",
+            "description": "L’identifiant d’un tableau (ou d’un dossier), tel que `trouver` ou `lire_tableau` le rendent."
+          },
+          "fiche": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Le dossier d’une fiche de l’outil, créé s’il manque et que `titre` est donné.",
+            "properties": {
+              "cle": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9:._-]{0,127}$"
+              },
+              "titre": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "description": "Le titre du dossier de la fiche, s’il faut le créer (le nom du client)."
+              }
+            },
+            "required": [
+              "cle"
+            ]
+          },
+          "couleur": {
+            "type": "string",
+            "enum": [
+              "gris",
+              "cyan",
+              "vert",
+              "brun",
+              "jaune",
+              "orange",
+              "rouge",
+              "rose",
+              "violet",
+              "bleu",
+              "bleu_nuit"
+            ],
+            "description": "Une couleur de la palette des notes."
+          },
+          "dossier": {
+            "type": "boolean",
+            "description": "Le tableau se montre en dossier dans la bibliothèque."
+          }
+        },
+        "required": [
+          "titre"
+        ]
+      }
+    },
+    "ajouter_elements": {
+      "description": "Pose des éléments sur un tableau, exactement comme les crée l’app : notes, titres, listes de tâches, liens, colonnes avec leur contenu, tables, cartes mentales depuis un plan imbriqué. Placement : `place.pres_de` (à côté d’un élément), `place.dans_colonne` (au bout d’une colonne), `place.x`/`place.y`, ou à défaut dans une place libre. Jamais par-dessus un autre élément. Plusieurs éléments se rangent de gauche à droite (`disposition`).",
+      "ecrit": true,
+      "arguments": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "",
+        "properties": {
+          "tableau": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{8,64}$",
+            "description": "L’identifiant d’un tableau (ou d’un dossier), tel que `trouver` ou `lire_tableau` le rendent."
+          },
+          "elements": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 60,
+            "items": {
+              "$ref": "#/$defs/element"
+            }
+          },
+          "place": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Où poser les éléments ; absente : dans une place libre, à droite de ce qui est là.",
+            "properties": {
+              "pres_de": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "description": "L’identifiant d’un élément, tel que `lire_tableau` le rend."
+              },
+              "cote": {
+                "type": "string",
+                "enum": [
+                  "droite",
+                  "dessous",
+                  "gauche",
+                  "dessus"
+                ],
+                "description": "Avec `pres_de` ; à droite par défaut."
+              },
+              "dans_colonne": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "description": "L’identifiant d’un élément, tel que `lire_tableau` le rend."
+              },
+              "x": {
+                "type": "integer",
+                "minimum": -15000,
+                "maximum": 15000
+              },
+              "y": {
+                "type": "integer",
+                "minimum": -15000,
+                "maximum": 15000
+              },
+              "disposition": {
+                "type": "string",
+                "enum": [
+                  "ligne",
+                  "pile",
+                  "grille"
+                ],
+                "description": "ligne : côte à côte (par défaut). pile : les uns sous les autres. grille : en rangées."
+              }
+            }
+          }
+        },
+        "required": [
+          "tableau",
+          "elements"
+        ],
+        "$defs": {
+          "branche": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Une branche d’une carte mentale : son titre, court (quelques mots), et ses sous-branches.",
+            "properties": {
+              "titre": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              "note": {
+                "type": "string",
+                "maxLength": 4000,
+                "description": "Une note sous le sujet (texte simple), pour le détail qui n’a pas sa place dans le titre."
+              },
+              "enfants": {
+                "type": "array",
+                "maxItems": 40,
+                "items": {
+                  "$ref": "#/$defs/branche"
+                }
+              }
+            },
+            "required": [
+              "titre"
+            ]
+          },
+          "element": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "note",
+                  "titre",
+                  "taches",
+                  "lien",
+                  "colonne",
+                  "table",
+                  "carte_mentale"
+                ],
+                "description": "note : un texte (Markdown simple : titres #, listes -, gras **, italique _, liens). titre : un titre posé sur la toile, sans fond. taches : une liste de cases à cocher. lien : une adresse web, avec son aperçu. colonne : une colonne qui range des éléments. table : un petit tableur. carte_mentale : une carte mentale, depuis un plan imbriqué."
+              },
+              "texte": {
+                "type": "string",
+                "maxLength": 20000,
+                "description": "note, titre : le texte, en Markdown simple."
+              },
+              "titre": {
+                "type": "string",
+                "maxLength": 300,
+                "description": "taches, colonne, table, lien : le titre."
+              },
+              "couleur": {
+                "type": "string",
+                "enum": [
+                  "gris",
+                  "cyan",
+                  "vert",
+                  "brun",
+                  "jaune",
+                  "orange",
+                  "rouge",
+                  "rose",
+                  "violet",
+                  "bleu",
+                  "bleu_nuit"
+                ],
+                "description": "Une couleur de la palette des notes."
+              },
+              "url": {
+                "type": "string",
+                "maxLength": 2000,
+                "description": "lien : l’adresse, en http(s)."
+              },
+              "taches": {
+                "type": "array",
+                "maxItems": 200,
+                "description": "Les tâches, dans l’ordre.",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "texte": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2000
+                    },
+                    "faite": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "texte"
+                  ]
+                }
+              },
+              "lignes": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 200,
+                "description": "Les lignes de la table ; la première est l’en-tête. Toutes de la même longueur (complétées sinon).",
+                "items": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 30,
+                  "items": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                }
+              },
+              "elements": {
+                "type": "array",
+                "maxItems": 60,
+                "description": "colonne : ce qu’elle range, de haut en bas.",
+                "items": {
+                  "$ref": "#/$defs/element_de_colonne"
+                }
+              },
+              "central": {
+                "type": "string",
+                "maxLength": 300,
+                "description": "carte_mentale : le sujet central."
+              },
+              "branches": {
+                "type": "array",
+                "maxItems": 40,
+                "items": {
+                  "$ref": "#/$defs/branche"
+                },
+                "description": "carte_mentale : les branches principales, avec leurs sous-branches."
+              },
+              "structure": {
+                "type": "string",
+                "enum": [
+                  "carte",
+                  "logique-droite",
+                  "organigramme-bas",
+                  "arbre-droite",
+                  "chronologie-horizontale",
+                  "accolade-droite",
+                  "arete-droite"
+                ],
+                "description": "carte_mentale : la disposition ; absente, la carte (branches tout autour du centre)."
+              },
+              "largeur": {
+                "type": "integer",
+                "minimum": 8,
+                "maximum": 120,
+                "description": "La largeur en unités de grille ; absente, celle que l’app donne à ce type."
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "element_de_colonne": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "note",
+                  "titre",
+                  "taches",
+                  "lien",
+                  "table"
+                ],
+                "description": "note : un texte (Markdown simple : titres #, listes -, gras **, italique _, liens). titre : un titre posé sur la toile, sans fond. taches : une liste de cases à cocher. lien : une adresse web, avec son aperçu. colonne : une colonne qui range des éléments. table : un petit tableur. carte_mentale : une carte mentale, depuis un plan imbriqué."
+              },
+              "texte": {
+                "type": "string",
+                "maxLength": 20000,
+                "description": "note, titre : le texte, en Markdown simple."
+              },
+              "titre": {
+                "type": "string",
+                "maxLength": 300,
+                "description": "taches, colonne, table, lien : le titre."
+              },
+              "couleur": {
+                "type": "string",
+                "enum": [
+                  "gris",
+                  "cyan",
+                  "vert",
+                  "brun",
+                  "jaune",
+                  "orange",
+                  "rouge",
+                  "rose",
+                  "violet",
+                  "bleu",
+                  "bleu_nuit"
+                ],
+                "description": "Une couleur de la palette des notes."
+              },
+              "url": {
+                "type": "string",
+                "maxLength": 2000,
+                "description": "lien : l’adresse, en http(s)."
+              },
+              "taches": {
+                "type": "array",
+                "maxItems": 200,
+                "description": "Les tâches, dans l’ordre.",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "texte": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2000
+                    },
+                    "faite": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "texte"
+                  ]
+                }
+              },
+              "lignes": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 200,
+                "description": "Les lignes de la table ; la première est l’en-tête. Toutes de la même longueur (complétées sinon).",
+                "items": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 30,
+                  "items": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                }
+              },
+              "largeur": {
+                "type": "integer",
+                "minimum": 8,
+                "maximum": 120,
+                "description": "La largeur en unités de grille ; absente, celle que l’app donne à ce type."
+              }
+            },
+            "required": [
+              "type"
+            ]
+          }
+        }
+      }
+    },
+    "modifier_elements": {
+      "description": "Modifie des éléments : le texte d’une note ou d’un titre (Markdown simple), un titre, une couleur, les tâches d’une liste (les remplacer, ou en cocher), les lignes d’une table, les branches d’une carte mentale. Ce qui n’est pas donné ne change pas.",
+      "ecrit": true,
+      "arguments": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "",
+        "properties": {
+          "tableau": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{8,64}$",
+            "description": "L’identifiant d’un tableau (ou d’un dossier), tel que `trouver` ou `lire_tableau` le rendent."
+          },
+          "modifications": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "description": "L’identifiant d’un élément, tel que `lire_tableau` le rend."
+                },
+                "texte": {
+                  "type": "string",
+                  "maxLength": 20000,
+                  "description": "note, titre : le nouveau texte, en Markdown simple."
+                },
+                "titre": {
+                  "type": "string",
+                  "maxLength": 300,
+                  "description": "taches, colonne, table, lien ; carte_mentale : le sujet central."
+                },
+                "couleur": {
+                  "type": "string",
+                  "enum": [
+                    "gris",
+                    "cyan",
+                    "vert",
+                    "brun",
+                    "jaune",
+                    "orange",
+                    "rouge",
+                    "rose",
+                    "violet",
+                    "bleu",
+                    "bleu_nuit",
+                    "aucune"
+                  ],
+                  "description": "`aucune` retire la couleur."
+                },
+                "taches": {
+                  "type": "array",
+                  "maxItems": 200,
+                  "description": "taches : la liste entière, qui remplace l’ancienne.",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "texte": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2000
+                      },
+                      "faite": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "texte"
+                    ]
+                  }
+                },
+                "cocher": {
+                  "type": "array",
+                  "maxItems": 200,
+                  "description": "taches : coche ou décoche des tâches par leur rang (à partir de 0, celui que rend `lire_tableau`).",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "description": "",
+                    "properties": {
+                      "rang": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000
+                      },
+                      "faite": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "rang",
+                      "faite"
+                    ]
+                  }
+                },
+                "lignes": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 200,
+                  "description": "table : toutes les lignes, qui remplacent les anciennes.",
+                  "items": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 30,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 2000
+                    }
+                  }
+                },
+                "branches": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 100,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "description": "Un geste sur les branches d’une carte mentale. ajouter : de nouvelles branches sous `sujet` (le central s’il manque). renommer : change le titre de `sujet`. deplacer : rattache `sujet` sous `vers`. remplacer : les sous-branches de `sujet` deviennent `enfants` (les anciennes partent). retirer : retire `sujet` et ses sous-branches.",
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "ajouter",
+                          "renommer",
+                          "deplacer",
+                          "remplacer",
+                          "retirer"
+                        ]
+                      },
+                      "sujet": {
+                        "type": "string",
+                        "maxLength": 64,
+                        "description": "L’identifiant d’un sujet, tel que `lire_tableau` le rend dans `plan`."
+                      },
+                      "titre": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 300
+                      },
+                      "note": {
+                        "type": "string",
+                        "maxLength": 4000
+                      },
+                      "enfants": {
+                        "type": "array",
+                        "maxItems": 40,
+                        "items": {
+                          "$ref": "#/$defs/branche"
+                        }
+                      },
+                      "vers": {
+                        "type": "string",
+                        "maxLength": 64,
+                        "description": "deplacer : le nouveau parent."
+                      },
+                      "position": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000,
+                        "description": "Le rang parmi les frères, à partir de 0 ; absent : en dernier."
+                      }
+                    },
+                    "required": [
+                      "action"
+                    ]
+                  },
+                  "description": "carte_mentale : les gestes, dans l’ordre."
+                }
+              },
+              "required": [
+                "id"
+              ]
+            }
+          }
+        },
+        "required": [
+          "tableau",
+          "modifications"
+        ],
+        "$defs": {
+          "branche": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Une branche d’une carte mentale : son titre, court (quelques mots), et ses sous-branches.",
+            "properties": {
+              "titre": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              "note": {
+                "type": "string",
+                "maxLength": 4000,
+                "description": "Une note sous le sujet (texte simple), pour le détail qui n’a pas sa place dans le titre."
+              },
+              "enfants": {
+                "type": "array",
+                "maxItems": 40,
+                "items": {
+                  "$ref": "#/$defs/branche"
+                }
+              }
+            },
+            "required": [
+              "titre"
+            ]
+          }
+        }
+      }
+    },
+    "ranger": {
+      "description": "Range des éléments selon un plan logique : des groupes, dans l’ordre, chacun empilé de haut en bas, côte à côte (`disposition`). Un groupe titré reçoit un titre au-dessus de lui ; `en_colonne` le range dans une colonne de ce titre. La porte calcule les positions, sans chevauchement. Ne supprime jamais rien ; ce qui n’est pas nommé ne bouge pas.",
+      "ecrit": true,
+      "arguments": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "",
+        "properties": {
+          "tableau": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{8,64}$",
+            "description": "L’identifiant d’un tableau (ou d’un dossier), tel que `trouver` ou `lire_tableau` le rendent."
+          },
+          "groupes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 40,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "",
+              "properties": {
+                "titre": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "elements": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "description": "L’identifiant d’un élément, tel que `lire_tableau` le rend."
+                  },
+                  "minItems": 1,
+                  "maxItems": 200
+                },
+                "en_colonne": {
+                  "type": "boolean",
+                  "description": "Range le groupe dans une colonne (créée, ou celle qui porte déjà ce titre)."
+                },
+                "couleur": {
+                  "type": "string",
+                  "enum": [
+                    "gris",
+                    "cyan",
+                    "vert",
+                    "brun",
+                    "jaune",
+                    "orange",
+                    "rouge",
+                    "rose",
+                    "violet",
+                    "bleu",
+                    "bleu_nuit"
+                  ],
+                  "description": "Une couleur de la palette des notes."
+                }
+              },
+              "required": [
+                "elements"
+              ]
+            }
+          },
+          "disposition": {
+            "type": "string",
+            "enum": [
+              "colonnes",
+              "lignes"
+            ],
+            "description": "colonnes : les groupes côte à côte (par défaut). lignes : les uns sous les autres."
+          },
+          "origine": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Le coin haut gauche du rangement ; absent : celui des éléments rangés.",
+            "properties": {
+              "x": {
+                "type": "integer",
+                "minimum": -15000,
+                "maximum": 15000
+              },
+              "y": {
+                "type": "integer",
+                "minimum": -15000,
+                "maximum": 15000
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ]
+          }
+        },
+        "required": [
+          "tableau",
+          "groupes"
+        ]
+      }
+    },
+    "jeter_elements": {
+      "description": "Jette des éléments à la corbeille du tableau, d’où la personne (ou `remettre_elements`) les remet. Rien ne s’efface.",
+      "ecrit": true,
+      "arguments": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "",
+        "properties": {
+          "tableau": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{8,64}$",
+            "description": "L’identifiant d’un tableau (ou d’un dossier), tel que `trouver` ou `lire_tableau` le rendent."
+          },
+          "elements": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "description": "L’identifiant d’un élément, tel que `lire_tableau` le rend."
+            },
+            "minItems": 1,
+            "maxItems": 200
+          }
+        },
+        "required": [
+          "tableau",
+          "elements"
+        ]
+      }
+    },
+    "remettre_elements": {
+      "description": "Remet sur la toile des éléments jetés à la corbeille du tableau, là où ils étaient.",
+      "ecrit": true,
+      "arguments": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "",
+        "properties": {
+          "tableau": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{8,64}$",
+            "description": "L’identifiant d’un tableau (ou d’un dossier), tel que `trouver` ou `lire_tableau` le rendent."
+          },
+          "elements": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "description": "L’identifiant d’un élément, tel que `lire_tableau` le rend."
+            },
+            "minItems": 1,
+            "maxItems": 200
+          }
+        },
+        "required": [
+          "tableau",
+          "elements"
+        ]
+      }
+    }
+  }
+}
