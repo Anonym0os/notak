@@ -1285,6 +1285,46 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   font-size: 11.5px;
 }
 
+/* Les cartes d'un tour : ce que l'agent veut faire, et l'accord qu'il attend. */
+.agent-cartes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-cartes > strong {
+  color: var(--app-pale);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.agent-carte {
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--texte) 12%, transparent);
+  border-radius: 12px;
+}
+
+.agent-carte p {
+  margin: 0 0 8px;
+  line-height: 1.45;
+}
+
+.agent-definitif {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, #c2410c 14%, transparent);
+  color: #c2410c;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.agent-carte-gestes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .agent-travaille {
   color: var(--app-pale);
   animation: agent-souffle 1.4s ease-in-out infinite;

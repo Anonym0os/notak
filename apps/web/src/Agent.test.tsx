@@ -107,4 +107,37 @@ describe('Le panneau de l’agent', () => {
     expect(selectionDe(undefined, 't1')).toEqual([])
     expect(extraitDe({ titre: 'x'.repeat(200) })).toHaveLength(120)
   })
+
+  it('montre les cartes d’un tour arrêté sur elles, et y répond depuis le panneau', async () => {
+    let decide = false
+    reponses = [
+      (chemin, init) => {
+        if (chemin.endsWith('/cartes')) {
+          decide = true
+          return { tour: TOUR, etat: 'queued' }
+        }
+        if (init?.method === 'POST') return { tour: TOUR, etat: 'queued' }
+        if (chemin.includes('/tours/')) {
+          return decide
+            ? { tour: TOUR, etat: 'running', fini: false, texte: null, echec: null, cartes: [] }
+            : { tour: TOUR, etat: 'awaiting_approval', fini: false, texte: null, echec: null, cartes: [{ id: 'call-1', resume: 'Créer la carte mentale « Rœderer »', definitif: false }, { id: 'call-2', resume: 'Jeter 2 éléments', definitif: true }] }
+        }
+        return { agent: 'Fram', disponible: true, echanges: [], tour: { id: TOUR, etat: 'awaiting_approval' } }
+      },
+    ]
+    await act(async () => racine.render(<Agent tableau="t1" />))
+    await attendre()
+    await act(async () => hote.querySelector<HTMLButtonElement>('.agent > button')!.click())
+    await attendre(700)
+    await attendre()
+    const cartes = [...hote.querySelectorAll('.agent-carte')]
+    expect(cartes.map((c) => c.querySelector('p')?.textContent)).toEqual(['Créer la carte mentale « Rœderer »', 'Jeter 2 élémentsDéfinitif'])
+    // Une carte définitive ne s’autorise pas « toujours ».
+    expect([...cartes[1]!.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Autoriser', 'Refuser'])
+    const toujours = [...cartes[0]!.querySelectorAll('button')].find((b) => b.textContent === 'Toujours sur ce tableau')!
+    await act(async () => toujours.click())
+    await attendre()
+    expect(appels.find((a) => a.chemin.endsWith('/cartes'))).toEqual({ chemin: `/api/tableaux/t1/agent/tours/${TOUR}/cartes`, corps: { cartes: [{ id: 'call-1', accord: true, toujours: true }] } })
+    expect(hote.querySelector('.agent-carte')).toBeNull()
+  })
 })
