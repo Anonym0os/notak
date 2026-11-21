@@ -1229,7 +1229,7 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   max-width: 92%;
 }
 
-.agent-echange strong {
+.agent-echange > strong {
   color: var(--app-pale);
   font-size: 11.5px;
   font-weight: 600;
