@@ -33,6 +33,10 @@ Elle est **éteinte par défaut**. On l'allume pour une source de `NOTAK_RATTACH
 | `agents` | `true` ouvre la porte à cette source. Absente, la route répond 404, comme si elle n'existait pas. |
 | `agent` | Le nom de l'agent, tel que l'activité le montre (« Samy avec Fram »). 40 caractères au plus ; à défaut, « l'assistant ». |
 | `fournisseur` | Le fournisseur SSO dont les comptes liés désignent les personnes ; à défaut, le nom de la source (`silak`). |
+| `agentAdresse` | Où relayer ce qu'on demande à l'agent depuis un tableau (son panneau, `apps/serveur/src/fram.ts`) : en https. Sans elle, la porte s'ouvre, le panneau ne paraît pas. |
+
+Tout se lit et se valide à un seul endroit, `sourcesDe` (`apps/serveur/src/rattachements.ts`) ; une clé écrite de
+travers est oubliée, et le démarrage le dit.
 
 Sans `secret`, la porte reste fermée, et le démarrage le dit.
 
@@ -165,8 +169,11 @@ Martin" }` : le dossier de la fiche, créé s'il manque et que `titre` est donn�
 `fiche` : l'accueil de l'espace personnel.
 
 ```json
-{ "tableau": { "id": "…", "titre": "Plan de lancement", "adresse": "https://notak.silak.fr/t/…" }, "dans": { "id": "…", "titre": "Boulangerie Martin" } }
+{ "tableau": { "id": "…", "titre": "Plan de lancement", "adresse": "https://notak.silak.fr/t/…" }, "dans": { "id": "…", "titre": "Boulangerie Martin" }, "carte": "…" }
 ```
+
+`carte` est l'élément qui range le tableau dans `dans` : le jeter (`jeter_elements`) met le tableau à la corbeille,
+comme dans l'app.
 
 ### `ajouter_elements`
 
@@ -211,14 +218,24 @@ Arguments : `tableau`, `modifications` (`[{ "id", … }]`). Ce qui n'est pas don
 | `cocher` | `[{ "rang": 0, "faite": true }]` : cocher ou décocher par rang |
 | `lignes` | table : toutes les lignes |
 | `branches` | carte mentale : `[{ "action": "ajouter", "sujet": "…", "titre": "…", "enfants": [...] }, …]` |
+| `x`, `y` | la place sur la toile, **exactement** là (sans décalage) ; l'élément sort de sa colonne s'il y était |
+| `colonne`, `rang` | range l'élément dans cette colonne, au rang donné (à la fin sinon) |
 
 Les gestes des branches, dans l'ordre : `ajouter` (sous `sujet`, le central s'il manque, à `position`), `renommer`
 (`sujet`, `titre`), `deplacer` (`sujet` sous `vers`, à `position`), `remplacer` (les sous-branches de `sujet` deviennent
 `enfants`), `retirer` (`sujet` et sa branche). Une carte modifiée rend son nouveau `plan`.
 
 ```json
-{ "modifies": ["…"], "plans": { "<carte>": { "id": "…", "titre": "…", "enfants": [] } } }
+{ "modifies": ["…"],
+  "avant": { "<élément>": { "texte": "…", "couleur": "aucune", "cocher": [{ "rang": 1, "faite": false }], "place": { "x": 0, "y": 8 } } },
+  "plans": { "<carte>": { "id": "…", "titre": "…", "enfants": [] } },
+  "plans_avant": { "<carte>": { "id": "…", "titre": "…", "enfants": [] } } }
 ```
+
+`avant` dit, pour chaque élément touché, ce que valait chaque champ changé, dans les mots de l'opération (`texte` en
+Markdown simple, `couleur` à `aucune` s'il n'y en avait pas, `taches`, `cocher` avec l'état d'avant de chaque rang,
+`lignes`, `titre`, `place` : `{ "x", "y" }` ou `{ "colonne", "rang" }`) : le renvoyer tel quel défait le changement. Une
+carte mentale rend son plan d'avant (`plans_avant`).
 
 ### `ranger`
 
@@ -232,8 +249,11 @@ il part dans une place libre. **Rien n'est supprimé**, ce qui n'est pas nommé 
 
 ```json
 { "ranges": [{ "id": "…", "x": 0, "y": 8 }, { "id": "…", "colonne": "…", "rang": 0 }], "titres": ["…"], "colonnes": ["…"],
-  "cadre": { "x": 0, "y": 0, "l": 106, "h": 60 } }
+  "cadre": { "x": 0, "y": 0, "l": 106, "h": 60 },
+  "avant": { "<élément>": { "x": 40, "y": 12 }, "<autre>": { "colonne": "…", "rang": 2 } } }
 ```
+
+`avant` : où était tout ce qui a bougé (les éléments rangés, et les titres ou colonnes repris).
 
 ### `jeter_elements`, `remettre_elements`
 
@@ -244,6 +264,19 @@ Un élément verrouillé sur la toile, ou la carte du dossier d'une fiche, reste
 ```json
 { "jetes": ["…"], "deja": [] }
 ```
+
+## Défaire
+
+Chaque écriture rend de quoi la défaire, pour l'« Annuler » de l'agent :
+
+| Pour défaire | Envoyer |
+|---|---|
+| `ajouter_elements` | `jeter_elements` avec les `crees` |
+| `creer_tableau` | `jeter_elements` avec sa `carte`, dans `dans` |
+| `modifier_elements` | `modifier_elements` avec chaque `avant` (`place` se renvoie en `x`/`y` ou `colonne`/`rang`) ; pour une carte, `remplacer` sur le central avec `plans_avant` (de nouveaux identifiants de sujets) |
+| `ranger` | `modifier_elements` qui remet chaque `avant` à sa place, **puis** `jeter_elements` avec les `titres` et `colonnes` neufs (une colonne jetée emporte ce qu'elle range : la vider d'abord) |
+| `jeter_elements` | `remettre_elements` avec les `jetes` |
+| `remettre_elements` | `jeter_elements` avec les `remis` |
 
 ## Une transaction par demande
 

@@ -44,6 +44,11 @@ export interface SourceRattachement {
   agent?: string
   /** Le fournisseur SSO dont les comptes liés désignent les personnes (`au_nom_de.sujet`) ; à défaut, `source`. */
   fournisseur?: string
+  /**
+   * Où relayer ce qu'on demande à l'agent depuis un tableau (le panneau de l'agent, `fram.ts`) : une adresse en https,
+   * ou en http vers cette machine (un essai). Avec `agents` ; sans elle, le panneau ne paraît pas.
+   */
+  agentAdresse?: string
 }
 
 /** Le nom d'un agent qu'une source ne nomme pas. */
@@ -119,6 +124,8 @@ export function sourcesDe(valeur: string | undefined, signaler: (message: string
     if (o.agents === true && !agents) signaler(`Notak : NOTAK_RATTACHEMENTS, « ${source} » : la porte des agents demande un secret ; elle reste fermée`)
     const agent = champ('agent').slice(0, 40)
     const fournisseur = champ('fournisseur').slice(0, 64)
+    const agentAdresse = agents && champ('agentAdresse') ? adresseDeWebhook(champ('agentAdresse')) : null
+    if (agents && champ('agentAdresse') && !agentAdresse) signaler(`Notak : NOTAK_RATTACHEMENTS, « ${source} » : agentAdresse doit être une adresse en https ; l’agent n’est pas relayé`)
     lues.set(source, {
       source,
       nom: champ('nom').slice(0, 60),
@@ -128,7 +135,7 @@ export function sourcesDe(valeur: string | undefined, signaler: (message: string
       ...(secretLu ? { secret: secretLu } : {}),
       ...(webhook && secretLu ? { webhook } : {}),
       ...(signalements ? { signalements: true as const } : {}),
-      ...(agents ? { agents: true as const, ...(agent ? { agent } : {}), ...(fournisseur ? { fournisseur } : {}) } : {}),
+      ...(agents ? { agents: true as const, ...(agent ? { agent } : {}), ...(fournisseur ? { fournisseur } : {}), ...(agentAdresse ? { agentAdresse } : {}) } : {}),
     })
   }
   return [...lues.values()]
@@ -223,7 +230,7 @@ export function poserCarteDeToile(doc: Y.Doc, cible: string, maintenant: number)
   })
 }
 
-/** Une adresse de webhook : en https, ou en http vers cette machine (un essai). */
+/** Une adresse où Notak envoie (un webhook, le relais de l'agent) : en https, ou en http vers cette machine (un essai). */
 function adresseDeWebhook(brute: string): string | null {
   if (!brute) return null
   try {

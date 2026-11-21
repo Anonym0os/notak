@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { Context, Hono } from 'hono'
 import type { Base, Utilisateur } from './base.ts'
 import type { Role } from './droits.ts'
-import { type SourceRattachement, signer } from './rattachements.ts'
+import { AGENT_PAR_DEFAUT, type SourceRattachement, signer } from './rattachements.ts'
 
 /**
  * Solliciter l'agent d'un outil depuis un tableau (21/11/2026) : la personne écrit à l'agent (Fram, pour Silak) dans le
@@ -44,54 +44,15 @@ const ID_TOUR = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const ID_ELEMENT = /^[A-Za-z0-9][A-Za-z0-9_-]{5,63}$/
 
 /**
- * Les agents à relayer, lus dans `NOTAK_RATTACHEMENTS` à côté des sources déjà validées (`sourcesDe`) : seulement pour
- * une source qui ouvre la porte des agents, a son secret, et dit où relayer. Écrit de travers, l'agent est oublié (et
- * dit), pas la source.
+ * Les agents à relayer : les sources qui ouvrent la porte des agents, avec leur secret, et disent où relayer. Tout est
+ * lu et validé une fois, avec le reste de la source, par `sourcesDe` (`rattachements.ts`).
  */
-export function agentsRelayes(valeur: string | undefined, sources: readonly SourceRattachement[], signaler: (m: string) => void = console.warn): AgentRelaye[] {
-  const brute = valeur?.trim()
-  if (!brute) return []
-  let liste: unknown
-  try {
-    liste = JSON.parse(brute)
-  } catch {
-    return []
-  }
-  if (!Array.isArray(liste)) return []
-  const agents: AgentRelaye[] = []
-  for (const e of liste) {
-    const o = e && typeof e === 'object' ? (e as Record<string, unknown>) : {}
-    const texte = (nom: string) => (typeof o[nom] === 'string' ? (o[nom] as string).trim() : '')
-    const source = sources.find((s) => s.source === texte('source'))
-    if (!source || o.agents !== true || !texte('agentAdresse')) continue
-    const adresse = adresseDeRelais(texte('agentAdresse'))
-    if (!adresse) {
-      signaler(`Notak : NOTAK_RATTACHEMENTS, « ${source.source} » : agentAdresse doit être une adresse en https ; l’agent n’est pas relayé`)
-      continue
-    }
-    if (!source.secret) {
-      signaler(`Notak : NOTAK_RATTACHEMENTS, « ${source.source} » : un agent sans secret n’est pas relayé`)
-      continue
-    }
-    agents.push({
-      source: source.source,
-      nom: texte('agent').slice(0, NOM_MAX) || 'l’assistant',
-      adresse,
-      fournisseur: texte('fournisseur') || source.source,
-      secret: source.secret,
-    })
-  }
-  return agents
-}
-
-function adresseDeRelais(brute: string): string | null {
-  try {
-    const u = new URL(brute)
-    const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '[::1]'
-    return u.protocol === 'https:' || (u.protocol === 'http:' && local) ? u.href : null
-  } catch {
-    return null
-  }
+export function agentsRelayes(sources: readonly SourceRattachement[]): AgentRelaye[] {
+  return sources.flatMap((s) =>
+    s.agents && s.secret && s.agentAdresse
+      ? [{ source: s.source, nom: (s.agent ?? AGENT_PAR_DEFAUT).slice(0, NOM_MAX), adresse: s.agentAdresse, fournisseur: s.fournisseur ?? s.source, secret: s.secret }]
+      : [],
+  )
 }
 
 /** Le sujet et l'adresse de la personne chez l'outil : son compte lié au SSO du fournisseur. `null` : pas liée. */
@@ -155,12 +116,12 @@ export function routesAgent(
     sources: () => readonly SourceRattachement[]
     maintenant: () => number
     origine?: string | undefined
-    /** À défaut, lus dans `NOTAK_RATTACHEMENTS` à l'enregistrement. */
+    /** À défaut, ceux des sources, lus à l'enregistrement. */
     agents?: readonly AgentRelaye[]
     envoyer?: typeof fetch
   },
 ): void {
-  const agents = o.agents ?? agentsRelayes(process.env.NOTAK_RATTACHEMENTS, o.sources())
+  const agents = o.agents ?? agentsRelayes(o.sources())
   const agent = agents[0]
   const introuvable = (c: Context) => c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
 

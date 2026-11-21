@@ -3,7 +3,7 @@ import { cleEntre } from '../../../packages/tableau/src/coeur/ordre.ts'
 import { type DroitsTableau, permis } from '../../../packages/tableau/src/coeur/reglesDroits.ts'
 import type { Arbre } from '../../../packages/tableau/src/coeur/tableau.ts'
 import type { NomOperation } from './agentsContrat.ts'
-import { englobante, lirePourAgent, planDeLArbre } from '../../../packages/tableau/src/agents/lire.ts'
+import { englobante, lirePourAgent, planDeLArbre, tachesDe } from '../../../packages/tableau/src/agents/lire.ts'
 import {
   type Boite,
   type BrancheDemande,
@@ -26,7 +26,7 @@ import {
   placeParDefaut,
   placePres,
 } from '../../../packages/tableau/src/agents/poser.ts'
-import { docDeTitre, docDepuisMarkdown, texteSimple } from '../../../packages/tableau/src/agents/texte.ts'
+import { docDeTitre, docDepuisMarkdown, markdownDepuisDoc, texteSimple } from '../../../packages/tableau/src/agents/texte.ts'
 import type { Base, Utilisateur } from './base.ts'
 import type { ElementLu, NoeudTexte, TableauLu } from './contenu.ts'
 
@@ -60,7 +60,8 @@ export interface DependancesPorte {
   caches(u: Utilisateur, t: TableauLu): Promise<Set<string>>
   /** Les cartes de dossiers générés par un outil que ce tableau porte : elles restent où elles sont. */
   generes(u: Utilisateur, tableau: string): Promise<Record<string, string>>
-  creerToile(u: Utilisateur, parent: string, titre: string, o: { dossier?: boolean; couleur?: string }): Promise<string>
+  /** Crée une toile dans `parent`, sa carte posée là ; rend son identifiant et celui de sa carte. */
+  creerToile(u: Utilisateur, parent: string, titre: string, o: { dossier?: boolean; couleur?: string }): Promise<{ id: string; carte: string | null }>
   recents(u: Utilisateur, limite: number): Promise<{ tableau: string; titre: string; genre: string; modifie: number | null }[]>
   rechercher(u: Utilisateur, texte: string, limite: number): Promise<{ tableau: string; titre: string; element?: string; extrait?: string }[]>
   estDossier(tableau: string): boolean
@@ -177,8 +178,9 @@ export function creerPorte(d: DependancesPorte) {
       parent = u.racine
       await acces(u, parent, true)
     }
-    const id = await d.creerToile(u, parent, titre, { ...(a.dossier === true ? { dossier: true } : {}), ...(typeof a.couleur === 'string' ? { couleur: a.couleur } : {}) })
-    return { tableau: { id, titre, adresse: adresse(id) }, dans: { id: parent, titre: titreDe(parent) ?? '' } }
+    const { id, carte } = await d.creerToile(u, parent, titre, { ...(a.dossier === true ? { dossier: true } : {}), ...(typeof a.couleur === 'string' ? { couleur: a.couleur } : {}) })
+    // `carte` : l'élément qui le range dans `dans` ; le jeter (jeter_elements) met le tableau à la corbeille, comme dans l'app.
+    return { tableau: { id, titre, adresse: adresse(id) }, dans: { id: parent, titre: titreDe(parent) ?? '' }, ...(carte ? { carte } : {}) }
   }
 
   // ---- ajouter_elements ----
@@ -252,14 +254,22 @@ export function creerPorte(d: DependancesPorte) {
     cocher?: { rang: number; faite: boolean }[]
     lignes?: string[][]
     branches?: GesteBranche[]
+    x?: number
+    y?: number
+    colonne?: string
+    rang?: number
   }
 
   const modifier = async (u: Utilisateur, a: Args) => {
     const id = a.tableau as string
     const droits = await acces(u, id, true)
     const modifications = a.modifications as Modification[]
+    const generes = modifications.some((m) => m.x !== undefined || m.y !== undefined || m.colonne !== undefined) ? await d.generes(u, id) : {}
     const modifies: string[] = []
     const plans: Record<string, unknown> = {}
+    // Ce que chaque champ changé valait avant la demande, dans les mots de l'opération : de quoi la défaire.
+    const avant: Record<string, Record<string, unknown>> = {}
+    const plansAvant: Record<string, unknown> = {}
     await d.modifier(id, u, (doc) => {
       const scribe = new Scribe(doc)
       const t = scribe.lire()
@@ -276,6 +286,51 @@ export function creerPorte(d: DependancesPorte) {
         const titre = type === 'note' && c.variante === 'titre'
         const refus = (champ: string, pour: string) =>
           new ErreurAgent('impossible', `${ou}.${champ} ne vaut que pour ${pour} ; ${m.id} est un élément « ${titre ? 'titre' : type === 'arbre' ? 'carte_mentale' : type} ».`)
+        // La valeur d'avant, notée la première fois que la demande touche ce champ.
+        const noter = (champ: string, valeur: () => unknown) => {
+          const deja = (avant[m.id] ??= {})
+          if (!(champ in deja)) deja[champ] = valeur()
+        }
+        const initial = e.contenu as Record<string, unknown>
+        if (m.texte !== undefined) noter('texte', () => (titre ? texteSimple(initial.texte as NoeudTexte) : markdownDepuisDoc(initial.texte)))
+        if (m.titre !== undefined && type !== 'arbre') {
+          noter('titre', () => (titre ? texteSimple(initial.texte as NoeudTexte) : type === 'table' && initial.avecTitre === false ? '' : String(initial.titre ?? '')))
+        }
+        if (m.couleur !== undefined) noter('couleur', () => (typeof initial.couleur === 'string' ? initial.couleur : 'aucune'))
+        if (m.taches !== undefined) noter('taches', () => tachesDe(initial.texte).map(({ texte, faite }) => ({ texte, faite })))
+        if (m.cocher !== undefined) {
+          const faites = tachesDe(initial.texte)
+          const deja = (avant[m.id] ??= {})
+          const liste = (deja.cocher as { rang: number; faite: boolean }[] | undefined) ?? []
+          for (const x of m.cocher) if (faites[x.rang] && !liste.some((l) => l.rang === x.rang)) liste.push({ rang: x.rang, faite: faites[x.rang]!.faite })
+          deja.cocher = liste
+        }
+        if (m.lignes !== undefined) noter('lignes', () => (Array.isArray(initial.cellules) ? structuredClone(initial.cellules) : []))
+        if ((m.titre !== undefined || m.branches !== undefined) && type === 'arbre' && !(m.id in plansAvant)) plansAvant[m.id] = planDeLArbre(scribe.arbre(m.id)!).plan
+        if (m.x !== undefined || m.y !== undefined || m.colonne !== undefined) {
+          noter('place', () => placeDe(t, e))
+          if ((e as { verrou?: boolean }).verrou) throw new ErreurAgent('impossible', `${ou} : ${m.id} est verrouillé sur la toile ; la personne doit le déverrouiller pour qu’il bouge.`)
+          if (genereDe(e, generes)) throw new ErreurAgent('impossible', `${ou} : ${m.id} est la carte du dossier d’une fiche de ${genereDe(e, generes)} ; elle reste où elle est.`)
+          if (m.colonne !== undefined) {
+            if (m.x !== undefined || m.y !== undefined) throw new ErreurAgent('arguments_invalides', `${ou} : donne x et y (sur la toile) ou colonne (dans une colonne), pas les deux.`)
+            const col = element(t, m.colonne, droits)
+            if (col.contenu.type !== 'colonne') throw new ErreurAgent('impossible', `${ou}.colonne : ${m.colonne} n’est pas une colonne.`)
+            if (type === 'colonne' || type === 'ligne') throw new ErreurAgent('impossible', `${ou} : un élément « ${type} » ne se range pas dans une colonne.`)
+            const freres = t.elements
+              .filter((x) => x.parent === col.id && x.corbeille === undefined && x.id !== m.id)
+              .sort((p, q) => ((p.ordre ?? '') < (q.ordre ?? '') ? -1 : 1))
+            const rang = Math.min(m.rang ?? freres.length, freres.length)
+            const ordre = cleEntre(freres[rang - 1]?.ordre, freres[rang]?.ordre)
+            delete brut.nonTrie
+            Object.assign(brut, { parent: col.id, ordre, x: col.x, y: col.y })
+          } else {
+            delete brut.parent
+            delete brut.ordre
+            delete brut.nonTrie
+            if (m.x !== undefined) brut.x = m.x
+            if (m.y !== undefined) brut.y = m.y
+          }
+        }
         if (m.texte !== undefined) {
           if (type !== 'note') throw refus('texte', 'une note ou un titre')
           c.texte = titre ? docDeTitre(m.texte) : docDepuisMarkdown(m.texte)
@@ -328,7 +383,7 @@ export function creerPorte(d: DependancesPorte) {
           const courant = cartes.get(m.id)?.apres ?? avant
           cartes.set(m.id, { avant, apres: gestesSurArbre(courant, m.branches, m.id) })
         }
-        if (type !== 'arbre') copies.set(m.id, brut)
+        copies.set(m.id, brut)
         if (!modifies.includes(m.id)) modifies.push(m.id)
       }
       doc.transact(() => {
@@ -339,7 +394,7 @@ export function creerPorte(d: DependancesPorte) {
         }
       })
     })
-    return { modifies, ...(Object.keys(plans).length ? { plans } : {}) }
+    return { modifies, avant, ...(Object.keys(plans).length ? { plans, plans_avant: plansAvant } : {}) }
   }
 
   // ---- ranger ----
@@ -358,7 +413,12 @@ export function creerPorte(d: DependancesPorte) {
     const groupes = a.groupes as Groupe[]
     const enLignes = a.disposition === 'lignes'
     const maintenant = d.maintenant()
-    const resultat: { ranges: Record<string, unknown>[]; titres: string[]; colonnes: string[]; cadre?: Boite } = { ranges: [], titres: [], colonnes: [] }
+    const resultat: { ranges: Record<string, unknown>[]; titres: string[]; colonnes: string[]; cadre?: Boite; avant: Record<string, unknown> } = {
+      ranges: [],
+      titres: [],
+      colonnes: [],
+      avant: {},
+    }
     await d.modifier(id, u, (doc) => {
       const scribe = new Scribe(doc)
       const t = scribe.lire()
@@ -465,6 +525,11 @@ export function creerPorte(d: DependancesPorte) {
       let origine = (a.origine as { x: number; y: number } | undefined) ?? (ici.length ? { x: englobante(ici).x, y: englobante(ici).y } : placeParDefaut(autres, largeur, hauteur))
       if (autres.some((o) => chevauche({ ...origine, l: largeur, h: hauteur }, o, ECART))) origine = placeParDefaut(autres, largeur, hauteur)
       resultat.cadre = { ...origine, l: largeur, h: hauteur }
+      // Où était tout ce qui bouge : de quoi défaire le rangement (modifier_elements avec x et y, ou colonne et rang).
+      for (const x of bouges) {
+        const e = parId.get(x)
+        if (e) resultat.avant[x] = placeDe(t, e)
+      }
       doc.transact(() => {
         for (const p of plan) {
           if ('colonne' in p && p.colonne) {
@@ -596,6 +661,13 @@ export function creerPorte(d: DependancesPorte) {
 function boiteDe(t: TableauLu, e: ElementLu): Boite {
   const sur = e.parent ? (t.elements.find((x) => x.id === e.parent) ?? e) : e
   return boitesDe({ ...t, elements: [{ ...sur, parent: undefined, corbeille: undefined, nonTrie: undefined } as ElementLu] })[0] ?? { x: Math.round(sur.x), y: Math.round(sur.y), l: Math.round(sur.largeur), h: 6 }
+}
+
+/** Où est un élément, dans les mots de `modifier_elements` : sur la toile (`x`, `y`) ou dans une colonne (`colonne`, `rang`). */
+function placeDe(t: TableauLu, e: ElementLu): { x: number; y: number } | { colonne: string; rang: number } {
+  if (!e.parent) return { x: Math.round(e.x), y: Math.round(e.y) }
+  const freres = t.elements.filter((x) => x.parent === e.parent && x.corbeille === undefined).sort((p, q) => ((p.ordre ?? '') < (q.ordre ?? '') ? -1 : 1))
+  return { colonne: e.parent, rang: Math.max(0, freres.findIndex((x) => x.id === e.id)) }
 }
 
 /** La plus haute clé d'ordre parmi ce que range la colonne (sauf `sans`), pour poser à la suite. */
