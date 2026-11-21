@@ -144,6 +144,17 @@ describe('la porte des agents', () => {
       expect((await fait('trouver', { fiche: 'societe:404' })).fiche).toEqual({ etat: 'absent' })
     })
 
+    it('creer_tableau : dans le dossier d’une fiche, créé s’il manque et qu’on donne son titre', async () => {
+      expect(await agir('creer_tableau', { titre: 'Devis', fiche: { cle: 'societe:7' } })).toMatchObject({ statut: 404, corps: { code: 'tableau_introuvable' } })
+      const r = await fait('creer_tableau', { titre: 'Devis', fiche: { cle: 'societe:7', titre: 'Boulangerie Martin' } })
+      expect(r.dans).toMatchObject({ titre: 'Boulangerie Martin' })
+      expect(await fait('trouver', { fiche: 'societe:7' })).toMatchObject({ fiche: { etat: 'present', tableau: r.dans.id, titre: 'Boulangerie Martin' } })
+      // Le dossier de la fiche est rangé dans celui de la source, comme depuis le bouton de Silak ; le tableau est dedans.
+      expect(lu(r.dans.id).elements.some((e) => e.contenu.type === 'tableau' && e.contenu.cible === r.tableau.id)).toBe(true)
+      const second = await fait('creer_tableau', { titre: 'Planning', fiche: { cle: 'societe:7', titre: 'Autre nom' } })
+      expect(second.dans.id).toBe(r.dans.id)
+    })
+
     it('ajouter_elements : chaque type, fait comme l’app, sans rien recouvrir', async () => {
       const r = await fait('ajouter_elements', {
         tableau: toile,
