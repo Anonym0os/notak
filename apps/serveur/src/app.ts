@@ -153,8 +153,29 @@ export interface MoyensConnexion {
 
 export const FICHIER_MAX = 25 * 1024 * 1024
 
-/** Les routes du mot de passe, que le serveur refuse quand il le ferme (`NOTAK_MOTS_DE_PASSE=desactives`). */
-const ROUTES_MOT_DE_PASSE = ['/sign-in/email', '/sign-up/email', '/forget-password', '/reset-password', '/change-password']
+/**
+ * Les routes que le serveur refuse quand il ferme le mot de passe (`NOTAK_MOTS_DE_PASSE=desactives`) : toutes celles de
+ * Better Auth qui acceptent un mot de passe ou envoient un courriel de compte (réinitialisation, vérification,
+ * changement d'adresse). `/request-password-reset` est celle qu'emploie l'app ; `/forget-password`, son ancien nom.
+ */
+const ROUTES_MOT_DE_PASSE = [
+  '/sign-in/email',
+  '/sign-up/email',
+  '/request-password-reset',
+  '/forget-password',
+  '/reset-password',
+  '/change-password',
+  '/set-password',
+  '/verify-password',
+  '/send-verification-email',
+  '/change-email',
+]
+
+/** Une route du mot de passe, quelle que soit son écriture : casse, barres doublées ou finale, suite (`/reset-password/<jeton>`). */
+export function routeDeMotDePasse(chemin: string): boolean {
+  const c = chemin.toLowerCase().replace(/\/{2,}/g, '/').replace(/\/+$/, '')
+  return ROUTES_MOT_DE_PASSE.some((r) => c === r || c.startsWith(`${r}/`))
+}
 /** Le corps d'une requête de la connexion par code (`/api/auth/device/*`), ouverte à tous : quelques champs courts. */
 export const CORPS_APPAREIL_MAX = 2048
 const ID_TABLEAU = /^[A-Za-z0-9_-]{8,64}$/
@@ -471,7 +492,7 @@ export function creerApp(ctx: Contexte): Hono {
     const chemin = c.req.path.slice(CHEMIN_AUTH.length)
     // Les mots de passe sont fermés : ni connexion, ni inscription, ni réinitialisation. Le SSO d'un espace et les
     // fournisseurs restent, et le compte en ligne de commande ne passe pas ici (API interne de Better Auth).
-    if (!ctx.moyens.motDePasse && ROUTES_MOT_DE_PASSE.includes(chemin))
+    if (!ctx.moyens.motDePasse && routeDeMotDePasse(chemin))
       return c.json({ message: 'la connexion par mot de passe est fermée', code: 'MOTS_DE_PASSE_FERMES' }, 403)
     const poste = c.req.method === 'POST'
     const route = (poste ? LIMITES_AUTH : LIMITES_AUTH_GET)[chemin]

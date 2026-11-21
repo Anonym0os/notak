@@ -279,12 +279,13 @@ attend toujours son invitée : il la retrouve quand son compte est créé.
 ## Fermer la connexion par mot de passe
 
 Avec `NOTAK_MOTS_DE_PASSE=desactives` dans le `.env` (puis `docker compose up -d`), le serveur refuse la connexion,
-l'inscription et la réinitialisation par mot de passe (`403`, code `MOTS_DE_PASSE_FERMES`) : l'écran d'entrée ouvre
+l'inscription, la réinitialisation et le changement de mot de passe, et n'envoie plus aucun courriel de compte
+(réinitialisation, vérification d'adresse) : `403`, code `MOTS_DE_PASSE_FERMES`. L'écran d'entrée ouvre
 sur le SSO, sa seule porte. Un seul fournisseur SSO déclaré sur le serveur, et l'écran y va droit, sans même demander
 d'adresse — elle ne sert qu'à le départir de plusieurs. Les fournisseurs déclarés par l'environnement (Google,
 Microsoft, GitHub) restent proposés à côté. Le compte créé en ligne de commande (`serveur:compte`) passe par l'API
 interne de Better Auth et reste possible, mais personne ne se connecte plus par son mot de passe. Pour reprendre la
-main si le SSO tombe, remettez `NOTAK_MOTS_DE_PASSE=actives` (ou ôtez la ligne) et redémarrez.
+main si le SSO tombe, remettez `NOTAK_MOTS_DE_PASSE=actives` (ou ôtez la ligne) et redémarrez. Sans la variable, le mot de passe reste ouvert et rien ne change.
 
 ## L'aperçu des liens
 

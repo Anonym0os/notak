@@ -206,11 +206,16 @@ describe('serveur de bout en bout', () => {
     db.prepare("INSERT INTO ssoProvider (id, issuer, userId, providerId, domain) VALUES ('s1', 'https://idp.exemple.fr', 'u1', 'asym', 'asym.me')").run()
     db.close()
     expect((await moyensDe()).sso).toBe('asym')
-    for (const route of ['/sign-in/email', '/sign-up/email', '/forget-password', '/reset-password', '/change-password']) {
+    const routes = ['/sign-in/email', '/sign-up/email', '/request-password-reset', '/forget-password', '/reset-password', '/change-password']
+    // Les autres portes d'un mot de passe ou d'un courriel de compte, et des écritures qui ne doivent pas les rouvrir.
+    routes.push('/set-password', '/verify-password', '/send-verification-email', '/change-email', '/Request-Password-Reset', '/request-password-reset/', '/reset-password/jeton')
+    for (const route of routes) {
       const refus = await fetch(origineFermée + '/api/auth' + route, { method: 'POST', headers: { origin: origineFermée, 'content-type': 'application/json' }, body: '{}' })
       expect(refus.status, route).toBe(403)
       expect(await refus.json(), route).toMatchObject({ code: 'MOTS_DE_PASSE_FERMES' })
     }
+    // Le reste de l'authentification reste ouvert : la session se lit toujours.
+    expect((await fetch(origineFermée + '/api/auth/get-session', { headers: { origin: origineFermée } })).status).toBe(200)
     await fermé.fermer()
     rmSync(dossierFermé, { recursive: true, force: true })
   })
