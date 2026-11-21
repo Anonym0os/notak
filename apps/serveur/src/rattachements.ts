@@ -35,7 +35,19 @@ export interface SourceRattachement {
    * (`lire_signalement`), en fait un ticket, puis le classe (`classer_signalement`). Avec `secret` et `webhook`.
    */
   signalements?: true
+  /**
+   * La porte des agents (`POST /api/outils/:source/agent`, docs/AGENTS.md) est ouverte à cette source : son agent agit
+   * dans Notak au nom des personnes. Avec `secret` ; sans elle, la route n'existe pas.
+   */
+  agents?: true
+  /** Le nom de l'agent, tel que l'activité le montre (« Samy avec Fram ») ; à défaut, « l'assistant ». */
+  agent?: string
+  /** Le fournisseur SSO dont les comptes liés désignent les personnes (`au_nom_de.sujet`) ; à défaut, `source`. */
+  fournisseur?: string
 }
+
+/** Le nom d'un agent qu'une source ne nomme pas. */
+export const AGENT_PAR_DEFAUT = 'l’assistant'
 
 /** Ce que Notak envoie à un outil, et rien d'autre (docs/AUTO-HEBERGER.md, « Le catalogue »). */
 export type TypeEnvoi = 'dossier.cree' | 'dossier.jete' | 'dossier.remis' | 'signalement.depose'
@@ -102,6 +114,11 @@ export function sourcesDe(valeur: string | undefined, signaler: (message: string
     else if (webhook && !secretLu) signaler(`Notak : NOTAK_RATTACHEMENTS, « ${source} » : un webhook sans secret ne reçoit rien`)
     const signalements = o.signalements === true && Boolean(webhook && secretLu)
     if (o.signalements === true && !signalements) signaler(`Notak : NOTAK_RATTACHEMENTS, « ${source} » : les signalements demandent un secret et un webhook ; ils ne lui sont pas envoyés`)
+    // La porte des agents : seulement avec un secret, qui signe chaque demande.
+    const agents = o.agents === true && Boolean(secretLu)
+    if (o.agents === true && !agents) signaler(`Notak : NOTAK_RATTACHEMENTS, « ${source} » : la porte des agents demande un secret ; elle reste fermée`)
+    const agent = champ('agent').slice(0, 40)
+    const fournisseur = champ('fournisseur').slice(0, 64)
     lues.set(source, {
       source,
       nom: champ('nom').slice(0, 60),
@@ -111,6 +128,7 @@ export function sourcesDe(valeur: string | undefined, signaler: (message: string
       ...(secretLu ? { secret: secretLu } : {}),
       ...(webhook && secretLu ? { webhook } : {}),
       ...(signalements ? { signalements: true as const } : {}),
+      ...(agents ? { agents: true as const, ...(agent ? { agent } : {}), ...(fournisseur ? { fournisseur } : {}) } : {}),
     })
   }
   return [...lues.values()]

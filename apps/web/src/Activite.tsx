@@ -106,6 +106,12 @@ export function Activite({
   )
 }
 
+/** Qui a fait ces gestes : la personne, ou elle avec l'agent d'un outil qui a agi en son nom (« Samy avec Fram »). */
+function nomDuGroupe(groupe: GroupeActivite, moi: string): string {
+  const nom = groupe.auteur.id === moi ? t('activite.vous') : groupe.auteur.nom
+  return groupe.agent ? t('activite.avecAgent', { nom, agent: groupe.agent }) : nom
+}
+
 function Ligne({ groupe, moi }: { groupe: GroupeActivite; moi: string }) {
   const citees = groupe.elements.filter((e) => e.libelle).slice(0, 3)
   return (
@@ -113,7 +119,7 @@ function Ligne({ groupe, moi }: { groupe: GroupeActivite; moi: string }) {
       <span className="activite-pastille" style={{ background: groupe.auteur.couleur }} aria-hidden />
       <div className="activite-texte">
         <p>
-          <strong>{groupe.auteur.id === moi ? t('activite.vous') : groupe.auteur.nom}</strong> {phraseDuGroupe(groupe, groupe.auteur.id === moi)}
+          <strong>{nomDuGroupe(groupe, moi)}</strong> {phraseDuGroupe(groupe, groupe.auteur.id === moi)}
         </p>
         {citees.length > 0 && <small className="activite-elements">{citees.map((e) => t('activite.citee', { libelle: e.libelle })).join(', ')}</small>}
         <small>{quand(groupe.fin)}</small>

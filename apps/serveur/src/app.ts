@@ -12,6 +12,8 @@ import type { Context } from 'hono'
 import sharp from 'sharp'
 import * as Y from 'yjs'
 import { regrouper } from './activite.ts'
+import { ErreurPorte, creerPorte } from './agents.ts'
+import { CORPS_AGENT_MAX, type NomOperation, OPERATIONS, SCHEMA_DEMANDE, validerArguments, validerSchema } from './agentsContrat.ts'
 import { type ElementArrive, elementImage, elementsDeTexte, nouvelId, poserDansNonTries } from './arrivee.ts'
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
 import { creerApercus } from './apercuLien.ts'
@@ -28,6 +30,7 @@ import { rangerLesToiles } from './catalogue.ts'
 import {
   ACTIONS_OUTIL,
   ACTIONS_SIGNALEMENT,
+  AGENT_PAR_DEFAUT,
   type ActionOutil,
   CLE_FICHE,
   ID_DEMANDE,
@@ -2336,11 +2339,13 @@ export function creerApp(ctx: Contexte): Hono {
    * l'enregistre et le diffuse à ceux qui y sont ; sans synchro (les essais), en relisant et réécrivant l'état.
    * `utilisateur` : qui le change, pour l'activité ; un visiteur n'y entre pas.
    */
-  const modifierDocument = async (tableau: string, utilisateur: Utilisateur | undefined, f: (doc: Y.Doc) => void) => {
+  const modifierDocument = async (tableau: string, utilisateur: Utilisateur | undefined, f: (doc: Y.Doc) => void, agent?: string) => {
     const nom = nomDuDocument(tableau)
     const synchro = ctx.synchro()
     if (synchro) {
-      const liaison = await synchro.openDirectConnection(nom, utilisateur ? { utilisateur: { id: utilisateur.id, nom: utilisateur.nom, couleur: utilisateur.couleur } } : {})
+      // `agent` : l'agent d'un outil qui agit au nom de la personne (la porte des agents) ; l'activité les dit ensemble.
+      const acteur = utilisateur ? { id: utilisateur.id, nom: utilisateur.nom, couleur: utilisateur.couleur, ...(agent ? { agent } : {}) } : null
+      const liaison = await synchro.openDirectConnection(nom, acteur ? { utilisateur: acteur } : {})
       try {
         await liaison.transact(f)
       } finally {
@@ -2833,6 +2838,182 @@ export function creerApp(ctx: Contexte): Hono {
       const maintenant = ctx.maintenant()
       base.noterDemandeOutil(source.source, id, reponse, maintenant, maintenant - 7 * 24 * 3600_000)
       return c.body(reponse, 200, json)
+    })
+  })
+
+  // ---- La porte des agents (docs/AGENTS.md) ----
+
+  /** La porte d'une source : ce que son agent fait au nom d'une personne, avec ses droits et rien de plus. */
+  const porteDe = (source: SourceRattachement) => {
+    const agent = source.agent ?? AGENT_PAR_DEFAUT
+    const espaceDeLaSource = (u: Utilisateur) => source.espace ?? base.espacePersonnel(u.id)
+    return creerPorte({
+      base,
+      maintenant: ctx.maintenant,
+      origine: ctx.origine,
+      droitsSur: async (u, tableau) => {
+        await echus()
+        return ctx.autorisation.droitsSur(`user:${u.id}`, tableau)
+      },
+      verrouille: (u, tableau) => verrouPar(base, u.id, tableau) !== null,
+      lire: lireLe,
+      modifier: (tableau, u, f) => modifierDocument(tableau, u, f, agent),
+      caches: (u, t) => cachesPour(u.id, t),
+      generes: generesPortes,
+      creerToile: async (u, parent, titre, o) => {
+        const id = nouvelId(ctx.maintenant())
+        // Créé pendant un accès temporaire au parent, il tombe avec lui (comme `POST /api/tableaux`).
+        const fin = echeanceHeritee(u.id, parent)
+        base.transaction(() => {
+          base.creerTableau({ id, titre, proprietaire: u.id, parent })
+          base.definirAcces({ tableau: id, utilisateur: u.id, role: 'proprietaire' })
+          if (fin !== null) base.definirEcheance(id, `user:${u.id}`, fin)
+        })
+        await droitsAJour()
+        await modifierDocument(
+          id,
+          u,
+          (doc) => {
+            const meta = doc.getMap<unknown>('meta')
+            doc.transact(() => {
+              meta.set('titre', titre)
+              if (o.dossier) meta.set('dossier', true)
+              if (o.couleur) meta.set('couleur', o.couleur)
+            })
+          },
+          agent,
+        )
+        await modifierDocument(parent, u, (doc) => poserCarteDeToile(doc, id, ctx.maintenant()), agent)
+        return id
+      },
+      recents: async (u, limite) =>
+        base.recents(u.id, limite).flatMap((id) => {
+          const ligne = base.tableau(id)
+          if (!ligne || verrouPar(base, u.id, id) !== null) return []
+          const vu = base.derniersChangements([id]).reduce((m, x) => Math.max(m, x.instant), 0)
+          return [{ tableau: id, titre: ligne.titre, genre: estDossier(id) ? 'dossier' : 'toile', modifie: vu || null }]
+        }),
+      rechercher: async (u, texte, limite) => {
+        const ouverts = (await lisibles(u.id)).filter((id) => verrouPar(base, u.id, id) === null)
+        const plie = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('fr')
+        const cherche = plie(texte.trim())
+        const parTitre = ouverts
+          .filter((id) => id !== u.racine && plie(base.tableau(id)?.titre ?? '').includes(cherche))
+          .slice(0, limite)
+          .map((id) => ({ tableau: id, titre: base.tableau(id)?.titre ?? '' }))
+        const requete = requeteIndex(texte)
+        const dedans = requete
+          ? base.chercher(requete, ouverts, limite).flatMap((t) => {
+              const ligne = base.tableau(t.tableau)
+              return ligne && t.element ? [{ tableau: t.tableau, titre: ligne.titre, element: t.element, extrait: t.extrait }] : []
+            })
+          : []
+        return [...parTitre, ...dedans].slice(0, limite)
+      },
+      estDossier,
+      fiche: async (u, cle) => {
+        await anciensDossiersRanges()
+        const espace = espaceDeLaSource(u)
+        const etat = espace ? await etatDuDossier(u, base.rattachement(espace, source.source, cle)) : { etat: 'absent' as const }
+        if (etat.etat === 'cache') return { etat: 'inaccessible' }
+        return etat
+      },
+      creerFiche: async (u, cle, titre) => {
+        const espace = espaceDeLaSource(u)
+        const racine = espace ? base.espace(espace)?.racine : undefined
+        if (!espace || !racine) return null
+        const parent = await dossierDeLaSourcePour(u, source, espace, racine)
+        if (!parent) return null
+        const maintenant = ctx.maintenant()
+        const tableau = await creerDossierDans(u, parent, titreDuDossier(titre, cle))
+        base.poserRattachement({ espace, source: source.source, cle, tableau, adresse: null, cree: maintenant })
+        mettreEnFile(base, ctx.rattachements ?? [], source.source, 'dossier.cree', cle, maintenant, u.nom)
+        return tableau
+      },
+    })
+  }
+  /** Une toile qui se montre en dossier, d'après ce que la recherche en a retenu. */
+  const estDossier = (id: string) => {
+    const l = base.contenus([id]).find((x) => x.genre === 'toile')
+    return l ? (JSON.parse(l.resume) as { dossier?: boolean }).dossier === true : false
+  }
+  /**
+   * La personne au nom de qui l'agent agit : le compte que le SSO de la source a lié à son sujet, sinon celui de son
+   * courriel, s'il est vérifié. Jamais un compte créé.
+   */
+  const personneDe = (source: SourceRattachement, qui: { sujet?: string; courriel?: string }): Utilisateur | null => {
+    if (qui.sujet) {
+      const u = base.utilisateurDuSujet(source.fournisseur ?? source.source, qui.sujet)
+      if (u) return u
+    }
+    if (qui.courriel) {
+      const u = base.utilisateurParEmail(normaliserEmail(qui.courriel))
+      if (u && base.emailVerifie(u.id)) return u
+    }
+    return null
+  }
+
+  /**
+   * Une demande de l'agent d'un outil (docs/AGENTS.md), signée du secret de l'outil, au nom d'une personne. Fermée tant
+   * que la source ne porte pas `agents`. Une écriture renvoyée sous le même `id` rend la même réponse, sans rien refaire.
+   */
+  app.post('/api/outils/:source/agent', async (c) => {
+    const json = { 'content-type': 'application/json; charset=utf-8' }
+    const refus = (statut: 400 | 401 | 403 | 404 | 409 | 413 | 422 | 423, code: string, erreur: string) => c.json({ ok: false, code, erreur }, statut)
+    const source = sourceNommee(c.req.param('source') ?? '')
+    if (!source?.secret || !source.agents) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+    const brut = await lireBorne(c.req.raw.body, CORPS_AGENT_MAX)
+    if (brut === 'trop gros') return refus(413, 'trop_gros', `Demande de plus de ${CORPS_AGENT_MAX / 1024} Ko : découpe-la en plusieurs.`)
+    const texteBrut = brut?.toString('utf8') ?? ''
+    if (!signatureValable(source.secret, texteBrut, c.req.header('notak-signature'), ctx.maintenant())) {
+      return refus(401, 'signature_invalide', 'Signature absente, fausse ou périmée (Notak-Signature, cinq minutes de tolérance).')
+    }
+    let b: Record<string, unknown> | null = null
+    try {
+      const v: unknown = JSON.parse(texteBrut)
+      b = v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null
+    } catch {
+      b = null
+    }
+    const enveloppe = b ? validerSchema(SCHEMA_DEMANDE, b, 'demande') : 'demande : un objet JSON attendu'
+    if (enveloppe) return refus(400, 'corps_invalide', enveloppe)
+    const operation = b!.operation as NomOperation
+    const args = (b!.arguments ?? {}) as Record<string, unknown>
+    const invalides = validerArguments(operation, args)
+    if (invalides) return refus(400, 'arguments_invalides', `${operation} : ${invalides}. Corrige les arguments d’après le schéma de l’opération.`)
+    const qui = b!.au_nom_de as { sujet?: string; courriel?: string }
+    if (!qui.sujet && !qui.courriel) return refus(400, 'corps_invalide', 'au_nom_de : donne « sujet » (l’identifiant de la personne chez l’outil) ou « courriel ».')
+    const u = personneDe(source, qui)
+    if (!u) {
+      return refus(403, 'personne_inconnue', 'Aucun compte Notak n’est lié à cette personne : elle doit se connecter une fois à Notak avec son compte de l’outil. Aucun compte n’est créé pour elle.')
+    }
+    const id = b!.id as string
+    const executer = async () => {
+      try {
+        return { ok: true as const, reponse: JSON.stringify({ ok: true, operation, resultat: await porteDe(source).executer(u, operation, args) }) }
+      } catch (e) {
+        if (e instanceof ErreurPorte) return { ok: false as const, statut: e.statut, reponse: JSON.stringify({ ok: false, code: e.code, erreur: e.message }) }
+        throw e
+      }
+    }
+    // Une lecture se refait toujours ; une écriture se fait une fois par `id`, et sa réponse se garde sept jours.
+    if (!OPERATIONS[operation].ecrit) {
+      const r = await executer()
+      return r.ok ? c.body(r.reponse, 200, json) : c.body(r.reponse, r.statut, json)
+    }
+    const empreinte = createHash('sha256').update(JSON.stringify([u.id, operation, args])).digest('hex')
+    return aSonTour(async () => {
+      const deja = base.demandeOutil(source.source, `agent:${id}`)
+      if (deja !== null) {
+        const garde = JSON.parse(deja) as { empreinte: string; reponse: string }
+        if (garde.empreinte !== empreinte) return refus(409, 'id_reutilise', `L’identifiant ${id} a déjà servi pour une autre demande : donne un identifiant neuf à chaque demande.`)
+        return c.body(garde.reponse, 200, json)
+      }
+      const r = await executer()
+      if (!r.ok) return c.body(r.reponse, r.statut, json)
+      const maintenant = ctx.maintenant()
+      base.noterDemandeOutil(source.source, `agent:${id}`, JSON.stringify({ empreinte, reponse: r.reponse }), maintenant, maintenant - 7 * 24 * 3600_000)
+      return c.body(r.reponse, 200, json)
     })
   })
 

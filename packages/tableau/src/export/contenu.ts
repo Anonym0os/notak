@@ -328,7 +328,7 @@ const HAUTEURS: Record<string, number> = {
  * La hauteur probable d'un élément, en UG, sans la toile pour le mesurer : celle qu'il garde, celle de son image, ou
  * pour une note, de quoi tenir son texte (une ligne d'environ 1,4 caractère par UG, 2,6 UG de haut).
  */
-function hauteurProbable(e: ElementLu, lignes: number): number {
+export function hauteurProbable(e: ElementLu, lignes: number): number {
   const c = e.contenu
   const h = (e as { hauteur?: { max?: number; min?: number } }).hauteur
   const rapport = rapportAffiche(c)
@@ -388,7 +388,7 @@ function petiteCopie(c: ContenuLu): string | undefined {
 }
 
 /** Les lignes de texte d'une note ou d'une liste, à la largeur de sa carte (environ 1,4 caractère par UG). */
-function lignesDeTexte(e: ElementLu): number {
+export function lignesDeTexte(e: ElementLu): number {
   const d = doc(e.contenu.texte)
   const parLigne = Math.max(8, e.largeur * 1.4)
   return (d ? texteBrut(d) : '').split('\n').reduce((n, l) => n + Math.max(1, Math.ceil(l.length / parLigne)), 0)

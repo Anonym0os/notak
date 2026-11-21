@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import type { Hocuspocus } from '@hocuspocus/server'
 import * as Y from 'yjs'
 import { creerApp } from './app.ts'
 import { inject } from 'vitest'
@@ -108,6 +109,8 @@ export function monde(
     autresOrigines?: readonly string[]
     signalements?: boolean
     dossierWeb?: string
+    /** La synchro du serveur, lue à chaque requête (`Contexte.synchro`) : de quoi passer par Hocuspocus comme en production. */
+    synchro?: () => Hocuspocus | null
   } = {},
 ): Monde {
   const dossier = mkdtempSync(join(tmpdir(), 'notak-monde-'))
@@ -124,7 +127,8 @@ export function monde(
     dossierFichiers: join(dossier, 'fichiers'),
     limiteur: creerLimiteur(1000, 60_000),
     maintenant: () => ++instant,
-    synchro: () => (options.fermetures ? ({ closeConnections: (nom: string) => void options.fermetures!.push(nom) } as never) : null),
+    synchro:
+      options.synchro ?? (() => (options.fermetures ? ({ closeConnections: (nom: string) => void options.fermetures!.push(nom) } as never) : null)),
     relais: 0,
     cookieSecurise: false,
     cle: options.cle ?? null,

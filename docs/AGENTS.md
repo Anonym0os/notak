@@ -3,13 +3,21 @@
 Un agent d'un outil rattaché (Fram, l'assistant de Silak) agit dans Notak **comme la personne pour qui il travaille** :
 il trouve ses tableaux, les lit, en crée, y pose des notes, des listes, des tables, des cartes mentales, les modifie, les
 range et les jette à la corbeille. Il passe par une seule route, signée du secret de son outil. Ses gestes arrivent en
-direct chez ceux qui ont le tableau ouvert, et l'activité les dit « Samy avec Fram ».
+direct chez ceux qui ont le tableau ouvert, et l'activité les dit « Samy avec Fram ». Une note qu'une personne est en train
+d'écrire au même instant garde ce qu'elle y tape : mieux vaut ne pas récrire une note ouverte.
 
 La porte ne pense pas à la place de l'agent : elle lui donne de quoi raisonner (un tableau lu en clair, sa mise en page,
 des erreurs qui disent quoi faire) et elle fait le travail mécanique (les formats de l'app, les positions, l'absence de
 chevauchement). Le contrat est **tiré du code** : `apps/serveur/src/agentsContrat.ts` porte les opérations et le schéma
 JSON de leurs arguments ; `docs/agents.schemas.json` en est la copie que l'outil recopie dans les outils de son modèle
-(`bun scripts/schemas-agents.ts` la récrit, un essai vérifie qu'elle suit le code).
+(`node scripts/schemas-agents.ts` la récrit, un essai vérifie qu'elle suit le code).
+
+| Fichier | Rôle |
+|---|---|
+| `apps/serveur/src/agentsContrat.ts` | Les opérations, leurs schémas, la validation. |
+| `apps/serveur/src/agents.ts` | Chaque opération, au nom de la personne et avec ses droits. |
+| `apps/serveur/src/app.ts` | La route, la signature, la personne, l'idempotence. |
+| `packages/tableau/src/agents/` | Ce qui se partage avec l'app : le Markdown des notes (`texte.ts`), les éléments neufs, leur place et l'écriture dans le document (`poser.ts`), la lecture pour un agent (`lire.ts`). Un essai y vérifie que tout passe les schémas des éditeurs et la validation de la toile. |
 
 ## Allumer la porte
 
@@ -27,6 +35,10 @@ Elle est **éteinte par défaut**. On l'allume pour une source de `NOTAK_RATTACH
 | `fournisseur` | Le fournisseur SSO dont les comptes liés désignent les personnes ; à défaut, le nom de la source (`silak`). |
 
 Sans `secret`, la porte reste fermée, et le démarrage le dit.
+
+Allumer la porte, c'est **faire confiance à l'outil** pour dire au nom de qui il agit : il peut désigner toute personne
+dont le compte est lié à son SSO, ou dont le courriel est vérifié dans Notak, et il agit alors avec tous ses droits.
+C'est la même confiance que le secret donne déjà à ses autres demandes ; elle ne vaut que pour une source qu'on tient.
 
 ## La demande
 
@@ -108,7 +120,8 @@ Où travailler. Arguments, tous facultatifs : `texte`, `dans`, `fiche`, `limite`
 ```
 
 `recents` sans `texte` ni `dans` ; `resultats` avec `texte` (les tableaux dont le titre le contient, puis les éléments
-qui le contiennent) ; `contenu` avec `dans` ; `fiche` avec `fiche` (`etat` : `present`, `corbeille` ou `absent`).
+qui le contiennent) ; `contenu` avec `dans` ; `fiche` avec `fiche` (`etat` : `present`, `corbeille`, `absent`, ou
+`inaccessible` quand le dossier existe sans que la personne y ait accès).
 
 ### `lire_tableau`
 
@@ -179,7 +192,8 @@ Rien ne se pose par-dessus un autre élément : la porte décale jusqu'à la pre
 ```
 
 Une colonne rend aussi `elements` (les identifiants de ce qu'elle range) ; une carte rend son `plan` avec les
-identifiants de ses sujets, de quoi la modifier ensuite.
+identifiants de ses sujets, de quoi la modifier ensuite. Posés dans une colonne (`dans_colonne`), les éléments rendent
+`colonne` au lieu de `x` et `y`.
 
 **Une bonne carte mentale** : un central court ; trois à sept branches principales, de même niveau logique ; des titres
 de quelques mots, sans phrase ; le détail dans `note`. La porte la met en page comme l'app (la disposition `structure`).
@@ -223,8 +237,9 @@ il part dans une place libre. **Rien n'est supprimé**, ce qui n'est pas nommé 
 
 ### `jeter_elements`, `remettre_elements`
 
-Arguments : `tableau`, `elements`. Jeter met à la corbeille du tableau (une colonne y part avec ce qu'elle range) ; la
-personne les remet depuis l'app, ou l'agent avec `remettre_elements`. Rien ne s'efface.
+Arguments : `tableau`, `elements`. Jeter met à la corbeille du tableau (une colonne y part avec ce qu'elle range, les
+lignes accrochées suivent) ; la personne les remet depuis l'app, ou l'agent avec `remettre_elements`. Rien ne s'efface.
+Un élément verrouillé sur la toile, ou la carte du dossier d'une fiche, reste où il est (`impossible`).
 
 ```json
 { "jetes": ["…"], "deja": [] }
@@ -232,7 +247,8 @@ personne les remet depuis l'app, ou l'agent avec `remettre_elements`. Rien ne s'
 
 ## Une transaction par demande
 
-Une demande d'écriture est **une seule transaction** sur le document du tableau : tout passe, ou rien (une erreur sur le
-dixième élément n'en laisse pas neuf). Elle est diffusée en direct à ceux qui ont le tableau ouvert et enregistrée comme
+Une demande d'écriture est **une seule transaction** sur le document du tableau, préparée en entier avant d'écrire :
+tout passe, ou rien (une erreur sur le dixième élément n'en laisse pas neuf). `creer_tableau` touche deux documents (le
+tableau neuf, et celui qui porte sa carte), chacun d'une transaction. Elle est diffusée en direct à ceux qui ont le tableau ouvert et enregistrée comme
 leurs propres gestes. Les éléments créés sont exactement ceux que crée l'app (les mêmes constructeurs et le même format :
 `packages/tableau`), et l'activité du tableau les attribue à la personne, avec l'agent.
