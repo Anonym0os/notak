@@ -218,7 +218,8 @@ export const OPERATIONS = {
     ecrit: true,
     description:
       'Modifie des éléments : le texte d’une note ou d’un titre (Markdown simple), un titre, une couleur, les tâches d’une liste ' +
-      '(les remplacer, ou en cocher), les lignes d’une table, les branches d’une carte mentale. Ce qui n’est pas donné ne change pas.',
+      '(les remplacer, ou en cocher), les lignes d’une table, les branches d’une carte mentale, ou sa place (x et y, ou une colonne). ' +
+      'Ce qui n’est pas donné ne change pas. La réponse rend la valeur d’avant de chaque champ changé (`avant`), de quoi défaire.',
     arguments: objet(
       '',
       {
@@ -243,6 +244,10 @@ export const OPERATIONS = {
               },
               lignes: { ...LIGNES, description: 'table : toutes les lignes, qui remplacent les anciennes.' },
               branches: { type: 'array', minItems: 1, maxItems: 100, items: OPERATION_BRANCHE, description: 'carte_mentale : les gestes, dans l’ordre.' },
+              x: { type: 'integer', minimum: -15000, maximum: 15000, description: 'La place sur la toile, exactement là (il sort de sa colonne s’il y était) : ce qui sert à défaire un rangement.' },
+              y: { type: 'integer', minimum: -15000, maximum: 15000 },
+              colonne: { ...ID_ELEMENT, description: 'Range l’élément dans cette colonne, au rang `rang` (à la fin sinon).' },
+              rang: { type: 'integer', minimum: 0, maximum: 1000, description: 'Avec `colonne` : la place dans la colonne, à partir de 0.' },
             },
             ['id'],
           ),

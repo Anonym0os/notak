@@ -55,10 +55,10 @@ describe('L’agent sollicité depuis un tableau', () => {
       { source: 'http', nom: 'Http', dossier: 'Fiches', origine: 'https://http.fr', secret: SECRET, agents: true, agentAdresse: 'http://http.fr/agent' },
     ])
     const dits: string[] = []
-    const agents = agentsRelayes(brut, sourcesDe(brut, () => {}), (m) => dits.push(m))
+    const agents = agentsRelayes(sourcesDe(brut, (m) => dits.push(m)))
     expect(agents).toEqual([{ source: 'silak', nom: 'Fram', adresse: 'https://api.silak.fr/hooks/notak/fram', fournisseur: 'silak', secret: SECRET }])
     expect(dits).toHaveLength(1)
-    expect(agentsRelayes(undefined, [])).toEqual([])
+    expect(agentsRelayes([])).toEqual([])
   })
 
   it('n’existe pas sans agent, ni sur un tableau qu’on ne peut pas modifier', async () => {
