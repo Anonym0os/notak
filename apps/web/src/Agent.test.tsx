@@ -93,6 +93,13 @@ describe('Le panneau de l’agent', () => {
     expect(hote.querySelector('b')).toBeNull()
   })
 
+  it('rend un lien de la réponse en lien, seulement vers http ou https', async () => {
+    await act(async () => racine.render(<TexteAgent texte={'La carte [Rœderer](https://notak.test/t/01) et [ceci](javascript:alert(1)).'} />))
+    const liens = [...hote.querySelectorAll('a')]
+    expect(liens.map((a) => [a.textContent, a.getAttribute('href'), a.getAttribute('rel')])).toEqual([['Rœderer', 'https://notak.test/t/01', 'noopener noreferrer']])
+    expect(hote.textContent).toContain('[ceci](javascript:alert(1))')
+  })
+
   it('lit la sélection dans la présence du tableau, avec un extrait de chaque élément', () => {
     const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Relancer  Rœderer' }, { type: 'text', text: 'lundi' }] }] }
     const espace = {

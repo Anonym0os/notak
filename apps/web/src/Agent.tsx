@@ -106,15 +106,22 @@ export const lireTourAgent = (tableau: string, tour: string) => appeler<EtatTour
 export const deciderCartes = (tableau: string, tour: string, cartes: { id: string; accord: boolean; toujours: boolean }[]) =>
   appeler<{ tour: string; etat: string }>(`${chemin(tableau)}/tours/${encodeURIComponent(tour)}/cartes`, { cartes })
 
-/** Le gras, l'italique et le code d'une ligne, en éléments React : rien de ce que l'agent écrit ne devient du HTML. */
+/** Les liens (http et https seulement), le gras, l'italique et le code d'une ligne, en éléments React : rien de ce que l'agent écrit ne devient du HTML. */
 function enLigne(texte: string): ReactNode[] {
   const morceaux: ReactNode[] = []
-  const motif = /(\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\s][^*\n]*\*|_[^_\s][^_\n]*_)/g
+  const motif = /(\[[^\]\n]+\]\(https?:\/\/[^\s)]+\)|\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\s][^*\n]*\*|_[^_\s][^_\n]*_)/g
   let fin = 0
   for (const m of texte.matchAll(motif)) {
     if (m.index > fin) morceaux.push(texte.slice(fin, m.index))
     const v = m[0]
-    if (v.startsWith('**')) morceaux.push(<strong key={m.index}>{v.slice(2, -2)}</strong>)
+    const lien = /^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/.exec(v)
+    if (lien)
+      morceaux.push(
+        <a key={m.index} href={lien[2]} target="_blank" rel="noopener noreferrer">
+          {lien[1]}
+        </a>,
+      )
+    else if (v.startsWith('**')) morceaux.push(<strong key={m.index}>{v.slice(2, -2)}</strong>)
     else if (v.startsWith('`')) morceaux.push(<code key={m.index}>{v.slice(1, -1)}</code>)
     else morceaux.push(<em key={m.index}>{v.slice(1, -1)}</em>)
     fin = m.index + v.length
@@ -182,9 +189,14 @@ export function useAgent(tableau: string, espace?: EspaceNavigable) {
   const [dit, setDit] = useState<string | null>(null)
   const [avecSelection, setAvecSelection] = useState(0)
 
+  // Chaque envoi ouvre une génération : un fil relu AVANT lui, et revenu après (un outil lent), est d'avant la demande et
+  // l'effacerait de l'écran ; il est ignoré. Le fil relu à la fin du tour, lui, la contient.
+  const generation = useRef(0)
   const relire = useCallback(async () => {
+    const lancee = generation.current
     try {
       const e = await lireAgent(tableau)
+      if (lancee !== generation.current) return
       setEtat(e)
       setDit(null)
       if (e.tour?.id) setTour(e.tour.id)
@@ -254,6 +266,7 @@ export function useAgent(tableau: string, espace?: EspaceNavigable) {
     if (!texte || envoi || tour) return
     setEnvoi(true)
     setErreur(null)
+    generation.current++
     setDit(texte)
     const selection = selectionDe(espace, tableau)
     setAvecSelection(selection.length)
