@@ -77,7 +77,9 @@ const ID_TABLEAU = /^[A-Za-z0-9_-]{8,64}$/
 export function creerPorte(d: DependancesPorte) {
   const { base } = d
   const titreDe = (id: string) => base.tableau(id)?.titre
-  const adresse = (id: string) => `${d.origine ?? ''}/t/${encodeURIComponent(id)}`
+  /** L'adresse d'un tableau dans l'app (`Partage.tsx`) ; un dossier s'ouvre dans la bibliothèque, jamais en toile. */
+  const adresse = (id: string, dossier = d.estDossier(id)) =>
+    dossier ? `${d.origine ?? ''}/?dossier=${encodeURIComponent(id)}` : `${d.origine ?? ''}/t/${encodeURIComponent(id)}`
 
   /** Les droits de la personne sur ce tableau ; ce qu'il faut pour le lire, ou pour l'écrire. */
   const acces = async (u: Utilisateur, tableau: string, ecrire: boolean): Promise<DroitsTableau> => {
@@ -180,7 +182,7 @@ export function creerPorte(d: DependancesPorte) {
     }
     const { id, carte } = await d.creerToile(u, parent, titre, { ...(a.dossier === true ? { dossier: true } : {}), ...(typeof a.couleur === 'string' ? { couleur: a.couleur } : {}) })
     // `carte` : l'élément qui le range dans `dans` ; le jeter (jeter_elements) met le tableau à la corbeille, comme dans l'app.
-    return { tableau: { id, titre, adresse: adresse(id) }, dans: { id: parent, titre: titreDe(parent) ?? '' }, ...(carte ? { carte } : {}) }
+    return { tableau: { id, titre, adresse: adresse(id, a.dossier === true) }, dans: { id: parent, titre: titreDe(parent) ?? '' }, ...(carte ? { carte } : {}) }
   }
 
   // ---- ajouter_elements ----

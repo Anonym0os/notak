@@ -99,6 +99,18 @@ ne va pas et quoi faire (« élément introuvable : 01JD…. Relis le tableau av
 | 422 | `impossible` | La demande est bien formée mais ne se fait pas (une colonne dans une colonne…). |
 | 409 | `id_reutilise` | Cet `id` a déjà servi pour une autre demande. |
 
+## Les adresses
+
+Les liens à donner à la personne, sur l'origine du serveur (`https://notak.silak.fr`) :
+
+| Quoi | Adresse |
+|---|---|
+| un tableau (une toile) | `/t/<tableau>` |
+| un dossier (il s'ouvre dans la bibliothèque) | `/?dossier=<tableau>` |
+| un élément d'un tableau, ouvert là | `/t/<tableau>/e/<element>` |
+
+`lire_tableau` et `creer_tableau` rendent l'adresse du tableau (`adresse`) ; celle d'un élément se compose ainsi.
+
 ## Les unités et la place
 
 Les positions et les tailles sont en **unités de grille** (UG, 10 px à l'échelle 1) : `x`, `y` le coin haut gauche, `l` la

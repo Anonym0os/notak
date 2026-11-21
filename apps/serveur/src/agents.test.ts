@@ -10,7 +10,7 @@ import { NOMS_OPERATIONS, OPERATIONS, validerArguments } from './agentsContrat.t
 import { boitesDe, chevauche } from '../../../packages/tableau/src/agents/poser.ts'
 import { docDepuisMarkdown, markdownDepuisDoc } from '../../../packages/tableau/src/agents/texte.ts'
 import { type ElementLu, type TableauLu, lireEtat } from './contenu.ts'
-import { type Compte, type Monde, monde } from './essai.ts'
+import { type Compte, type Monde, ORIGINE_ESSAI, monde } from './essai.ts'
 import { type SourceRattachement, signer, sourcesDe } from './rattachements.ts'
 import { creerHocuspocus, nomDuDocument } from './synchro.ts'
 
@@ -308,6 +308,9 @@ describe('la porte des agents', () => {
     const id = neuf.tableau.id as string
     expect(neuf.dans).toMatchObject({ id: ana.utilisateur.racine })
     expect(neuf.carte).toEqual(expect.any(String))
+    expect(neuf.tableau.adresse).toBe(`${ORIGINE_ESSAI}/t/${id}`)
+    const dossier = await fait('creer_tableau', { titre: 'Archives de la boulangerie', dossier: true })
+    expect(dossier.tableau.adresse).toBe(`${ORIGINE_ESSAI}/?dossier=${dossier.tableau.id}`)
     // Sa carte est posée dans l'accueil.
     expect(lu(ana.utilisateur.racine).elements.some((e) => e.contenu.type === 'tableau' && e.contenu.cible === id)).toBe(true)
     const carte = await fait('ajouter_elements', {
