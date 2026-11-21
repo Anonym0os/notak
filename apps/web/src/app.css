@@ -1232,6 +1232,33 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   line-height: 1.5;
 }
 
+.agent-texte {
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.agent-texte p,
+.agent-texte ul,
+.agent-texte ol {
+  margin: 0 0 6px;
+  white-space: normal;
+}
+
+.agent-texte :is(ul, ol) {
+  padding-left: 18px;
+}
+
+.agent-texte :last-child {
+  margin-bottom: 0;
+}
+
+.agent-texte code {
+  padding: 0 3px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--texte) 7%, transparent);
+  font-size: 12px;
+}
+
 .agent-moi {
   align-self: flex-end;
   align-items: flex-end;

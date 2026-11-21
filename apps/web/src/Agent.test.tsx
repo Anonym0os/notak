@@ -2,7 +2,7 @@
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Agent } from './Agent'
+import { Agent, TexteAgent } from './Agent'
 import './langue'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -79,5 +79,17 @@ describe('Le panneau de l’agent', () => {
     await attendre()
     expect(hote.querySelector('.agent-travaille')).toBeNull()
     expect([...hote.querySelectorAll('.agent-echange p')].map((p) => p.textContent)).toEqual([VU.texte, REPONSE.texte])
+  })
+
+  it('rend le Markdown de la réponse sans jamais en faire du HTML', async () => {
+    const texte = '## Décisions\nTrois **points** et `un code`.\n\n- Relancer *lundi*\n- Envoyer <b>le devis</b>\n\n1. Un\n2. Deux'
+    await act(async () => racine.render(<TexteAgent texte={texte} />))
+    expect(hote.querySelector('p strong')?.textContent).toBe('Décisions')
+    expect([...hote.querySelectorAll('strong')].map((e) => e.textContent)).toEqual(['Décisions', 'points'])
+    expect(hote.querySelector('code')?.textContent).toBe('un code')
+    expect([...hote.querySelectorAll('ul li')].map((e) => e.textContent)).toEqual(['Relancer lundi', 'Envoyer <b>le devis</b>'])
+    expect(hote.querySelector('ul em')?.textContent).toBe('lundi')
+    expect(hote.querySelectorAll('ol li')).toHaveLength(2)
+    expect(hote.querySelector('b')).toBeNull()
   })
 })

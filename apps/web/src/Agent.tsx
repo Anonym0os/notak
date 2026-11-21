@@ -1,4 +1,4 @@
-import { type FormEvent, type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { type FormEvent, type KeyboardEvent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { Icone } from '@notak/tableau'
 import { t } from './langue'
 import { usePanneau } from './panneaux'
@@ -48,6 +48,64 @@ async function appeler<T>(adresse: string, corps?: unknown): Promise<T> {
 export const lireAgent = (tableau: string) => appeler<EtatAgent>(chemin(tableau))
 export const demanderAgent = (tableau: string, message: string) => appeler<{ tour: string; etat: string }>(chemin(tableau), { message })
 export const lireTourAgent = (tableau: string, tour: string) => appeler<EtatTour>(`${chemin(tableau)}/tours/${encodeURIComponent(tour)}`)
+
+/** Le gras, l'italique et le code d'une ligne, en éléments React : rien de ce que l'agent écrit ne devient du HTML. */
+function enLigne(texte: string): ReactNode[] {
+  const morceaux: ReactNode[] = []
+  const motif = /(\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\s][^*\n]*\*|_[^_\s][^_\n]*_)/g
+  let fin = 0
+  for (const m of texte.matchAll(motif)) {
+    if (m.index > fin) morceaux.push(texte.slice(fin, m.index))
+    const v = m[0]
+    if (v.startsWith('**')) morceaux.push(<strong key={m.index}>{v.slice(2, -2)}</strong>)
+    else if (v.startsWith('`')) morceaux.push(<code key={m.index}>{v.slice(1, -1)}</code>)
+    else morceaux.push(<em key={m.index}>{v.slice(1, -1)}</em>)
+    fin = m.index + v.length
+  }
+  if (fin < texte.length) morceaux.push(texte.slice(fin))
+  return morceaux
+}
+
+/**
+ * La réponse de l'agent, souvent en Markdown : des paragraphes, des listes (à puces ou numérotées), des titres rendus
+ * en gras, et l'en-ligne d'`enLigne`. Le reste se lit tel qu'il est écrit.
+ */
+export function TexteAgent({ texte }: { texte: string }) {
+  const blocs = texte.replace(/\r\n/g, '\n').split(/\n{2,}/)
+  return (
+    <>
+      {blocs.map((bloc, i) => {
+        const lignes = bloc.split('\n').filter((l) => l.trim())
+        if (lignes.length === 0) return null
+        const puce = /^\s*(?:[-*•]|\d+[.)])\s+/
+        if (lignes.every((l) => puce.test(l))) {
+          const Liste = /^\s*\d/.test(lignes[0]!) ? 'ol' : 'ul'
+          return (
+            <Liste key={i}>
+              {lignes.map((l, j) => (
+                <li key={j}>{enLigne(l.replace(puce, ''))}</li>
+              ))}
+            </Liste>
+          )
+        }
+        return (
+          <p key={i}>
+            {lignes.map((l, j) => {
+              const titre = /^#{1,6}\s+/.exec(l)
+              const contenu = titre ? <strong>{enLigne(l.slice(titre[0].length))}</strong> : enLigne(l)
+              return (
+                <span key={j}>
+                  {j > 0 && <br />}
+                  {contenu}
+                </span>
+              )
+            })}
+          </p>
+        )
+      })}
+    </>
+  )
+}
 
 /**
  * Le bouton de l'agent d'un outil rattaché (Fram, pour Silak) et son panneau : le fil de ce qu'on lui a demandé sur ce
@@ -190,7 +248,13 @@ export function Agent({ tableau }: { tableau: string }) {
             {echanges.map((x, i) => (
               <li key={`${x.quand}-${i}`} className={`agent-echange agent-${x.qui === 'fram' ? 'lui' : 'moi'}`}>
                 <strong>{x.qui === 'fram' ? nom : t('agent.vous')}</strong>
-                <p>{x.texte}</p>
+                {x.qui === 'fram' ? (
+                  <div className="agent-texte">
+                    <TexteAgent texte={x.texte} />
+                  </div>
+                ) : (
+                  <p>{x.texte}</p>
+                )}
               </li>
             ))}
             {dit && (
