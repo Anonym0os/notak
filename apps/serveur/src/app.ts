@@ -2884,7 +2884,8 @@ export function creerApp(ctx: Contexte): Hono {
           agent,
         )
         await modifierDocument(parent, u, (doc) => poserCarteDeToile(doc, id, ctx.maintenant()), agent)
-        return id
+        const carte = lireLe(parent).elements.find((e) => e.contenu.type === 'tableau' && e.contenu.cible === id && !e.contenu.raccourci)
+        return { id, carte: carte?.id ?? null }
       },
       recents: async (u, limite) =>
         base.recents(u.id, limite).flatMap((id) => {

@@ -87,16 +87,31 @@ describe('la porte des agents', () => {
 
     it('la source ne s’allume qu’avec un secret ; elle lit le nom de son agent et son fournisseur', () => {
       const dits: string[] = []
-      const [a, b] = sourcesDe(
+      const [a, b, c] = sourcesDe(
         JSON.stringify([
-          { source: 'silak', nom: 'Silak', dossier: 'Clients', origine: 'https://silak.fr', secret: SECRET, agents: true, agent: 'Fram', fournisseur: 'silak-sso' },
+          {
+            source: 'silak',
+            nom: 'Silak',
+            dossier: 'Clients',
+            origine: 'https://silak.fr',
+            secret: SECRET,
+            agents: true,
+            agent: 'Fram',
+            fournisseur: 'silak-sso',
+            agentAdresse: 'https://api.silak.fr/hooks/notak/fram',
+          },
           { source: 'nu', nom: 'Nu', dossier: 'D', origine: 'https://nu.fr', agents: true },
+          { source: 'clair', nom: 'Clair', dossier: 'D', origine: 'https://clair.fr', secret: SECRET, agents: true, agentAdresse: 'http://clair.fr/agent' },
         ]),
         (x) => void dits.push(x),
       )
-      expect(a).toMatchObject({ agents: true, agent: 'Fram', fournisseur: 'silak-sso' })
+      expect(a).toMatchObject({ agents: true, agent: 'Fram', fournisseur: 'silak-sso', agentAdresse: 'https://api.silak.fr/hooks/notak/fram' })
       expect(b!.agents).toBeUndefined()
       expect(dits.some((x) => x.includes('demande un secret'))).toBe(true)
+      // Une adresse de relais en clair est oubliée, et dite ; la porte reste ouverte.
+      expect(dits.some((x) => x.includes('agentAdresse doit être une adresse en https'))).toBe(true)
+      expect(c).toMatchObject({ agents: true })
+      expect(c!.agentAdresse).toBeUndefined()
     })
   })
 
@@ -253,6 +268,11 @@ describe('la porte des agents', () => {
       })
       expect(r.modifies).toEqual([note.id, taches.id, table.id, carte.id])
       expect(r.plans[carte.id].enfants[1]).toMatchObject({ titre: 'Budget prévisionnel', enfants: [{ titre: 'Devis' }] })
+      // Ce que valait chaque champ changé, dans les mots de l'opération : de quoi défaire.
+      expect(r.avant[note.id]).toEqual({ texte: expect.stringContaining('Ouvrir **en mars**'), couleur: 'jaune' })
+      expect(r.avant[taches.id]).toEqual({ cocher: [{ rang: 1, faite: false }] })
+      expect(r.avant[table.id]).toEqual({ lignes: [['Poste', 'Coût'], ['Imprimeur', '300']] })
+      expect(r.plans_avant[carte.id].enfants[1]).toMatchObject({ titre: 'Budget', enfants: [] })
       const apres = (await fait('lire_tableau', { tableau: toile, elements: [note.id, taches.id, table.id] })).elements
       expect(apres.find((e: { id: string }) => e.id === note.id)).toMatchObject({ texte: 'Ouvrir en **avril**', couleur: 'vert' })
       expect(apres.find((e: { id: string }) => e.id === taches.id).taches.map((x: { faite: boolean }) => x.faite)).toEqual([true, true])
@@ -287,6 +307,7 @@ describe('la porte des agents', () => {
     const neuf = await fait('creer_tableau', { titre: 'Rentrée de la boulangerie' })
     const id = neuf.tableau.id as string
     expect(neuf.dans).toMatchObject({ id: ana.utilisateur.racine })
+    expect(neuf.carte).toEqual(expect.any(String))
     // Sa carte est posée dans l'accueil.
     expect(lu(ana.utilisateur.racine).elements.some((e) => e.contenu.type === 'tableau' && e.contenu.cible === id)).toBe(true)
     const carte = await fait('ajouter_elements', {
@@ -339,6 +360,17 @@ describe('la porte des agents', () => {
     const lecture = await fait('lire_tableau', { tableau: id })
     expect(lecture.elements.find((e: { id: string }) => e.id === carte.crees[0].id).structure).toBe('logique-droite')
     expect(lecture.structure.chevauchements).toEqual([])
+    // Défaire le rangement : chaque élément reprend sa place d'avant, puis les titres et la colonne neufs partent.
+    expect(r.avant[affiche]).toEqual({ x: expect.any(Number), y: expect.any(Number) })
+    const avantRangement = Object.entries(r.avant as Record<string, { x: number; y: number }>)
+    const defait = await fait('modifier_elements', { tableau: id, modifications: avantRangement.map(([el, place]) => ({ id: el, ...place })) })
+    expect(defait.avant[affiche]).toEqual({ place: { colonne: r.colonnes[0], rang: 0 } })
+    await fait('jeter_elements', { tableau: id, elements: [...r.titres, ...r.colonnes] })
+    const remis = lu(id)
+    for (const [el, place] of avantRangement) expect(remis.elements.find((e) => e.id === el)).toMatchObject({ x: place.x, y: place.y })
+    expect(remis.elements.find((e) => e.id === affiche)!.parent).toBeUndefined()
+    expect(remis.elements.find((e) => e.id === affiche)!.corbeille).toBeUndefined()
+    await fait('remettre_elements', { tableau: id, elements: r.titres })
     // Ranger deux fois ne double pas les titres : ils sont repris.
     const encore = await fait('ranger', { tableau: id, groupes: [{ titre: 'Offre', elements: [levain, brioches] }] })
     expect(encore.titres).toEqual([])
