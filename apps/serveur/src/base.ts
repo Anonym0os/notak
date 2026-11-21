@@ -133,6 +133,8 @@ export interface NouvelleActivite {
   typeElement: string
   libelle: string
   instant: number
+  /** L'agent d'un outil qui a fait le geste au nom de l'auteur (« Samy avec Fram ») ; absent : l'auteur lui-même. */
+  agent?: string
 }
 
 export interface LigneActivite extends Omit<NouvelleActivite, 'auteur'> {
@@ -203,6 +205,8 @@ export interface Base {
 
   utilisateurParEmail(email: string): Utilisateur | null
   utilisateurParId(id: string): Utilisateur | null
+  /** Le compte lié par ce fournisseur d'identité (`account`) à ce sujet, l'identifiant de la personne chez lui. */
+  utilisateurDuSujet(fournisseur: string, sujet: string): Utilisateur | null
   /** Change la couleur et/ou la photo du compte (`null` retire la photo) ; ce qui manque ne bouge pas. */
   reglerCompte(id: string, reglages: { couleur?: string; photo?: string | null }): void
 
@@ -616,6 +620,8 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
 
     utilisateurParEmail: (email) => utilisateur(un('SELECT * FROM utilisateurs WHERE email = ?', email)),
     utilisateurParId: (id) => utilisateur(un('SELECT * FROM utilisateurs WHERE id = ?', id)),
+    utilisateurDuSujet: (fournisseur, sujet) =>
+      utilisateur(un('SELECT u.* FROM utilisateurs u JOIN account a ON a.userId = u.id WHERE a.providerId = ? AND a.accountId = ? LIMIT 1', fournisseur, sujet)),
     reglerCompte(id, r) {
       if (r.couleur !== undefined) executer('UPDATE utilisateurs SET couleur = ? WHERE id = ?', r.couleur, id)
       if (r.photo !== undefined) executer('UPDATE utilisateurs SET photo = ? WHERE id = ?', r.photo, id)
@@ -1066,18 +1072,19 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
     noterActivite(a, fenetre) {
       const renouvelle = executer(
         `UPDATE activite SET instant = ?, libelle = ? WHERE id = (
-           SELECT id FROM activite WHERE tableau = ? AND auteur = ? AND element = ? AND genre = ? AND instant >= ? ORDER BY id DESC LIMIT 1)`,
+           SELECT id FROM activite WHERE tableau = ? AND auteur = ? AND agent = ? AND element = ? AND genre = ? AND instant >= ? ORDER BY id DESC LIMIT 1)`,
         a.instant,
         a.libelle,
         a.tableau,
         a.auteur,
+        a.agent ?? '',
         a.element,
         a.genre,
         a.instant - fenetre,
       )
       if (Number(renouvelle.changes) > 0) return
       executer(
-        'INSERT INTO activite (tableau,auteur,genre,element,type_element,libelle,instant) VALUES (?,?,?,?,?,?,?)',
+        'INSERT INTO activite (tableau,auteur,genre,element,type_element,libelle,instant,agent) VALUES (?,?,?,?,?,?,?,?)',
         a.tableau,
         a.auteur,
         a.genre,
@@ -1085,6 +1092,7 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
         a.typeElement,
         a.libelle,
         a.instant,
+        a.agent ?? '',
       )
       executer(
         'DELETE FROM activite WHERE tableau = ? AND id <= (SELECT id FROM activite WHERE tableau = ? ORDER BY id DESC LIMIT 1 OFFSET ?)',
@@ -1126,7 +1134,7 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
     activite: (tableau, limite, apres = 0) =>
       (
         tous(
-          `SELECT a.id, a.tableau, a.genre, a.element, a.type_element AS typeElement, a.libelle, a.instant,
+          `SELECT a.id, a.tableau, a.genre, a.element, a.type_element AS typeElement, a.libelle, a.instant, a.agent,
                   u.id AS auteurId, u.nom AS auteurNom, u.couleur AS auteurCouleur
            FROM activite a JOIN utilisateurs u ON u.id = a.auteur
            WHERE a.tableau = ? AND a.id > ? ORDER BY a.id DESC LIMIT ?`,
@@ -1134,7 +1142,11 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
           apres,
           limite,
         ) as unknown as (Omit<LigneActivite, 'auteur'> & { auteurId: string; auteurNom: string; auteurCouleur: string })[]
-      ).map(({ auteurId, auteurNom, auteurCouleur, ...reste }) => ({ ...reste, auteur: { id: auteurId, nom: auteurNom, couleur: auteurCouleur } })),
+      ).map(({ auteurId, auteurNom, auteurCouleur, agent, ...reste }) => ({
+        ...reste,
+        auteur: { id: auteurId, nom: auteurNom, couleur: auteurCouleur },
+        ...(agent ? { agent } : {}),
+      })),
 
     noterNotification(n, fusionner) {
       if (fusionner !== undefined && n.genre === 'reaction') {

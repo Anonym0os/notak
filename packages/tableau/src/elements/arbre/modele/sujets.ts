@@ -1,6 +1,6 @@
-import { cleEntre, comparerOrdre } from '../../../coeur/ordre'
-import { type Arbre, type Id, type StructureArbre, type Sujet, nouvelId } from '../../../coeur/tableau'
-import { SQUELETTE_DEFAUT } from '../carte/squelettes'
+import { cleEntre, comparerOrdre } from '../../../coeur/ordre.ts'
+import { type Arbre, type Id, type StructureArbre, type Sujet, nouvelId } from '../../../coeur/tableau.ts'
+import { SQUELETTE_DEFAUT } from '../carte/squelettes.ts'
 
 /**
  * Une carte mentale se stocke à plat (un dictionnaire de sujets, chacun pointe son parent) : c'est ce qui laisse

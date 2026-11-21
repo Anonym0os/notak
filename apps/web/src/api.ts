@@ -991,6 +991,8 @@ export interface EvenementActivite {
 
 export interface GroupeActivite {
   auteur: Personne
+  /** L'agent d'un outil qui a agi au nom de l'auteur (« Samy avec Fram ») ; absent : l'auteur lui-même. */
+  agent?: string
   debut: number
   fin: number
   resume: Partial<Record<GenreActivite, number>>

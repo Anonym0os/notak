@@ -1,4 +1,4 @@
-import { type Point, point } from './geometrie'
+import { type Point, point } from './geometrie.ts'
 import type { PitchHabillage } from '../habillage/format'
 import type { Fond } from './fond'
 import type { Hauteur } from './hauteur'

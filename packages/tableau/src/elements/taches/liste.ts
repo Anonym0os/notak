@@ -3,7 +3,7 @@
  * `doc > taskList > taskItem(checked) > paragraph (+ taskList imbriquée)`.
  * Une tâche se désigne par son chemin : l'indice dans la liste, puis l'indice dans la sous-liste, etc.
  */
-import { type Element, type NoeudTexte, type Taches, borner, nouvelId } from '../../coeur/tableau'
+import { type Element, type NoeudTexte, type Taches, borner, nouvelId } from '../../coeur/tableau.ts'
 
 /** Une tâche et ses sous-tâches : six niveaux au plus. */
 export const PROFONDEUR_MAX = 6
