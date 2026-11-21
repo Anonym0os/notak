@@ -1212,6 +1212,16 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   padding: 16px 8px;
 }
 
+/* Au téléphone, le même fil dans une feuille du bas : la saisie reste au pied. */
+.agent-feuille .agent-fil {
+  max-height: 55vh;
+  padding: 4px 2px 10px;
+}
+
+.agent-feuille .agent-saisie {
+  padding: 10px 0 0;
+}
+
 .agent-echange {
   display: flex;
   flex-direction: column;

@@ -2,6 +2,7 @@ import { useCallback, useState, useSyncExternalStore } from 'react'
 import { BoutonIlot, type DepotFichiers, type EntreeMenu, type EspaceNavigable, FeuilleBas, FeuilleMenu, type Id } from '@notak/tableau'
 import type { EvenementActivite, Moi } from './api'
 import { ListeActivite, useActivite } from './Activite'
+import { FilAgent, useAgent } from './Agent'
 import { exporterTableau } from './Export'
 import { useFavori } from './Favori'
 import { TYPES_IMPORT, useImport } from './Importer'
@@ -10,7 +11,7 @@ import { ouvrirSignaler } from './signaler/Signaler'
 import { t } from './langue'
 
 /** Ce que la feuille ouvre : elle-même, puis ce qu'une de ses lignes appelle. */
-type Ouverte = 'menu' | 'activite' | 'partage' | 'protection' | null
+type Ouverte = 'menu' | 'activite' | 'agent' | 'partage' | 'protection' | null
 
 /**
  * « ••• », dans la barre d'un téléphone (édition serveur) : ce que le bureau met en boutons à droite de la barre
@@ -44,8 +45,11 @@ export function PlusTelephone({
   const { favori, sansObjet, bascule } = useFavori(tableau, moi.racine)
   const { activite, erreur } = useActivite(tableau, moi.id, surNouveaux)
   const importer = useImport({ espace, tableau, ouvrir, fichiers })
+  // L'agent d'un outil rattaché (Fram), quand il est là pour cette personne : en tête, c'est à lui qu'on parle.
+  const agent = useAgent(tableau)
 
   const entrees: EntreeMenu[] = [
+    ...(agent.disponible ? [{ libelle: t('agent.demander', { nom: agent.nom }), icone: 'idee' as const, faire: () => setOuverte('agent') }, null] : []),
     { libelle: t('partage.titre'), icone: 'partager', faire: () => setOuverte('partage') },
     { libelle: t('plus.exporter'), icone: 'exporter', faire: () => exporterTableau(tableau, titre) },
     null,
@@ -80,6 +84,11 @@ export function PlusTelephone({
       {ouverte === 'activite' && (
         <FeuilleBas titre={t('activite.titre')} fermer={fermer} className="activite-feuille">
           <ListeActivite activite={activite} erreur={erreur} moi={moi.id} />
+        </FeuilleBas>
+      )}
+      {ouverte === 'agent' && agent.disponible && (
+        <FeuilleBas titre={agent.nom} fermer={fermer} className="agent-feuille">
+          <FilAgent agent={agent} />
         </FeuilleBas>
       )}
       {(ouverte === 'partage' || ouverte === 'protection') && <PartageEnFenetre tableau={tableau} moi={moi} fermer={fermer} protection={ouverte === 'protection'} />}
