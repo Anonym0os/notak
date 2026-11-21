@@ -281,6 +281,8 @@ export interface Acteur {
   id: string
   nom: string
   couleur: string
+  /** L'agent d'un outil qui agit au nom de cette personne (la porte des agents, docs/AGENTS.md). */
+  agent?: string
 }
 
 /**
@@ -566,7 +568,7 @@ export function suivreActivite(base: Base, maintenant: () => number): SuiviActiv
           for (const c of changements) {
             if (c.genre === 'fil' || c.genre === 'reaction') continue
             base.noterActivite(
-              { tableau, auteur: qui.id, genre: c.genre, element: c.element, typeElement: c.typeElement, libelle: c.libelle, instant },
+              { tableau, auteur: qui.id, genre: c.genre, element: c.element, typeElement: c.typeElement, libelle: c.libelle, instant, ...(qui.agent ? { agent: qui.agent } : {}) },
               FENETRE_FUSION,
             )
           }
@@ -626,6 +628,8 @@ const ditEncore = (places: ReadonlyMap<string, readonly Place[]>, element: strin
 
 export interface GroupeActivite {
   auteur: LigneActivite['auteur']
+  /** L'agent qui a fait ces gestes au nom de l'auteur : la ligne se lit « Samy avec Fram ». */
+  agent?: string
   debut: number
   fin: number
   /** Combien d'éléments ont reçu chaque genre de geste (un élément compte une fois, pour son geste le plus lourd). */
@@ -646,13 +650,16 @@ export function regrouper(lignes: readonly LigneActivite[], ecart = ECART_GROUPE
   const groupes: { groupe: GroupeActivite; parElement: Map<string, LigneActivite> }[] = []
   for (const l of lignes) {
     const courant = groupes[groupes.length - 1]
-    if (courant && courant.groupe.auteur.id === l.auteur.id && courant.groupe.debut - l.instant <= ecart) {
+    if (courant && courant.groupe.auteur.id === l.auteur.id && courant.groupe.agent === l.agent && courant.groupe.debut - l.instant <= ecart) {
       courant.groupe.debut = Math.min(courant.groupe.debut, l.instant)
       const cle = l.element || `titre:${l.id}`
       const deja = courant.parElement.get(cle)
       if (!deja || POIDS.indexOf(l.genre) < POIDS.indexOf(deja.genre)) courant.parElement.set(cle, l)
     } else {
-      groupes.push({ groupe: { auteur: l.auteur, debut: l.instant, fin: l.instant, resume: {}, elements: [] }, parElement: new Map([[l.element || `titre:${l.id}`, l]]) })
+      groupes.push({
+        groupe: { auteur: l.auteur, ...(l.agent ? { agent: l.agent } : {}), debut: l.instant, fin: l.instant, resume: {}, elements: [] },
+        parElement: new Map([[l.element || `titre:${l.id}`, l]]),
+      })
     }
   }
   return groupes.map(({ groupe, parElement }) => {

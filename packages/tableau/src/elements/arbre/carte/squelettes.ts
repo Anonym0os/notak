@@ -1,6 +1,6 @@
 import type { FormeBranche, FormeSujet, MotifRemplissage, MotifTrait, PointeTrait, StructureArbre } from '../../../coeur/tableau'
-import { pileDe } from './polices'
-import { TABLE } from './squelettes-table'
+import { pileDe } from './polices.ts'
+import { TABLE } from './squelettes-table.ts'
 
 /**
  * Les squelettes (docs/XMIND.md § 9 bis, relevé `9-squelettes.md`) : un jeu complet de structure et de style. Par rang

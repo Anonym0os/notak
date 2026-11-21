@@ -568,6 +568,16 @@ CREATE INDEX envois_a_faire ON envois(prochain) WHERE livre IS NULL AND prochain
 );`)
     },
   },
+  {
+    version: 18,
+    nom: 'l’agent d’un outil dans l’activité',
+    // Un geste fait par l'agent d'un outil (Fram, pour Silak) au nom d'une personne se lit « Samy avec Fram » : la
+    // ligne garde le nom de l'agent. Vide : la personne elle-même, comme toutes les lignes d'avant.
+    appliquer(db) {
+      const colonnes = db.prepare('PRAGMA table_info(activite)').all() as { name: string }[]
+      if (!colonnes.some((c) => c.name === 'agent')) db.exec(`ALTER TABLE activite ADD COLUMN agent TEXT NOT NULL DEFAULT '';`)
+    },
+  },
 ]
 
 /**

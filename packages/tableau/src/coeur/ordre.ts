@@ -1,5 +1,5 @@
 import type { Point } from './geometrie'
-import { type Id, type Operation, type Place, type Tableau, memePlace } from './tableau'
+import { type Id, type Operation, type Place, type Tableau, memePlace } from './tableau.ts'
 
 /** Les chiffres des clés, dans l'ordre des codes : comparer deux clés comme des chaînes les range comme des fractions. */
 const ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
