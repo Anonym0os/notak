@@ -64,7 +64,7 @@ Notak covers almost all of Milanote's features: see [`docs/FONCTIONNALITES.md`](
 ## Develop
 
 You need [Bun](https://bun.sh) 1.3 and Node 22.18 or later (the server runs its TypeScript directly; CI and the image
-use Node 24).
+use Node 26).
 
 ```bash
 bun install
