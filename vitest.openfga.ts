@@ -5,7 +5,7 @@ import type { TestProject } from 'vitest/node'
 // monde d'essai y ouvre son propre magasin, donc rien ne fuit d'un essai à l'autre. `NOTAK_OPENFGA_ESSAI` désigne un
 // serveur déjà lancé (en CI, un conteneur de service) ; sinon Docker en démarre un.
 
-export const IMAGE_OPENFGA = 'openfga/openfga:v1.22.0'
+export const IMAGE_OPENFGA = 'openfga/openfga:v1.22.1'
 
 declare module 'vitest' {
   export interface ProvidedContext {
