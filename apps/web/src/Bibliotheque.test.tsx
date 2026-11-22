@@ -5,6 +5,7 @@ import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { EntreeBibliotheque } from './api'
 import { PageBibliotheque, adresseDe, entreesDe, filtrer, sectionsDeLAccueil, sectionsParDate, sectionsParDossier, titreDe } from './Bibliotheque'
+import { allerA } from './chemin'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -662,6 +663,28 @@ describe('les gestes', () => {
       act(() => tuile('carnet/').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
       expect(location.pathname).toBe('/t/carnet')
       expect(poses).toEqual([['carnet', ['racine', 'voyage', 'etape']]])
+    })
+
+    it('un lien vers un dossier, suivi par `allerA` pendant que la bibliothèque est ouverte, y mène ; ce qu’il demande s’y choisit', async () => {
+      // Le lien d'un dossier qu'écrit l'agent, ou ⌥⌘O : la page est déjà montée, l'adresse change sous elle.
+      history.replaceState(null, '', '/?vue=tout')
+      await act(async () => racine.render(<PageBibliotheque charger={async () => PROFOND} espace={monde()} />))
+      const titre = () => hote.querySelector('h1')!.textContent
+      await act(async () => allerA('/?dossier=etape'))
+      expect([location.search, titre()]).toEqual(['?dossier=etape', 'Étape'])
+      expect(hote.querySelector('.biblio-arbre [aria-current="page"]')!.textContent).toBe('Étape')
+      // Rien de ce qu'on quitte n'y est choisi : on n'en revient pas, on y est mené.
+      expect(choisies()).toEqual([])
+      // Un élément demandé dans le dossier : choisi, puis ouvert seul, comme à l'arrivée par cette adresse.
+      await act(async () => allerA('/?dossier=voyage&element=plan'))
+      expect(titre()).toBe('Voyage')
+      expect(choisies()).toEqual(['voyage/plan'])
+      expect(location.pathname).toBe('/t/voyage/e/plan')
+      history.replaceState(null, '', '/?dossier=voyage')
+      // La bibliothèque elle-même (`/`) : les récents, hors de tout dossier.
+      await act(async () => allerA('/'))
+      expect(titre()).toBe('Récents')
+      expect(hote.querySelector('.biblio-fil')).toBeNull()
     })
 
     it('arrivé dans un dossier par son adresse, la colonne le montre, ses parents dépliés', async () => {

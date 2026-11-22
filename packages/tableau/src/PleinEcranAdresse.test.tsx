@@ -6,6 +6,7 @@ import { type Magasin, creerMagasin } from './coeur/magasin'
 import { type Element, type Id, nouvelId } from './coeur/tableau'
 import './elements'
 import { imageOuverte, ouvrirImage } from './elements/image/visionneuse'
+import { demanderAMontrer, montrerDemande } from './elements/tableau/montrer'
 import type { Services } from './elements/types'
 import { fermerMenus } from './menuUnique'
 import { Toile } from './Toile'
@@ -30,6 +31,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   act(() => ouvrirImage(null))
+  demanderAMontrer(null)
   act(() => racine.unmount())
   hote.remove()
   fermerMenus()
@@ -57,6 +59,20 @@ describe('le plein écran d’un élément a une adresse', () => {
     act(() => racine.render(<Toile magasin={magasin} services={{ elementAdresse: 'inconnu' }} />))
     await act(async () => {})
     expect(document.querySelector('.notak-document-fond')).toBeNull()
+  })
+
+  it('une note nommée par l’adresse (le lien que l’agent donne de ce qu’il vient d’écrire) se montre : la vue s’y pose', async () => {
+    // La toile prend la demande dès qu'elle a sa taille (jsdom n'en donne pas) : elle attend, pour cette note.
+    const magasin = creerMagasin({ titre: '', etiquettes: [], elements: [document_, note] })
+    act(() => racine.render(<Toile magasin={magasin} services={{ elementAdresse: note.id, lectureSeule: true }} />))
+    await act(async () => {})
+    expect(montrerDemande()).toBe(note.id)
+    expect(document.querySelector('.notak-document-fond')).toBeNull()
+    // Une seule fois : la toile qui change ne la redemande pas.
+    demanderAMontrer(null)
+    act(() => magasin.faire([{ type: 'creer', element: { ...note, id: nouvelId(), x: 60 } }]))
+    await act(async () => {})
+    expect(montrerDemande()).toBeNull()
   })
 
   it('quand l’adresse perd l’élément (retour du navigateur), le document se referme', async () => {

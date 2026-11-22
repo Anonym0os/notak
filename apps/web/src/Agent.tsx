@@ -1,6 +1,7 @@
 import { type FormEvent, type KeyboardEvent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { type EspaceNavigable, Icone } from '@notak/tableau'
 import { t, tn } from './langue'
+import { suivreAdresse } from './naviguer'
 import { usePanneau } from './panneaux'
 
 /** Un échange du fil de l'agent sur ce tableau, tel que l'outil le garde. */
@@ -106,22 +107,27 @@ export const lireTourAgent = (tableau: string, tour: string) => appeler<EtatTour
 export const deciderCartes = (tableau: string, tour: string, cartes: { id: string; accord: boolean; toujours: boolean }[]) =>
   appeler<{ tour: string; etat: string }>(`${chemin(tableau)}/tours/${encodeURIComponent(tour)}/cartes`, { cartes })
 
-/** Les liens (http et https seulement), le gras, l'italique et le code d'une ligne, en éléments React : rien de ce que l'agent écrit ne devient du HTML. */
+/**
+ * Les liens, le gras, l'italique et le code d'une ligne, en éléments React : rien de ce que l'agent écrit ne devient du
+ * HTML. Un lien vise le web (http, https), ou Notak : un chemin de l'application (`/t/…`, `/?dossier=…`) ou `notak://`.
+ * Vers Notak, un clic y mène sans quitter l'application (`naviguer.ts`) ; vers ailleurs, un nouvel onglet.
+ */
 function enLigne(texte: string): ReactNode[] {
   const morceaux: ReactNode[] = []
-  const motif = /(\[[^\]\n]+\]\(https?:\/\/[^\s)]+\)|\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\s][^*\n]*\*|_[^_\s][^_\n]*_)/g
+  const motif = /(\[[^\]\n]+\]\((?:https?:\/\/|notak:\/\/|\/(?!\/))[^\s)]*\)|\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\s][^*\n]*\*|_[^_\s][^_\n]*_)/g
   let fin = 0
   for (const m of texte.matchAll(motif)) {
     if (m.index > fin) morceaux.push(texte.slice(fin, m.index))
     const v = m[0]
-    const lien = /^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/.exec(v)
-    if (lien)
+    const lien = /^\[([^\]]+)\]\(([^\s)]*)\)$/.exec(v)
+    if (lien) {
+      const adresse = lien[2]!
       morceaux.push(
-        <a key={m.index} href={lien[2]} target="_blank" rel="noopener noreferrer">
+        <a key={m.index} href={adresse} target="_blank" rel="noopener noreferrer" onClick={(e) => void suivreAdresse(e, adresse)}>
           {lien[1]}
         </a>,
       )
-    else if (v.startsWith('**')) morceaux.push(<strong key={m.index}>{v.slice(2, -2)}</strong>)
+    } else if (v.startsWith('**')) morceaux.push(<strong key={m.index}>{v.slice(2, -2)}</strong>)
     else if (v.startsWith('`')) morceaux.push(<code key={m.index}>{v.slice(1, -1)}</code>)
     else morceaux.push(<em key={m.index}>{v.slice(1, -1)}</em>)
     fin = m.index + v.length

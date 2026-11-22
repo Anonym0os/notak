@@ -1,9 +1,14 @@
 import type { Adresse } from '@notak/tableau'
+import { ecouterAllerA } from './chemin'
 
 /**
  * Chaque tableau a son adresse, `/t/<id>` ; l'accueil est `/`. Un élément ouvert en grand ajoute `/e/<élément>`.
  * Le retour du navigateur ramène au précédent (et referme l'élément). Avec `accueilAPart` (l'édition serveur, dont
  * `/` est la bibliothèque), la toile d'accueil a son adresse comme les autres, `/t/<racine>`.
+ *
+ * `allerA` vers une toile (une notification, un fichier rouvert, un lien de l'agent) se suit comme un retour : la toile
+ * ouverte y va. Sans cela, l'adresse changeait sous elle et elle restait où elle était. Vers la bibliothèque, il n'y a
+ * rien à suivre : l'application démonte la toile.
  */
 export function adressePour(racine: string, { accueilAPart = false }: { accueilAPart?: boolean } = {}): Adresse {
   const adresseDe = (id: string) => (id === racine && !accueilAPart ? '/' : `/t/${encodeURIComponent(id)}`)
@@ -30,8 +35,18 @@ export function adressePour(racine: string, { accueilAPart = false }: { accueilA
         const a = lire()
         f(a?.tableau ?? null, a?.element ?? null)
       }
+      const surAllerA = () => {
+        const a = lire()
+        if (a) f(a.tableau, a.element)
+        // Sans bibliothèque à part, `/` est la toile d'accueil : y aller, c'est l'ouvrir.
+        else if (!accueilAPart && location.pathname === '/') f(null, null)
+      }
       window.addEventListener('popstate', surRetour)
-      return () => window.removeEventListener('popstate', surRetour)
+      const finAllerA = ecouterAllerA(surAllerA)
+      return () => {
+        window.removeEventListener('popstate', surRetour)
+        finAllerA()
+      }
     },
   }
 }

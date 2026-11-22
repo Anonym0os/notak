@@ -57,3 +57,6 @@ fil des changements ; `bun run nouvelle-version x.y.z` en fait la section de la 
 - **La toile ne bute plus sur son bord** : on va bien au-delà de son contenu, dans les quatre sens et à tout zoom ; plus
   loin, elle résiste de plus en plus et revient en douceur quand on la lâche, comme une liste sur iPhone. Si plus rien
   n'est en vue, « Recentrer » paraît en bas et ramène sur tout le contenu.
+- **Un fichier rouvert, une notification ou un lien mènent bien où ils disent**, même depuis une toile déjà ouverte :
+  l'adresse changeait sans que la toile suive. Un lien vers un dossier l'ouvre dans la bibliothèque, un lien vers une
+  note la montre sur sa toile, et les liens de Notak qu'écrit l'agent s'ouvrent dans Notak, sur le web comme dans l'app.

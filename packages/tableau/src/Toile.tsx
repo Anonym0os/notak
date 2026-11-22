@@ -18,7 +18,7 @@ import { BarreEdition, ContexteBarreEdition } from './barreEdition'
 import { Cadre, ContexteRangement, type Empreinte, type Rangement } from './Cadre'
 import * as cam from './coeur/camera'
 import { brancherPilote } from './pilotage'
-import { ecouterDemandes, filDemande, montrerDemande, prendreDemande, prendreFil, versionDemandes } from './elements/tableau/montrer'
+import { demanderAMontrer, ecouterDemandes, filDemande, montrerDemande, prendreDemande, prendreFil, versionDemandes } from './elements/tableau/montrer'
 import { ouvrirFil } from './elements/decor/etat'
 import { cleEpingleLibre } from './elements/commentaire/Epingle'
 import { type DetailImport, EVENEMENT_IMPORT, operationsDImport } from './recevoirImport'
@@ -2045,7 +2045,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       attendu.current = null
       return
     }
-    if ((ouvertParAdresse.current === adresseElement && attendu.current !== adresseElement) || lectureSeule) return
+    if (ouvertParAdresse.current === adresseElement && attendu.current !== adresseElement) return
     // L'adresse ne fait que redire ce qu'on vient d'ouvrir ici (un double-clic, Entrée) : rien n'est à attendre. Attendu
     // quand même, l'élément gardait l'adresse une fois refermé, et le premier changement de la toile le rouvrait.
     if (enGrandRef.current === adresseElement) {
@@ -2056,8 +2056,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
     const el = tableau.elements.find((x) => x.id === adresseElement)
     if (!el) return
+    // Ce qui ne s'ouvre pas en grand (une note, une liste, une colonne) : la vue se pose dessus et il se choisit, comme
+    // « Afficher dans sa toile ». C'est où mène le lien d'un élément, celui que l'agent donne de ce qu'il vient d'écrire ;
+    // le lire ne demande aucun droit.
+    if (!PLEIN_ECRAN.has(el.contenu.type)) {
+      ouvertParAdresse.current = adresseElement
+      demanderAMontrer(el.id)
+      return
+    }
+    if (lectureSeule) return
     ouvertParAdresse.current = adresseElement
-    if (!PLEIN_ECRAN.has(el.contenu.type)) return
     annonce.current = adresseElement
     attendu.current = adresseElement
     setSelection(new Set([el.id]))

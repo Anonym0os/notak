@@ -100,6 +100,25 @@ describe('Le panneau de l’agent', () => {
     expect(hote.textContent).toContain('[ceci](javascript:alert(1))')
   })
 
+  it('un lien vers Notak mène dans l’application, sans onglet ; un lien vers un autre site garde le sien', async () => {
+    history.replaceState(null, '', '/t/ici')
+    const texte = `La page [Wilfried Robert](${location.origin}/t/clients/e/wilfried), le dossier [Clients](/?dossier=clients) et [la fiche](https://silak.test/societes/42).`
+    await act(async () => racine.render(<TexteAgent texte={texte} />))
+    const [page, dossier, fiche] = [...hote.querySelectorAll('a')]
+    const cliquer = (a: Element) => {
+      const e = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })
+      a.dispatchEvent(e)
+      return e.defaultPrevented
+    }
+    expect(cliquer(page!)).toBe(true)
+    expect(location.pathname).toBe('/t/clients/e/wilfried')
+    expect(cliquer(dossier!)).toBe(true)
+    expect(location.pathname + location.search).toBe('/?dossier=clients')
+    // Un autre site : le navigateur l'ouvre dans un onglet, comme avant.
+    expect(cliquer(fiche!)).toBe(false)
+    expect(location.search).toBe('?dossier=clients')
+  })
+
   it('lit la sélection dans la présence du tableau, avec un extrait de chaque élément', () => {
     const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Relancer  Rœderer' }, { type: 'text', text: 'lundi' }] }] }
     const espace = {

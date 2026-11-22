@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest'
 import { adressePour } from './adresse'
+import { allerA } from './chemin'
 
 describe('adressePour', () => {
   beforeEach(() => history.replaceState(null, '', '/'))
@@ -44,5 +45,32 @@ describe('adressePour', () => {
     history.replaceState(null, '', '/t/racine/e/carte')
     adressePour('racine', { accueilAPart: true }).ecrireElement!('racine', null)
     expect(location.pathname).toBe('/t/racine')
+  })
+
+  it('suit `allerA` vers une toile ou un élément, comme un retour ; vers la bibliothèque, il n’y a rien à suivre', () => {
+    // Une notification, un fichier rouvert ou un lien de l'agent, pendant qu'une toile est ouverte : elle doit y aller.
+    history.replaceState(null, '', '/t/racine')
+    const vus: [string | null, string | null | undefined][] = []
+    const fin = adressePour('racine', { accueilAPart: true }).ecouter((id, element) => vus.push([id, element]))
+    allerA('/t/voyage')
+    allerA('/t/voyage/e/page')
+    allerA('/?dossier=clients')
+    allerA('/')
+    expect(vus).toEqual([
+      ['voyage', null],
+      ['voyage', 'page'],
+    ])
+    fin()
+    allerA('/t/plus-tard')
+    expect(vus).toHaveLength(2)
+  })
+
+  it('sans bibliothèque à part, `allerA(\'/\')` ouvre la toile d’accueil', () => {
+    history.replaceState(null, '', '/t/voyage')
+    const vus: (string | null)[] = []
+    const fin = adressePour('racine').ecouter((id) => vus.push(id))
+    allerA('/')
+    fin()
+    expect(vus).toEqual([null])
   })
 })

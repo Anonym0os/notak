@@ -130,7 +130,7 @@ import { vibrer } from './appareil'
 import { ecouterImportBureau } from './importBureau'
 import type { BilanImport } from './importation'
 import { ouvrirDehors } from './bureau'
-import { allerA, surLien } from './chemin'
+import { allerA, ecouterAllerA, surLien } from './chemin'
 import { t, tn } from './langue'
 
 /**
@@ -719,10 +719,11 @@ function BibliothequeBureau({
   /**
    * Précédent et suivant (les boutons de la souris, ⌘[, ceux du navigateur, le geste du bord sur l'iPhone) : la vue que
    * redit l'adresse, sans recharger, et ce qui s'y rattache (ses parents dépliés dans la colonne, rien de cherché ni de
-   * choisi d'avant). Le dossier d'où l'on revient y est choisi, là où il se montre, comme dans le Finder.
+   * choisi d'avant). Le dossier d'où l'on revient y est choisi, là où il se montre, comme dans le Finder. `avance` : on
+   * y est mené (`allerA`, un lien), et rien de ce qu'on quitte n'y est à choisir.
    */
-  const retablir = useRef(() => {})
-  retablir.current = () => {
+  const retablir = useRef((_avance?: boolean) => {})
+  retablir.current = (avance = false) => {
     const lue = lireVue(location.search)
     const quitte = dossier
     setRequete('')
@@ -736,7 +737,7 @@ function BibliothequeBureau({
     setDossier(lue.dossier ?? null)
     if (lue.dossier && toutes) setDeplies((d) => new Set([...d, ...filDAriane(lue.dossier!, toutes, espace?.racine ?? null)]))
     // Au téléphone, une tuile ne se choisit pas d'un toucher : rien n'y reste surligné.
-    const cle = quitte && !telephone ? `${quitte}/` : null
+    const cle = quitte && !telephone && !avance ? `${quitte}/` : null
     setSel(cle ? { choisies: new Set([cle]), ancre: cle } : RIEN)
     setCourante(cle)
     corps.current?.scrollTo?.({ top: 0 })
@@ -746,9 +747,23 @@ function BibliothequeBureau({
     // Un retour qui mène hors de la bibliothèque (une toile) la démonte : il n'a pas de vue à y rétablir. Ses adresses
     // sont celles de `adresseDeLaVue`, ou celle où elle s'est ouverte (`/bibliotheque`, que l'application récrit).
     const ici = location.pathname
-    const surRetour = () => (location.pathname === '/' || location.pathname === ici) && retablir.current()
+    const chezElle = () => location.pathname === '/' || location.pathname === ici
+    const surRetour = () => chezElle() && retablir.current()
+    // `allerA` vers la bibliothèque déjà ouverte (le lien d'un dossier qu'écrit l'agent, ⌥⌘O) : la vue que dit l'adresse,
+    // comme au retour, et ce qu'elle demande d'ouvrir dans son dossier (`&element=`). Sans cela, l'adresse changeait
+    // sous la page, qui restait où elle était.
+    const surAllerA = () => {
+      if (!chezElle()) return
+      demande.current = elementDeLAdresse(location.search)
+      retablir.current(true)
+      setDemandes((n) => n + 1)
+    }
     window.addEventListener('popstate', surRetour)
-    return () => window.removeEventListener('popstate', surRetour)
+    const finAllerA = ecouterAllerA(surAllerA)
+    return () => {
+      window.removeEventListener('popstate', surRetour)
+      finAllerA()
+    }
   }, [])
   // Arrivé dans un dossier (par son adresse, ou de retour d'une toile), la colonne le montre, ses parents dépliés.
   const deplieALArrivee = useRef(false)
@@ -1444,6 +1459,8 @@ function BibliothequeBureau({
   // L'élément que l'adresse demande dans son dossier (« Copier le lien », la fiche d'un autre outil) : choisi, et
   // ouvert seul, une fois la liste arrivée. Un lien n'est que choisi : un onglet ouvert sans clic serait bloqué.
   const demande = useRef(elementDeLAdresse(location.search))
+  /** Chaque `allerA` vers la bibliothèque déjà ouverte : il peut redemander un élément dans le dossier où l'on est. */
+  const [demandes, setDemandes] = useState(0)
   useEffect(() => {
     const el = demande.current
     if (!el || !dossier || !toutes) return
@@ -1457,7 +1474,7 @@ function BibliothequeBureau({
     setCourante(cle)
     plusTard(() => tuileDe(cle)?.scrollIntoView?.({ block: 'nearest' }), 60)
     if (e.resume.genre !== 'lien') ouvrir(e)
-  }, [toutes, dossier]) // une fois, à l’arrivée de la liste
+  }, [toutes, dossier, demandes]) // à l’arrivée de la liste, puis à chaque `allerA` qui demande un élément
   const importerCourant = useRef(importerIci)
   importerCourant.current = importerIci
   // Fichier › Importer… dans Notak de bureau : dans le dossier qu'on parcourt, sinon à la racine, comme un fichier lâché sur le fond.

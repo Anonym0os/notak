@@ -79,6 +79,7 @@ import { VerrouTableau } from '../Verrou'
 import { t, tn } from '../langue'
 import { adressePour } from '../adresse'
 import { allerA, useChemin } from '../chemin'
+import { retenirAdresseDuServeur } from '../naviguer'
 import { adresseDuDossier } from '../bibliotheque/modele'
 import { useBandeau } from '../bandeaux'
 
@@ -189,6 +190,8 @@ function Application() {
   // Lue une fois : le nom, les inscriptions et les thèmes ne changent qu'au redémarrage du serveur.
   const [instance, setInstance] = useState<Instance | null>(null)
   useEffect(() => void lireInstance().then(setInstance), [])
+  // Les liens de l'agent visent l'adresse que le serveur déclare : ils restent dans l'application (`naviguer.ts`).
+  useEffect(() => retenirAdresseDuServeur(instance?.adresse), [instance])
   // Dans l'app de bureau, un serveur mis à jour sous la fenêtre ouverte : la page le voit à sa version (pas de service worker ici).
   useEffect(() => {
     if (!instance || !estPageServeur()) return
