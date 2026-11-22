@@ -65,3 +65,6 @@ fil des changements ; `bun run nouvelle-version x.y.z` en fait la section de la 
   son panneau reste ouvert pendant que vous choisissez sur la toile ce dont vous parlez. Un anneau tourne pendant qu'il
   travaille, une pastille dit qu'il a répondu. Au téléphone, la conversation monte en feuille du bas. Le bouton de la
   barre du haut et la ligne du menu ••• laissent leur place à la bulle.
+- **Ce que l'agent crée s'ouvre d'un clic** : sous sa réponse, une puce « Ouvrir « … » » par page, carte mentale ou
+  toile qu'il vient de faire. Quand vous lui demandez de l'ouvrir, il vous y mène, une fois, dans la fenêtre d'où vous
+  lui avez écrit ; refermer la page vous ramène où vous étiez.

@@ -3,7 +3,7 @@ import type { EspaceNavigable } from '@notak/tableau'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { FilAgent, TexteAgent, extraitDe, selectionDe, useAgent } from './Agent'
+import { type EchangeAgent, FilAgent, TexteAgent, creesLus, extraitDe, ouvertureLue, pucesParEchange, selectionDe, useAgent } from './Agent'
 import type { Ici } from './ici'
 import './langue'
 
@@ -252,5 +252,117 @@ describe('L’agent, pour cette personne', () => {
       corps: { cartes: [{ id: 'call-1', accord: true, toujours: true }] },
     })
     expect(hote.querySelector('.agent-carte')).toBeNull()
+  })
+
+  describe('ce que l’agent a créé, et ce qu’il veut montrer (relais de la porte v2)', () => {
+    const PAGE = { type: 'page', titre: 'Wilfried Robert', tableau: '01CLIENTS', element: '01PAGE', adresse: '' }
+    const FAIT = 'C’est fait : la page **Wilfried Robert** est créée.'
+
+    /** Un relais simulé : un tour qui travaille `lectures` fois, puis finit sur `FAIT` avec ce qu'il a créé. */
+    const relais = ({ lectures = 1, ouvrir = null as unknown, crees = [] as unknown[], enCours = false } = {}) => {
+      let lus = 0
+      let fini = false
+      return (chemin: string, init?: RequestInit) => {
+        if (init?.method === 'POST') return { tour: TOUR, etat: 'queued' }
+        if (chemin.includes('/tours/')) {
+          lus++
+          fini = lus > lectures
+          return { tour: TOUR, etat: fini ? 'done' : 'running', fini, texte: fini ? FAIT : null, echec: null, cartes: [], ...(ouvrir ? { ouvrir } : {}), ...(fini ? { crees } : {}) }
+        }
+        return { agent: 'Fram', disponible: true, echanges: fini ? [VU, { qui: 'fram', texte: FAIT, quand: '2026-11-22T10:00:00Z' }] : [], tour: enCours && !fini ? { id: TOUR, etat: 'running' } : null }
+      }
+    }
+    const allers: string[] = []
+    const noter = () => allers.push(location.pathname)
+    beforeEach(() => {
+      history.replaceState(null, '', '/t/t1')
+      allers.length = 0
+      window.addEventListener('notak:chemin', noter)
+    })
+    afterEach(() => window.removeEventListener('notak:chemin', noter))
+
+    it('sous la réponse, une puce « Ouvrir « … » » par création ; un clic y mène sans quitter l’application', async () => {
+      const crees = [
+        { ...PAGE, adresse: `${location.origin}/t/01CLIENTS/e/01PAGE` },
+        // Une adresse que l'application ne sait pas ouvrir : la puce prend celle de l'élément.
+        { type: 'carte_mentale', titre: '', tableau: '01VOYAGE', element: '01CARTE', adresse: 'https://ailleurs.test/carte' },
+      ]
+      reponses = [relais({ crees })]
+      await act(async () => racine.render(<Harnais ici={SUR_T1} />))
+      await attendre()
+      await ecrire('Crée une page pour Wilfried Robert.')
+      await attendre(700)
+      await attendre(1600)
+      await attendre()
+      const puces = [...hote.querySelectorAll<HTMLAnchorElement>('.agent-lui .agent-puce')]
+      expect(puces.map((a) => [a.textContent, a.getAttribute('href')])).toEqual([
+        ['Ouvrir « Wilfried Robert »', '/t/01CLIENTS/e/01PAGE'],
+        ['Ouvrir « Sans titre »', '/t/01VOYAGE/e/01CARTE'],
+      ])
+      const e = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })
+      act(() => void puces[0]!.dispatchEvent(e))
+      expect(e.defaultPrevented).toBe(true)
+      expect(location.pathname).toBe('/t/01CLIENTS/e/01PAGE')
+      expect(history.state).toEqual({ element: '01PAGE' })
+    })
+
+    it('l’intention d’ouvrir se suit une seule fois, dans l’onglet qui a envoyé la demande', async () => {
+      // Comme le relais le rend : ce que la personne lit, avec le titre, le genre et l'adresse refaits par Notak.
+      const ouvrir = { ...PAGE, adresse: `${location.origin}/t/01CLIENTS/e/01PAGE` }
+      reponses = [relais({ lectures: 2, ouvrir, crees: [ouvrir] })]
+      await act(async () => racine.render(<Harnais ici={SUR_T1} />))
+      await attendre()
+      await ecrire('Crée une page pour Wilfried Robert, et ouvre-la.')
+      await attendre(700)
+      expect(allers).toEqual(['/t/01CLIENTS/e/01PAGE'])
+      // La personne revient sur sa toile : l'agent, qui le redit à chaque lecture, ne l'y ramène pas.
+      history.replaceState(null, '', '/t/t1')
+      await attendre(1600)
+      await attendre(1600)
+      await attendre()
+      expect(allers).toEqual(['/t/01CLIENTS/e/01PAGE'])
+      expect(location.pathname).toBe('/t/t1')
+      expect(hote.querySelector('.agent-lui .agent-puce')?.getAttribute('href')).toBe('/t/01CLIENTS/e/01PAGE')
+    })
+
+    it('un tour retrouvé dans le fil (un autre onglet, une page rechargée) ne mène nulle part ; ses puces paraissent', async () => {
+      reponses = [relais({ enCours: true, ouvrir: { tableau: '01CLIENTS', element: '01PAGE' }, crees: [{ ...PAGE, adresse: '/t/01CLIENTS/e/01PAGE' }] })]
+      await act(async () => racine.render(<Harnais ici={SUR_T1} />))
+      await attendre()
+      await attendre(700)
+      await attendre(1600)
+      await attendre()
+      expect(allers).toEqual([])
+      expect(location.pathname).toBe('/t/t1')
+      expect(hote.querySelector('.agent-lui .agent-puce')?.textContent).toBe('Ouvrir « Wilfried Robert »')
+    })
+
+    it('relit ces champs sans leur faire confiance, et s’en passe quand le relais ne les donne pas', () => {
+      expect(creesLus(undefined)).toEqual([])
+      expect(creesLus([{ tableau: '../etc' }, { tableau: '01A', element: 'x y', titre: 7, adresse: 'javascript:alert(1)' }, 'rien'])).toEqual([
+        { type: '', titre: '', tableau: '01A', element: null, chemin: '/t/01A' },
+      ])
+      expect(creesLus([{ type: 'dossier', titre: '  Clients\n', tableau: '01D', adresse: `${location.origin}/?dossier=01D` }])).toEqual([
+        { type: 'dossier', titre: 'Clients', tableau: '01D', element: null, chemin: '/?dossier=01D' },
+      ])
+      expect(ouvertureLue(null)).toBeNull()
+      expect(ouvertureLue({ element: '01PAGE' })).toBeNull()
+      expect(ouvertureLue({ tableau: '01T', element: '<script>' })).toEqual({ tableau: '01T', element: null, chemin: null })
+      // L'adresse que le relais donne : un dossier s'ouvre dans la bibliothèque, pas en toile.
+      expect(ouvertureLue({ tableau: '01D', type: 'dossier', adresse: `${location.origin}/?dossier=01D` })).toEqual({ tableau: '01D', element: null, chemin: '/?dossier=01D' })
+    })
+
+    it('range les puces sous la réponse de leur tour, sinon sous la dernière, sans doublon', () => {
+      const echanges = [VU, { qui: 'fram', texte: 'Première  réponse', quand: 'a' }, VU, { qui: 'fram', texte: 'Seconde', quand: 'b' }] as EchangeAgent[]
+      const c = (tableau: string) => ({ type: 'page', titre: tableau, tableau, element: null, chemin: `/t/${tableau}` })
+      const puces = pucesParEchange(echanges, [
+        { reponse: 'Première réponse', crees: [c('01A')] },
+        { reponse: 'Dite autrement', crees: [c('01B'), c('01B')] },
+      ])
+      expect([...puces.entries()].map(([i, l]) => [i, l.map((x) => x.tableau)])).toEqual([
+        [1, ['01A']],
+        [3, ['01B']],
+      ])
+    })
   })
 })

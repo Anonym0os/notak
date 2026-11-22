@@ -1,8 +1,8 @@
 import { type FormEvent, type KeyboardEvent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import { type EspaceNavigable, Icone } from '@notak/tableau'
+import { type EspaceNavigable, Icone, type NomIcone } from '@notak/tableau'
 import type { Ici } from './ici'
 import { t, tn } from './langue'
-import { suivreAdresse } from './naviguer'
+import { allerDansLApp, cheminDansLApp, suivreAdresse } from './naviguer'
 
 /** Un échange du fil de l'agent, tel que l'outil le garde : un seul fil par personne, d'où qu'elle écrive. */
 export interface EchangeAgent {
@@ -33,7 +33,72 @@ export interface EtatTour {
   texte: string | null
   echec: string | null
   cartes: CarteAgent[]
+  /** Ce que le tour a créé (porte v2), tel que le relais le rend : à relire par `creesLus`. Facultatif. */
+  crees?: unknown
+  /** Ce que l'agent veut montrer à la personne (porte v2) : à relire par `ouvertureLue`. Facultatif. */
+  ouvrir?: unknown
 }
+
+/** Ce qu'un tour a créé (une page, une carte mentale, une toile…), avec le chemin de l'application qui l'ouvre. */
+export interface Cree {
+  type: string
+  titre: string
+  tableau: string
+  element: string | null
+  chemin: string
+}
+
+/** Ce que l'agent veut montrer : un tableau, ou un élément sur lui ; `chemin`, l'adresse que le relais en donne. */
+export interface Ouverture {
+  tableau: string
+  element: string | null
+  chemin: string | null
+}
+
+const ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/
+const texteBorne = (v: unknown, max: number): string => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '')
+
+/** Le chemin qui ouvre ce tableau, ou cet élément sur lui ; un dossier s'y montre dans la bibliothèque (`EspaceNotak`). */
+const cheminPour = (tableau: string, element: string | null): string =>
+  `/t/${encodeURIComponent(tableau)}${element ? `/e/${encodeURIComponent(element)}` : ''}`
+
+/**
+ * Ce que le relais dit qu'un tour a créé (`crees`), relu sans lui faire confiance : des identifiants de Notak, un titre
+ * borné, et une adresse que l'application sait ouvrir (sinon, celle du tableau ou de l'élément). Vingt au plus.
+ */
+export function creesLus(brut: unknown): Cree[] {
+  if (!Array.isArray(brut)) return []
+  return brut.slice(0, 20).flatMap((x) => {
+    const o = x && typeof x === 'object' ? (x as Record<string, unknown>) : {}
+    const tableau = typeof o.tableau === 'string' && ID.test(o.tableau) ? o.tableau : null
+    const element = typeof o.element === 'string' && ID.test(o.element) ? o.element : null
+    if (!tableau) return []
+    const adresse = typeof o.adresse === 'string' ? cheminDansLApp(o.adresse) : null
+    return [{ type: texteBorne(o.type, 40), titre: texteBorne(o.titre, 120), tableau, element, chemin: adresse ?? cheminPour(tableau, element) }]
+  })
+}
+
+/** Ce que l'agent veut montrer (`ouvrir`), relu de même ; `null` s'il n'a rien à montrer. */
+export function ouvertureLue(brut: unknown): Ouverture | null {
+  const o = brut && typeof brut === 'object' ? (brut as Record<string, unknown>) : null
+  const tableau = typeof o?.tableau === 'string' && ID.test(o.tableau) ? o.tableau : null
+  if (!tableau) return null
+  return {
+    tableau,
+    element: typeof o?.element === 'string' && ID.test(o.element) ? o.element : null,
+    chemin: typeof o?.adresse === 'string' ? cheminDansLApp(o.adresse) : null,
+  }
+}
+
+/**
+ * Le chemin d'une ouverture : l'adresse que le relais en donne (un dossier s'ouvre dans la bibliothèque), sinon celle de
+ * la même création, sinon celle du tableau ou de l'élément.
+ */
+export const cheminDeLOuverture = (o: Ouverture, crees: readonly Cree[]): string =>
+  o.chemin ?? crees.find((c) => c.tableau === o.tableau && c.element === o.element)?.chemin ?? cheminPour(o.tableau, o.element)
+
+/** Une réponse telle qu'on la compare d'un fil à l'autre : le texte du tour fini et celui du fil relu. */
+const cleReponse = (texte: string): string => texte.replace(/\s+/g, ' ').trim()
 
 /** Un tour se relit à ce rythme, et trois minutes au plus : au-delà, l'agent répondra dans le fil. */
 const SUIVRE_MS = 1500
@@ -178,10 +243,15 @@ export function TexteAgent({ texte }: { texte: string }) {
   )
 }
 
-/** Le tour qu'on suit : son id, et le tableau d'où il est parti, où ses routes sont gardées. */
+/**
+ * Le tour qu'on suit : son id, le tableau d'où il est parti, où ses routes sont gardées, et s'il vient de cet onglet.
+ * Seul l'onglet qui a envoyé la demande suit l'intention d'ouvrir de l'agent : un autre onglet, ou la page rechargée
+ * qui retrouve le tour dans le fil, ne bouge pas sous les yeux de la personne.
+ */
 interface TourSuivi {
   id: string
   tableau: string
+  envoye: boolean
 }
 
 /** Ce qui s'ouvre en grand et qu'une demande peut dire ouvert : une page, une carte mentale. */
@@ -223,6 +293,10 @@ export function useAgent(ici: Ici | null, espace?: EspaceNavigable) {
   const [avecSelection, setAvecSelection] = useState(0)
   /** Les tours finis depuis l'ouverture de la page : la bulle en tire sa pastille « réponse non lue ». */
   const [reponses, setReponses] = useState(0)
+  /** Ce que chaque réponse a créé, par son texte : les puces « Ouvrir » qui la suivent dans le fil. */
+  const [crees, setCrees] = useState<{ reponse: string; crees: Cree[] }[]>([])
+  /** Les tours dont l'intention d'ouvrir a été suivie : une fois chacun. */
+  const ouvertures = useRef(new Set<string>())
   const iciCourant = useRef(ici)
   iciCourant.current = ici
 
@@ -243,7 +317,7 @@ export function useAgent(ici: Ici | null, espace?: EspaceNavigable) {
       setDit(null)
       // Un tour en cours, lancé d'un autre onglet ou avant un rechargement : il se suit aussi.
       const enCours = e.tour?.id
-      if (enCours) setTour((avant) => avant ?? { id: enCours, tableau })
+      if (enCours) setTour((avant) => avant ?? { id: enCours, tableau, envoye: false })
     } catch {
       // Le fil reste tel qu'il était ; la prochaine ouverture le relira.
     }
@@ -266,6 +340,7 @@ export function useAgent(ici: Ici | null, espace?: EspaceNavigable) {
   // Le tour en cours se relit jusqu'à son repos, trois minutes au plus, depuis le tableau d'où il est parti.
   const idTour = tour?.id ?? null
   const origine = tour?.tableau ?? null
+  const envoye = tour?.envoye ?? false
   useEffect(() => {
     if (!idTour || !origine) return
     let vivant = true
@@ -277,7 +352,15 @@ export function useAgent(ici: Ici | null, espace?: EspaceNavigable) {
         if (!vivant) return
         setAttendCartes(e.etat === 'awaiting_approval')
         setCartes(e.etat === 'awaiting_approval' ? e.cartes : [])
+        const lus = creesLus(e.crees)
+        // « Ouvre-la » : l'agent montre ce qu'il a fait, une fois, et seulement dans l'onglet qui lui a écrit.
+        const ouverture = ouvertureLue(e.ouvrir)
+        if (envoye && ouverture && !ouvertures.current.has(idTour)) {
+          ouvertures.current.add(idTour)
+          allerDansLApp(cheminDeLOuverture(ouverture, lus))
+        }
         if (e.fini) {
+          if (lus.length > 0) setCrees((avant) => [...avant, { reponse: cleReponse(e.texte ?? ''), crees: lus }])
           if (e.etat === 'failed') setErreur(e.echec || t('agent.echec'))
           setTour(null)
           setReponses((n) => n + 1)
@@ -300,7 +383,7 @@ export function useAgent(ici: Ici | null, espace?: EspaceNavigable) {
       vivant = false
       clearTimeout(minuteur)
     }
-  }, [idTour, origine, relire, relance])
+  }, [idTour, origine, envoye, relire, relance])
 
   const envoyer = async () => {
     const texte = message.trim()
@@ -317,7 +400,7 @@ export function useAgent(ici: Ici | null, espace?: EspaceNavigable) {
     try {
       const r = await demanderAgent(ou.tableau, texte.slice(0, MESSAGE_MAX), selection, ouvertDe(espace, ou))
       setMessage('')
-      setTour({ id: r.tour, tableau: ou.tableau })
+      setTour({ id: r.tour, tableau: ou.tableau, envoye: true })
     } catch (x) {
       setDit(null)
       setErreur((x as Error).message || t('agent.echec'))
@@ -350,6 +433,7 @@ export function useAgent(ici: Ici | null, espace?: EspaceNavigable) {
     ici,
     genreOuvert,
     echanges,
+    crees,
     tour: idTour,
     attendCartes,
     cartes,
@@ -368,10 +452,66 @@ export function useAgent(ici: Ici | null, espace?: EspaceNavigable) {
 
 export type Agent = ReturnType<typeof useAgent>
 
+/**
+ * Sous quelle réponse du fil va chaque création : celle dont le texte est celui du tour fini. Une réponse que le fil
+ * relu dit autrement (l'outil peut la remettre en forme) prend ses puces sur la dernière réponse de l'agent. Une même
+ * adresse n'a qu'une puce.
+ */
+export function pucesParEchange(echanges: readonly EchangeAgent[], crees: readonly { reponse: string; crees: Cree[] }[]): Map<number, Cree[]> {
+  const parTexte = new Map<string, number>()
+  let derniere = -1
+  echanges.forEach((x, i) => {
+    if (x.qui !== 'fram') return
+    parTexte.set(cleReponse(x.texte), i)
+    derniere = i
+  })
+  const puces = new Map<number, Cree[]>()
+  for (const c of crees) {
+    const i = parTexte.get(c.reponse) ?? derniere
+    if (i < 0) continue
+    const liste = puces.get(i) ?? []
+    for (const x of c.crees) if (!liste.some((d) => d.chemin === x.chemin)) liste.push(x)
+    puces.set(i, liste)
+  }
+  return puces
+}
+
+/** L'icône d'une création, selon son genre dans les mots de la porte (`genreDeLElement` du serveur). */
+const ICONES_CREES: Record<string, NomIcone> = {
+  page: 'document',
+  carte_mentale: 'carteMentale',
+  toile: 'tableau',
+  tableau: 'tableau',
+  dossier: 'dossier',
+  note: 'note',
+  titre: 'titre',
+  taches: 'tache',
+  colonne: 'colonne',
+  lien: 'lien',
+  ligne: 'ligne',
+  image: 'image',
+  fichier: 'fichier',
+}
+
+/** « Ouvrir « … » » pour chaque création : un lien de l'application, qu'un clic suit sans la quitter. */
+function PucesOuvrir({ crees }: { crees: Cree[] }) {
+  return (
+    <div className="agent-puces">
+      {crees.map((c) => (
+        <a key={c.chemin} className="agent-puce" href={c.chemin} onClick={(e) => void suivreAdresse(e, c.chemin)}>
+          <Icone nom={ICONES_CREES[c.type] ?? 'ouvrir'} taille={14} />
+          <span>{t('agent.ouvrir', { titre: c.titre || t('commun.sansTitre') })}</span>
+        </a>
+      ))}
+    </div>
+  )
+}
+
 /** Le fil, l'état du tour et la saisie : le contenu de la bulle, au bureau comme au téléphone. Relit le fil à l'ouverture. */
 export function FilAgent({ agent }: { agent: Agent }) {
-  const { nom, ici, genreOuvert, echanges, tour, attendCartes, cartes, decider, erreur, message, setMessage, envoi, dit, avecSelection, relire, envoyer } = agent
+  const { nom, ici, genreOuvert, echanges, crees, tour, attendCartes, cartes, decider, erreur, message, setMessage, envoi, dit, avecSelection, relire, envoyer } = agent
   const fil = useRef<HTMLOListElement>(null)
+  const puces = pucesParEchange(echanges, crees)
   // Depuis la bibliothèque, on ne parle pas d'« un tableau » : ce qu'on peut demander n'y est pas le même.
   const biblio = ici?.vue === 'bibliotheque' || ici?.vue === 'dossier'
 
@@ -415,6 +555,7 @@ export function FilAgent({ agent }: { agent: Agent }) {
             ) : (
               <p>{x.texte}</p>
             )}
+            {puces.get(i) && <PucesOuvrir crees={puces.get(i)!} />}
           </li>
         ))}
         {dit && (
