@@ -281,7 +281,7 @@ const ATTRIBUTS_MARKDOWN = new Set(['id', 'retrait', 'level', 'coche', 'language
  * un dépliant, un encadré, un passage commenté, une couleur, un lien vers un tableau ou une personne. Récrire son
  * texte d'un bloc les perdrait : on y ajoute à la fin, sans le remplacer.
  */
-export function pageRiche(c: { texte?: unknown; fils?: unknown }): boolean {
+export function pageRiche(c: { readonly [champ: string]: unknown }): boolean {
   if (c.fils && typeof c.fils === 'object' && Object.keys(c.fils).length > 0) return true
   if (!c.texte || typeof c.texte !== 'object') return false
   const riche = (n: NoeudTexte, auRangDesBlocs: boolean): boolean => {
@@ -321,14 +321,14 @@ export function ajouterAPage(doc: unknown, blocs: readonly NoeudTexte[]): NoeudT
   return { ...plat, type: 'doc', content: [...(pageVide(plat) ? [] : (plat.content ?? [])), ...blocs] }
 }
 
-/** La page sans ces blocs (au premier rang) ; vidée, il lui reste un paragraphe vide, comme une page neuve. */
-export function retirerDePage(doc: unknown, ids: ReadonlySet<string>): { doc: NoeudTexte; retires: string[] } {
+/** La page sans ces blocs (au premier rang), et les blocs retirés ; vidée, il lui reste un paragraphe vide, comme une page neuve. */
+export function retirerDePage(doc: unknown, ids: ReadonlySet<string>): { doc: NoeudTexte; retires: NoeudTexte[] } {
   const plat = aplatir((doc && typeof doc === 'object' ? doc : { type: 'doc', content: [] }) as NoeudTexte)
-  const retires: string[] = []
+  const retires: NoeudTexte[] = []
   const reste = (plat.content ?? []).filter((b) => {
     const id = b.attrs?.id
     if (typeof id === 'string' && ids.has(id)) {
-      retires.push(id)
+      retires.push(b)
       return false
     }
     return true

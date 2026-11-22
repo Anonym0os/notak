@@ -300,7 +300,8 @@
                   "lien",
                   "colonne",
                   "table",
-                  "carte_mentale"
+                  "carte_mentale",
+                  "page"
                 ],
                 "description": "note : un texte (Markdown simple : titres #, listes -, gras **, italique _, liens). titre : un titre posé sur la toile, sans fond. taches : une liste de cases à cocher. lien : une adresse web, avec son aperçu. colonne : une colonne qui range des éléments. table : un petit tableur. carte_mentale : une carte mentale, depuis un plan imbriqué."
               },
@@ -407,11 +408,15 @@
                 ],
                 "description": "carte_mentale : la disposition ; absente, la carte (branches tout autour du centre)."
               },
+              "apercu": {
+                "type": "boolean",
+                "description": "page : sa carte montre le début du texte (34 UG de large) ; absent, une feuille et son titre (10 UG)."
+              },
               "largeur": {
                 "type": "integer",
                 "minimum": 8,
                 "maximum": 120,
-                "description": "La largeur en unités de grille ; absente, celle que l’app donne à ce type."
+                "description": "La largeur en unités de grille ; absente, celle que l’app donne à ce type (une page a la sienne)."
               }
             },
             "required": [
@@ -429,7 +434,8 @@
                   "titre",
                   "taches",
                   "lien",
-                  "table"
+                  "table",
+                  "page"
                 ],
                 "description": "note : un texte (Markdown simple : titres #, listes -, gras **, italique _, liens). titre : un titre posé sur la toile, sans fond. taches : une liste de cases à cocher. lien : une adresse web, avec son aperçu. colonne : une colonne qui range des éléments. table : un petit tableur. carte_mentale : une carte mentale, depuis un plan imbriqué."
               },
@@ -502,11 +508,15 @@
                   }
                 }
               },
+              "apercu": {
+                "type": "boolean",
+                "description": "page : sa carte montre le début du texte (34 UG de large) ; absent, une feuille et son titre (10 UG)."
+              },
               "largeur": {
                 "type": "integer",
                 "minimum": 8,
                 "maximum": 120,
-                "description": "La largeur en unités de grille ; absente, celle que l’app donne à ce type."
+                "description": "La largeur en unités de grille ; absente, celle que l’app donne à ce type (une page a la sienne)."
               }
             },
             "required": [
@@ -546,13 +556,34 @@
                 },
                 "texte": {
                   "type": "string",
-                  "maxLength": 20000,
-                  "description": "note, titre : le nouveau texte, en Markdown simple."
+                  "maxLength": 50000,
+                  "description": "note, titre, page : le nouveau texte, en Markdown, qui remplace l’ancien. Pas sur une page `riche` : ajoute-lui plutôt du texte à la fin."
+                },
+                "ajouter_texte": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 50000,
+                  "description": "note, page : du Markdown ajouté à la fin du texte, sans toucher au reste."
+                },
+                "retirer_blocs": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 500,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{1,64}$"
+                  },
+                  "description": "page : retire ces blocs de son texte, par leur id ; ce qui défait un `ajouter_texte` (son `avant` les donne)."
+                },
+                "attendu": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{16}$",
+                  "description": "page : l’empreinte de son texte tel que tu l’as lu ou laissé ; s’il a changé depuis, rien ne se fait (`modifie_depuis`)."
                 },
                 "titre": {
                   "type": "string",
                   "maxLength": 300,
-                  "description": "taches, colonne, table, lien ; carte_mentale : le sujet central."
+                  "description": "taches, colonne, table, lien, page ; carte_mentale : le sujet central."
                 },
                 "couleur": {
                   "type": "string",

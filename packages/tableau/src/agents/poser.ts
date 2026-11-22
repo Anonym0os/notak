@@ -5,7 +5,7 @@ import { type Arbre, type Id, LARGEUR_COLONNE, LARGEUR_NOTE, type StructureArbre
 import { LARGEUR_TACHES, docVide } from '../elements/taches/liste.ts'
 import { ajouterEnfant, carteNeuve, changerSujet, enfantsDe, lire, rattacher, renommer, supprimerBranches } from '../elements/arbre/modele/sujets.ts'
 import { type ContenuLu, type ElementLu, type NoeudTexte, type TableauLu, hauteurProbable, lignesDeTexte, lireTableau } from '../export/contenu.ts'
-import { docDeParagraphes, docDeTitre, docDepuisMarkdown, enLigne } from './texte.ts'
+import { docDePage, docDeParagraphes, docDeTitre, docDepuisMarkdown, enLigne } from './texte.ts'
 
 // Ce que la porte des agents écrit dans un tableau : les éléments neufs, faits comme l'app les fait (les constructeurs
 // de `packages/tableau` quand ils se chargent sous Node, leurs valeurs sinon), leur place sans chevauchement, les
@@ -15,6 +15,9 @@ import { docDeParagraphes, docDeTitre, docDepuisMarkdown, enLigne } from './text
 /** La largeur d'une carte mentale et celle d'une table neuve sur la toile (`elements/arbre/index.ts`, `table/grille.ts`). */
 export const LARGEUR_ARBRE = 40
 export const LARGEUR_TABLE = 34
+/** Une page sur la toile : une feuille et son titre, ou en vue carte avec le début de son texte (`document/texte.ts`). */
+export const LARGEUR_PAGE = 10
+export const LARGEUR_PAGE_CARTE = 34
 /** L'écart entre deux éléments posés ensemble, et entre deux groupes d'un rangement. */
 export const ECART = 2
 export const ECART_GROUPES = 4
@@ -38,7 +41,7 @@ export interface Boite {
 // ---- Les éléments neufs ----
 
 export interface ElementDemande {
-  type: 'note' | 'titre' | 'taches' | 'lien' | 'colonne' | 'table' | 'carte_mentale'
+  type: 'note' | 'titre' | 'taches' | 'lien' | 'colonne' | 'table' | 'carte_mentale' | 'page'
   texte?: string
   titre?: string
   couleur?: string
@@ -50,6 +53,8 @@ export interface ElementDemande {
   branches?: BrancheDemande[]
   structure?: string
   largeur?: number
+  /** page : la carte montre le début du texte. */
+  apercu?: boolean
 }
 
 export interface BrancheDemande {
@@ -163,6 +168,16 @@ export function construire(d: ElementDemande, maintenant: number, dansColonne = 
         return { ...n.element, parent: id, ordre }
       })
       return { element, enfants }
+    }
+    case 'page': {
+      // Le document de l'app (`nouveauDocument`) : sa largeur est fixe, celle d'une feuille ou celle de la vue carte.
+      const titre = (d.titre ?? '').replace(/\s+/g, ' ').trim()
+      if (!titre) throw new ErreurAgent('arguments_invalides', 'page : « titre » manque (le titre de la page, en quelques mots).')
+      const carte = d.apercu === true
+      return {
+        element: { id, x: 0, y: 0, largeur: carte ? LARGEUR_PAGE_CARTE : LARGEUR_PAGE, contenu: { type: 'document', titre, texte: docDePage(d.texte ?? ''), ...couleur, ...(carte ? { carte: true } : {}) } },
+        enfants: [],
+      }
     }
     case 'carte_mentale': {
       if (dansColonne) throw new ErreurAgent('impossible', 'Une carte mentale ne se range pas dans une colonne ici : pose-la sur la toile.')

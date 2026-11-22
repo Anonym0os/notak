@@ -2858,6 +2858,17 @@ export function creerApp(ctx: Contexte): Hono {
       verrouille: (u, tableau) => verrouPar(base, u.id, tableau) !== null,
       lire: lireLe,
       modifier: (tableau, u, f) => modifierDocument(tableau, u, f, agent),
+      // Ce que chacun écrit, d'après la présence de ceux qui ont le tableau ouvert (`Toile.tsx` y signale `edition`).
+      enEdition: (tableau) => {
+        const ecrits = new Map<string, string | null>()
+        const vivant = ctx.synchro()?.documents.get(nomDuDocument(tableau))
+        for (const etat of vivant?.awareness.getStates().values() ?? []) {
+          if (typeof etat.edition !== 'string') continue
+          const nom = (etat.utilisateur as { nom?: unknown } | undefined)?.nom
+          ecrits.set(etat.edition, typeof nom === 'string' && nom ? nom : (ecrits.get(etat.edition) ?? null))
+        }
+        return ecrits
+      },
       caches: (u, t) => cachesPour(u.id, t),
       generes: generesPortes,
       creerToile: async (u, parent, titre, o) => {

@@ -54,6 +54,14 @@ describe('la porte des agents', () => {
     expect((await m.appeler('/api/tableaux', { compte: c, json: { id, titre } })).status).toBe(201)
     return id
   }
+  /** Change le document enregistré d'un tableau, comme l'app l'aurait fait (ce monde d'essai n'a pas de synchro). */
+  const ecrire = (tableau: string, f: (elements: Y.Map<Record<string, unknown>>) => void) => {
+    const doc = new Y.Doc()
+    Y.applyUpdate(doc, m.base.document(nomDuDocument(tableau))!)
+    f(doc.getMap<Record<string, unknown>>('elements'))
+    m.base.enregistrerDocument(nomDuDocument(tableau), Y.encodeStateAsUpdate(doc))
+    doc.destroy()
+  }
 
   beforeAll(async () => {
     m = monde({ rattachements: [SILAK, ETEINTE] })
@@ -290,6 +298,139 @@ describe('la porte des agents', () => {
       expect(lu(toile).elements.find((e) => e.id === note.id)!.corbeille).toBeUndefined()
     })
 
+    describe('les pages', () => {
+      let pages: string
+      beforeAll(async () => {
+        pages = await tableau(ana, 'pages-ana-01', 'Pages')
+      })
+      const md = '# Rendez-vous\nLe **12 décembre**, avec [le site](https://exemple.fr).\n- Devis\n- [ ] Rappeler'
+
+      it('ajouter_elements : une page, faite comme l’app, avec son adresse ; lire_tableau la lit en Markdown', async () => {
+        const r = await fait('ajouter_elements', {
+          tableau: pages,
+          elements: [
+            { type: 'page', titre: 'Wilfried Robert', texte: md, couleur: 'bleu' },
+            { type: 'page', titre: '  En   vue carte ', texte: 'Un début.', apercu: true },
+            { type: 'carte_mentale', central: 'Rendez-vous', branches: [{ titre: 'Avant' }] },
+          ],
+        })
+        const [page, carte, mentale] = r.crees
+        expect(page).toMatchObject({ type: 'page', l: 10, adresse: `${ORIGINE_ESSAI}/t/${pages}/e/${page.id}` })
+        expect(carte).toMatchObject({ type: 'page', l: 34 })
+        expect(mentale.adresse).toBe(`${ORIGINE_ESSAI}/t/${pages}/e/${mentale.id}`)
+        const el = lu(pages).elements.find((e) => e.id === page.id)!
+        expect(el.contenu).toMatchObject({ type: 'document', titre: 'Wilfried Robert', couleur: 'bleu' })
+        expect((el.contenu.texte as { content: { type: string }[] }).content.map((b) => b.type)).toEqual(['heading', 'paragraph', 'puce', 'tache'])
+        expect(lu(pages).elements.find((e) => e.id === carte.id)!.contenu).toMatchObject({ titre: 'En vue carte', carte: true })
+        const lecture = await fait('lire_tableau', { tableau: pages })
+        const lue = lecture.elements.find((e: { id: string }) => e.id === page.id)
+        expect(lue).toMatchObject({ type: 'page', titre: 'Wilfried Robert', texte: md, couleur: 'bleu', adresse: page.adresse, empreinte: expect.stringMatching(/^[0-9a-f]{16}$/) })
+        expect(lue.riche).toBeUndefined()
+        expect(lecture.elements.find((e: { id: string }) => e.id === carte.id)).toMatchObject({ apercu: true })
+        expect(lecture.elements.find((e: { id: string }) => e.id === mentale.id).adresse).toBe(mentale.adresse)
+        expect(await agir('ajouter_elements', { tableau: pages, elements: [{ type: 'page', texte: 'sans titre' }] })).toMatchObject({ statut: 400, corps: { code: 'arguments_invalides' } })
+      })
+
+      it('lire_tableau : le début d’une longue page dans le tableau entier, son texte entier quand on la lit seule', async () => {
+        const long = Array.from({ length: 400 }, (_, i) => `Paragraphe ${i} du compte rendu.`).join('\n')
+        const r = await fait('ajouter_elements', { tableau: pages, elements: [{ type: 'page', titre: 'Compte rendu', texte: long }] })
+        const id = r.crees[0].id
+        const entier = (await fait('lire_tableau', { tableau: pages })).elements.find((e: { id: string }) => e.id === id)
+        expect(entier).toMatchObject({ tronque: true })
+        expect(entier.texte.length).toBe(4000)
+        const seule = (await fait('lire_tableau', { tableau: pages, elements: [id] })).elements[0]
+        expect(seule.texte).toBe(long)
+        expect(seule.tronque).toBeUndefined()
+        expect(seule.empreinte).toBe(entier.empreinte)
+      })
+
+      it('modifier_elements : le texte d’une page, puis l’annulation par avant, qui n’écrase pas une retouche', async () => {
+        const id = (await fait('ajouter_elements', { tableau: pages, elements: [{ type: 'page', titre: 'Note de cadrage', texte: md }] })).crees[0].id
+        const { empreinte } = (await fait('lire_tableau', { tableau: pages, elements: [id] })).elements[0]
+        const r = await fait('modifier_elements', { tableau: pages, modifications: [{ id, texte: '# Rendez-vous\nLe **13 décembre**.', attendu: empreinte, titre: 'Cadrage', couleur: 'vert' }] })
+        expect(r.modifies).toEqual([id])
+        expect(r.avant[id]).toEqual({ texte: md, titre: 'Note de cadrage', couleur: 'aucune', attendu: r.empreintes[id] })
+        expect(lu(pages).elements.find((e) => e.id === id)!.contenu).toMatchObject({ titre: 'Cadrage', couleur: 'vert' })
+        // Une empreinte qui n'est plus celle du texte : rien ne change.
+        const perime = await agir('modifier_elements', { tableau: pages, modifications: [{ id, texte: 'perdu', attendu: empreinte }] })
+        expect(perime).toMatchObject({ statut: 409, corps: { code: 'modifie_depuis' } })
+        // L'annulation : avant, renvoyé tel quel.
+        await fait('modifier_elements', { tableau: pages, modifications: [{ id, ...r.avant[id] }] })
+        expect((await fait('lire_tableau', { tableau: pages, elements: [id] })).elements[0]).toMatchObject({ texte: md, titre: 'Note de cadrage', empreinte })
+        // Retouchée à la main après le geste de l'agent : son annulation ne l'écrase pas.
+        const geste = await fait('modifier_elements', { tableau: pages, modifications: [{ id, texte: 'Version de l’agent' }] })
+        ecrire(pages, (elements) => {
+          const e = elements.get(id)!
+          elements.set(id, { ...e, contenu: { ...(e.contenu as object), texte: docDePage('Version de l’agent, retouchée par Ana') } })
+        })
+        expect(await agir('modifier_elements', { tableau: pages, modifications: [{ id, ...geste.avant[id] }] })).toMatchObject({ statut: 409, corps: { code: 'modifie_depuis' } })
+        expect((await fait('lire_tableau', { tableau: pages, elements: [id] })).elements[0].texte).toBe('Version de l’agent, retouchée par Ana')
+      })
+
+      it('modifier_elements : ajouter à la fin d’une page ou d’une note, puis le défaire', async () => {
+        const [page, note] = (await fait('ajouter_elements', { tableau: pages, elements: [{ type: 'page', titre: 'Suivi', texte: md }, { type: 'note', texte: 'Une note' }] })).crees.map((c: { id: string }) => c.id)
+        const r = await fait('modifier_elements', {
+          tableau: pages,
+          modifications: [
+            { id: page, ajouter_texte: '## Prochaines étapes\n- Envoyer le devis' },
+            { id: note, ajouter_texte: '- un point de plus' },
+          ],
+        })
+        expect(r.avant[page]).toEqual({ retirer_blocs: [expect.stringMatching(/^[0-9a-z]{10}$/), expect.stringMatching(/^[0-9a-z]{10}$/)], attendu: r.empreintes[page] })
+        expect(r.avant[note]).toEqual({ texte: 'Une note' })
+        const apres = (await fait('lire_tableau', { tableau: pages, elements: [page, note] })).elements
+        expect(apres.find((e: { id: string }) => e.id === page).texte).toBe(`${md}\n## Prochaines étapes\n- Envoyer le devis`)
+        expect(apres.find((e: { id: string }) => e.id === note).texte).toBe('Une note\n- un point de plus')
+        const defait = await fait('modifier_elements', { tableau: pages, modifications: [{ id: page, ...r.avant[page] }, { id: note, ...r.avant[note] }] })
+        // Défaire le retrait remettrait les blocs à la fin.
+        expect(defait.avant[page]).toEqual({ ajouter_texte: '## Prochaines étapes\n- Envoyer le devis', attendu: defait.empreintes[page] })
+        const remis = (await fait('lire_tableau', { tableau: pages, elements: [page, note] })).elements
+        expect(remis.find((e: { id: string }) => e.id === page).texte).toBe(md)
+        expect(remis.find((e: { id: string }) => e.id === note).texte).toBe('Une note')
+        expect(await agir('modifier_elements', { tableau: pages, modifications: [{ id: note, retirer_blocs: ['abc'] }] })).toMatchObject({ statut: 422, corps: { code: 'impossible' } })
+        expect(await agir('modifier_elements', { tableau: pages, modifications: [{ id: note, texte: 'x', attendu: '0123456789abcdef' }] })).toMatchObject({ statut: 422, corps: { code: 'impossible' } })
+        expect(await agir('modifier_elements', { tableau: pages, modifications: [{ id: page, texte: 'x', ajouter_texte: 'y' }] })).toMatchObject({ statut: 400, corps: { code: 'arguments_invalides' } })
+      })
+
+      it('une page riche ne se récrit pas d’un bloc ; on y ajoute à la fin', async () => {
+        const id = (await fait('ajouter_elements', { tableau: pages, elements: [{ type: 'page', titre: 'Avec une image', texte: 'Avant l’image' }] })).crees[0].id
+        ecrire(pages, (elements) => {
+          const e = elements.get(id)!
+          const c = e.contenu as { texte: { content: unknown[] } }
+          elements.set(id, { ...e, contenu: { ...c, texte: { ...c.texte, content: [...c.texte.content, { type: 'image', attrs: { id: 'img0000001', fichier: 'f1' } }] } } })
+        })
+        expect((await fait('lire_tableau', { tableau: pages, elements: [id] })).elements[0]).toMatchObject({ riche: true })
+        const refus = await agir('modifier_elements', { tableau: pages, modifications: [{ id, texte: 'Tout récrit' }] })
+        expect(refus).toMatchObject({ statut: 422, corps: { code: 'impossible' } })
+        expect(refus.corps.erreur).toContain('ajouter_texte')
+        await fait('modifier_elements', { tableau: pages, modifications: [{ id, ajouter_texte: 'Après l’image' }] })
+        const blocs = (lu(pages).elements.find((e) => e.id === id)!.contenu.texte as { content: { type: string }[] }).content.map((b) => b.type)
+        expect(blocs).toEqual(['paragraph', 'image', 'paragraph'])
+      })
+
+      it('un dossier et l’accueil ne rangent que des pages, des cartes mentales et des liens', async () => {
+        const dossier = (await fait('creer_tableau', { titre: 'Clients en cours', dans: pages, dossier: true })).tableau.id
+        const refus = await agir('ajouter_elements', { tableau: dossier, elements: [{ type: 'page', titre: 'Fiche' }, { type: 'note', texte: 'perdue' }] })
+        expect(refus).toMatchObject({ statut: 422, corps: { code: 'impossible' } })
+        expect(refus.corps.erreur).toContain('« note »')
+        expect(lu(dossier).elements).toHaveLength(0)
+        const r = await fait('ajouter_elements', {
+          tableau: dossier,
+          elements: [{ type: 'page', titre: 'Fiche' }, { type: 'carte_mentale', central: 'Idées' }, { type: 'lien', url: 'https://exemple.fr' }],
+        })
+        // Dans un dossier, une page ou une carte s'ouvre en grand ; un lien se choisit dans la bibliothèque.
+        expect(r.crees.map((c: { adresse: string }) => c.adresse)).toEqual([
+          `${ORIGINE_ESSAI}/t/${dossier}/e/${r.crees[0].id}`,
+          `${ORIGINE_ESSAI}/t/${dossier}/e/${r.crees[1].id}`,
+          `${ORIGINE_ESSAI}/?dossier=${dossier}&element=${r.crees[2].id}`,
+        ])
+        expect(await agir('ajouter_elements', { tableau: ana.utilisateur.racine, elements: [{ type: 'taches', taches: [{ texte: 'x' }] }] })).toMatchObject({
+          statut: 422,
+          corps: { code: 'impossible' },
+        })
+      })
+    })
+
     it('la même demande renvoyée ne refait rien ; le même identifiant pour une autre est refusé', async () => {
       const avant = lu(toile).elements.length
       const une = await agir('ajouter_elements', { tableau: toile, elements: [{ type: 'note', texte: 'une fois' }] }, { id: 'essai-idempotent-1' })
@@ -396,6 +537,7 @@ describe('la porte des agents, par la synchro comme en production', () => {
   afterAll(() => m.fermer())
 
   it('écrit en direct dans le document ouvert, et l’activité dit « Ana avec Fram »', async () => {
+    let corpsPage = ''
     m = monde({ rattachements: [SILAK], synchro: () => serveur })
     serveur = creerHocuspocus(m.base, m.auth, m.autorisation, m.maintenant)
     ana = await m.compte('Ana')
@@ -415,6 +557,27 @@ describe('la porte des agents, par la synchro comme en production', () => {
     const vus = [...ouvert.document!.getMap<{ contenu: { type: string } }>('elements').values()].map((e) => e.contenu.type).sort()
     expect(vus).toEqual(['arbre', 'note'])
     expect(ouvert.document!.getMap('arbres').size).toBe(2)
+    // Une page ouverte en écriture (la présence le dit) ne se récrit pas ; refermée, si.
+    const page = await m.appelerBrut('/api/outils/silak/agent', {
+      method: 'POST',
+      headers: { 'notak-signature': signer(SECRET, (corpsPage = JSON.stringify({ id: 'essai-direct-0002', au_nom_de: { sujet: 'silak-ana' }, operation: 'ajouter_elements', arguments: { tableau: 'direct-ana-1', elements: [{ type: 'page', titre: 'Compte rendu', texte: 'Début' }] } })), m.maintenant()) },
+      body: corpsPage,
+    })
+    const idPage = ((await page.json()) as Reponse).resultat!.crees[0].id as string
+    // Ce qu'un client signale en ouvrant la page en grand (la présence du serveur, ici, tient lieu de la sienne).
+    const presence = ouvert.document!.awareness
+    presence.setLocalState({ utilisateur: { id: 'u-bob', nom: 'Bob', couleur: '#000' }, edition: idPage })
+    const changer = async (n: number) => {
+      const corps = JSON.stringify({ id: `essai-direct-01${n}`, au_nom_de: { sujet: 'silak-ana' }, operation: 'modifier_elements', arguments: { tableau: 'direct-ana-1', modifications: [{ id: idPage, ajouter_texte: 'Suite' }] } })
+      const r = await m.appelerBrut('/api/outils/silak/agent', { method: 'POST', headers: { 'notak-signature': signer(SECRET, corps, m.maintenant()) }, body: corps })
+      return { statut: r.status, corps: (await r.json()) as Reponse }
+    }
+    const refus = await changer(1)
+    expect(refus).toMatchObject({ statut: 423, corps: { code: 'en_edition' } })
+    expect(refus.corps.erreur).toContain('par Bob')
+    presence.setLocalState({ utilisateur: { id: 'u-bob', nom: 'Bob', couleur: '#000' }, edition: null })
+    expect((await changer(2)).statut).toBe(200)
+    presence.setLocalState(null)
     await ouvert.disconnect()
     const gestes = m.base.activite('direct-ana-1', 10)
     expect(gestes.length).toBeGreaterThan(0)

@@ -1,7 +1,7 @@
 import type { Arbre } from '../coeur/tableau.ts'
 import { enfantsDe, lire } from '../elements/arbre/modele/sujets.ts'
 import { type Boite, boitesDe, chevauche, hauteurDe, placeParDefaut } from './poser.ts'
-import { markdownDepuisDoc, texteSimple } from './texte.ts'
+import { markdownDePage, markdownDepuisDoc, pageRiche, texteSimple } from './texte.ts'
 import { type ElementLu, type NoeudTexte, type TableauLu, texteDesFils } from '../export/contenu.ts'
 
 // Ce qu'un agent lit d'un tableau : chaque élément en clair (son texte en Markdown, une carte mentale en plan imbriqué,
@@ -46,8 +46,12 @@ export function tachesDe(doc: unknown): { texte: string; faite: boolean; niveau?
 
 const chaine = (v: unknown) => (typeof v === 'string' ? v : '')
 
-/** Ce qu'un agent lit d'un élément, par son type, sans sa place. */
-function corps(e: ElementLu, titreDe: (id: string) => string | undefined): Record<string, unknown> {
+/** Le texte d'une page, au plus : en entier quand on la lit seule (`seulement`), son début dans le tableau entier. */
+export const TEXTE_PAGE_MAX = 50_000
+export const DEBUT_PAGE = 4_000
+
+/** Ce qu'un agent lit d'un élément, par son type, sans sa place. `entier` : le texte entier d'une page. */
+function corps(e: ElementLu, titreDe: (id: string) => string | undefined, entier = false): Record<string, unknown> {
   const c = e.contenu
   switch (c.type) {
     case 'note':
@@ -90,8 +94,20 @@ function corps(e: ElementLu, titreDe: (id: string) => string | undefined): Recor
       return { type: 'image', ...(chaine(c.legende) ? { legende: c.legende } : {}) }
     case 'fichier':
       return { type: 'fichier', nom: chaine(c.titre) || chaine(c.nom) }
-    case 'document':
-      return { type: 'document', titre: chaine(c.titre), texte: texteSimple(c.texte as NoeudTexte).slice(0, 4000) }
+    case 'document': {
+      // Une page, en Markdown : celui qu'on lui écrit (`texte`, `ajouter_texte`). Riche, elle ne se récrit pas d'un bloc.
+      const texte = markdownDePage(c.texte)
+      const max = entier ? TEXTE_PAGE_MAX : DEBUT_PAGE
+      return {
+        type: 'page',
+        titre: chaine(c.titre),
+        texte: texte.slice(0, max),
+        ...(texte.length > max ? { tronque: true } : {}),
+        ...(chaine(c.couleur) ? { couleur: c.couleur } : {}),
+        ...(c.carte === true ? { apercu: true } : {}),
+        ...(pageRiche(c) ? { riche: true } : {}),
+      }
+    }
     case 'commentaire':
       return { type: 'commentaire', texte: texteDesFils({ ...e, commentaire: c }).slice(0, 2000) }
     case 'nuancier':
@@ -145,7 +161,7 @@ export function lirePourAgent(
         : b
           ? { x: b.x, y: b.y, l: b.l, h: b.h }
           : { x: Math.round(e.x), y: Math.round(e.y), l: Math.round(e.largeur) }
-      const lu = corps(e, titreDe)
+      const lu = corps(e, titreDe, !!o.seulement?.includes(e.id))
       const range = e.contenu.type === 'colonne' ? { elements: (enfants.get(e.id) ?? []).map((x) => x.id) } : {}
       return {
         id: e.id,

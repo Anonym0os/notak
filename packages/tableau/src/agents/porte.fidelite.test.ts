@@ -10,7 +10,8 @@ import { lireElement } from '../coeur/valider'
 import type { NoeudTexte } from '../coeur/tableau'
 import { SCHEMA_BLOCS } from '../blocs/schema'
 import { idsManquants, nouvelIdBloc } from '../blocs/ids'
-import { LARGEUR_ARBRE, LARGEUR_TABLE, construire } from './poser.ts'
+import { LARGEUR_DOCUMENT, LARGEUR_DOCUMENT_CARTE } from '../elements/document/texte'
+import { LARGEUR_ARBRE, LARGEUR_PAGE, LARGEUR_PAGE_CARTE, LARGEUR_TABLE, construire } from './poser.ts'
 import { blocsDePage, docDePage, idDeBloc } from './texte.ts'
 
 // La porte des agents du serveur (apps/serveur/src/agents.ts, docs/AGENTS.md) vit hors de ce paquet ; l'essai est ici,
@@ -75,6 +76,9 @@ describe('ce que pose la porte, tel que l’app le lit', () => {
       construire({ type: 'table', lignes: [['a', 'b', 'c', 'd']] }, Date.now()),
       construire({ type: 'colonne', titre: 'C', elements: [{ type: 'note', texte: 'y' }] }, Date.now()),
       construire({ type: 'carte_mentale', central: 'C', branches: [{ titre: 'b', enfants: [{ titre: 'c' }] }] }, Date.now()),
+      construire({ type: 'page', titre: 'Wilfried Robert', texte: '# Rendez-vous\n- Devis', couleur: 'bleu' }, Date.now()),
+      construire({ type: 'page', titre: 'En vue carte', texte: '', apercu: true }, Date.now()),
+      construire({ type: 'colonne', titre: 'C', elements: [{ type: 'page', titre: 'Dans la colonne' }] }, Date.now()),
     ]
     for (const n of neufs) {
       for (const e of [n.element, ...n.enfants]) expect(lireElement({ ...e, plan: 'V' }, e.id), JSON.stringify(e)).not.toBeNull()
@@ -84,5 +88,7 @@ describe('ce que pose la porte, tel que l’app le lit', () => {
   it('les tailles sont celles de l’app', () => {
     expect(LARGEUR_ARBRE).toBe(LARGEUR_ARBRE_APP)
     expect(LARGEUR_TABLE).toBe(LARGEUR_TABLE_DEPART)
+    expect(LARGEUR_PAGE).toBe(LARGEUR_DOCUMENT)
+    expect(LARGEUR_PAGE_CARTE).toBe(LARGEUR_DOCUMENT_CARTE)
   })
 })

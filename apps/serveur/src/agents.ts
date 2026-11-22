@@ -1,8 +1,10 @@
+import { createHash } from 'node:crypto'
 import type * as Y from 'yjs'
 import { cleEntre } from '../../../packages/tableau/src/coeur/ordre.ts'
 import { type DroitsTableau, permis } from '../../../packages/tableau/src/coeur/reglesDroits.ts'
 import type { Arbre } from '../../../packages/tableau/src/coeur/tableau.ts'
-import type { NomOperation } from './agentsContrat.ts'
+import { type Lieu, adresseDe } from './adresses.ts'
+import { type NomOperation, TYPES_DE_DOSSIER } from './agentsContrat.ts'
 import { englobante, lirePourAgent, planDeLArbre, tachesDe } from '../../../packages/tableau/src/agents/lire.ts'
 import {
   type Boite,
@@ -26,7 +28,19 @@ import {
   placeParDefaut,
   placePres,
 } from '../../../packages/tableau/src/agents/poser.ts'
-import { docDeTitre, docDepuisMarkdown, markdownDepuisDoc, texteSimple } from '../../../packages/tableau/src/agents/texte.ts'
+import {
+  ajouterAPage,
+  blocsDePage,
+  docDePage,
+  docDeTitre,
+  docDepuisMarkdown,
+  idsDesBlocs,
+  markdownDePage,
+  markdownDepuisDoc,
+  pageRiche,
+  retirerDePage,
+  texteSimple,
+} from '../../../packages/tableau/src/agents/texte.ts'
 import type { Base, Utilisateur } from './base.ts'
 import type { ElementLu, NoeudTexte, TableauLu } from './contenu.ts'
 
@@ -56,6 +70,11 @@ export interface DependancesPorte {
   lire(tableau: string): TableauLu
   /** Change le document du tableau au nom de la personne, avec l'agent (l'activité les dit ensemble). */
   modifier(tableau: string, u: Utilisateur, f: (doc: Y.Doc) => void): Promise<void>
+  /**
+   * Les éléments que quelqu'un écrit en ce moment sur ce tableau (la présence de la synchro, son champ `edition`), avec
+   * son nom s'il le dit. Une page ouverte en grand l'est : son éditeur récrira son contenu, par-dessus ce qu'on y aurait mis.
+   */
+  enEdition(tableau: string): Map<string, string | null>
   /** Les cartes que la personne ne doit pas voir dans ce tableau. */
   caches(u: Utilisateur, t: TableauLu): Promise<Set<string>>
   /** Les cartes de dossiers générés par un outil que ce tableau porte : elles restent où elles sont. */
@@ -77,9 +96,14 @@ const ID_TABLEAU = /^[A-Za-z0-9_-]{8,64}$/
 export function creerPorte(d: DependancesPorte) {
   const { base } = d
   const titreDe = (id: string) => base.tableau(id)?.titre
-  /** L'adresse d'un tableau dans l'app (`Partage.tsx`) ; un dossier s'ouvre dans la bibliothèque, jamais en toile. */
-  const adresse = (id: string, dossier = d.estDossier(id)) =>
-    dossier ? `${d.origine ?? ''}/?dossier=${encodeURIComponent(id)}` : `${d.origine ?? ''}/t/${encodeURIComponent(id)}`
+  /** L'accueil d'un espace : ce qu'il porte se montre dans la bibliothèque, comme ce que range un dossier. */
+  const estAccueil = (id: string) => {
+    const espace = base.tableau(id)?.espace
+    return !!espace && base.espace(espace)?.racine === id
+  }
+  /** L'adresse d'une chose dans l'app, comme « Copier le lien » de la bibliothèque (`adresses.ts`). */
+  const adresse = (lieu: Lieu, dossier?: boolean) =>
+    adresseDe(lieu, { origine: d.origine, estDossier: (x) => (x === lieu.tableau && dossier !== undefined ? dossier : d.estDossier(x)), estAccueil })
 
   /** Les droits de la personne sur ce tableau ; ce qu'il faut pour le lire, ou pour l'écrire. */
   const acces = async (u: Utilisateur, tableau: string, ecrire: boolean): Promise<DroitsTableau> => {
@@ -151,7 +175,15 @@ export function creerPorte(d: DependancesPorte) {
       if (!t.elements.some((e) => e.id === x)) throw new ErreurAgent('element_introuvable', `Élément introuvable : ${x}. Lis le tableau entier (sans « elements ») pour retrouver ses identifiants.`)
     }
     const lu = lirePourAgent(t, { titreDe, corbeille: a.corbeille === true, ...(seulement ? { seulement } : {}), caches: await d.caches(u, t) })
-    return { tableau: { id, titre: titreDe(id) ?? t.titre, droits: droits.role, adresse: adresse(id), ...(t.dossier ? { dossier: true } : {}) }, ...lu }
+    // Une page se lit avec l'empreinte de son texte entier (`attendu`), et une page ou une carte mentale avec son adresse.
+    const parId = new Map(t.elements.map((e) => [e.id, e]))
+    const elements = lu.elements.map((x) => {
+      const el = x.id as string
+      if (x.type === 'page') return { ...x, empreinte: empreinteDe(markdownDePage(parId.get(el)?.contenu.texte)), adresse: adresse({ tableau: id, element: el, type: 'page' }) }
+      if (x.type === 'carte_mentale') return { ...x, adresse: adresse({ tableau: id, element: el, type: 'carte_mentale' }) }
+      return x
+    })
+    return { tableau: { id, titre: titreDe(id) ?? t.titre, droits: droits.role, adresse: adresse({ tableau: id }), ...(t.dossier ? { dossier: true } : {}) }, ...lu, elements }
   }
 
   // ---- creer_tableau ----
@@ -182,7 +214,7 @@ export function creerPorte(d: DependancesPorte) {
     }
     const { id, carte } = await d.creerToile(u, parent, titre, { ...(a.dossier === true ? { dossier: true } : {}), ...(typeof a.couleur === 'string' ? { couleur: a.couleur } : {}) })
     // `carte` : l'élément qui le range dans `dans` ; le jeter (jeter_elements) met le tableau à la corbeille, comme dans l'app.
-    return { tableau: { id, titre, adresse: adresse(id, a.dossier === true) }, dans: { id: parent, titre: titreDe(parent) ?? '' }, ...(carte ? { carte } : {}) }
+    return { tableau: { id, titre, adresse: adresse({ tableau: id }, a.dossier === true) }, dans: { id: parent, titre: titreDe(parent) ?? '' }, ...(carte ? { carte } : {}) }
   }
 
   // ---- ajouter_elements ----
@@ -191,6 +223,19 @@ export function creerPorte(d: DependancesPorte) {
     const id = a.tableau as string
     const droits = await acces(u, id, true)
     const demandes = a.elements as ElementDemande[]
+    // Un dossier, et l'accueil d'un espace, se montrent dans la bibliothèque, qui n'y montre que des pages, des cartes
+    // mentales et des liens : une note posée là ne se verrait pas.
+    if (d.estDossier(id) || estAccueil(id) || id === u.racine) {
+      const autres = demandes.filter((x) => !(TYPES_DE_DOSSIER as readonly string[]).includes(x.type))
+      if (autres.length) {
+        const ou = d.estDossier(id) ? `le dossier « ${titreDe(id) ?? ''} »` : 'l’accueil'
+        throw new ErreurPorte(
+          422,
+          'impossible',
+          `On ne range dans ${ou} que des pages, des cartes mentales et des liens (${autres.map((x) => `« ${x.type} »`).join(', ')} ne s’y verrait pas). Pour le reste, crée un tableau dedans (creer_tableau), puis pose-y les éléments.`,
+        )
+      }
+    }
     const place = (a.place ?? {}) as { pres_de?: string; cote?: 'droite' | 'dessous' | 'gauche' | 'dessus'; dans_colonne?: string; x?: number; y?: number; disposition?: 'ligne' | 'pile' | 'grille' }
     const maintenant = d.maintenant()
     const crees: Record<string, unknown>[] = []
@@ -207,7 +252,7 @@ export function creerPorte(d: DependancesPorte) {
             ordre = cleEntre(ordre, undefined)
             const e = { ...n.element, x: col.x, y: col.y, parent: col.id, ordre }
             scribe.poser(e)
-            crees.push({ id: e.id, type: demandes[i]!.type, colonne: col.id, l: e.largeur, h: hauteurDe(e) })
+            crees.push({ id: e.id, type: demandes[i]!.type, colonne: col.id, l: e.largeur, h: hauteurDe(e), adresse: adresse({ tableau: id, element: e.id, type: demandes[i]!.type }) })
           }
         })
         return
@@ -238,6 +283,7 @@ export function creerPorte(d: DependancesPorte) {
             h: tailles[i]!.h,
             ...(n.enfants.length ? { elements: n.enfants.map((x) => x.id) } : {}),
             ...(n.arbre ? { plan: planDeLArbre(n.arbre).plan } : {}),
+            adresse: adresse({ tableau: id, element: e.id, type: demandes[i]!.type }),
           })
         }
       })
@@ -250,6 +296,9 @@ export function creerPorte(d: DependancesPorte) {
   interface Modification {
     id: string
     texte?: string
+    ajouter_texte?: string
+    retirer_blocs?: string[]
+    attendu?: string
     titre?: string
     couleur?: string
     taches?: { texte: string; faite?: boolean }[]
@@ -272,12 +321,17 @@ export function creerPorte(d: DependancesPorte) {
     // Ce que chaque champ changé valait avant la demande, dans les mots de l'opération : de quoi la défaire.
     const avant: Record<string, Record<string, unknown>> = {}
     const plansAvant: Record<string, unknown> = {}
+    // L'empreinte du texte de chaque page dont le texte change, tel qu'il sera : de quoi enchaîner, ou défaire sans écraser.
+    const empreintes: Record<string, string> = {}
+    // Ce que quelqu'un écrit en ce moment : une page ouverte en écriture ne se récrit pas (son éditeur la récrirait).
+    const editeurs = d.enEdition(id)
     await d.modifier(id, u, (doc) => {
       const scribe = new Scribe(doc)
       const t = scribe.lire()
       // Tout se prépare d'abord : une erreur au dixième changement n'en laisse pas neuf.
       const copies = new Map<string, Record<string, unknown>>()
       const cartes = new Map<string, { avant: Arbre; apres: Arbre }>()
+      const textesDePage = new Set<string>()
       for (const [i, m] of modifications.entries()) {
         const e = element(t, m.id, droits)
         const ou = `modifications[${i}]`
@@ -286,15 +340,40 @@ export function creerPorte(d: DependancesPorte) {
         const c = brut.contenu as Record<string, unknown>
         const type = c.type as string
         const titre = type === 'note' && c.variante === 'titre'
+        const page = type === 'document'
         const refus = (champ: string, pour: string) =>
-          new ErreurAgent('impossible', `${ou}.${champ} ne vaut que pour ${pour} ; ${m.id} est un élément « ${titre ? 'titre' : type === 'arbre' ? 'carte_mentale' : type} ».`)
+          new ErreurAgent('impossible', `${ou}.${champ} ne vaut que pour ${pour} ; ${m.id} est un élément « ${titre ? 'titre' : type === 'arbre' ? 'carte_mentale' : page ? 'page' : type} ».`)
+        const gestesDeTexte = [m.texte, m.ajouter_texte, m.retirer_blocs].filter((x) => x !== undefined).length
+        if (gestesDeTexte > 1) throw new ErreurAgent('arguments_invalides', `${ou} : texte, ajouter_texte et retirer_blocs ne vont pas ensemble ; un seul par modification.`)
+        if (page) {
+          if (gestesDeTexte || m.titre !== undefined || m.couleur !== undefined) {
+            const qui = editeurs.get(m.id)
+            if (qui !== undefined) {
+              throw new ErreurPorte(
+                423,
+                'en_edition',
+                `${ou} : la page « ${String(e.contenu.titre ?? '')} » est ouverte en écriture${qui ? ` (par ${qui})` : ''} ; rien n’a changé. Dis-le à la personne : une fois la page refermée, tu pourras la modifier.`,
+              )
+            }
+          }
+          if (gestesDeTexte && textesDePage.has(m.id)) throw new ErreurAgent('arguments_invalides', `${ou} : le texte de la page ${m.id} change déjà dans cette demande ; un seul changement de texte par page et par demande.`)
+          if (m.attendu !== undefined && empreinteDe(markdownDePage(e.contenu.texte)) !== m.attendu) {
+            throw new ErreurPorte(
+              409,
+              'modifie_depuis',
+              `${ou} : la page « ${String(e.contenu.titre ?? '')} » a changé depuis que tu l’as lue ou modifiée (quelqu’un l’a retouchée) ; rien n’a changé. Relis-la avec lire_tableau, et dis-le à la personne avant de récrire ce qu’elle a fait.`,
+            )
+          }
+        } else if (m.attendu !== undefined) throw refus('attendu', 'une page')
         // La valeur d'avant, notée la première fois que la demande touche ce champ.
         const noter = (champ: string, valeur: () => unknown) => {
           const deja = (avant[m.id] ??= {})
           if (!(champ in deja)) deja[champ] = valeur()
         }
         const initial = e.contenu as Record<string, unknown>
-        if (m.texte !== undefined) noter('texte', () => (titre ? texteSimple(initial.texte as NoeudTexte) : markdownDepuisDoc(initial.texte)))
+        if (m.texte !== undefined || (m.ajouter_texte !== undefined && !page)) {
+          noter('texte', () => (titre ? texteSimple(initial.texte as NoeudTexte) : page ? markdownDePage(initial.texte) : markdownDepuisDoc(initial.texte)))
+        }
         if (m.titre !== undefined && type !== 'arbre') {
           noter('titre', () => (titre ? texteSimple(initial.texte as NoeudTexte) : type === 'table' && initial.avecTitre === false ? '' : String(initial.titre ?? '')))
         }
@@ -334,8 +413,41 @@ export function creerPorte(d: DependancesPorte) {
           }
         }
         if (m.texte !== undefined) {
-          if (type !== 'note') throw refus('texte', 'une note ou un titre')
-          c.texte = titre ? docDeTitre(m.texte) : docDepuisMarkdown(m.texte)
+          if (page) {
+            if (pageRiche(initial)) {
+              throw new ErreurAgent(
+                'impossible',
+                `${ou}.texte : la page « ${String(initial.titre ?? '')} » porte ce que son Markdown ne dit pas (une image, des colonnes, un tableau, un passage commenté, une couleur…) : son texte ne se remplace pas d’un bloc. Ajoute à la fin avec ajouter_texte, ou demande à la personne de la retoucher.`,
+              )
+            }
+            c.texte = docDePage(m.texte)
+            textesDePage.add(m.id)
+          } else if (type === 'note') c.texte = titre ? docDeTitre(m.texte) : docDepuisMarkdown(m.texte)
+          else throw refus('texte', 'une note, un titre ou une page')
+        }
+        if (m.ajouter_texte !== undefined) {
+          if (page) {
+            const blocs = blocsDePage(m.ajouter_texte, idsDesBlocs(c.texte))
+            if (blocs.length === 0) throw new ErreurAgent('arguments_invalides', `${ou}.ajouter_texte : rien à ajouter (que des lignes vides).`)
+            c.texte = ajouterAPage(c.texte, blocs)
+            textesDePage.add(m.id)
+            // Le défaire : retirer ces blocs-là, et rien d'autre.
+            const deja = (avant[m.id] ??= {})
+            if (!('texte' in deja)) deja.retirer_blocs = [...((deja.retirer_blocs as string[] | undefined) ?? []), ...blocs.map((b) => b.attrs!.id as string)]
+          } else if (type === 'note' && !titre) {
+            const ajout = docDepuisMarkdown(m.ajouter_texte).content ?? []
+            const blocs = (c.texte as NoeudTexte | undefined)?.content ?? []
+            const vide = blocs.length === 0 || (blocs.length === 1 && blocs[0]!.type === 'paragraph' && !blocs[0]!.content?.length)
+            c.texte = { type: 'doc', content: [...(vide ? [] : blocs), ...ajout] }
+          } else throw refus('ajouter_texte', 'une note ou une page')
+        }
+        if (m.retirer_blocs !== undefined) {
+          if (!page) throw refus('retirer_blocs', 'une page')
+          const { doc: reste, retires } = retirerDePage(c.texte, new Set(m.retirer_blocs))
+          c.texte = reste
+          textesDePage.add(m.id)
+          // Le défaire : remettre à la fin ce qui est parti (là où était un ajout qu'on défait).
+          if (retires.length) noter('ajouter_texte', () => markdownDePage({ type: 'doc', content: retires }))
         }
         if (m.titre !== undefined) {
           const neuf = m.titre.trim()
@@ -343,7 +455,7 @@ export function creerPorte(d: DependancesPorte) {
           else if (type === 'taches' || type === 'lien') {
             if (neuf) c.titre = neuf
             else delete c.titre
-          } else if (type === 'colonne') c.titre = neuf
+          } else if (type === 'colonne' || page) c.titre = neuf
           else if (type === 'table') {
             if (neuf) Object.assign(c, { titre: neuf, avecTitre: true })
             else delete c.avecTitre
@@ -352,10 +464,10 @@ export function creerPorte(d: DependancesPorte) {
             const courant = cartes.get(m.id)?.apres ?? avant
             const central = planDeLArbre(courant).plan.id
             cartes.set(m.id, { avant, apres: gestesSurArbre(courant, [{ action: 'renommer', sujet: central, titre: neuf || 'Sujet central' }], m.id) })
-          } else throw refus('titre', 'une liste de tâches, une colonne, une table, un lien, un titre ou une carte mentale')
+          } else throw refus('titre', 'une liste de tâches, une colonne, une table, un lien, un titre, une page ou une carte mentale')
         }
         if (m.couleur !== undefined) {
-          if (!['note', 'taches', 'colonne', 'lien'].includes(type) || titre) throw refus('couleur', 'une note, une liste de tâches, une colonne ou un lien')
+          if (!['note', 'taches', 'colonne', 'lien', 'document'].includes(type) || titre) throw refus('couleur', 'une note, une liste de tâches, une colonne, un lien ou une page')
           delete c.fond
           if (m.couleur === 'aucune') delete c.couleur
           else c.couleur = m.couleur
@@ -388,6 +500,12 @@ export function creerPorte(d: DependancesPorte) {
         copies.set(m.id, brut)
         if (!modifies.includes(m.id)) modifies.push(m.id)
       }
+      // Le texte de chaque page, tel qu'il sera : son empreinte. Renvoyer `avant` défait le changement, sauf si la page a
+      // été retouchée d'ici là (`attendu`).
+      for (const x of textesDePage) {
+        empreintes[x] = empreinteDe(markdownDePage((copies.get(x)!.contenu as Record<string, unknown>).texte))
+        avant[x] = { ...avant[x], attendu: empreintes[x] }
+      }
       doc.transact(() => {
         for (const [x, brut] of copies) scribe.changer(x, () => brut)
         for (const [x, { avant, apres }] of cartes) {
@@ -396,7 +514,7 @@ export function creerPorte(d: DependancesPorte) {
         }
       })
     })
-    return { modifies, avant, ...(Object.keys(plans).length ? { plans, plans_avant: plansAvant } : {}) }
+    return { modifies, avant, ...(Object.keys(empreintes).length ? { empreintes } : {}), ...(Object.keys(plans).length ? { plans, plans_avant: plansAvant } : {}) }
   }
 
   // ---- ranger ----
@@ -658,6 +776,9 @@ export function creerPorte(d: DependancesPorte) {
     },
   }
 }
+
+/** L'empreinte du texte d'une page (son Markdown) : ce que `attendu` compare, pour ne rien récrire qui ait changé depuis. */
+export const empreinteDe = (texte: string) => createHash('sha256').update(texte).digest('hex').slice(0, 16)
 
 /** La boîte d'un élément sur la toile ; rangé dans une colonne, celle de sa colonne. */
 function boiteDe(t: TableauLu, e: ElementLu): Boite {

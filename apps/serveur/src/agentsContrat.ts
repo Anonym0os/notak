@@ -32,13 +32,22 @@ export const CORPS_AGENT_MAX = 512 * 1024
 export const COULEURS = ['gris', 'cyan', 'vert', 'brun', 'jaune', 'orange', 'rouge', 'rose', 'violet', 'bleu', 'bleu_nuit'] as const
 /** Les dispositions d'une carte mentale que la porte propose (docs/XMIND.md § 2), la carte d'abord. */
 export const STRUCTURES = ['carte', 'logique-droite', 'organigramme-bas', 'arbre-droite', 'chronologie-horizontale', 'accolade-droite', 'arete-droite'] as const
-export const TYPES_NEUFS = ['note', 'titre', 'taches', 'lien', 'colonne', 'table', 'carte_mentale'] as const
+export const TYPES_NEUFS = ['note', 'titre', 'taches', 'lien', 'colonne', 'table', 'carte_mentale', 'page'] as const
+/** Ce qu'un dossier ou l'accueil d'un espace range : ce que la bibliothèque y montre. */
+export const TYPES_DE_DOSSIER = ['page', 'carte_mentale', 'lien'] as const
+/** Le texte d'une note ou d'une page, au plus (celui d'une page qu'on lit seule, `lire_tableau`). */
+export const TEXTE_MAX = 50_000
 export type TypeNeuf = (typeof TYPES_NEUFS)[number]
 
 const ID_TABLEAU: Schema = { type: 'string', pattern: '^[A-Za-z0-9_-]{8,64}$', description: 'L’identifiant d’un tableau (ou d’un dossier), tel que `trouver` ou `lire_tableau` le rendent.' }
 const ID_ELEMENT: Schema = { type: 'string', minLength: 1, maxLength: 64, description: 'L’identifiant d’un élément, tel que `lire_tableau` le rend.' }
 const COULEUR: Schema = { type: 'string', enum: COULEURS, description: 'Une couleur de la palette des notes.' }
 const IDS: Schema = { type: 'array', items: ID_ELEMENT, minItems: 1, maxItems: 200 }
+const EMPREINTE: Schema = {
+  type: 'string',
+  pattern: '^[0-9a-f]{16}$',
+  description: 'L’empreinte du texte d’une page, telle que `lire_tableau` la rend (`empreinte`) ou que la dernière écriture l’a laissée (`empreintes`).',
+}
 
 const BRANCHE: Schema = {
   type: 'object',
@@ -101,7 +110,8 @@ const champsElementNeuf = (dansColonne: boolean): Record<string, Schema> => ({
         branches: { type: 'array', maxItems: 40, items: { $ref: '#/$defs/branche' }, description: 'carte_mentale : les branches principales, avec leurs sous-branches.' },
         structure: { type: 'string', enum: STRUCTURES, description: 'carte_mentale : la disposition ; absente, la carte (branches tout autour du centre).' },
       }),
-  largeur: { type: 'integer', minimum: 8, maximum: 120, description: 'La largeur en unités de grille ; absente, celle que l’app donne à ce type.' },
+  apercu: { type: 'boolean', description: 'page : sa carte montre le début du texte (34 UG de large) ; absent, une feuille et son titre (10 UG).' },
+  largeur: { type: 'integer', minimum: 8, maximum: 120, description: 'La largeur en unités de grille ; absente, celle que l’app donne à ce type (une page a la sienne).' },
 })
 
 const ELEMENT_NEUF: Schema = { type: 'object', additionalProperties: false, properties: champsElementNeuf(false), required: ['type'] }
@@ -232,8 +242,21 @@ export const OPERATIONS = {
             '',
             {
               id: ID_ELEMENT,
-              texte: { type: 'string', maxLength: 20000, description: 'note, titre : le nouveau texte, en Markdown simple.' },
-              titre: { type: 'string', maxLength: 300, description: 'taches, colonne, table, lien ; carte_mentale : le sujet central.' },
+              texte: {
+                type: 'string',
+                maxLength: TEXTE_MAX,
+                description: 'note, titre, page : le nouveau texte, en Markdown, qui remplace l’ancien. Pas sur une page `riche` : ajoute-lui plutôt du texte à la fin.',
+              },
+              ajouter_texte: { type: 'string', minLength: 1, maxLength: TEXTE_MAX, description: 'note, page : du Markdown ajouté à la fin du texte, sans toucher au reste.' },
+              retirer_blocs: {
+                type: 'array',
+                minItems: 1,
+                maxItems: 500,
+                items: { type: 'string', pattern: '^[A-Za-z0-9_-]{1,64}$' },
+                description: 'page : retire ces blocs de son texte, par leur id ; ce qui défait un `ajouter_texte` (son `avant` les donne).',
+              },
+              attendu: { ...EMPREINTE, description: 'page : l’empreinte de son texte tel que tu l’as lu ou laissé ; s’il a changé depuis, rien ne se fait (`modifie_depuis`).' },
+              titre: { type: 'string', maxLength: 300, description: 'taches, colonne, table, lien, page ; carte_mentale : le sujet central.' },
               couleur: { type: 'string', enum: [...COULEURS, 'aucune'], description: '`aucune` retire la couleur.' },
               taches: { ...TACHES, description: 'taches : la liste entière, qui remplace l’ancienne.' },
               cocher: {
