@@ -1,5 +1,5 @@
 import type * as Y from 'yjs'
-import { NOM_ARBRES, ecrireDifference, sansDicos, toutLire } from '../coeur/arbresYjs.ts'
+import { NOM_ARBRES, clesEcrites, ecrireDifference, sansDicos, toutLire } from '../coeur/arbresYjs.ts'
 import { cleEntre } from '../coeur/ordre.ts'
 import { type Arbre, type Id, LARGEUR_COLONNE, LARGEUR_NOTE, type StructureArbre, type Sujet, nouvelId } from '../coeur/tableau.ts'
 import { LARGEUR_TACHES, docVide } from '../elements/taches/liste.ts'
@@ -18,6 +18,8 @@ export const LARGEUR_TABLE = 34
 /** Une page sur la toile : une feuille et son titre, ou en vue carte avec le début de son texte (`document/texte.ts`). */
 export const LARGEUR_PAGE = 10
 export const LARGEUR_PAGE_CARTE = 34
+/** La carte d'une toile posée sur une autre (l'outil Toile, `elements/tableau/index.ts`). */
+export const LARGEUR_CARTE_TOILE = 10
 /** L'écart entre deux éléments posés ensemble, et entre deux groupes d'un rangement. */
 export const ECART = 2
 export const ECART_GROUPES = 4
@@ -358,6 +360,23 @@ export class Scribe {
     return { ...(c as unknown as Arbre), ...(toutLire(this.arbres).get(id) ?? {}) } as Arbre
   }
 
+  /**
+   * Retire un élément du document, et ce qui vit à part avec lui (son texte partagé, ses sujets), comme le `supprimer`
+   * du magasin. Ses clés sont scellées (`sceller`, `magasinYjs.ts`) : aucune annulation, ici ni chez un autre, ne le
+   * fait revenir.
+   */
+  retirer(id: string): void {
+    if (!this.brut(id)) return
+    const sceller = (carte: Y.Map<unknown>, cle: string) => {
+      carte.set(cle, null)
+      carte.delete(cle)
+    }
+    sceller(this.elements as Y.Map<unknown>, id)
+    for (const cle of clesEcrites(this.arbres, id)) sceller(this.arbres, cle)
+    this.doc.getMap('textes').delete(id)
+    this.doc.getMap('lignes').delete(id)
+  }
+
   /** Écrit ce qui change d'une carte mentale, sujet par sujet, et le reste de son contenu dans l'élément. */
   ecrireArbre(id: string, avant: Arbre, apres: Arbre): void {
     ecrireDifference(this.arbres, id, avant, apres)
@@ -365,6 +384,18 @@ export class Scribe {
     const e = this.brut(id)
     if (e && JSON.stringify(sansDicos(e.contenu as object)) !== JSON.stringify(reste)) this.changer(id, (x) => ({ ...x, contenu: reste }))
   }
+}
+
+/**
+ * La carte d'une toile `cible` à poser sur une autre, à la première place libre à droite de ce qui y est : celle d'avant
+ * (`modele`, son icône, son image, sa couleur) quand la toile change de porteur, sinon une carte neuve.
+ */
+export function carteDeToile(t: TableauLu, cible: string, maintenant: number, modele?: ElementLu): ElementLu {
+  const largeur = Math.round(modele?.largeur ?? LARGEUR_CARTE_TOILE)
+  const { titre: _titre, ...contenu } = (modele?.contenu ?? {}) as Record<string, unknown>
+  const e: ElementLu = { id: nouvelId(maintenant), x: 0, y: 0, largeur, contenu: { ...contenu, type: 'tableau', cible } }
+  const p = placeParDefaut(boitesDe(t), largeur, hauteurDe(e))
+  return { ...e, x: p.x, y: p.y }
 }
 
 // ---- Les branches d'une carte mentale ----

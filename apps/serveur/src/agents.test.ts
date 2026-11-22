@@ -507,6 +507,80 @@ describe('la porte des agents', () => {
       })
     })
 
+    describe('l’organisation', () => {
+      const carteDans = (porteur: string, cible: string) => lu(porteur).elements.filter((e) => e.contenu.type === 'tableau' && e.contenu.cible === cible && !e.contenu.raccourci)
+
+      it('modifier_tableau : le titre (aussitôt en base), la couleur, le dossier ; avant le défait', async () => {
+        const id = (await fait('creer_tableau', { titre: 'Brouillon' })).tableau.id as string
+        const r = await fait('modifier_tableau', { tableau: id, titre: '  Plan   2027 ', couleur: 'vert', dossier: true })
+        expect(r).toEqual({ tableau: { id, titre: 'Plan 2027', adresse: `${ORIGINE_ESSAI}/?dossier=${id}`, dossier: true }, avant: { titre: 'Brouillon', couleur: 'aucune', dossier: false } })
+        expect(m.base.tableau(id)!.titre).toBe('Plan 2027')
+        expect(lu(id)).toMatchObject({ titre: 'Plan 2027', couleur: 'vert', dossier: true })
+        expect((await fait('trouver', { texte: 'plan 2027' })).resultats).toEqual([expect.objectContaining({ tableau: id, titre: 'Plan 2027' })])
+        const defait = await fait('modifier_tableau', { tableau: id, ...r.avant })
+        expect(defait.tableau).toEqual({ id, titre: 'Brouillon', adresse: `${ORIGINE_ESSAI}/t/${id}` })
+        expect(lu(id).couleur).toBeUndefined()
+        expect(lu(id).dossier).toBeUndefined()
+        // Un dossier qu'un outil a fait reste tel quel ; l'accueil ne se montre pas en dossier.
+        const fiche = (await fait('trouver', { fiche: 'societe:7' })).fiche.tableau as string
+        expect(await agir('modifier_tableau', { tableau: fiche, titre: 'Autre' })).toMatchObject({ statut: 422, corps: { code: 'impossible' } })
+        expect(await agir('modifier_tableau', { tableau: ana.utilisateur.racine, dossier: true })).toMatchObject({ statut: 422, corps: { code: 'impossible' } })
+      })
+
+      it('deplacer : la carte change de porteur, avant.dans le remet ; une boucle se refuse d’une phrase', async () => {
+        const a = (await fait('creer_tableau', { titre: 'Prism' })).tableau.id as string
+        const dossier = (await fait('creer_tableau', { titre: 'Clients', dossier: true })).tableau.id as string
+        const racine = ana.utilisateur.racine
+        const r = await fait('deplacer', { tableau: a, vers: dossier })
+        expect(r).toMatchObject({
+          tableau: { id: a, titre: 'Prism', adresse: `${ORIGINE_ESSAI}/t/${a}` },
+          de: { id: racine },
+          vers: { id: dossier, titre: 'Clients' },
+          acces: { change: false, resume: 'Personne d’autre n’y gagne ni n’y perd l’accès.' },
+          avant: { dans: racine },
+        })
+        expect(m.base.tableau(a)!.parent).toBe(dossier)
+        expect(carteDans(dossier, a).map((e) => e.id)).toEqual([r.carte])
+        expect(carteDans(racine, a)).toEqual([])
+        expect((await fait('trouver', { dans: dossier })).contenu).toEqual([expect.objectContaining({ tableau: a, titre: 'Prism' })])
+        const boucle = await agir('deplacer', { tableau: dossier, vers: a })
+        expect(boucle).toMatchObject({ statut: 422, corps: { code: 'impossible' } })
+        expect(boucle.corps.erreur).toBe('« Prism » est rangé dans « Clients » : un tableau ne se range pas dans ce qu’il contient.')
+        expect(await agir('deplacer', { tableau: a, vers: a })).toMatchObject({ statut: 422 })
+        // Le remettre où il était.
+        const remis = await fait('deplacer', { tableau: a, vers: r.avant.dans })
+        expect(remis).toMatchObject({ de: { id: dossier }, vers: { id: racine }, avant: { dans: dossier } })
+        expect(m.base.tableau(a)!.parent).toBe(racine)
+        expect(carteDans(racine, a)).toHaveLength(1)
+        expect(carteDans(dossier, a)).toEqual([])
+        // Déjà là : rien ne bouge.
+        expect(await fait('deplacer', { tableau: a, vers: racine })).toMatchObject({ avant: { dans: racine }, acces: { change: false } })
+        expect(carteDans(racine, a)).toHaveLength(1)
+      })
+
+      it('deplacer : quand les accès changent, rien ne bouge sans l’accord ; essai le dit', async () => {
+        const a = (await fait('creer_tableau', { titre: 'Devis Prism' })).tableau.id as string
+        const commun = (await fait('creer_tableau', { titre: 'Avec Bob', dossier: true })).tableau.id as string
+        expect((await m.appeler(`/api/tableaux/${commun}/partage`, { compte: ana, json: { email: bob.utilisateur.email, role: 'edition' } })).status).toBe(200)
+        const essai = await fait('deplacer', { tableau: a, vers: commun, essai: true })
+        expect(essai).toMatchObject({ essai: true, acces: { change: true, gagnent: 1, perdent: 0, resume: '1 personne ou équipe y gagnerait l’accès.' } })
+        expect(m.base.tableau(a)!.parent).toBe(ana.utilisateur.racine)
+        const refus = await agir('deplacer', { tableau: a, vers: commun })
+        expect(refus).toMatchObject({ statut: 409, corps: { code: 'acces_change' } })
+        expect(refus.corps.erreur).toContain('1 personne ou équipe y gagnerait l’accès')
+        expect(carteDans(commun, a)).toEqual([])
+        const fait2 = await fait('deplacer', { tableau: a, vers: commun, accepter_acces: true })
+        expect(fait2.acces).toMatchObject({ change: true, gagnent: 1 })
+        expect(m.base.tableau(a)!.parent).toBe(commun)
+        // Bob peut écrire dans le dossier, sans posséder le tableau d'Ana : il ne le range pas ailleurs.
+        lier(bob, 'silak-bob')
+        const parBob = await agir('deplacer', { tableau: a, vers: bob.utilisateur.racine }, { au_nom_de: { sujet: 'silak-bob' } })
+        expect(parBob).toMatchObject({ statut: 403, corps: { code: 'interdit' } })
+        // L'accueil ne se range nulle part.
+        expect(await agir('deplacer', { tableau: ana.utilisateur.racine, vers: commun })).toMatchObject({ statut: 422, corps: { code: 'impossible' } })
+      })
+    })
+
     it('la même demande renvoyée ne refait rien ; le même identifiant pour une autre est refusé', async () => {
       const avant = lu(toile).elements.length
       const une = await agir('ajouter_elements', { tableau: toile, elements: [{ type: 'note', texte: 'une fois' }] }, { id: 'essai-idempotent-1' })

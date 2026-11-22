@@ -48,7 +48,7 @@ import {
   titreDuDossier,
 } from './rattachements.ts'
 import type { Limiteur } from './debit.ts'
-import { AUCUN_CHANGEMENT, bilanDuRangement, rienNeChange } from './rangement.ts'
+import { AUCUN_CHANGEMENT, type Bilan, bilanDuRangement, rienNeChange } from './rangement.ts'
 import { RELATION_DU_ROLE, type Role, auMoins, role, roleDeRelation } from './droits.ts'
 import { decouvrirOidc } from './sso.ts'
 import { routesAgent } from './fram.ts'
@@ -1529,30 +1529,44 @@ export function creerApp(ctx: Contexte): Hono {
     const g = await garde(c, 'proprietaire')
     if (g instanceof Response) return g
     const b = await corps(c)
-    const parent = texte(b?.parent)
-    const ligne = base.tableau(g.id)
+    const r = await rangerLaToile(g.u, g.id, texte(b?.parent), { essai: b?.essai === true, siPersonne: b?.siPersonne === true })
+    return 'refus' in r ? c.json({ erreur: r.erreur, code: r.refus }, r.statut) : c.json(r)
+  })
+
+  /**
+   * Le rangement d'une toile sous `parent`, une fois vérifié que `u` la possède (`PUT /parent`, la porte des agents) :
+   * les refus, ou le bilan pour les autres et s'il a été fait. La carte de la toile, elle, est l'affaire de qui range
+   * (la bibliothèque la déplace d'une toile à l'autre, la porte aussi).
+   */
+  const rangerLaToile = async (
+    u: Utilisateur,
+    id: string,
+    parent: string | undefined,
+    o: { essai?: boolean; siPersonne?: boolean } = {},
+  ): Promise<(Bilan & { fait: boolean }) | { refus: string; erreur: string; statut: 400 | 403 | 404 }> => {
+    const ligne = base.tableau(id)
     const cible = parent ? base.tableau(parent) : null
-    if (!ligne || !cible) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
-    const racineDEspace = ligne.espace ? base.espace(ligne.espace)?.racine === g.id : false
-    if (g.id === g.u.racine || racineDEspace) return c.json({ erreur: 'accueil', code: 'accueil_immobile' }, 400)
-    if (dossiersGeneres(ctx.rattachements ?? [], base.rattachementsDe([g.id])).has(g.id)) return c.json({ erreur: 'généré par un outil', code: 'dossier_genere' }, 400)
-    const droit = await roleSur(g.u.id, parent)
-    if (droit === null) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
-    if (!auMoins(droit, 'edition')) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
-    if (parent === g.id || base.descendants(g.id).includes(parent)) return c.json({ erreur: 'boucle', code: 'dossier_dans_lui' }, 400)
-    if ((cible.espace ?? null) !== (ligne.espace ?? null)) return c.json({ erreur: 'autre espace', code: 'autre_espace' }, 400)
-    if (ligne.parent === parent) return c.json({ ...AUCUN_CHANGEMENT, fait: true })
+    if (!ligne || !cible || !parent) return { refus: 'introuvable', erreur: 'introuvable', statut: 404 }
+    const racineDEspace = ligne.espace ? base.espace(ligne.espace)?.racine === id : false
+    if (id === u.racine || racineDEspace) return { refus: 'accueil_immobile', erreur: 'accueil', statut: 400 }
+    if (dossiersGeneres(ctx.rattachements ?? [], base.rattachementsDe([id])).has(id)) return { refus: 'dossier_genere', erreur: 'généré par un outil', statut: 400 }
+    const droit = await roleSur(u.id, parent)
+    if (droit === null) return { refus: 'introuvable', erreur: 'introuvable', statut: 404 }
+    if (!auMoins(droit, 'edition')) return { refus: 'interdit', erreur: 'interdit', statut: 403 }
+    if (parent === id || base.descendants(id).includes(parent)) return { refus: 'dossier_dans_lui', erreur: 'boucle', statut: 400 }
+    if ((cible.espace ?? null) !== (ligne.espace ?? null)) return { refus: 'autre_espace', erreur: 'autre espace', statut: 400 }
+    if (ligne.parent === parent) return { ...AUCUN_CHANGEMENT, fait: true }
     // Ce que chacun y gagne ou y perd, sauf celui qui range. Les membres d'un espace d'équipe la lisent aussi par leur
     // rôle, sauf sous une toile privée : la ranger sous une toile privée, ou l'en sortir, la leur ferme ou la leur rouvre.
     const espaceDEquipe = ligne.espace && !base.espace(ligne.espace)?.personnel ? ligne.espace : null
-    const bilan = bilanDuRangement(base, g.id, ligne.parent, parent, `user:${g.u.id}`, espaceDEquipe)
-    if (b?.essai === true || (b?.siPersonne === true && !rienNeChange(bilan))) return c.json({ ...bilan, fait: false })
-    base.changerParent(g.id, parent)
+    const bilan = bilanDuRangement(base, id, ligne.parent, parent, `user:${u.id}`, espaceDEquipe)
+    if (o.essai === true || (o.siPersonne === true && !rienNeChange(bilan))) return { ...bilan, fait: false }
+    base.changerParent(id, parent)
     // Les accès hérités de l'ancien parent ne valent plus, ici ni plus bas : chacun relit son rôle.
     await droitsAJour()
-    fermerConnexions(g.id)
-    return c.json({ ...bilan, fait: true })
-  })
+    fermerConnexions(id)
+    return { ...bilan, fait: true }
+  }
 
   app.get('/api/recents', async (c) => {
     const u = await utilisateurCourant(c)
@@ -2871,6 +2885,14 @@ export function creerApp(ctx: Contexte): Hono {
       },
       caches: (u, t) => cachesPour(u.id, t),
       generes: generesPortes,
+      genereParUnOutil: (tableau) => dossiersGeneres(ctx.rattachements ?? [], base.rattachementsDe([tableau])).get(tableau) ?? null,
+      porteurDe,
+      rangerLaToile: async (u, tableau, vers, essai) => {
+        const r = await rangerLaToile(u, tableau, vers, { essai })
+        if ('refus' in r) throw new ErreurPorte(r.statut === 404 ? 404 : r.statut === 403 ? 403 : 422, r.statut === 404 ? 'tableau_introuvable' : r.statut === 403 ? 'lecture_seule' : 'impossible', `Le tableau ne se range pas là (${r.erreur}).`)
+        const { fait: _f, ...bilan } = r
+        return bilan
+      },
       creerToile: async (u, parent, titre, o) => {
         const id = nouvelId(ctx.maintenant())
         // Créé pendant un accès temporaire au parent, il tombe avec lui (comme `POST /api/tableaux`).

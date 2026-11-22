@@ -298,6 +298,42 @@ export const OPERATIONS = {
       ['tableau', 'modifications'],
     ),
   },
+  modifier_tableau: {
+    ecrit: true,
+    description:
+      'Renomme un tableau ou un dossier, change sa couleur, ou le montre en dossier dans la bibliothèque (`dossier`), ou de nouveau ' +
+      'en toile. Ce qui n’est pas donné ne change pas. La réponse rend ce que valait chaque champ changé (`avant`) : le renvoyer tel ' +
+      'quel défait le changement. Un dossier qu’un outil a fait (celui d’une fiche) reste tel quel.',
+    arguments: objet(
+      '',
+      {
+        tableau: ID_TABLEAU,
+        titre: { type: 'string', maxLength: 200, description: 'Le nouveau titre.' },
+        couleur: { type: 'string', enum: [...COULEURS, 'aucune'], description: '`aucune` retire la couleur.' },
+        dossier: { type: 'boolean', description: 'true : il se montre en dossier dans la bibliothèque ; false : de nouveau en toile.' },
+      },
+      ['tableau'],
+    ),
+  },
+  deplacer: {
+    ecrit: true,
+    description:
+      'Range un tableau ou un dossier dans un autre (`vers`), comme le glisser de la bibliothèque : sa carte quitte celui qui la ' +
+      'portait, et ses accès suivent son nouveau parent. Si cela change qui y a accès (des personnes qui le gagnent ou le perdent, ' +
+      'des liens de visiteurs), rien ne bouge (`acces_change`) : dis-le à la personne, demande son accord, puis recommence avec ' +
+      '`accepter_acces`. `essai` dit ce qui changerait (`acces`), sans rien ranger. Seul le propriétaire d’un tableau le range ailleurs. ' +
+      'La réponse rend `avant.dans`, où il était : `deplacer` vers lui le remet.',
+    arguments: objet(
+      '',
+      {
+        tableau: ID_TABLEAU,
+        vers: { ...ID_TABLEAU, description: 'Le tableau ou le dossier où le ranger.' },
+        essai: { type: 'boolean', description: 'Seulement dire ce qui changerait pour les accès, sans rien ranger.' },
+        accepter_acces: { type: 'boolean', description: 'La personne a accepté que les accès changent : ranger quand même.' },
+      },
+      ['tableau', 'vers'],
+    ),
+  },
   ranger: {
     ecrit: true,
     description:

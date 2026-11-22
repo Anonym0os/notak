@@ -17,6 +17,7 @@ import {
   type Neuf,
   Scribe,
   boitesDe,
+  carteDeToile,
   chevauche,
   construire,
   contenuDeTable,
@@ -42,6 +43,7 @@ import {
   texteSimple,
 } from '../../../packages/tableau/src/agents/texte.ts'
 import type { Base, Utilisateur } from './base.ts'
+import { type Bilan, rienNeChange } from './rangement.ts'
 import type { ElementLu, NoeudTexte, TableauLu } from './contenu.ts'
 
 // La porte des agents (docs/AGENTS.md) : ce que fait chaque opération, au nom d'une personne et avec ses droits, ni
@@ -79,6 +81,15 @@ export interface DependancesPorte {
   caches(u: Utilisateur, t: TableauLu): Promise<Set<string>>
   /** Les cartes de dossiers générés par un outil que ce tableau porte : elles restent où elles sont. */
   generes(u: Utilisateur, tableau: string): Promise<Record<string, string>>
+  /** L'outil qui a généré ce dossier (celui d'une fiche, ou celui qui les range), s'il y en a un : il reste tel quel. */
+  genereParUnOutil(tableau: string): string | null
+  /** La toile qui porte la carte de ce tableau, comme la bibliothèque le range ; `null` s'il n'est nulle part. */
+  porteurDe(tableau: string): string | null
+  /**
+   * Range la toile sous `vers` (ses accès hérités suivent) et rend ce que cela change pour les autres ; `essai` ne fait
+   * que compter. La personne doit posséder la toile et écrire dans `vers` ; sa carte, la porte la déplace elle-même.
+   */
+  rangerLaToile(u: Utilisateur, tableau: string, vers: string, essai: boolean): Promise<Bilan>
   /** Crée une toile dans `parent`, sa carte posée là ; rend son identifiant et celui de sa carte. */
   creerToile(u: Utilisateur, parent: string, titre: string, o: { dossier?: boolean; couleur?: string }): Promise<{ id: string; carte: string | null }>
   recents(u: Utilisateur, limite: number): Promise<{ tableau: string; titre: string; genre: string; modifie: number | null }[]>
@@ -557,6 +568,109 @@ export function creerPorte(d: DependancesPorte) {
     return { modifies, avant, ...(Object.keys(empreintes).length ? { empreintes } : {}), ...(Object.keys(plans).length ? { plans, plans_avant: plansAvant } : {}) }
   }
 
+  // ---- modifier_tableau ----
+
+  const modifierTableau = async (u: Utilisateur, a: Args) => {
+    const id = a.tableau as string
+    await acces(u, id, true)
+    const titre = typeof a.titre === 'string' ? a.titre.replace(/\s+/g, ' ').trim().slice(0, 200) : undefined
+    const outil = d.genereParUnOutil(id)
+    if (outil) {
+      throw new ErreurPorte(422, 'impossible', `« ${titreDe(id) ?? ''} » est un dossier que ${outil} a fait (celui d’une fiche, ou celui qui les range) : il reste tel que ${outil} l’a fait. Range plutôt ce qu’il faut dedans.`)
+    }
+    if (a.dossier !== undefined && (estAccueil(id) || id === u.racine)) throw new ErreurPorte(422, 'impossible', 'L’accueil d’un espace reste l’accueil : il ne se montre pas en dossier.')
+    const t = d.lire(id)
+    // Ce que valait chaque champ changé : renvoyé tel quel, il défait le changement.
+    const avant: Record<string, unknown> = {}
+    if (titre !== undefined) avant.titre = titreDe(id) ?? t.titre
+    if (a.couleur !== undefined) avant.couleur = typeof t.couleur === 'string' ? t.couleur : 'aucune'
+    if (a.dossier !== undefined) avant.dossier = t.dossier === true
+    await d.modifier(id, u, (doc) => {
+      const meta = doc.getMap<unknown>('meta')
+      doc.transact(() => {
+        if (titre !== undefined) meta.set('titre', titre)
+        if (a.couleur === 'aucune') meta.delete('couleur')
+        else if (typeof a.couleur === 'string') meta.set('couleur', a.couleur)
+        if (a.dossier === true) meta.set('dossier', true)
+        else if (a.dossier === false) meta.delete('dossier')
+      })
+    })
+    // La base, tout de suite : la recherche, la bibliothèque et les autres demandes le lisent là.
+    if (titre !== undefined) base.changerTitre(id, titre)
+    const dossier = a.dossier === undefined ? d.estDossier(id) : a.dossier === true
+    return { tableau: { id, titre: titreDe(id) ?? titre ?? '', adresse: adresse({ tableau: id }, dossier), ...(dossier ? { dossier: true } : {}) }, avant }
+  }
+
+  // ---- deplacer ----
+
+  const deplacer = async (u: Utilisateur, a: Args) => {
+    const id = a.tableau as string
+    const vers = a.vers as string
+    const droits = await acces(u, id, false)
+    const nom = (x: string) => `« ${titreDe(x) || 'Sans titre'} »`
+    if (droits.role !== 'proprietaire') throw new ErreurPorte(403, 'interdit', `Seul le propriétaire de ${nom(id)} peut le ranger ailleurs ; la personne ne l’est pas (droits : ${droits.role}).`)
+    await acces(u, vers, true)
+    if (estAccueil(id) || id === u.racine) throw new ErreurPorte(422, 'impossible', 'L’accueil d’un espace ne se range pas ailleurs : c’est lui qui range tout le reste.')
+    const outil = d.genereParUnOutil(id)
+    if (outil) throw new ErreurPorte(422, 'impossible', `${nom(id)} est un dossier que ${outil} a fait : il reste là où ${outil} l’a mis.`)
+    if (vers === id) throw new ErreurPorte(422, 'impossible', `${nom(id)} ne se range pas dans lui-même.`)
+    if (base.descendants(id).includes(vers)) throw new ErreurPorte(422, 'impossible', `${nom(vers)} est rangé dans ${nom(id)} : un tableau ne se range pas dans ce qu’il contient.`)
+    if ((base.tableau(vers)?.espace ?? null) !== (base.tableau(id)?.espace ?? null)) {
+      throw new ErreurPorte(422, 'impossible', `${nom(id)} et ${nom(vers)} ne sont pas dans le même espace : un tableau ne change pas d’espace ainsi.`)
+    }
+    const de = d.porteurDe(id) ?? base.tableau(id)?.parent ?? null
+    const ancienne = de ? d.lire(de).elements.find((e) => e.contenu.type === 'tableau' && e.contenu.cible === id && !e.contenu.raccourci) : undefined
+    if (ancienne?.corbeille !== undefined) throw new ErreurPorte(422, 'impossible', `${nom(id)} est à la corbeille : la personne doit le remettre avant de le ranger ailleurs.`)
+    // Sa carte part de là où elle est : il faut pouvoir l'y retirer, comme dans la bibliothèque.
+    if (ancienne && de && de !== vers) {
+      const ici = await d.droitsSur(u, de)
+      if (!ici || !permis(ici, ancienne.id, 'ecriture')) {
+        throw new ErreurPorte(403, 'lecture_seule', `La carte de ${nom(id)} est sur un tableau que la personne ne peut pas modifier : elle ne peut pas le ranger ailleurs d’ici.`)
+      }
+    }
+    const dit = (x: string | null) => (x ? { id: x, titre: titreDe(x) ?? '' } : null)
+    const resultat = (bilan: Bilan) => ({
+      tableau: { id, titre: titreDe(id) ?? '', adresse: adresse({ tableau: id }) },
+      de: dit(de),
+      vers: dit(vers),
+      acces: accesDuBilan(bilan),
+    })
+    // Déjà là : rien à faire.
+    if (de === vers && base.tableau(id)?.parent === vers) return { ...resultat(SANS_CHANGEMENT), ...(ancienne ? { carte: ancienne.id } : {}), avant: { dans: vers } }
+    const bilan = await d.rangerLaToile(u, id, vers, true)
+    if (a.essai === true) return { essai: true, ...resultat(bilan) }
+    if (!rienNeChange(bilan) && a.accepter_acces !== true) {
+      throw new ErreurPorte(
+        409,
+        'acces_change',
+        `Ranger ${nom(id)} dans ${nom(vers)} change qui y a accès : ${phraseDuBilan(bilan)}. Rien n’a bougé. Demande l’accord de la personne, puis recommence avec accepter_acces.`,
+      )
+    }
+    await d.rangerLaToile(u, id, vers, false)
+    // Sa carte : recréée chez `vers` (son icône, son image, sa couleur), puis retirée de l'ancien porteur, comme le
+    // transfert de la bibliothèque. Une carte déjà chez `vers` sert telle quelle.
+    let carte: string | null = null
+    await d.modifier(vers, u, (doc) => {
+      const scribe = new Scribe(doc)
+      const t = scribe.lire()
+      const deja = t.elements.find((e) => e.contenu.type === 'tableau' && e.contenu.cible === id && !e.contenu.raccourci && e.corbeille === undefined)
+      if (deja) {
+        carte = deja.id
+        return
+      }
+      const neuve = carteDeToile(t, id, d.maintenant(), ancienne)
+      doc.transact(() => scribe.poser(neuve))
+      carte = neuve.id
+    })
+    if (ancienne && de && de !== vers) {
+      await d.modifier(de, u, (doc) => {
+        const scribe = new Scribe(doc)
+        doc.transact(() => scribe.retirer(ancienne.id))
+      })
+    }
+    return { ...resultat(bilan), ...(carte ? { carte } : {}), avant: { dans: de } }
+  }
+
   // ---- ranger ----
 
   interface Groupe {
@@ -803,6 +917,8 @@ export function creerPorte(d: DependancesPorte) {
     creer_tableau: creerTableau,
     ajouter_elements: ajouter,
     modifier_elements: modifier,
+    modifier_tableau: modifierTableau,
+    deplacer,
     ranger,
     jeter_elements: jeter,
     remettre_elements: remettre,
@@ -819,6 +935,37 @@ export function creerPorte(d: DependancesPorte) {
       }
     },
   }
+}
+
+const SANS_CHANGEMENT: Bilan = { nouveaux: 0, perdus: 0, permanents: 0, liensOuverts: 0, liensEteints: 0, membresPerdus: 0, membresNouveaux: 0 }
+
+/** Ce qu'un rangement change pour les autres, dans les mots du contrat, avec la phrase qui le dit. */
+function accesDuBilan(b: Bilan) {
+  return {
+    change: !rienNeChange(b),
+    gagnent: b.nouveaux,
+    perdent: b.perdus,
+    deviennent_permanents: b.permanents,
+    liens_ouverts: b.liensOuverts,
+    liens_eteints: b.liensEteints,
+    membres_perdent: b.membresPerdus,
+    membres_gagnent: b.membresNouveaux,
+    resume: rienNeChange(b) ? 'Personne d’autre n’y gagne ni n’y perd l’accès.' : `${phraseDuBilan(b).replace(/^./, (x) => x.toUpperCase())}.`,
+  }
+}
+
+/** « 2 personnes ou équipes y gagneraient l'accès, 1 lien de visiteur s'éteindrait » : ce que change un rangement. */
+function phraseDuBilan(b: Bilan): string {
+  const n = (k: number, un: string, plusieurs: string) => (k > 0 ? [`${k} ${k > 1 ? plusieurs : un}`] : [])
+  return [
+    ...n(b.nouveaux, 'personne ou équipe y gagnerait l’accès', 'personnes ou équipes y gagneraient l’accès'),
+    ...n(b.perdus, 'personne ou équipe le perdrait', 'personnes ou équipes le perdraient'),
+    ...n(b.permanents, 'accès limité dans le temps deviendrait permanent', 'accès limités dans le temps deviendraient permanents'),
+    ...n(b.liensOuverts, 'lien de visiteur y mènerait', 'liens de visiteurs y mèneraient'),
+    ...n(b.liensEteints, 'lien de visiteur n’y mènerait plus', 'liens de visiteurs n’y mèneraient plus'),
+    ...n(b.membresPerdus, 'membre de l’espace ne le verrait plus', 'membres de l’espace ne le verraient plus'),
+    ...n(b.membresNouveaux, 'membre de l’espace le verrait', 'membres de l’espace le verraient'),
+  ].join(', ')
 }
 
 /** L'empreinte du texte d'une page (son Markdown) : ce que `attendu` compare, pour ne rien récrire qui ait changé depuis. */
