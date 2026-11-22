@@ -32,7 +32,7 @@ export const CORPS_AGENT_MAX = 512 * 1024
 export const COULEURS = ['gris', 'cyan', 'vert', 'brun', 'jaune', 'orange', 'rouge', 'rose', 'violet', 'bleu', 'bleu_nuit'] as const
 /** Les dispositions d'une carte mentale que la porte propose (docs/XMIND.md § 2), la carte d'abord. */
 export const STRUCTURES = ['carte', 'logique-droite', 'organigramme-bas', 'arbre-droite', 'chronologie-horizontale', 'accolade-droite', 'arete-droite'] as const
-export const TYPES_NEUFS = ['note', 'titre', 'taches', 'lien', 'colonne', 'table', 'carte_mentale', 'page'] as const
+export const TYPES_NEUFS = ['note', 'titre', 'taches', 'lien', 'colonne', 'table', 'carte_mentale', 'page', 'ligne'] as const
 /** Ce qu'un dossier ou l'accueil d'un espace range : ce que la bibliothèque y montre. */
 export const TYPES_DE_DOSSIER = ['page', 'carte_mentale', 'lien'] as const
 /** Le texte d'une note ou d'une page, au plus (celui d'une page qu'on lit seule, `lire_tableau`). */
@@ -85,14 +85,20 @@ const LIGNES: Schema = {
 const champsElementNeuf = (dansColonne: boolean): Record<string, Schema> => ({
   type: {
     type: 'string',
-    enum: dansColonne ? TYPES_NEUFS.filter((t) => t !== 'colonne' && t !== 'carte_mentale') : TYPES_NEUFS,
+    enum: dansColonne ? TYPES_NEUFS.filter((t) => t !== 'colonne' && t !== 'carte_mentale' && t !== 'ligne') : TYPES_NEUFS,
     description:
-      'note : un texte (Markdown simple : titres #, listes -, gras **, italique _, liens). titre : un titre posé sur la toile, sans fond. ' +
-      'taches : une liste de cases à cocher. lien : une adresse web, avec son aperçu. colonne : une colonne qui range des éléments. ' +
-      'table : un petit tableur. carte_mentale : une carte mentale, depuis un plan imbriqué.',
+      'note : un texte court posé sur la toile (Markdown simple : titres #, listes -, gras **, italique _, liens). titre : un titre posé ' +
+      'sur la toile, sans fond. taches : une liste de cases à cocher. lien : une adresse web, avec son aperçu. colonne : une colonne qui ' +
+      'range des éléments. table : un petit tableur. carte_mentale : une carte mentale, depuis un plan imbriqué. page : une page de ' +
+      'texte qui s’ouvre en grand (un compte rendu, une fiche, un texte long), son titre et son texte en Markdown. ligne : une ligne ' +
+      'qui relie deux éléments de la toile (`de`, `vers`), une flèche à l’arrivée.',
   },
-  texte: { type: 'string', maxLength: 20000, description: 'note, titre : le texte, en Markdown simple.' },
-  titre: { type: 'string', maxLength: 300, description: 'taches, colonne, table, lien : le titre.' },
+  texte: {
+    type: 'string',
+    maxLength: TEXTE_MAX,
+    description: 'note, titre : le texte, en Markdown simple. page : son texte, en Markdown (titres # ## ###, listes - et 1., tâches - [ ], citations >, code ```, séparateurs ---).',
+  },
+  titre: { type: 'string', maxLength: 300, description: 'taches, colonne, table, lien : le titre. page : son titre, obligatoire.' },
   couleur: COULEUR,
   url: { type: 'string', maxLength: 2000, description: 'lien : l’adresse, en http(s).' },
   taches: TACHES,
@@ -107,6 +113,15 @@ const champsElementNeuf = (dansColonne: boolean): Record<string, Schema> => ({
           items: { $ref: '#/$defs/element_de_colonne' },
         },
         central: { type: 'string', maxLength: 300, description: 'carte_mentale : le sujet central.' },
+        de: {
+          type: 'string',
+          minLength: 1,
+          maxLength: 64,
+          description: 'ligne : d’où elle part. L’identifiant d’un élément du tableau, ou `#1`, `#2`… : le premier, le deuxième élément de cette même demande.',
+        },
+        vers: { type: 'string', minLength: 1, maxLength: 64, description: 'ligne : où elle arrive, de la même façon que `de`.' },
+        libelle: { type: 'string', maxLength: 300, description: 'ligne : le mot posé sur elle (« mène à », « dépend de »).' },
+        fleche: { type: 'boolean', description: 'ligne : `false` pour un simple trait ; absente, une flèche à l’arrivée, comme l’outil Ligne.' },
         branches: { type: 'array', maxItems: 40, items: { $ref: '#/$defs/branche' }, description: 'carte_mentale : les branches principales, avec leurs sous-branches.' },
         structure: { type: 'string', enum: STRUCTURES, description: 'carte_mentale : la disposition ; absente, la carte (branches tout autour du centre).' },
       }),
@@ -168,8 +183,10 @@ export const OPERATIONS = {
     ecrit: false,
     description:
       'Lit un tableau : chaque élément avec son type, son texte lisible, sa place et sa taille en unités de grille, sa colonne ; ' +
-      'les cartes mentales en plan imbriqué, les tables en lignes. `structure` décrit la mise en page : les zones (groupes ' +
-      'd’éléments proches), les chevauchements, et une place libre où poser du neuf. Relis le tableau avant de modifier ou de ranger.',
+      'les cartes mentales en plan imbriqué, les tables en lignes, les pages en Markdown avec l’`empreinte` de leur texte. Une page ' +
+      'ou une carte mentale rend son `adresse`. Le tableau entier ne donne que le début d’une longue page (`tronque`) : lis-la seule ' +
+      '(`elements`) avant de récrire son texte. `structure` décrit la mise en page : les zones (groupes d’éléments proches), les ' +
+      'chevauchements, et une place libre où poser du neuf. Relis le tableau avant de modifier ou de ranger.',
     arguments: objet(
       '',
       {
@@ -204,9 +221,10 @@ export const OPERATIONS = {
     ecrit: true,
     description:
       'Pose des éléments sur un tableau, exactement comme les crée l’app : notes, titres, listes de tâches, liens, colonnes avec ' +
-      'leur contenu, tables, cartes mentales depuis un plan imbriqué. Placement : `place.pres_de` (à côté d’un élément), ' +
+      'leur contenu, tables, cartes mentales depuis un plan imbriqué, pages de texte, lignes entre deux éléments. Dans un dossier ou ' +
+      'sur l’accueil, seulement des pages, des cartes mentales et des liens. Placement : `place.pres_de` (à côté d’un élément), ' +
       '`place.dans_colonne` (au bout d’une colonne), `place.x`/`place.y`, ou à défaut dans une place libre. Jamais par-dessus un ' +
-      'autre élément. Plusieurs éléments se rangent de gauche à droite (`disposition`).',
+      'autre élément. Plusieurs éléments se rangent de gauche à droite (`disposition`). Chaque élément créé rend son `adresse`.',
     arguments: objet(
       '',
       {
@@ -227,9 +245,10 @@ export const OPERATIONS = {
   modifier_elements: {
     ecrit: true,
     description:
-      'Modifie des éléments : le texte d’une note ou d’un titre (Markdown simple), un titre, une couleur, les tâches d’une liste ' +
-      '(les remplacer, ou en cocher), les lignes d’une table, les branches d’une carte mentale, ou sa place (x et y, ou une colonne). ' +
-      'Ce qui n’est pas donné ne change pas. La réponse rend la valeur d’avant de chaque champ changé (`avant`), de quoi défaire.',
+      'Modifie des éléments : le texte d’une note, d’un titre ou d’une page (Markdown), ou un ajout à la fin de ce texte, un titre, ' +
+      'une couleur, les tâches d’une liste (les remplacer, ou en cocher), les lignes d’une table, les branches d’une carte mentale, ' +
+      'ou sa place (x et y, ou une colonne). Ce qui n’est pas donné ne change pas. Une page ouverte en écriture ne se modifie pas ' +
+      '(`en_edition`). La réponse rend la valeur d’avant de chaque champ changé (`avant`) : la renvoyer telle quelle défait le changement.',
     arguments: objet(
       '',
       {

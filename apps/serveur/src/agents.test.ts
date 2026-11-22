@@ -431,6 +431,82 @@ describe('la porte des agents', () => {
       })
     })
 
+    describe('les lignes', () => {
+      let relations: string
+      beforeAll(async () => {
+        relations = await tableau(ana, 'lignes-ana-01', 'Relations')
+      })
+
+      it('ajouter_elements : une ligne entre deux éléments de la même demande (#n), faite comme l’outil Ligne', async () => {
+        const r = await fait('ajouter_elements', {
+          tableau: relations,
+          elements: [{ type: 'note', texte: 'Cause' }, { type: 'note', texte: 'Effet' }, { type: 'ligne', de: '#1', vers: '#2', libelle: '  mène   à ' }],
+        })
+        const [cause, effet, ligne] = r.crees
+        expect(ligne).toEqual({ id: expect.any(String), type: 'ligne', de: cause.id, vers: effet.id, adresse: `${ORIGINE_ESSAI}/t/${relations}/e/${ligne.id}` })
+        expect(lu(relations).elements.find((x) => x.id === ligne.id)!.contenu).toEqual({
+          type: 'ligne',
+          depart: { element: cause.id },
+          arrivee: { element: effet.id },
+          pointeDepart: 'rien',
+          pointeArrivee: 'fleche',
+          trait: 'plein',
+          epaisseur: 2,
+          libelle: 'mène à',
+        })
+        // La ligne ne prend pas de place : les notes se posent côte à côte, comme sans elle.
+        expect(effet.x).toBe(cause.x + cause.l + 2)
+        const lue = (await fait('lire_tableau', { tableau: relations })).elements.find((x: { id: string }) => x.id === ligne.id)
+        expect(lue).toMatchObject({ type: 'ligne', de: cause.id, vers: effet.id, libelle: 'mène à' })
+      })
+
+      it('une ligne entre des éléments déjà là, sans flèche ; chaque bout est vérifié', async () => {
+        const [a, b] = lu(relations).elements.filter((e) => e.contenu.type === 'note')
+        const r = await fait('ajouter_elements', { tableau: relations, elements: [{ type: 'ligne', de: a!.id, vers: b!.id, fleche: false }] })
+        const ligne = r.crees[0].id
+        expect(lu(relations).elements.find((x) => x.id === ligne)!.contenu).toMatchObject({ pointeArrivee: 'rien', depart: { element: a!.id } })
+        const essai = (elements: unknown[], place?: unknown) => agir('ajouter_elements', { tableau: relations, elements, ...(place ? { place } : {}) })
+        expect(await essai([{ type: 'ligne', de: '#3', vers: a!.id }])).toMatchObject({ statut: 400, corps: { code: 'arguments_invalides' } })
+        expect(await essai([{ type: 'note', texte: 'x' }, { type: 'ligne', de: '#2', vers: '#1' }])).toMatchObject({ statut: 422, corps: { code: 'impossible' } })
+        expect(await essai([{ type: 'ligne', de: ligne, vers: a!.id }])).toMatchObject({ statut: 422, corps: { code: 'impossible' } })
+        expect(await essai([{ type: 'ligne', de: a!.id, vers: a!.id }])).toMatchObject({ statut: 422, corps: { code: 'impossible' } })
+        expect(await essai([{ type: 'note', texte: 'x' }, { type: 'ligne', de: '#1', vers: 'nulle-part' }])).toMatchObject({ statut: 404, corps: { code: 'element_introuvable' } })
+        expect(await essai([{ type: 'ligne', de: a!.id }])).toMatchObject({ statut: 400, corps: { code: 'arguments_invalides' } })
+        ecrire(relations, (elements) => elements.set(b!.id, { ...elements.get(b!.id)!, verrou: true }))
+        expect(await essai([{ type: 'ligne', de: a!.id, vers: b!.id }])).toMatchObject({ statut: 422, corps: { code: 'impossible' } })
+        ecrire(relations, (elements) => {
+          const { verrou: _v, ...e } = elements.get(b!.id)!
+          elements.set(b!.id, e)
+        })
+        const colonne = (await fait('ajouter_elements', { tableau: relations, elements: [{ type: 'colonne', titre: 'Col', elements: [{ type: 'note', texte: 'rangée' }] }] })).crees[0]
+        expect(await essai([{ type: 'ligne', de: a!.id, vers: colonne.elements[0] }])).toMatchObject({ statut: 422, corps: { code: 'impossible' } })
+        expect(await essai([{ type: 'ligne', de: a!.id, vers: colonne.id }])).toMatchObject({ statut: 200 })
+        expect(await essai([{ type: 'ligne', de: a!.id, vers: b!.id }], { dans_colonne: colonne.id })).toMatchObject({ statut: 422, corps: { code: 'impossible' } })
+        // Rien n'a été posé par une demande refusée.
+        expect(lu(relations).elements.filter((e) => e.contenu.type === 'ligne')).toHaveLength(3)
+      })
+
+      it('jeter un élément emporte ses lignes ; le remettre les remet, quand leurs deux bouts reviennent', async () => {
+        const r = await fait('ajouter_elements', {
+          tableau: relations,
+          elements: [{ type: 'note', texte: 'A' }, { type: 'note', texte: 'B' }, { type: 'note', texte: 'C' }, { type: 'ligne', de: '#1', vers: '#2' }, { type: 'ligne', de: '#2', vers: '#3' }],
+        })
+        const [, b, c, ab, bc] = r.crees.map((x: { id: string }) => x.id) as string[]
+        const corbeille = () => lu(relations).elements.filter((e) => e.corbeille !== undefined).map((e) => e.id)
+        expect(await fait('jeter_elements', { tableau: relations, elements: [b] })).toEqual({ jetes: [b], deja: [] })
+        expect(corbeille()).toEqual(expect.arrayContaining([b, ab, bc]))
+        await fait('jeter_elements', { tableau: relations, elements: [c] })
+        expect(await fait('remettre_elements', { tableau: relations, elements: [b] })).toEqual({ remis: [b], deja: [] })
+        // A et B sont là : leur ligne revient ; C reste à la corbeille, et la ligne qui y mène aussi.
+        expect(corbeille()).not.toContain(ab)
+        expect(corbeille()).toContain(bc)
+        expect(await fait('remettre_elements', { tableau: relations, elements: [c, bc] })).toEqual({ remis: [c, bc], deja: [] })
+        expect(corbeille()).toEqual([])
+        // Défaire la pose : jeter ce qu'elle a créé, la ligne comprise.
+        expect((await fait('jeter_elements', { tableau: relations, elements: r.crees.map((x: { id: string }) => x.id) })).jetes).toHaveLength(5)
+      })
+    })
+
     it('la même demande renvoyée ne refait rien ; le même identifiant pour une autre est refusé', async () => {
       const avant = lu(toile).elements.length
       const une = await agir('ajouter_elements', { tableau: toile, elements: [{ type: 'note', texte: 'une fois' }] }, { id: 'essai-idempotent-1' })

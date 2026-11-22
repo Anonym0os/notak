@@ -11,6 +11,7 @@ import type { NoeudTexte } from '../coeur/tableau'
 import { SCHEMA_BLOCS } from '../blocs/schema'
 import { idsManquants, nouvelIdBloc } from '../blocs/ids'
 import { LARGEUR_DOCUMENT, LARGEUR_DOCUMENT_CARTE } from '../elements/document/texte'
+import { nouvelleLigne } from '../elements/ligne/creation'
 import { LARGEUR_ARBRE, LARGEUR_PAGE, LARGEUR_PAGE_CARTE, LARGEUR_TABLE, construire } from './poser.ts'
 import { blocsDePage, docDePage, idDeBloc } from './texte.ts'
 
@@ -83,6 +84,15 @@ describe('ce que pose la porte, tel que l’app le lit', () => {
     for (const n of neufs) {
       for (const e of [n.element, ...n.enfants]) expect(lireElement({ ...e, plan: 'V' }, e.id), JSON.stringify(e)).not.toBeNull()
     }
+  })
+
+  it('une ligne : les défauts de l’outil Ligne', () => {
+    const { element } = construire({ type: 'ligne', de: 'a', vers: 'b' }, Date.now())
+    const app = nouvelleLigne({ element: 'a' }, { element: 'b' })
+    expect(element.contenu).toEqual(app.contenu)
+    expect({ x: element.x, y: element.y, largeur: element.largeur }).toEqual({ x: app.x, y: app.y, largeur: app.largeur })
+    expect(lireElement({ ...element, plan: 'V' }, element.id)).not.toBeNull()
+    expect(construire({ type: 'ligne', de: 'a', vers: 'b', fleche: false, libelle: 'mène à' }, Date.now()).element.contenu).toMatchObject({ pointeArrivee: 'rien', libelle: 'mène à' })
   })
 
   it('les tailles sont celles de l’app', () => {

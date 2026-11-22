@@ -41,7 +41,7 @@ export interface Boite {
 // ---- Les éléments neufs ----
 
 export interface ElementDemande {
-  type: 'note' | 'titre' | 'taches' | 'lien' | 'colonne' | 'table' | 'carte_mentale' | 'page'
+  type: 'note' | 'titre' | 'taches' | 'lien' | 'colonne' | 'table' | 'carte_mentale' | 'page' | 'ligne'
   texte?: string
   titre?: string
   couleur?: string
@@ -55,6 +55,11 @@ export interface ElementDemande {
   largeur?: number
   /** page : la carte montre le début du texte. */
   apercu?: boolean
+  /** ligne : les éléments qu'elle relie (leurs identifiants, une fois les `#n` lus), son libellé, sa flèche. */
+  de?: string
+  vers?: string
+  libelle?: string
+  fleche?: boolean
 }
 
 export interface BrancheDemande {
@@ -176,6 +181,33 @@ export function construire(d: ElementDemande, maintenant: number, dansColonne = 
       const carte = d.apercu === true
       return {
         element: { id, x: 0, y: 0, largeur: carte ? LARGEUR_PAGE_CARTE : LARGEUR_PAGE, contenu: { type: 'document', titre, texte: docDePage(d.texte ?? ''), ...couleur, ...(carte ? { carte: true } : {}) } },
+        enfants: [],
+      }
+    }
+    case 'ligne': {
+      // Les défauts de l'outil Ligne (`nouvelleLigne`) : une flèche à l'arrivée, rien au départ, un trait plein d'épaisseur 2.
+      if (dansColonne) throw new ErreurAgent('impossible', 'Une ligne ne se range pas dans une colonne : elle relie deux éléments de la toile.')
+      if (!d.de || !d.vers) throw new ErreurAgent('arguments_invalides', 'ligne : « de » et « vers » manquent (les deux éléments qu’elle relie).')
+      if (d.de === d.vers) throw new ErreurAgent('impossible', 'ligne : « de » et « vers » sont le même élément ; une ligne relie deux éléments différents.')
+      const libelle = d.libelle?.replace(/\s+/g, ' ').trim()
+      return {
+        element: {
+          id,
+          x: 0,
+          y: 0,
+          largeur: 1,
+          contenu: {
+            type: 'ligne',
+            depart: { element: d.de },
+            arrivee: { element: d.vers },
+            pointeDepart: 'rien',
+            pointeArrivee: d.fleche === false ? 'rien' : 'fleche',
+            trait: 'plein',
+            epaisseur: 2,
+            ...couleur,
+            ...(libelle ? { libelle } : {}),
+          },
+        },
         enfants: [],
       }
     }

@@ -239,6 +239,8 @@ export function creerPorte(d: DependancesPorte) {
     const place = (a.place ?? {}) as { pres_de?: string; cote?: 'droite' | 'dessous' | 'gauche' | 'dessus'; dans_colonne?: string; x?: number; y?: number; disposition?: 'ligne' | 'pile' | 'grille' }
     const maintenant = d.maintenant()
     const crees: Record<string, unknown>[] = []
+    // Une ligne ne relie que ce que la personne voit : les cartes qu'elle ne doit pas voir n'existent pas pour elle.
+    const caches = demandes.some((x) => x.type === 'ligne') ? await d.caches(u, d.lire(id)) : new Set<string>()
     await d.modifier(id, u, (doc) => {
       const scribe = new Scribe(doc)
       const t = scribe.lire()
@@ -257,8 +259,32 @@ export function creerPorte(d: DependancesPorte) {
         })
         return
       }
-      const neufs: Neuf[] = demandes.map((x, i) => construire(x, maintenant + i * 64))
-      const tailles = neufs.map((n) => ({ l: Math.round(n.element.largeur), h: hauteurDe(n.element, n.enfants.length) }))
+      // Les lignes se posent après le reste : leurs bouts « #n » visent les éléments de la demande, une fois créés.
+      const neufs: (Neuf | null)[] = demandes.map((x, i) => (x.type === 'ligne' ? null : construire(x, maintenant + i * 64)))
+      for (const [i, x] of demandes.entries()) {
+        if (x.type !== 'ligne') continue
+        const bout = (champ: 'de' | 'vers'): string => {
+          const vise = x[champ]
+          if (!vise) throw new ErreurAgent('arguments_invalides', `elements[${i}] : une ligne demande « de » et « vers » (les deux éléments qu’elle relie).`)
+          const rang = /^#(\d+)$/.exec(vise)
+          if (rang) {
+            const n = Number(rang[1])
+            const cible = demandes[n - 1]
+            if (!cible || n < 1) throw new ErreurAgent('arguments_invalides', `elements[${i}].${champ} : « ${vise} » ne vise aucun élément de la demande (de #1 à #${demandes.length}).`)
+            if (cible.type === 'ligne') throw new ErreurAgent('impossible', `elements[${i}].${champ} : « ${vise} » est une ligne ; une ligne relie deux éléments, pas deux lignes.`)
+            return neufs[n - 1]!.element.id
+          }
+          const e = present(t, vise)
+          if (caches.has(vise)) throw new ErreurAgent('element_introuvable', `Élément introuvable : ${vise}. Relis le tableau avec lire_tableau avant de le relier.`)
+          if (e.contenu.type === 'ligne') throw new ErreurAgent('impossible', `elements[${i}].${champ} : ${vise} est une ligne ; une ligne relie deux éléments, pas deux lignes.`)
+          if ((e as { verrou?: boolean }).verrou) throw new ErreurAgent('impossible', `elements[${i}].${champ} : ${vise} est verrouillé sur la toile ; on n’y accroche rien tant qu’il l’est.`)
+          if (e.parent || e.nonTrie !== undefined) throw new ErreurAgent('impossible', `elements[${i}].${champ} : ${vise} n’est pas posé sur la toile (rangé dans une colonne) ; relie plutôt sa colonne.`)
+          return vise
+        }
+        neufs[i] = construire({ ...x, de: bout('de'), vers: bout('vers') }, maintenant + i * 64)
+      }
+      const poses = neufs.map((n, i) => (demandes[i]!.type === 'ligne' ? null : n!))
+      const tailles = poses.flatMap((n) => (n ? [{ l: Math.round(n.element.largeur), h: hauteurDe(n.element, n.enfants.length) }] : []))
       const bloc = disposer(tailles, place.disposition ?? 'ligne')
       const occupees = boitesDe(t)
       let origine: { x: number; y: number }
@@ -269,23 +295,37 @@ export function creerPorte(d: DependancesPorte) {
         origine = placeLibre(occupees, bloc.l, bloc.h, { x: place.x ?? 0, y: place.y ?? 0 }, 'bas')
       } else origine = placeParDefaut(occupees, bloc.l, bloc.h)
       doc.transact(() => {
-        for (const [i, n] of neufs.entries()) {
-          const p = bloc.places[i]!
+        const parRang: Record<string, unknown>[] = []
+        let k = 0
+        for (const [i, n] of poses.entries()) {
+          if (!n) continue
+          const p = bloc.places[k]!
+          const h = tailles[k]!.h
+          k++
           const e = { ...n.element, x: origine.x + p.x, y: origine.y + p.y }
           scribe.poser(e, n.arbre)
           for (const enfant of n.enfants) scribe.poser({ ...enfant, x: e.x, y: e.y })
-          crees.push({
+          parRang[i] = {
             id: e.id,
             type: demandes[i]!.type,
             x: e.x,
             y: e.y,
             l: Math.round(e.largeur),
-            h: tailles[i]!.h,
+            h,
             ...(n.enfants.length ? { elements: n.enfants.map((x) => x.id) } : {}),
             ...(n.arbre ? { plan: planDeLArbre(n.arbre).plan } : {}),
             adresse: adresse({ tableau: id, element: e.id, type: demandes[i]!.type }),
-          })
+          }
         }
+        // Les lignes, au-dessus de ce qu'elles relient ; elles ne prennent pas de place sur la toile.
+        for (const [i, n] of neufs.entries()) {
+          if (demandes[i]!.type !== 'ligne') continue
+          const e = n!.element
+          scribe.poser(e)
+          const c = e.contenu as unknown as { depart: { element: string }; arrivee: { element: string } }
+          parRang[i] = { id: e.id, type: 'ligne', de: c.depart.element, vers: c.arrivee.element, adresse: adresse({ tableau: id, element: e.id, type: 'ligne' }) }
+        }
+        crees.push(...parRang)
       })
     })
     return { crees }
@@ -735,10 +775,14 @@ export function creerPorte(d: DependancesPorte) {
         if (e.corbeille === undefined) deja.push(x)
         else voulus.set(x, e.corbeille)
       }
-      // Les lignes jetées en même temps que ce qu'elles relient reviennent avec.
+      // Les lignes jetées en même temps que ce qu'elles relient reviennent avec, quand leurs deux bouts sont de nouveau
+      // sur la toile (sinon elles pendraient vers un élément resté à la corbeille).
       const instants = new Set(voulus.values())
+      const revenus = new Set(voulus.keys())
+      const surLaToile = (x: string) => revenus.has(x) || t.elements.some((y) => y.id === x && y.corbeille === undefined)
       for (const e of t.elements) {
-        if (e.contenu.type === 'ligne' && e.corbeille !== undefined && instants.has(e.corbeille) && accrochee(e, new Set(voulus.keys()))) voulus.set(e.id, e.corbeille)
+        if (e.contenu.type !== 'ligne' || e.corbeille === undefined || !instants.has(e.corbeille) || !accrochee(e, revenus)) continue
+        if (boutsDe(e).every(surLaToile)) voulus.set(e.id, e.corbeille)
       }
       doc.transact(() => {
         for (const x of voulus.keys()) {
@@ -812,10 +856,15 @@ function sansPlace(e: Record<string, unknown>): Record<string, unknown> {
   return reste
 }
 
+/** Les éléments auxquels une ligne est accrochée (un bout libre, posé sur la toile, n'en est pas un). */
+function boutsDe(e: ElementLu): string[] {
+  const bout = (b: unknown) => (b && typeof b === 'object' ? (b as { element?: unknown }).element : undefined)
+  return [bout(e.contenu.depart), bout(e.contenu.arrivee)].filter((x): x is string => typeof x === 'string')
+}
+
 /** Une ligne accrochée, par son départ ou son arrivée, à l'un de ces éléments. */
 function accrochee(e: ElementLu, ids: ReadonlySet<string>): boolean {
-  const bout = (b: unknown) => (b && typeof b === 'object' ? (b as { element?: unknown }).element : undefined)
-  return [bout(e.contenu.depart), bout(e.contenu.arrivee)].some((x) => typeof x === 'string' && ids.has(x))
+  return boutsDe(e).some((x) => ids.has(x))
 }
 
 /** Les cases d'une liste de tâches, à plat dans l'ordre de lecture : les mêmes rangs que `tachesDe`. */
