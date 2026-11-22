@@ -1628,7 +1628,11 @@ export function creerApp(ctx: Contexte): Hono {
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     await anciensDossiersRanges()
     const demandes = c.req.query('genres')?.split(',')
-    const genres = new Set<string>(demandes?.length ? [...demandes, 'toile'] : GENRES_D_AVANT)
+    return c.json(await bibliothequeDe(u, new Set<string>(demandes?.length ? [...demandes, 'toile'] : GENRES_D_AVANT)))
+  })
+
+  /** Les entrées de la bibliothèque de ce compte, de ces genres (`GET /api/bibliotheque`, et la porte des agents). */
+  const bibliothequeDe = async (u: Utilisateur, genres: ReadonlySet<string>) => {
     const { lus: tousLus, ouverts, lignes, dossierDe, cachees } = await rangementPour(u)
     const ouvrables = new Set(ouverts)
     const lus = new Set(tousLus)
@@ -1704,8 +1708,8 @@ export function creerApp(ctx: Contexte): Hono {
         },
       ]
     })
-    return c.json(entrees)
-  })
+    return entrees
+  }
 
   /**
    * Où ce tableau est rangé, pour le fil d'Ariane d'une toile ouverte par son adresse (un lien, un rechargement) : ses
@@ -2885,6 +2889,7 @@ export function creerApp(ctx: Contexte): Hono {
       },
       caches: (u, t) => cachesPour(u.id, t),
       generes: generesPortes,
+      bibliotheque: (u) => bibliothequeDe(u, new Set(GENRES_D_AVANT)),
       genereParUnOutil: (tableau) => dossiersGeneres(ctx.rattachements ?? [], base.rattachementsDe([tableau])).get(tableau) ?? null,
       porteurDe,
       rangerLaToile: async (u, tableau, vers, essai) => {

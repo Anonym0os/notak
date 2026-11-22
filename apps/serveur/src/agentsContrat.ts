@@ -171,12 +171,23 @@ export const OPERATIONS = {
     description:
       'Trouve où travailler. Sans argument : les espaces de la personne (et leur accueil) et ses tableaux récents. ' +
       '`texte` cherche dans les titres et dans le contenu de tous les tableaux qu’elle lit. `dans` liste ce que range un tableau ' +
-      'ou un dossier. `fiche` rend le dossier d’une fiche de l’outil par sa clé de rattachement (societe:42).',
+      'ou un dossier (ses tableaux, ses dossiers, ses pages, ses cartes mentales). `bibliotheque` parcourt sa bibliothèque, les plus ' +
+      'récentes d’abord, chaque entrée avec ce qui la range (`dans`, `ou`) et son adresse, par pages (`suite`, à redonner en ' +
+      '`curseur`). `fiche` rend le dossier d’une fiche de l’outil par sa clé de rattachement (societe:42).',
     arguments: objet('', {
       texte: { type: 'string', minLength: 1, maxLength: 200 },
       dans: ID_TABLEAU,
       fiche: { type: 'string', pattern: '^[A-Za-z0-9][A-Za-z0-9:._-]{0,127}$' },
-      limite: { type: 'integer', minimum: 1, maximum: 50, description: 'Combien de résultats au plus (20 par défaut).' },
+      bibliotheque: { type: 'boolean', description: 'Parcourir la bibliothèque de la personne : ses toiles, ses dossiers, ses pages, ses cartes mentales.' },
+      genres: {
+        type: 'array',
+        minItems: 1,
+        maxItems: 4,
+        items: { type: 'string', enum: ['toile', 'dossier', 'page', 'carte_mentale'] },
+        description: 'Avec `bibliotheque` : seulement ces genres.',
+      },
+      curseur: { type: 'string', pattern: '^[0-9]{1,6}$', description: 'Avec `bibliotheque` : la suite d’une liste, telle que la réponse précédente la donne (`suite`).' },
+      limite: { type: 'integer', minimum: 1, maximum: 50, description: 'Combien de résultats au plus (20 par défaut ; 50 pour la bibliothèque).' },
     }),
   },
   lire_tableau: {

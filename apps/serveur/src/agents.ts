@@ -61,6 +61,26 @@ export class ErreurPorte extends Error {
   }
 }
 
+/** Une entrée de la bibliothèque, telle que `GET /api/bibliotheque` la rend (ce que la porte en lit). */
+export interface EntreeDeBibliotheque {
+  tableau: string
+  element: string | null
+  /** `toile` (un dossier s'en distingue par `resume.dossier`), `arbre`, `document`… */
+  genre: string
+  titre: string
+  resume: { dossier?: boolean }
+  /** La toile qui la range (son titre, `ou`), si la personne la lit. */
+  dans: string | null
+  ou: string | null
+  vu: number | null
+  favori: boolean
+  partage: boolean
+  outil?: string
+}
+
+/** Les genres de la bibliothèque, dans les mots du contrat. */
+export const GENRES_DE_BIBLIOTHEQUE = ['toile', 'dossier', 'page', 'carte_mentale'] as const
+
 /** Ce que la porte demande au serveur : tout ce qui touche aux droits, aux tableaux et aux dossiers des fiches. */
 export interface DependancesPorte {
   base: Base
@@ -93,6 +113,8 @@ export interface DependancesPorte {
   /** Crée une toile dans `parent`, sa carte posée là ; rend son identifiant et celui de sa carte. */
   creerToile(u: Utilisateur, parent: string, titre: string, o: { dossier?: boolean; couleur?: string }): Promise<{ id: string; carte: string | null }>
   recents(u: Utilisateur, limite: number): Promise<{ tableau: string; titre: string; genre: string; modifie: number | null }[]>
+  /** La bibliothèque de la personne : ses toiles et ses dossiers, et les pages et cartes mentales qu'ils portent. */
+  bibliotheque(u: Utilisateur): Promise<EntreeDeBibliotheque[]>
   rechercher(u: Utilisateur, texte: string, limite: number): Promise<{ tableau: string; titre: string; element?: string; extrait?: string }[]>
   estDossier(tableau: string): boolean
   /** Le dossier d'une fiche de l'outil pour cette personne. */
@@ -152,7 +174,7 @@ export function creerPorte(d: DependancesPorte) {
   // ---- trouver ----
 
   const trouver = async (u: Utilisateur, a: Args) => {
-    const limite = (a.limite as number | undefined) ?? 20
+    const limite = (a.limite as number | undefined) ?? (a.bibliotheque === true ? 50 : 20)
     const r: Record<string, unknown> = {
       personne: { nom: u.nom },
       espaces: base.espacesDe(u.id).map((e) => ({ id: e.id, nom: e.nom, accueil: e.racine, personnel: e.personnel })),
@@ -162,17 +184,70 @@ export function creerPorte(d: DependancesPorte) {
       await acces(u, a.dans, false)
       const t = d.lire(a.dans)
       const caches = await d.caches(u, t)
-      r.contenu = t.elements
-        .filter((e) => e.contenu.type === 'tableau' && e.corbeille === undefined && !caches.has(e.id) && typeof e.contenu.cible === 'string' && base.tableau(e.contenu.cible))
-        .slice(0, 200)
-        .map((e) => {
-          const cible = e.contenu.cible as string
-          return { tableau: cible, titre: titreDe(cible) ?? '', genre: d.estDossier(cible) ? 'dossier' : 'toile', element: e.id }
-        })
+      const dans = a.dans
+      // Les toiles et les dossiers qu'il range, puis ses pages et ses cartes mentales, ce que la bibliothèque y montre.
+      const vivants = t.elements.filter((e) => e.corbeille === undefined && !caches.has(e.id))
+      r.contenu = [
+        ...vivants
+          .filter((e) => e.contenu.type === 'tableau' && typeof e.contenu.cible === 'string' && base.tableau(e.contenu.cible))
+          .map((e) => {
+            const cible = e.contenu.cible as string
+            const dossier = d.estDossier(cible)
+            return { tableau: cible, titre: titreDe(cible) ?? '', genre: dossier ? 'dossier' : 'toile', element: e.id, adresse: adresse({ tableau: cible }, dossier) }
+          }),
+        ...vivants
+          .filter((e) => e.contenu.type === 'document' || e.contenu.type === 'arbre')
+          .map((e) => {
+            const genre = e.contenu.type === 'document' ? 'page' : 'carte_mentale'
+            const titre = e.contenu.type === 'document' ? String(e.contenu.titre ?? '') : (planDeLArbre(e.contenu as unknown as Arbre).plan.titre ?? '')
+            return { genre, titre, element: e.id, adresse: adresse({ tableau: dans, element: e.id, type: genre }) }
+          }),
+      ].slice(0, 200)
     }
+    if (a.bibliotheque === true) r.bibliotheque = await bibliotheque(u, a, limite)
     if (typeof a.texte === 'string') r.resultats = await d.rechercher(u, a.texte, limite)
-    if (a.texte === undefined && a.dans === undefined && a.fiche === undefined) r.recents = await d.recents(u, limite)
+    if (a.texte === undefined && a.dans === undefined && a.fiche === undefined && a.bibliotheque !== true) r.recents = await d.recents(u, limite)
     return r
+  }
+
+  /**
+   * La bibliothèque, par pages de `limite` (50 par défaut) et d'un curseur à l'autre, les plus récentes d'abord : chaque
+   * toile, dossier, page et carte mentale, avec ce qui la range (`dans`, son titre `ou`), son adresse, et si elle est en
+   * favori ou partagée. Des champs légers : rien de ce qui ne sert qu'à dessiner une vignette.
+   */
+  const bibliotheque = async (u: Utilisateur, a: Args, limite: number) => {
+    const voulus = new Set<string>((a.genres as string[] | undefined) ?? GENRES_DE_BIBLIOTHEQUE)
+    const genreDe = (e: EntreeDeBibliotheque) =>
+      e.genre === 'toile' ? (e.resume.dossier === true ? 'dossier' : 'toile') : e.genre === 'document' ? 'page' : e.genre === 'arbre' ? 'carte_mentale' : null
+    const toutes = (await d.bibliotheque(u)).flatMap((e) => {
+      const genre = genreDe(e)
+      return genre && voulus.has(genre) ? [{ e, genre }] : []
+    })
+    const cle = (x: { e: EntreeDeBibliotheque }) => `${x.e.tableau}/${x.e.element ?? ''}`
+    toutes.sort((p, q) => (q.e.vu ?? -1) - (p.e.vu ?? -1) || p.e.titre.localeCompare(q.e.titre, 'fr') || (cle(p) < cle(q) ? -1 : 1))
+    const debut = typeof a.curseur === 'string' ? Number(a.curseur) : 0
+    const tranche = toutes.slice(debut, debut + limite)
+    return {
+      entrees: tranche.map(({ e, genre }) => {
+        const toile = e.element === null
+        // L'accueil range tout ce qui n'est pas ailleurs : il ne se redit pas à chaque entrée.
+        const range = e.dans !== null && !(toile && (e.dans === u.racine || estAccueil(e.dans)))
+        return {
+          genre,
+          titre: e.titre || 'Sans titre',
+          tableau: e.tableau,
+          ...(toile ? {} : { element: e.element }),
+          ...(range && toile ? { dans: e.dans } : {}),
+          ...(range && e.ou ? { ou: e.ou } : {}),
+          adresse: adresse({ tableau: e.tableau, element: e.element, type: genre }, genre === 'dossier' ? true : genre === 'toile' ? false : undefined),
+          ...(e.favori ? { favori: true } : {}),
+          ...(e.partage ? { partage: true } : {}),
+          ...(e.outil ? { outil: e.outil } : {}),
+        }
+      }),
+      total: toutes.length,
+      ...(debut + limite < toutes.length ? { suite: String(debut + limite) } : {}),
+    }
   }
 
   // ---- lire_tableau ----

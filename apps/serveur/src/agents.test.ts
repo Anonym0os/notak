@@ -581,6 +581,65 @@ describe('la porte des agents', () => {
       })
     })
 
+    describe('la bibliothèque', () => {
+      let dora: Compte
+      const pour = { au_nom_de: { sujet: 'silak-dora' } }
+      const faitPourDora = (operation: string, args: unknown) => fait(operation, args, pour)
+      beforeAll(async () => {
+        dora = await m.compte('Dora')
+        lier(dora, 'silak-dora')
+      })
+
+      it('trouver : toute la bibliothèque, chaque entrée avec ce qui la range, son adresse, favori et partage', async () => {
+        const clients = (await faitPourDora('creer_tableau', { titre: 'Clients', dossier: true })).tableau.id as string
+        const prism = (await faitPourDora('creer_tableau', { titre: 'Prism', dans: clients })).tableau.id as string
+        const [page, carte] = (await faitPourDora('ajouter_elements', { tableau: prism, elements: [{ type: 'page', titre: 'Wilfried Robert' }, { type: 'carte_mentale', central: 'Rendez-vous' }] })).crees.map(
+          (c: { id: string }) => c.id,
+        )
+        await faitPourDora('ajouter_elements', { tableau: prism, elements: [{ type: 'note', texte: 'Une note ne se range pas en bibliothèque' }] })
+        expect((await m.appeler(`/api/tableaux/${prism}/favori`, { compte: dora, methode: 'PUT' })).status).toBeLessThan(300)
+        expect((await m.appeler(`/api/tableaux/${prism}/partage`, { compte: dora, json: { email: ana.utilisateur.email, role: 'lecture' } })).status).toBe(200)
+        const r = (await faitPourDora('trouver', { bibliotheque: true })).bibliotheque
+        expect(r.total).toBe(4)
+        expect(r.suite).toBeUndefined()
+        const de = (genre: string) => r.entrees.find((e: { genre: string }) => e.genre === genre)
+        expect(de('dossier')).toEqual({ genre: 'dossier', titre: 'Clients', tableau: clients, adresse: `${ORIGINE_ESSAI}/?dossier=${clients}` })
+        expect(de('toile')).toEqual({ genre: 'toile', titre: 'Prism', tableau: prism, dans: clients, ou: 'Clients', adresse: `${ORIGINE_ESSAI}/t/${prism}`, favori: true })
+        expect(de('page')).toEqual({ genre: 'page', titre: 'Wilfried Robert', tableau: prism, element: page, ou: 'Prism', adresse: `${ORIGINE_ESSAI}/t/${prism}/e/${page}` })
+        expect(de('carte_mentale')).toMatchObject({ titre: 'Rendez-vous', tableau: prism, element: carte, adresse: `${ORIGINE_ESSAI}/t/${prism}/e/${carte}` })
+        // Partagée, vue par Ana.
+        expect((await fait('trouver', { bibliotheque: true, genres: ['toile'] })).bibliotheque.entrees).toContainEqual(expect.objectContaining({ tableau: prism, partage: true }))
+        // `dans` dit aussi les pages et les cartes mentales.
+        expect((await faitPourDora('trouver', { dans: prism })).contenu).toEqual([
+          { genre: 'page', titre: 'Wilfried Robert', element: page, adresse: `${ORIGINE_ESSAI}/t/${prism}/e/${page}` },
+          { genre: 'carte_mentale', titre: 'Rendez-vous', element: carte, adresse: `${ORIGINE_ESSAI}/t/${prism}/e/${carte}` },
+        ])
+        expect((await faitPourDora('trouver', { dans: clients })).contenu).toEqual([expect.objectContaining({ tableau: prism, genre: 'toile', adresse: `${ORIGINE_ESSAI}/t/${prism}` })])
+      })
+
+      it('trouver : par pages de 50, d’un curseur à l’autre, et légère', async () => {
+        const plein = (await faitPourDora('creer_tableau', { titre: 'Archives' })).tableau.id as string
+        await faitPourDora('ajouter_elements', { tableau: plein, elements: Array.from({ length: 56 }, (_, i) => ({ type: 'page', titre: `Compte rendu du ${i + 1} mars` })) })
+        const premiere = (await faitPourDora('trouver', { bibliotheque: true })).bibliotheque
+        expect(premiere.entrees).toHaveLength(50)
+        expect(premiere.total).toBe(61)
+        expect(premiere.suite).toBe('50')
+        const seconde = (await faitPourDora('trouver', { bibliotheque: true, curseur: premiere.suite })).bibliotheque
+        expect(seconde.entrees).toHaveLength(11)
+        expect(seconde.suite).toBeUndefined()
+        const vues = new Set([...premiere.entrees, ...seconde.entrees].map((e: { tableau: string; element?: string }) => `${e.tableau}/${e.element ?? ''}`))
+        expect(vues.size).toBe(61)
+        expect((await faitPourDora('trouver', { bibliotheque: true, genres: ['dossier', 'toile'], limite: 2 })).bibliotheque).toMatchObject({ total: 3, suite: '2' })
+        // Rien de ce qui ne sert qu'à dessiner une vignette : cinquante pages tiennent en moins de 12 000 signes (les
+        // identifiants, de 26 signes, en font l'essentiel).
+        expect(JSON.stringify(premiere).length).toBeLessThan(12_000)
+        const unePage = premiere.entrees.find((e: { genre: string }) => e.genre === 'page')
+        expect(Object.keys(unePage).sort()).toEqual(['adresse', 'element', 'genre', 'ou', 'tableau', 'titre'])
+        // Les plus récentes d'abord : la toile où l'on vient de poser les pages.
+        expect(premiere.entrees[0]).toEqual({ genre: 'toile', titre: 'Archives', tableau: plein, adresse: `${ORIGINE_ESSAI}/t/${plein}` })
+      })
+    })
+
     it('la même demande renvoyée ne refait rien ; le même identifiant pour une autre est refusé', async () => {
       const avant = lu(toile).elements.length
       const une = await agir('ajouter_elements', { tableau: toile, elements: [{ type: 'note', texte: 'une fois' }] }, { id: 'essai-idempotent-1' })
