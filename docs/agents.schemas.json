@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "route": "POST /api/outils/{source}/agent",
   "signature": "Notak-Signature: t=<secondes>,v1=<hex de HMAC-SHA256(secret, \"<t>.<corps>\")>",
   "corps_max": 524288,

@@ -264,12 +264,14 @@ l'outil relit l'état par `lire` avant d'en tirer quoi que ce soit.
 
 ### Solliciter l'agent depuis un tableau
 
-Avec `agents: true` et `agentAdresse`, un bouton au nom de l'agent (`agent`, « Fram ») paraît dans la barre d'un
-tableau, pour qui peut le modifier et dont le compte est lié au SSO de l'outil (`fournisseur`, à défaut le nom de la
-source). On y écrit ce qu'on attend (« fais une carte mentale de ce client à côté », « range ce tableau ») ; Notak relaie
-la demande, signée du `secret`, à `agentAdresse`, et suit le tour jusqu'à sa réponse, trois minutes au plus. L'agent
-agit sur le tableau par la porte des agents : ses gestes arrivent en direct. Rien n'est gardé dans Notak : le fil des
-échanges est celui de l'outil (`apps/serveur/src/fram.ts`).
+Avec `agents: true` et `agentAdresse`, l'agent (`agent`, « Fram ») paraît dans Notak pour qui **lit** le tableau et dont
+le compte est lié au SSO de l'outil (`fournisseur`, à défaut le nom de la source) ; il agit avec les droits de cette
+personne, et la porte des agents refuse ce qu'elle ne pourrait pas faire. On y écrit ce qu'on attend (« fais une carte
+mentale de ce client à côté », « crée une page pour ce rendez-vous », « range ce tableau dans le dossier Clients ») ;
+Notak relaie la demande, signée du `secret`, à `agentAdresse`, et suit le tour jusqu'à sa réponse, trois minutes au
+plus. L'agent agit par la porte des agents : ses gestes arrivent en direct. Rien n'est gardé dans Notak : le fil des
+échanges est celui de l'outil (`apps/serveur/src/fram.ts`). La demande se rattache au tableau d'où l'on écrit : une
+toile, un dossier, ou l'accueil depuis la bibliothèque.
 
 Ce que Notak envoie, `POST agentAdresse`, signé comme le reste (`Notak-Signature`) ; la personne y est désignée par le
 sujet de son compte lié (`sub`) et son adresse :
@@ -277,12 +279,22 @@ sujet de son compte lié (`sub`) et son adresse :
 | `type` | Corps | Réponse attendue |
 |---|---|---|
 | `fram.demander` | `{ id, personne: { sub, email }, tableau: { id, titre, lien }, selection: [{ id, texte }], message }`, `id` un UUID neuf par demande | `{ tour, fil, etat }` |
-| `fram.lire` | `{ personne, tableau, tour }` | `{ tour, etat, fini, texte, echec, cartes }` |
+| `fram.lire` | `{ personne, tableau, tour }` | `{ tour, etat, fini, texte, echec, cartes }`, et peut-être `crees`, `ouvrir` |
 | `fram.fil` | `{ personne, tableau }` | `{ fil, echanges: [{ qui, texte, quand }], tour }` |
 | `fram.decider` | `{ id, personne, tableau, tour, cartes: [{ id, accord, toujours }] }`, `id` un UUID neuf | `{ tour, etat }` |
 
 `fram.lire` rend aussi les cartes du tour arrêté sur elles, `[{ id, resume, definitif }]` : le panneau les montre avec « Autoriser », « Toujours sur ce tableau » (jamais pour un geste définitif) et « Refuser », et relaie la réponse par `fram.decider`. Un 404 de l'outil vaut « pas pour cette personne » : le panneau ne paraît pas. Un 409 se dit (« ne peut pas prendre ce
 message maintenant ») ; le reste vaut une panne passagère.
+
+`fram.lire` peut dire aussi ce que le tour a créé, `crees: [{ type, titre, tableau, element? }]`, et ce que l'agent veut
+montrer à la personne, `ouvrir: { tableau, element? } | null`. Notak n'en garde que ce que la personne lit, et en refait
+le titre, le genre et l'adresse (celle que donnerait « Copier le lien » de la bibliothèque) : l'outil ne fabrique jamais
+un lien que l'app suivrait. L'app en tire un bouton « Ouvrir » par création, et ouvre une fois ce que l'agent veut
+montrer. Les deux champs sont facultatifs : un outil qui ne les donne pas reçoit `crees: []` et `ouvrir: null`.
+
+Une demande faite depuis une page ou une carte mentale ouverte en grand la dit ouverte : Notak la met en tête de la
+sélection, `{ id, texte: "La page « … » est ouverte en grand : <adresse>" }`, sans rien ajouter d'autre au corps. Le
+`lien` du tableau est son adresse dans l'app : `/t/<id>` pour une toile, `/?dossier=<id>` pour un dossier.
 
 ## Fermer les inscriptions
 

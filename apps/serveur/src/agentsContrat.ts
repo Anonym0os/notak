@@ -24,8 +24,11 @@ export interface Schema {
   $defs?: Record<string, Schema>
 }
 
-/** La version du contrat : elle change quand un argument ou un résultat change de sens. */
-export const VERSION_CONTRAT = 1
+/**
+ * La version du contrat : elle change quand un argument ou un résultat change de sens. 2 (22/11/2026) : les pages, les
+ * lignes, `modifier_tableau`, `deplacer`, la bibliothèque, les adresses, et un document qui se lit sous le type `page`.
+ */
+export const VERSION_CONTRAT = 2
 /** Le corps d'une demande, au plus. */
 export const CORPS_AGENT_MAX = 512 * 1024
 
