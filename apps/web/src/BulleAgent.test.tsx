@@ -17,6 +17,8 @@ let montage: HTMLDivElement
 let espaceDeLaPage: HTMLDivElement
 let disponible: boolean
 let fini: boolean
+/** Ce que l'agent veut montrer, rendu à la lecture du tour (le relais de la porte v2). */
+let ouvrir: unknown
 const appels: { chemin: string; methode: string }[] = []
 
 beforeEach(() => {
@@ -29,13 +31,15 @@ beforeEach(() => {
   racine = createRoot(montage)
   disponible = true
   fini = false
+  ouvrir = null
   appels.length = 0
   vi.stubGlobal('fetch', async (chemin: string, init?: RequestInit) => {
     const methode = init?.method ?? 'GET'
     appels.push({ chemin, methode })
     const corps = (() => {
       if (methode === 'POST') return { tour: TOUR, etat: 'queued' }
-      if (chemin.includes('/tours/')) return fini ? { tour: TOUR, etat: 'done', fini: true, texte: 'C’est fait.', echec: null, cartes: [] } : { tour: TOUR, etat: 'running', fini: false, texte: null, echec: null, cartes: [] }
+      if (chemin.includes('/tours/'))
+        return fini ? { tour: TOUR, etat: 'done', fini: true, texte: 'C’est fait.', echec: null, cartes: [], ouvrir } : { tour: TOUR, etat: 'running', fini: false, texte: null, echec: null, cartes: [], ouvrir }
       return { agent: 'Fram', disponible, echanges: fini ? [{ qui: 'fram', texte: 'C’est fait.', quand: '2026-11-22T10:00:00Z' }] : [], tour: null }
     })()
     return new Response(JSON.stringify(corps), { status: 200 })
@@ -148,5 +152,25 @@ describe('la bulle de l’agent', () => {
     expect(feuille).not.toBeNull()
     expect(feuille!.querySelector('.notak-tiroir-bas-titre .bulle-agent-ici')?.textContent).toBe('Sur la toile « Voyage »')
     expect(feuille!.querySelector('textarea')).not.toBeNull()
+  })
+
+  it('au téléphone, la feuille se range quand l’agent mène où il a créé, et la réponse attend sous la pastille', async () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('coarse'), media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }))
+    ouvrir = { type: 'page', titre: 'Wilfried Robert', tableau: '01CLIENTS', element: '01PAGE', adresse: `${location.origin}/t/01CLIENTS/e/01PAGE` }
+    await monter()
+    await act(async () => bulle()!.click())
+    const champ = document.querySelector<HTMLTextAreaElement>('.agent-feuille textarea')!
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(champ, 'Crée une page pour Wilfried Robert, et ouvre-la.')
+      champ.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    await act(async () => document.querySelector<HTMLFormElement>('.agent-feuille .agent-saisie')!.requestSubmit())
+    await attendre()
+    fini = true
+    await attendre(700)
+    await attendre(400)
+    expect(location.pathname).toBe('/t/01CLIENTS/e/01PAGE')
+    expect(document.querySelector('.agent-feuille')).toBeNull()
+    expect(bulle()!.querySelector('.bulle-agent-pastille')).not.toBeNull()
   })
 })

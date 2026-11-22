@@ -297,6 +297,8 @@ export function useAgent(ici: Ici | null, espace?: EspaceNavigable) {
   const [crees, setCrees] = useState<{ reponse: string; crees: Cree[] }[]>([])
   /** Les tours dont l'intention d'ouvrir a été suivie : une fois chacun. */
   const ouvertures = useRef(new Set<string>())
+  /** Combien de fois l'agent a mené la personne ailleurs : la feuille du téléphone se range pour qu'elle voie où. */
+  const [menes, setMenes] = useState(0)
   const iciCourant = useRef(ici)
   iciCourant.current = ici
 
@@ -358,6 +360,7 @@ export function useAgent(ici: Ici | null, espace?: EspaceNavigable) {
         if (envoye && ouverture && !ouvertures.current.has(idTour)) {
           ouvertures.current.add(idTour)
           allerDansLApp(cheminDeLOuverture(ouverture, lus))
+          setMenes((n) => n + 1)
         }
         if (e.fini) {
           if (lus.length > 0) setCrees((avant) => [...avant, { reponse: cleReponse(e.texte ?? ''), crees: lus }])
@@ -445,6 +448,7 @@ export function useAgent(ici: Ici | null, espace?: EspaceNavigable) {
     dit,
     avecSelection,
     reponses,
+    menes,
     relire,
     envoyer,
   }

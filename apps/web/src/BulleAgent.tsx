@@ -95,6 +95,18 @@ export function BulleAgent({ racine, espace }: { racine: string; espace: EspaceN
     bouton.current?.focus({ preventScroll: true })
   }, [])
 
+  // Au téléphone, la feuille couvre l'écran : quand l'agent mène la personne ailleurs (« ouvre-la »), elle se range,
+  // pour qu'on voie où. La réponse attend sous la pastille. Au bureau, le panneau reste à côté de ce qui s'ouvre.
+  const menes = useRef(agent.menes)
+  useEffect(() => {
+    if (agent.menes === menes.current) return
+    menes.current = agent.menes
+    if (!telephone) return
+    setOuvert(false)
+    // Le tour a fini en même temps qu'il menait ailleurs : sa réponse n'a pas été lue, la feuille se rangeant.
+    if (agent.tour === null) setLues((l) => Math.min(l, agent.reponses - 1))
+  }, [agent.menes, agent.tour, agent.reponses, telephone])
+
   // Ce que la bulle dit à qui lit l'écran à haute voix : la région ne parle que quand son texte change. L'agent travaille
   // dès que la demande part : sur une machine lente, l'envoi seul peut prendre quelques secondes.
   const attend = agent.cartes.length > 0
