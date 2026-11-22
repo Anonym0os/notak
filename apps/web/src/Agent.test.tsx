@@ -243,7 +243,8 @@ describe('L’agent, pour cette personne', () => {
     expect(cartes.map((c) => c.querySelector('p')?.textContent)).toEqual(['Créer la carte mentale « Rœderer »', 'Jeter 2 élémentsDéfinitif'])
     // Une carte définitive ne s’autorise pas « toujours ».
     expect([...cartes[1]!.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Autoriser', 'Refuser'])
-    const toujours = [...cartes[0]!.querySelectorAll('button')].find((b) => b.textContent === 'Toujours sur ce tableau')!
+    // L'accord vaut pour toute la conversation, qui suit la personne d'un tableau à l'autre.
+    const toujours = [...cartes[0]!.querySelectorAll('button')].find((b) => b.textContent === 'Toujours dans cette conversation')!
     await act(async () => toujours.click())
     await attendre()
     expect(appels.find((a) => a.chemin.endsWith('/cartes'))).toEqual({

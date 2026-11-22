@@ -283,7 +283,7 @@ sujet de son compte lié (`sub`) et son adresse :
 | `fram.fil` | `{ personne, tableau }` | `{ fil, echanges: [{ qui, texte, quand }], tour }` |
 | `fram.decider` | `{ id, personne, tableau, tour, cartes: [{ id, accord, toujours }] }`, `id` un UUID neuf | `{ tour, etat }` |
 
-`fram.lire` rend aussi les cartes du tour arrêté sur elles, `[{ id, resume, definitif }]` : le panneau les montre avec « Autoriser », « Toujours sur ce tableau » (jamais pour un geste définitif) et « Refuser », et relaie la réponse par `fram.decider`. Un 404 de l'outil vaut « pas pour cette personne » : le panneau ne paraît pas. Un 409 se dit (« ne peut pas prendre ce
+`fram.lire` rend aussi les cartes du tour arrêté sur elles, `[{ id, resume, definitif }]` : la bulle les montre avec « Autoriser », « Toujours dans cette conversation » (jamais pour un geste définitif) et « Refuser », et relaie la réponse par `fram.decider`. La conversation est une par personne, d'un tableau à l'autre : « toujours » vaut pour elle. Un 404 de l'outil vaut « pas pour cette personne » : la bulle ne paraît pas. Un 409 se dit (« ne peut pas prendre ce
 message maintenant ») ; le reste vaut une panne passagère.
 
 `fram.lire` peut dire aussi ce que le tour a créé, `crees: [{ type, titre, tableau, element? }]`, et ce que l'agent veut
