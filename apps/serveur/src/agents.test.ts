@@ -1,5 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
+import { type Server, createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { join } from 'node:path'
 import type { Hocuspocus } from '@hocuspocus/server'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -792,6 +794,89 @@ describe('la porte des agents, par la synchro comme en production', () => {
     expect(gestes.length).toBeGreaterThan(0)
     expect(gestes.every((g) => g.agent === 'Fram' && g.auteur.id === ana.utilisateur.id)).toBe(true)
     expect(regrouper(gestes)[0]).toMatchObject({ agent: 'Fram', auteur: { nom: 'Ana' } })
+  })
+})
+
+describe('le relais de l’agent, avec ce que la personne lit vraiment', () => {
+  const TOUR = '0190aaaa-bbbb-7ccc-8ddd-eeeeeeeeeeee'
+  let m: Monde
+  let ana: Compte
+  let bob: Compte
+  let silak: Server
+  const reponses: Record<string, unknown> = {}
+  const recus: Record<string, any>[] = []
+  beforeAll(async () => {
+    // Un faux Silak, sur un vrai port de cette machine : il garde ce qu'on lui relaie et répond selon le type.
+    silak = createServer((req, res) => {
+      let corps = ''
+      req.on('data', (x) => (corps += x))
+      req.on('end', () => {
+        const lu = JSON.parse(corps) as { type: string }
+        recus.push(lu)
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify(reponses[lu.type] ?? {}))
+      })
+    })
+    await new Promise<void>((pret) => silak.listen(0, '127.0.0.1', pret))
+    const port = (silak.address() as AddressInfo).port
+    m = monde({ rattachements: [{ ...SILAK, agentAdresse: `http://127.0.0.1:${port}/hooks/notak/fram` }] })
+    ana = await m.compte('Ana')
+    bob = await m.compte('Bob')
+    const quand = new Date().toISOString()
+    m.base.db.prepare('INSERT INTO account (id, accountId, providerId, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)').run('c-ana', 'silak-ana', 'silak', ana.utilisateur.id, quand, quand)
+  })
+  afterAll(async () => {
+    m.fermer()
+    silak.closeAllConnections()
+    await new Promise((fini) => silak.close(fini))
+  })
+  const agir = async (operation: string, args: unknown, n: number) => {
+    const corps = JSON.stringify({ id: `essai-relais-${n}`, au_nom_de: { sujet: 'silak-ana' }, operation, arguments: args })
+    const r = await m.appelerBrut('/api/outils/silak/agent', { method: 'POST', headers: { 'notak-signature': signer(SECRET, corps, m.maintenant()) }, body: corps })
+    return ((await r.json()) as Reponse).resultat!
+  }
+
+  it('la bulle paraît à qui lit le tableau ; crees, ouvrir et ouvert suivent ce que la personne lit', async () => {
+    expect((await m.appeler('/api/tableaux', { compte: ana, json: { id: 'relais-ana-1', titre: 'Prism' } })).status).toBe(201)
+    expect((await m.appeler('/api/tableaux', { compte: bob, json: { id: 'relais-bob-1', titre: 'Secret de Bob' } })).status).toBe(201)
+    expect((await m.appeler('/api/tableaux', { compte: bob, json: { id: 'relais-bob-2', titre: 'Lu par Ana' } })).status).toBe(201)
+    expect((await m.appeler('/api/tableaux/relais-bob-2/partage', { compte: bob, json: { email: ana.utilisateur.email, role: 'lecture' } })).status).toBe(200)
+    const page = (await agir('ajouter_elements', { tableau: 'relais-ana-1', elements: [{ type: 'page', titre: 'Wilfried Robert', texte: 'Rendez-vous' }] }, 1)).crees[0].id as string
+
+    // Ana lit seulement « Lu par Ana » : la bulle y paraît quand même.
+    reponses['fram.fil'] = { fil: 'f1', echanges: [], tour: null }
+    const lecture = await m.appeler('/api/tableaux/relais-bob-2/agent', { compte: ana })
+    expect(lecture.status).toBe(200)
+    expect(await lecture.json()).toMatchObject({ agent: 'Fram', disponible: true })
+
+    reponses['fram.lire'] = {
+      tour: TOUR,
+      etat: 'done',
+      fini: true,
+      texte: 'C’est fait.',
+      echec: null,
+      cartes: [],
+      crees: [
+        { type: 'page', titre: 'Titre de Silak', tableau: 'relais-ana-1', element: page, adresse: 'https://ailleurs.exemple/piege' },
+        { type: 'toile', titre: 'Secret', tableau: 'relais-bob-1' },
+        { type: 'note', titre: 'Absente', tableau: 'relais-ana-1', element: 'nexistepas01' },
+        { type: 'toile', titre: 'Prism', tableau: 'relais-ana-1' },
+      ],
+      ouvrir: { tableau: 'relais-bob-1' },
+    }
+    const tour = (await (await m.appeler(`/api/tableaux/relais-ana-1/agent/tours/${TOUR}`, { compte: ana })).json()) as Record<string, unknown>
+    expect(tour.crees).toEqual([
+      { type: 'page', titre: 'Wilfried Robert', tableau: 'relais-ana-1', element: page, adresse: `${ORIGINE_ESSAI}/t/relais-ana-1/e/${page}` },
+      { type: 'toile', titre: 'Prism', tableau: 'relais-ana-1', adresse: `${ORIGINE_ESSAI}/t/relais-ana-1` },
+    ])
+    // Un tableau qu'Ana ne lit pas ne s'ouvre pas pour elle.
+    expect(tour.ouvrir).toBeNull()
+
+    reponses['fram.demander'] = { tour: TOUR, fil: 'f1', etat: 'queued' }
+    expect((await m.appeler('/api/tableaux/relais-ana-1/agent', { compte: ana, json: { message: 'Complète-la.', ouvert: page } })).status).toBe(202)
+    const demande = recus.filter((x) => x.type === 'fram.demander').at(-1)!
+    expect(demande.tableau).toEqual({ id: 'relais-ana-1', titre: 'Prism', lien: `${ORIGINE_ESSAI}/t/relais-ana-1` })
+    expect(demande.selection).toEqual([{ id: page, texte: `La page « Wilfried Robert » est ouverte en grand : ${ORIGINE_ESSAI}/t/relais-ana-1/e/${page}` }])
   })
 })
 

@@ -18,6 +18,12 @@ import { AGENT_PAR_DEFAUT, type SourceRattachement, signer } from './rattachemen
  *
  * Le contrat côté outil (Silak : `agents/notak_desk.py`) : `POST <agentAdresse>`, signé `Notak-Signature`, un corps
  * fermé sur `type` : `fram.demander` (rend `tour`), `fram.lire` (l'état et la réponse), `fram.fil` (les échanges).
+ *
+ * La bulle paraît à qui lit le tableau (le 22/11/2026, avant il fallait pouvoir le modifier) : l'agent agit avec les
+ * droits de la personne, et la porte des agents refuse ce qu'elle ne pourrait pas faire. `fram.lire` peut dire ce que le
+ * tour a créé (`crees`) et ce que l'agent veut ouvrir (`ouvrir`) : Notak en refait les adresses et tait ce que la
+ * personne ne lit pas. Une demande faite depuis une page ou une carte ouverte en grand (`ouvert`) la porte en tête de
+ * sa sélection, avec son lien, sans rien changer aux formes de l'outil.
  */
 
 /** L'agent d'une source, tel que ce module le relaie. */
@@ -42,6 +48,72 @@ const REPONSE_MAX = 512 * 1024
 const DELAI_MS = 15_000
 const ID_TOUR = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const ID_ELEMENT = /^[A-Za-z0-9][A-Za-z0-9_-]{5,63}$/
+const ID_TABLEAU = /^[A-Za-z0-9_-]{8,64}$/
+/** Ce qu'un tour dit avoir créé, au plus. */
+const CREES_MAX = 20
+
+/** Une chose que la personne peut ouvrir dans l'app : son adresse, son titre et son genre (`page`, `toile`, `dossier`…). */
+export interface Ouvrable {
+  adresse: string
+  titre: string
+  type: string
+}
+
+/** Un tableau, ou un élément qu'il porte. */
+export interface Lieu {
+  tableau: string
+  element?: string | null
+}
+
+/** Ce que la personne peut ouvrir de ce lieu, s'il existe et qu'elle le lit ; `null` sinon. */
+export type Ouvrabilite = (u: Utilisateur, lieu: Lieu) => Promise<Ouvrable | null>
+
+/** Un lieu dit par l'outil : un tableau, et peut-être un élément, d'identifiants bien formés ; `null` sinon. */
+function lieuLu(brut: unknown): Lieu | null {
+  const o = brut && typeof brut === 'object' ? (brut as Record<string, unknown>) : {}
+  if (typeof o.tableau !== 'string' || !ID_TABLEAU.test(o.tableau)) return null
+  if (o.element !== undefined && o.element !== null && (typeof o.element !== 'string' || !ID_ELEMENT.test(o.element))) return null
+  return { tableau: o.tableau, ...(typeof o.element === 'string' ? { element: o.element } : {}) }
+}
+
+/**
+ * Ce que le tour a créé, tel que l'outil le dit, revu ici : chaque chose que la personne lit, avec son titre, son genre
+ * et son adresse refaits par Notak (pas ceux de l'outil), sans doublon ; le reste est tu.
+ */
+export async function creesLus(brute: unknown, ouvrable: (lieu: Lieu) => Promise<Ouvrable | null>): Promise<(Ouvrable & Lieu)[]> {
+  if (!Array.isArray(brute)) return []
+  const vus = new Set<string>()
+  const sortie: (Ouvrable & Lieu)[] = []
+  for (const x of brute.slice(0, CREES_MAX)) {
+    const lieu = lieuLu(x)
+    if (!lieu) continue
+    const cle = `${lieu.tableau}/${lieu.element ?? ''}`
+    if (vus.has(cle)) continue
+    vus.add(cle)
+    const o = await ouvrable(lieu)
+    if (!o) continue
+    const dit = (x as { titre?: unknown }).titre
+    const titre = o.titre || (typeof dit === 'string' ? dit.replace(/\s+/g, ' ').trim().slice(0, 200) : '')
+    sortie.push({ type: o.type, titre, tableau: lieu.tableau, ...(lieu.element ? { element: lieu.element } : {}), adresse: o.adresse })
+  }
+  return sortie
+}
+
+/** Ce que l'agent veut ouvrir, revu de même ; `null` : rien, ou rien que la personne lise. */
+export async function ouvrirLu(brut: unknown, ouvrable: (lieu: Lieu) => Promise<Ouvrable | null>): Promise<(Ouvrable & Lieu) | null> {
+  const lieu = lieuLu(brut)
+  const o = lieu ? await ouvrable(lieu) : null
+  return lieu && o ? { type: o.type, titre: o.titre, tableau: lieu.tableau, ...(lieu.element ? { element: lieu.element } : {}), adresse: o.adresse } : null
+}
+
+/** La page ou la carte ouverte en grand d'où l'on écrit, en tête de la sélection : ce qu'elle est, et son lien. */
+export function enTeteOuverte(id: string, o: Ouvrable): { id: string; texte: string } {
+  const genre = o.type === 'page' ? 'La page' : o.type === 'carte_mentale' ? 'La carte mentale' : 'L’élément'
+  const fin = ` est ouverte en grand : ${o.adresse}`
+  const place = Math.max(10, EXTRAIT_MAX - genre.length - fin.length - 4)
+  const titre = o.titre.length > place ? `${o.titre.slice(0, place - 1)}…` : o.titre
+  return { id, texte: `${genre} « ${titre} »${fin}`.slice(0, EXTRAIT_MAX) }
+}
 
 /**
  * Les agents à relayer : les sources qui ouvrent la porte des agents, avec leur secret, et disent où relayer. Tout est
@@ -102,7 +174,7 @@ export async function relayer(agent: AgentRelaye, corps: Record<string, unknown>
 type Garde = (c: Context, minimum: Role) => Promise<{ u: Utilisateur; id: string; role: Role } | Response>
 
 /**
- * Les trois routes du panneau, sur un tableau qu'on peut modifier :
+ * Les routes du panneau, sur un tableau qu'on lit :
  *
  * - `GET /api/tableaux/:id/agent` : l'agent est-il là pour cette personne, et le fil de ses échanges sur ce tableau ;
  * - `POST /api/tableaux/:id/agent` `{ message, selection? }` : une demande, qui rend le tour à suivre ;
@@ -121,16 +193,19 @@ export function routesAgent(
     /** À défaut, ceux des sources, lus à l'enregistrement. */
     agents?: readonly AgentRelaye[]
     envoyer?: typeof fetch
+    /** Ce que la personne peut ouvrir (`app.ts`) ; sans lui, rien de ce que l'outil dit avoir créé ou vouloir ouvrir ne passe. */
+    ouvrable?: Ouvrabilite
   },
 ): void {
   const agents = o.agents ?? agentsRelayes(o.sources())
   const agent = agents[0]
   const introuvable = (c: Context) => c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+  const ouvrablePour = (u: Utilisateur) => (lieu: Lieu) => (o.ouvrable ? o.ouvrable(u, lieu) : Promise.resolve(null))
 
-  /** La personne, le tableau et l'agent ; ou la réponse à rendre. */
-  const ouvrir = async (c: Context) => {
+  /** La personne, le tableau et l'agent ; ou la réponse à rendre. La bulle paraît à qui lit le tableau. */
+  const entrer = async (c: Context) => {
     if (!agent) return introuvable(c)
-    const g = await o.garde(c, 'edition')
+    const g = await o.garde(c, 'lecture')
     if (g instanceof Response) return g
     const personne = personneLiee(o.base, g.u, agent.fournisseur)
     return { ...g, personne }
@@ -145,7 +220,7 @@ export function routesAgent(
   }
 
   app.get('/api/tableaux/:id/agent', async (c) => {
-    const g = await ouvrir(c)
+    const g = await entrer(c)
     if (g instanceof Response) return g
     if (!g.personne) return c.json({ agent: agent!.nom, disponible: false }, 200, { 'cache-control': 'no-store' })
     const r = await relayer(agent!, { type: 'fram.fil', personne: g.personne, tableau: g.id }, o.maintenant(), o.envoyer)
@@ -156,7 +231,7 @@ export function routesAgent(
   })
 
   app.post('/api/tableaux/:id/agent', async (c) => {
-    const g = await ouvrir(c)
+    const g = await entrer(c)
     if (g instanceof Response) return g
     if (!g.personne) return introuvable(c)
     const b = (await c.req.json().catch(() => null)) as Record<string, unknown> | null
@@ -164,13 +239,20 @@ export function routesAgent(
     if (!message) return c.json({ erreur: 'message vide', code: 'message_vide' }, 400)
     if (message.length > MESSAGE_MAX) return c.json({ erreur: 'message trop long', code: 'message_trop_long' }, 400)
     const titre = o.base.tableau(g.id)?.titre?.trim() || 'Sans titre'
-    const lien = o.origine ? `${o.origine.replace(/\/$/, '')}/t/${encodeURIComponent(g.id)}` : `/t/${encodeURIComponent(g.id)}`
+    // Le lien du tableau, comme l'app l'ouvre : un dossier dans la bibliothèque, une toile en toile.
+    const ici = await ouvrablePour(g.u)({ tableau: g.id })
+    const lien = ici?.adresse ?? (o.origine ? `${o.origine.replace(/\/$/, '')}/t/${encodeURIComponent(g.id)}` : `/t/${encodeURIComponent(g.id)}`)
+    // La page ou la carte ouverte en grand d'où l'on écrit : en tête de la sélection, avec son lien.
+    let selection = selectionLue(b?.selection)
+    const ouvert = typeof b?.ouvert === 'string' && ID_ELEMENT.test(b.ouvert) ? b.ouvert : null
+    const lu = ouvert ? await ouvrablePour(g.u)({ tableau: g.id, element: ouvert }) : null
+    if (ouvert && lu) selection = [enTeteOuverte(ouvert, lu), ...selection.filter((x) => x.id !== ouvert)].slice(0, SELECTION_MAX)
     const corps = {
       type: 'fram.demander',
       id: randomUUID(),
       personne: g.personne,
       tableau: { id: g.id, titre: titre.slice(0, 200), lien },
-      selection: selectionLue(b?.selection),
+      selection,
       message,
     }
     const r = await relayer(agent!, corps, o.maintenant(), o.envoyer)
@@ -179,21 +261,33 @@ export function routesAgent(
   })
 
   app.get('/api/tableaux/:id/agent/tours/:tour', async (c) => {
-    const g = await ouvrir(c)
+    const g = await entrer(c)
     if (g instanceof Response) return g
     const tour = c.req.param('tour') ?? ''
     if (!g.personne || !ID_TOUR.test(tour)) return introuvable(c)
     const r = await relayer(agent!, { type: 'fram.lire', personne: g.personne, tableau: g.id, tour }, o.maintenant(), o.envoyer)
     if (!r || r.statut !== 200 || !r.corps) return echec(c, r)
     const { etat, fini, texte, echec: raison, cartes } = r.corps
-    return c.json({ tour, etat, fini: fini === true, texte: typeof texte === 'string' ? texte : null, echec: raison ?? null, cartes: cartesLues(cartes) }, 200, {
-      'cache-control': 'no-store',
-    })
+    const ouvrable = ouvrablePour(g.u)
+    return c.json(
+      {
+        tour,
+        etat,
+        fini: fini === true,
+        texte: typeof texte === 'string' ? texte : null,
+        echec: raison ?? null,
+        cartes: cartesLues(cartes),
+        crees: await creesLus(r.corps.crees, ouvrable),
+        ouvrir: await ouvrirLu(r.corps.ouvrir, ouvrable),
+      },
+      200,
+      { 'cache-control': 'no-store' },
+    )
   })
 
   // Les cartes d'un tour arrêté sur elles, répondues depuis le panneau : l'outil les décide par sa propre porte.
   app.post('/api/tableaux/:id/agent/tours/:tour/cartes', async (c) => {
-    const g = await ouvrir(c)
+    const g = await entrer(c)
     if (g instanceof Response) return g
     const tour = c.req.param('tour') ?? ''
     if (!g.personne || !ID_TOUR.test(tour)) return introuvable(c)

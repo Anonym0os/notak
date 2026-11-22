@@ -12,7 +12,10 @@ import type { Context } from 'hono'
 import sharp from 'sharp'
 import * as Y from 'yjs'
 import { regrouper } from './activite.ts'
+import { adresseDe, genreDeLElement } from './adresses.ts'
 import { ErreurPorte, creerPorte } from './agents.ts'
+import { planDeLArbre } from '../../../packages/tableau/src/agents/lire.ts'
+import type { Arbre } from '../../../packages/tableau/src/coeur/tableau.ts'
 import { CORPS_AGENT_MAX, type NomOperation, OPERATIONS, SCHEMA_DEMANDE, validerArguments, validerSchema } from './agentsContrat.ts'
 import { type ElementArrive, elementImage, elementsDeTexte, nouvelId, poserDansNonTries } from './arrivee.ts'
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
@@ -2443,7 +2446,7 @@ export function creerApp(ctx: Contexte): Hono {
     return repondre({ ajoutes: elements.length }, 201)
   })
 
-  routesAgent(app, { garde, base, sources: () => ctx.rattachements ?? [], maintenant: ctx.maintenant, origine: ctx.origine })
+  routesAgent(app, { garde, base, sources: () => ctx.rattachements ?? [], maintenant: ctx.maintenant, origine: ctx.origine, ouvrable: (u, lieu) => ouvrable(u, lieu) })
 
   // ---- Les dossiers des fiches d'un autre outil (rattachements.ts) ----
 
@@ -2860,6 +2863,45 @@ export function creerApp(ctx: Contexte): Hono {
   })
 
   // ---- La porte des agents (docs/AGENTS.md) ----
+
+  /**
+   * Ce que la personne peut ouvrir de ce que l'agent a créé ou veut lui montrer (le relais, `fram.ts`) : un tableau
+   * qu'elle lit (pas sous un mot de passe qu'elle n'a pas donné), ou un élément qu'il porte, là et qu'elle voit ; avec son
+   * titre, son genre, et l'adresse que la bibliothèque lui donnerait. `null` pour le reste : il n'existe pas pour elle.
+   */
+  const ouvrable = async (u: Utilisateur, lieu: { tableau: string; element?: string | null }) => {
+    const { tableau, element } = lieu
+    if (!/^[A-Za-z0-9_-]{8,64}$/.test(tableau) || !base.tableau(tableau)) return null
+    await echus()
+    const droits = await ctx.autorisation.droitsSur(`user:${u.id}`, tableau)
+    if (!droits || verrouPar(base, u.id, tableau) !== null) return null
+    const estAccueil = (id: string) => {
+      const espace = base.tableau(id)?.espace
+      return !!espace && base.espace(espace)?.racine === id
+    }
+    const rangement = { origine: ctx.origine, estDossier, estAccueil }
+    if (!element) {
+      const dossier = estDossier(tableau)
+      return { adresse: adresseDe({ tableau }, rangement), titre: base.tableau(tableau)?.titre ?? '', type: dossier ? 'dossier' : 'toile' }
+    }
+    const t = lireLe(tableau)
+    const e = t.elements.find((x) => x.id === element)
+    if (!e || e.corbeille !== undefined || (await cachesPour(u.id, t)).has(element)) return null
+    const type = genreDeLElement(e.contenu as { type: string; variante?: unknown })
+    const c = e.contenu
+    const titre =
+      c.type === 'document'
+        ? String(c.titre ?? '')
+        : c.type === 'arbre'
+          ? planDeLArbre(c as unknown as Arbre).plan.titre
+          : c.type === 'tableau' && typeof c.cible === 'string'
+            ? (base.tableau(c.cible)?.titre ?? '')
+            : typeof c.titre === 'string'
+              ? c.titre
+              : ''
+    // Un élément qui a ses propres droits se lit avec le tableau : seules les cartes des toiles qu'elle ne lit pas se taisent.
+    return { adresse: adresseDe({ tableau, element, type }, rangement), titre, type }
+  }
 
   /** La porte d'une source : ce que son agent fait au nom d'une personne, avec ses droits et rien de plus. */
   const porteDe = (source: SourceRattachement) => {

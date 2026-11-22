@@ -41,3 +41,11 @@ export function adresseDe(lieu: Lieu, r: Rangement): string {
   }
   return `${debut}/t/${t}/e/${encodeURIComponent(lieu.element)}`
 }
+
+/** Le genre d'un élément dans les mots de l'agent : une page, une carte mentale, un titre, sinon son type. */
+export function genreDeLElement(contenu: { type: string; variante?: unknown }): string {
+  if (contenu.type === 'document') return 'page'
+  if (contenu.type === 'arbre') return 'carte_mentale'
+  if (contenu.type === 'note' && contenu.variante === 'titre') return 'titre'
+  return contenu.type
+}

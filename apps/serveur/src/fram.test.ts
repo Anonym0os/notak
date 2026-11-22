@@ -3,7 +3,7 @@ import type { Context } from 'hono'
 import { describe, expect, it } from 'vitest'
 import { type Base, type Utilisateur, ouvrirBase } from './base.ts'
 import type { Role } from './droits.ts'
-import { type AgentRelaye, agentsRelayes, cartesLues, reponsesLues, routesAgent, selectionLue } from './fram.ts'
+import { type AgentRelaye, type Ouvrabilite, agentsRelayes, cartesLues, creesLus, enTeteOuverte, ouvrirLu, reponsesLues, routesAgent, selectionLue } from './fram.ts'
 import { signatureValable, sourcesDe } from './rattachements.ts'
 
 const SECRET = 'un-secret-partage-de-plus-de-trente-deux-signes'
@@ -33,7 +33,7 @@ function silak(reponses: Record<string, { statut?: number; corps?: unknown }>) {
   return { recus, envoyer }
 }
 
-function app(o: { base: Base; role?: Role | null; envoyer: typeof fetch; agents?: AgentRelaye[] }) {
+function app(o: { base: Base; role?: Role | null; envoyer: typeof fetch; agents?: AgentRelaye[]; ouvrable?: Ouvrabilite }) {
   const a = new Hono()
   const garde = async (c: Context, minimum: Role) => {
     const role = o.role === undefined ? 'edition' : o.role
@@ -41,8 +41,28 @@ function app(o: { base: Base; role?: Role | null; envoyer: typeof fetch; agents?
     if (minimum === 'edition' && role === 'lecture') return c.json({ code: 'interdit' }, 403)
     return { u: MOI, id: c.req.param('id') ?? '', role }
   }
-  routesAgent(a, { garde, base: o.base, sources: () => [], maintenant: Date.now, origine: 'https://notak.test', agents: o.agents ?? [AGENT], envoyer: o.envoyer })
+  routesAgent(a, {
+    garde,
+    base: o.base,
+    sources: () => [],
+    maintenant: Date.now,
+    origine: 'https://notak.test',
+    agents: o.agents ?? [AGENT],
+    envoyer: o.envoyer,
+    ...(o.ouvrable ? { ouvrable: o.ouvrable } : {}),
+  })
   return a
+}
+
+/**
+ * Ce que Samy peut ouvrir, comme `app.ts` le dirait : le tableau t1 et le dossier d1 (ce qu'ils portent), pas le
+ * tableau prive01 ; ni l'élément perdu1, à la corbeille.
+ */
+const OUVRABLE: Ouvrabilite = async (_u, { tableau, element }) => {
+  if (tableau === 'prive0001' || element === 'perdu1') return null
+  if (!element) return tableau === 'dossier01' ? { adresse: `https://notak.test/?dossier=${tableau}`, titre: 'Clients', type: 'dossier' } : { adresse: `https://notak.test/t/${tableau}`, titre: 'Prism', type: 'toile' }
+  const type = element.startsWith('page') ? 'page' : element.startsWith('carte') ? 'carte_mentale' : 'note'
+  return { adresse: `https://notak.test/t/${tableau}/e/${element}`, titre: type === 'page' ? 'Wilfried Robert' : type === 'carte_mentale' ? 'Rendez-vous' : '', type }
 }
 
 const poster = (a: Hono, chemin: string, corps: unknown) => a.request(chemin, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(corps) })
@@ -61,12 +81,14 @@ describe('L’agent sollicité depuis un tableau', () => {
     expect(agentsRelayes([])).toEqual([])
   })
 
-  it('n’existe pas sans agent, ni sur un tableau qu’on ne peut pas modifier', async () => {
-    const { envoyer, recus } = silak({})
+  it('n’existe pas sans agent, ni sur un tableau qu’on ne lit pas ; paraît à qui le lit, sans pouvoir le modifier', async () => {
+    const { envoyer, recus } = silak({ 'fram.fil': { corps: { fil: 'f1', echanges: [], tour: null } } })
     expect((await app({ base: base(), envoyer, agents: [] }).request('/api/tableaux/t1/agent')).status).toBe(404)
-    expect((await app({ base: base(), envoyer, role: 'lecture' }).request('/api/tableaux/t1/agent')).status).toBe(403)
     expect((await app({ base: base(), envoyer, role: null }).request('/api/tableaux/t1/agent')).status).toBe(404)
     expect(recus).toEqual([])
+    const lecteur = await app({ base: base(), envoyer, role: 'lecture' }).request('/api/tableaux/t1/agent')
+    expect(lecteur.status).toBe(200)
+    expect(await lecteur.json()).toMatchObject({ disponible: true })
   })
 
   it('ne paraît pas à une personne qui n’est pas liée à l’outil, ni que l’outil ne lui ouvre pas', async () => {
@@ -93,7 +115,7 @@ describe('L’agent sollicité depuis un tableau', () => {
     expect(demande.status).toBe(202)
     expect(await demande.json()).toEqual({ tour: TOUR, etat: 'queued' })
     const etat = await a.request(`/api/tableaux/t1/agent/tours/${TOUR}`)
-    expect(await etat.json()).toEqual({ tour: TOUR, etat: 'done', fini: true, texte: 'C’est rangé.', echec: null, cartes: [] })
+    expect(await etat.json()).toEqual({ tour: TOUR, etat: 'done', fini: true, texte: 'C’est rangé.', echec: null, cartes: [], crees: [], ouvrir: null })
 
     const envoyee = recus[1]!
     expect(envoyee).toMatchObject({
@@ -119,6 +141,61 @@ describe('L’agent sollicité depuis un tableau', () => {
     const r = await injoignable.request('/api/tableaux/t1/agent')
     expect(r.status).toBe(502)
     expect(await r.json()).toMatchObject({ code: 'injoignable' })
+  })
+
+  it('rend ce que le tour a créé et ce que l’agent veut ouvrir, refaits par Notak et tus quand la personne ne les lit pas', async () => {
+    const { envoyer } = silak({
+      'fram.lire': {
+        corps: {
+          tour: TOUR,
+          etat: 'done',
+          fini: true,
+          texte: 'La page est prête.',
+          echec: null,
+          cartes: [],
+          crees: [
+            { type: 'page', titre: 'Titre de Silak', tableau: 't1-prism', element: 'page-wr1', adresse: 'https://ailleurs.exemple/piege' },
+            { type: 'page', titre: 'Doublon', tableau: 't1-prism', element: 'page-wr1' },
+            { type: 'toile', titre: 'Secret', tableau: 'prive0001' },
+            { type: 'note', titre: 'Jetée', tableau: 't1-prism', element: 'perdu1' },
+            { type: 'toile', titre: 'Mal écrit', tableau: '../x' },
+            { type: 'dossier', titre: 'Clients', tableau: 'dossier01' },
+          ],
+          ouvrir: { tableau: 't1-prism', element: 'page-wr1' },
+        },
+      },
+    })
+    const etat = (await (await app({ base: base(), envoyer, ouvrable: OUVRABLE }).request(`/api/tableaux/t1/agent/tours/${TOUR}`)).json()) as Record<string, unknown>
+    expect(etat.crees).toEqual([
+      { type: 'page', titre: 'Wilfried Robert', tableau: 't1-prism', element: 'page-wr1', adresse: 'https://notak.test/t/t1-prism/e/page-wr1' },
+      { type: 'dossier', titre: 'Clients', tableau: 'dossier01', adresse: 'https://notak.test/?dossier=dossier01' },
+    ])
+    expect(etat.ouvrir).toEqual({ type: 'page', titre: 'Wilfried Robert', tableau: 't1-prism', element: 'page-wr1', adresse: 'https://notak.test/t/t1-prism/e/page-wr1' })
+    // Sans ces champs (un Silak d'avant), ou sans de quoi vérifier ce que la personne lit : rien ne passe.
+    const avant = silak({ 'fram.lire': { corps: { tour: TOUR, etat: 'done', fini: true, texte: 'x', echec: null, cartes: [] } } })
+    expect(await (await app({ base: base(), envoyer: avant.envoyer, ouvrable: OUVRABLE }).request(`/api/tableaux/t1/agent/tours/${TOUR}`)).json()).toMatchObject({ crees: [], ouvrir: null })
+    expect(await (await app({ base: base(), envoyer }).request(`/api/tableaux/t1/agent/tours/${TOUR}`)).json()).toMatchObject({ crees: [], ouvrir: null })
+    expect(await ouvrirLu({ tableau: 'prive0001' }, (l) => OUVRABLE(MOI, l))).toBeNull()
+    expect(await ouvrirLu(null, (l) => OUVRABLE(MOI, l))).toBeNull()
+    expect(await creesLus('rien', (l) => OUVRABLE(MOI, l))).toEqual([])
+  })
+
+  it('une demande faite depuis une page ouverte en grand la porte en tête de sa sélection, avec son lien', async () => {
+    const { envoyer, recus } = silak({ 'fram.demander': { corps: { tour: TOUR, fil: 'f1', etat: 'queued' } } })
+    const a = app({ base: base(), envoyer, ouvrable: OUVRABLE })
+    const r = await poster(a, '/api/tableaux/t1-prism/agent', { message: 'Complète-la.', ouvert: 'page-wr1', selection: [{ id: 'page-wr1', texte: 'doublon' }, { id: 'note-12', texte: 'Une note' }] })
+    expect(r.status).toBe(202)
+    expect(recus[0]).toMatchObject({
+      tableau: { id: 't1-prism', lien: 'https://notak.test/t/t1-prism' },
+      selection: [
+        { id: 'page-wr1', texte: 'La page « Wilfried Robert » est ouverte en grand : https://notak.test/t/t1-prism/e/page-wr1' },
+        { id: 'note-12', texte: 'Une note' },
+      ],
+    })
+    // Un dossier se dit par son adresse de bibliothèque ; un élément que la personne ne lit pas n'est pas dit ouvert.
+    await poster(a, '/api/tableaux/dossier01/agent', { message: 'Range-le.', ouvert: 'perdu1' })
+    expect(recus[1]).toMatchObject({ tableau: { id: 'dossier01', lien: 'https://notak.test/?dossier=dossier01' }, selection: [] })
+    expect(enTeteOuverte('carte-1', { adresse: 'https://notak.test/t/t1/e/carte-1', titre: 'x'.repeat(400), type: 'carte_mentale' }).texte.length).toBeLessThanOrEqual(300)
   })
 
   it('borne la sélection à des éléments du tableau', () => {
