@@ -1,11 +1,12 @@
-import type { NoeudTexte } from '../coeur/tableau'
-import { decouperAdresses } from '../elements/note/conversion'
+import type { NoeudTexte } from '../coeur/tableau.ts'
+import { decouperAdresses } from '../elements/note/adresses.ts'
 
 /**
  * Le Markdown qu'on colle (docs/NOTION.md § 4, relevé 1 § 10) : du texte brut sur plusieurs lignes devient des blocs à
  * plat (`plats.ts`) — titres, puces, listes numérotées, tâches, citations, code, séparateurs — et une ligne seule se lit
  * en Markdown en ligne (gras, italique, barré, code, liens, adresses). Pur : il rend des nœuds de texte, que
- * `collage.ts` pose dans la page. Les tableaux Markdown ne sont pas lus : leurs lignes restent du texte.
+ * `collage.ts` pose dans la page. Les tableaux Markdown ne sont pas lus : leurs lignes restent du texte. Ses imports
+ * portent leur extension : la porte des agents en fait le texte d'une page sous Node, sans bundler (`agents/texte.ts`).
  */
 
 type Marque = { type: string; attrs?: Record<string, unknown> }

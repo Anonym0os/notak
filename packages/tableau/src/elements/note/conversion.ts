@@ -1,7 +1,10 @@
-import { lireAdresse } from '../lien/adresse'
+import { lireAdresse } from '../lien/lireAdresse'
+import { decouperAdresses } from './adresses'
 import { type FormatCode, normaliserHex } from '../nuancier/couleur'
 import { type DocumentTexte, type NoeudTexte, type Note, docDepuisTexte, texteBrut } from '../../coeur/tableau'
 import { t } from '../../langue'
+
+export { decouperAdresses, type MorceauTexte } from './adresses'
 
 /** Vrai s'il y a au moins un caractère visible dans le document. */
 export function contientDuTexte(n: NoeudTexte): boolean {
@@ -127,35 +130,6 @@ export function lireCouleur(saisie: string): CouleurLue | null {
 export function couleurSeule(doc: NoeudTexte): CouleurLue | null {
   const t = texteSeul(doc)
   return t === null ? null : lireCouleur(t)
-}
-
-/** Les extensions qu'on reconnaît sans protocole ni `www.` : assez pour l'usage, sans prendre « node.js » pour une adresse. */
-const EXTENSIONS_CONNUES = new Set(
-  'com fr org net io app dev co eu be ch ca de uk es it nl info me ai tv fm so xyz site page link studio design gouv edu'.split(' '),
-)
-
-export type MorceauTexte = { texte: string; url?: string }
-
-/**
- * Le texte coupé autour des adresses web qu'il contient : elles restent du texte, que l'affichage repère
- * (souligné, cliquable). La ponctuation qui suit une adresse ne lui appartient pas.
- */
-export function decouperAdresses(texte: string): MorceauTexte[] {
-  const morceaux: MorceauTexte[] = []
-  let reste = 0
-  for (const m of texte.matchAll(/\S+/g)) {
-    const brut = m[0].replace(/[.,;:!?»"')\]]+$/, '')
-    const url = brut && lireAdresse(brut)
-    if (!url) continue
-    const hote = new URL(url).hostname
-    const explicite = /^https?:\/\//i.test(brut) || /^www\./i.test(brut)
-    if (!explicite && !EXTENSIONS_CONNUES.has(hote.split('.').pop()!.toLowerCase())) continue
-    if (m.index > reste) morceaux.push({ texte: texte.slice(reste, m.index) })
-    morceaux.push({ texte: brut, url })
-    reste = m.index + brut.length
-  }
-  if (reste < texte.length) morceaux.push({ texte: texte.slice(reste) })
-  return morceaux
 }
 
 /** Une ligne à case : `- [ ] texte`, `* [x] texte`, `[ ] texte`, `☐ texte`, `☑ texte`. */

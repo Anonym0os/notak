@@ -8,7 +8,7 @@ import { regrouper } from './activite.ts'
 import { CHEMIN_SCHEMAS, texteDesSchemas } from '../../../scripts/schemas-agents.ts'
 import { NOMS_OPERATIONS, OPERATIONS, validerArguments } from './agentsContrat.ts'
 import { boitesDe, chevauche } from '../../../packages/tableau/src/agents/poser.ts'
-import { docDepuisMarkdown, markdownDepuisDoc } from '../../../packages/tableau/src/agents/texte.ts'
+import { ajouterAPage, blocsDePage, docDePage, docDepuisMarkdown, idsDesBlocs, markdownDePage, markdownDepuisDoc, pageRiche, retirerDePage } from '../../../packages/tableau/src/agents/texte.ts'
 import { type ElementLu, type TableauLu, lireEtat } from './contenu.ts'
 import { type Compte, type Monde, ORIGINE_ESSAI, monde } from './essai.ts'
 import { type SourceRattachement, signer, sourcesDe } from './rattachements.ts'
@@ -438,13 +438,16 @@ describe('le contrat', () => {
     expect(validerArguments('trouver', {})).toBeNull()
   })
 
-  it('le serveur charge la porte sous Node, sans bundler (comme en production)', () => {
+  it('le serveur charge la porte sous Node, sans bundler (comme en production), le Markdown des pages compris', () => {
     const racine = join(import.meta.dirname, '..', '..', '..')
-    const sortie = execFileSync(process.execPath, ['--input-type=module', '-e', "const m = await import('./apps/serveur/src/agents.ts'); console.log(typeof m.creerPorte)"], {
-      cwd: racine,
-      encoding: 'utf8',
-    })
-    expect(sortie.trim()).toBe('function')
+    const script = [
+      "const m = await import('./apps/serveur/src/agents.ts')",
+      "const c = await import('./packages/tableau/src/blocs/collageMarkdown.ts')",
+      "const t = await import('./packages/tableau/src/agents/texte.ts')",
+      "console.log(typeof m.creerPorte, typeof c.blocsDepuisMarkdown, JSON.stringify(t.markdownDePage(t.docDePage('# Titre\\n- un'))))",
+    ].join(';')
+    const sortie = execFileSync(process.execPath, ['--input-type=module', '-e', script], { cwd: racine, encoding: 'utf8' })
+    expect(sortie.trim()).toBe('function function "# Titre\\n- un"')
   })
 })
 
@@ -458,5 +461,74 @@ describe('le texte des notes', () => {
 
   it('un texte vide fait une note vide, comme dans l’app', () => {
     expect(docDepuisMarkdown('')).toEqual({ type: 'doc', content: [{ type: 'paragraph' }] })
+  })
+})
+
+describe('le texte des pages', () => {
+  const md = [
+    '# Wilfried Robert',
+    'Rendez-vous le **12 décembre**, avec [le site](https://exemple.fr) et `le code`.',
+    '## À faire',
+    '- [ ] Devis',
+    '- [x] Maquette',
+    '- une puce',
+    '  - sous-puce',
+    '1. un',
+    '2. deux',
+    '> une citation',
+    '> sur deux lignes',
+    '```js',
+    'const a = 1',
+    '```',
+    '---',
+  ].join('\n')
+
+  it('le Markdown en blocs à plat, chacun avec son id, et retour', () => {
+    const doc = docDePage(md)
+    expect(doc.content!.map((b) => b.type)).toEqual(['heading', 'paragraph', 'heading', 'tache', 'tache', 'puce', 'puce', 'numero', 'numero', 'citation', 'codeBlock', 'horizontalRule'])
+    expect(doc.content![6]!.attrs).toMatchObject({ retrait: 1 })
+    const ids = doc.content!.map((b) => b.attrs?.id)
+    for (const id of ids) expect(id).toMatch(/^[0-9a-z]{10}$/)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(markdownDePage(doc)).toBe(md)
+    expect(pageRiche({ texte: doc })).toBe(false)
+  })
+
+  it('une page vide est celle de l’app ; un lien qui ne mène pas au web ne garde que son texte', () => {
+    expect(docDePage('')).toEqual({ type: 'doc', content: [{ type: 'paragraph' }] })
+    const [p] = blocsDePage('[ici](javascript:alert) et [là](mailto:a@b.fr)')
+    expect(JSON.stringify(p)).not.toContain('javascript')
+    expect(JSON.stringify(p)).toContain('mailto:a@b.fr')
+  })
+
+  it('lit aussi une page d’avant les blocs à plat (l’écriture imbriquée)', () => {
+    const ancienne = docDepuisMarkdown('# Titre\n- un\n  - deux\n> cité')
+    expect(markdownDePage(ancienne)).toBe('# Titre\n- un\n  - deux\n> cité')
+    expect(pageRiche({ texte: ancienne })).toBe(false)
+  })
+
+  it('une page riche : ce que son Markdown ne dit pas', () => {
+    const avec = (bloc: object) => ({ texte: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x' }] }, bloc] } })
+    expect(pageRiche(avec({ type: 'image', attrs: { fichier: 'f1' } }))).toBe(true)
+    expect(pageRiche(avec({ type: 'colonnes', content: [] }))).toBe(true)
+    expect(pageRiche(avec({ type: 'paragraph', attrs: { couleur: 'rouge' } }))).toBe(true)
+    expect(pageRiche(avec({ type: 'paragraph', content: [{ type: 'text', text: 'y', marks: [{ type: 'commentaireTexte', attrs: { fil: 'f' } }] }] }))).toBe(true)
+    expect(pageRiche(avec({ type: 'heading', attrs: { level: 2, depliant: true } }))).toBe(true)
+    expect(pageRiche({ ...avec({ type: 'paragraph' }), fils: { f: {} } })).toBe(true)
+    expect(pageRiche(avec({ type: 'paragraph', attrs: { textAlign: 'left', retrait: 0, couleur: null } }))).toBe(false)
+  })
+
+  it('ajouter à la fin, puis retirer ce qu’on a ajouté', () => {
+    const doc = docDePage('# Titre\nUn paragraphe')
+    const ajout = blocsDePage('## Suite\n- un point', idsDesBlocs(doc))
+    const apres = ajouterAPage(doc, ajout)
+    expect(markdownDePage(apres)).toBe('# Titre\nUn paragraphe\n## Suite\n- un point')
+    const { doc: defait, retires } = retirerDePage(apres, new Set(ajout.map((b) => b.attrs!.id as string)))
+    expect(retires).toHaveLength(2)
+    expect(defait).toEqual(doc)
+    // Une page vide reçoit l'ajout à la place de son paragraphe vide ; tout retirer la laisse vide.
+    const vide = ajouterAPage(docDePage(''), ajout)
+    expect(vide.content).toEqual(ajout)
+    expect(retirerDePage(vide, new Set(ajout.map((b) => b.attrs!.id as string))).doc).toEqual(docDePage(''))
   })
 })
