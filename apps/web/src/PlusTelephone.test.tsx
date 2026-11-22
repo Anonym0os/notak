@@ -88,6 +88,14 @@ describe('« ••• » au téléphone', () => {
     ])
   })
 
+  it('n’a pas de ligne pour l’agent, même quand il est là : on lui parle par sa bulle, en bas à droite', async () => {
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ agent: 'Fram', disponible: true, echanges: [], tour: null }), { status: 200 }))
+    await ouvrirPlus()
+    await act(async () => {})
+    expect(lignes()[0]).toBe('Partager')
+    expect(lignes().some((l) => l?.includes('Fram'))).toBe(false)
+  })
+
   it('« Partager » ferme la feuille et ouvre le partage en fenêtre', async () => {
     await ouvrirPlus()
     await act(async () => ligne('Partager').click())

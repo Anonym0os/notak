@@ -34,6 +34,27 @@ export const ecouterChemin = (f: () => void) => {
 
 export const useChemin = (): string => useSyncExternalStore(ecouterChemin, () => location.pathname)
 
+const EVENEMENT_ADRESSE = 'notak:adresse'
+
+/**
+ * L'application vient d'écrire son adresse elle-même, sans `allerA` : la toile qu'on ouvre (`adresse.ts`), le dossier
+ * qu'on parcourt dans la bibliothèque. Personne n'y va : c'est dit pour qui suit l'adresse sans la mener, comme la
+ * bulle de l'agent, qui sait ainsi d'où l'on écrit.
+ */
+export const signalerAdresse = (): void => void window.dispatchEvent(new Event(EVENEMENT_ADRESSE))
+
+/** Prévenu de tout changement d'adresse : `allerA`, le retour du navigateur, et ce que l'application écrit elle-même. */
+export function ecouterAdresse(f: () => void): () => void {
+  window.addEventListener('popstate', f)
+  window.addEventListener(EVENEMENT, f)
+  window.addEventListener(EVENEMENT_ADRESSE, f)
+  return () => {
+    window.removeEventListener('popstate', f)
+    window.removeEventListener(EVENEMENT, f)
+    window.removeEventListener(EVENEMENT_ADRESSE, f)
+  }
+}
+
 /**
  * Un lien de l'application : un clic simple y va sans recharger ; ⌘, Ctrl, Maj ou le bouton du milieu gardent ce que
  * fait le navigateur (un nouvel onglet, une nouvelle fenêtre).

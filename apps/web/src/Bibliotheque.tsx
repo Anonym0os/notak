@@ -130,7 +130,7 @@ import { vibrer } from './appareil'
 import { ecouterImportBureau } from './importBureau'
 import type { BilanImport } from './importation'
 import { ouvrirDehors } from './bureau'
-import { allerA, ecouterAllerA, surLien } from './chemin'
+import { allerA, ecouterAllerA, signalerAdresse, surLien } from './chemin'
 import { t, tn } from './langue'
 
 /**
@@ -697,6 +697,7 @@ function BibliothequeBureau({
     const adresse = adresseDeLaVue(apres)
     if ((pas ?? !memeEndroit(vue, apres)) && adresse !== location.pathname + location.search) history.pushState(null, '', adresse)
     else history.replaceState(history.state, '', adresse)
+    signalerAdresse()
   }
   /** Une rubrique de la colonne : on quitte la recherche, et le tiroir se referme sur la vue choisie. */
   const choisir = (r: Portee) => {
@@ -1468,6 +1469,7 @@ function BibliothequeBureau({
     const e = parCle.get(`${dossier}/${el}`)
     // L'adresse ne garde que le dossier : y revenir (le retour du navigateur) ne rouvre pas l'élément.
     history.replaceState(history.state, '', adresseDuDossier(dossier))
+    signalerAdresse()
     if (!e) return
     const cle = cleDe(e)
     setSel({ choisies: new Set([cle]), ancre: cle })

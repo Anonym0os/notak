@@ -74,8 +74,9 @@ describe('la toile sur un téléphone', () => {
     const plus = regle('./toile.css', '.notak-outils-ajouter')
     expect(plus).toMatch(/\bleft: calc\(16px \+ var\(--notak-zone-gauche/)
     expect(plus).not.toMatch(/\bright:/)
-    // Le zoom reste dans le coin droit ; la mini-carte, au téléphone, ne part plus à gauche, où est le « + ».
-    expect(regle('./toile.css', '.notak-vue-bas')).toMatch(/\bright: 16px/)
+    // Le zoom reste dans le coin droit (à gauche de la bulle de l'agent, quand l'hôte en pose une) ; la mini-carte, au
+    // téléphone, ne part plus à gauche, où est le « + ».
+    expect(regle('./toile.css', '.notak-vue-bas')).toMatch(/\bright: calc\(16px \+ var\(--notak-coin-droit, 0px\)\)/)
     expect(lire('./minicarte.css')).not.toMatch(/left: calc\(16px \+ var\(--notak-zone-gauche/)
   })
 

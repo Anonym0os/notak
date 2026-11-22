@@ -4,7 +4,8 @@
  */
 .notak-minicarte {
   position: absolute;
-  right: 16px;
+  /* À gauche de la bulle de l'agent, quand l'hôte en pose une dans le coin. */
+  right: calc(16px + var(--notak-coin-droit, 0px));
   bottom: calc(16px + var(--notak-zone-bas, 0px));
   /* Sous l'îlot du zoom (4) : le panneau « Vue » qui s'ouvre au-dessus la recouvre. */
   z-index: 3;
@@ -66,7 +67,7 @@
 
 /* La carte a sa barre du bas (36 px à 16 px du bord) : la mini-carte se pose au-dessus, alignée sur son bord droit. */
 .notak-minicarte[data-lieu='carte'] {
-  right: 8px;
+  right: calc(8px + var(--notak-coin-droit, 0px));
   bottom: calc(62px + var(--notak-zone-bas, 0px));
 }
 

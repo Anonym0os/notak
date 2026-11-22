@@ -789,7 +789,9 @@ export function EspaceNotak({
             />
           )}
         </GardeToile>
-        {/* Le zoom, en bas à droite comme sur la carte mentale ; l'accueil n'en a pas, comme avant. */}
+        {/* Le zoom, en bas à droite comme sur la carte mentale ; l'accueil n'en a pas, comme avant. L'hôte peut garder le
+            coin pour lui (la bulle de l'agent de l'édition serveur) : `--notak-coin-droit` pousse alors le zoom, la
+            mini-carte et la barre de la carte à sa gauche. */}
         {segments.length > 1 && (
           <div className="notak-vue-bas">
             <Ilot>

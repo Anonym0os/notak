@@ -3,7 +3,8 @@
 
 .notak-arbre-bas {
   position: absolute;
-  right: 8px;
+  /* La bulle de l'agent, quand l'hôte en pose une, tient le coin : la barre s'arrête à sa gauche. */
+  right: calc(8px + var(--notak-coin-droit, 0px));
   bottom: 16px;
   left: 8px;
   display: flex;

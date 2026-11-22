@@ -1,5 +1,5 @@
 import type { Adresse } from '@notak/tableau'
-import { ecouterAllerA } from './chemin'
+import { ecouterAllerA, signalerAdresse } from './chemin'
 
 /**
  * Chaque tableau a son adresse, `/t/<id>` ; l'accueil est `/`. Un élément ouvert en grand ajoute `/e/<élément>`.
@@ -21,14 +21,16 @@ export function adressePour(racine: string, { accueilAPart = false }: { accueilA
     lireElement: () => lire()?.element ?? null,
     ecrire(id) {
       history.pushState(null, '', adresseDe(id))
+      signalerAdresse()
     },
     ecrireElement(tableau, element) {
       if (element) history.pushState({ element }, '', `/t/${encodeURIComponent(tableau)}/e/${encodeURIComponent(element)}`)
       else if (lire()?.element) {
-        // L'entrée qu'on a poussée pour l'ouvrir se dépile ; arrivé là par une adresse directe, on la remplace.
-        if ((history.state as { element?: string } | null)?.element) history.back()
-        else history.replaceState(null, '', adresseDe(tableau))
-      }
+        // L'entrée qu'on a poussée pour l'ouvrir se dépile (le retour le dira) ; arrivé là par une adresse directe, on la remplace.
+        if ((history.state as { element?: string } | null)?.element) return history.back()
+        history.replaceState(null, '', adresseDe(tableau))
+      } else return
+      signalerAdresse()
     },
     ecouter(f) {
       const surRetour = () => {

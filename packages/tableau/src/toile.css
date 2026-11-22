@@ -678,10 +678,11 @@
   gap: 8px;
 }
 
-/* Le zoom du tableau, dans un îlot en bas à droite ; son panneau s'ouvre au-dessus. */
+/* Le zoom du tableau, dans un îlot en bas à droite ; son panneau s'ouvre au-dessus. La bulle de l'agent, quand l'hôte
+   en pose une, tient le coin : l'îlot glisse à sa gauche (`--notak-coin-droit`). */
 .notak-vue-bas {
   position: absolute;
-  right: 16px;
+  right: calc(16px + var(--notak-coin-droit, 0px));
   bottom: calc(16px + var(--notak-zone-bas, 0px));
   z-index: 4;
 }
@@ -982,7 +983,7 @@
 
 .notak-lecture {
   position: absolute;
-  right: 12px;
+  right: calc(12px + var(--notak-coin-droit, 0px));
   bottom: calc(12px + var(--notak-zone-bas, 0px));
   padding: 2px 8px;
   border-radius: var(--notak-rayon-controle, 6px);

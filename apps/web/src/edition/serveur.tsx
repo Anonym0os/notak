@@ -38,7 +38,7 @@ import { PagePartage, PageRapide } from '../Arrivees'
 import { PageEnvoyer } from '../Envoyer'
 import { PageEspaces } from '../Espaces'
 import { Activite } from '../Activite'
-import { Agent } from '../Agent'
+import { BulleAgent } from '../BulleAgent'
 import { Cloche, elementDuFilDemande } from '../Cloche'
 import { PageBibliotheque } from '../Bibliotheque'
 import { Compte, CompteTelephone } from '../Compte'
@@ -317,6 +317,9 @@ function Application() {
       {page}
       {/* Au-dessus des pages : l'état d'une copie remise à plus tard ne se perd pas quand on change de page. */}
       <FichiersOuverts espace={espacePour(etat.moi)} racine={etat.moi.racine} fichiers={fichiers} ouvrir={(id) => allerA(`/t/${encodeURIComponent(id)}`)} />
+      {/* L'agent d'un outil rattaché, de même : sa conversation suit la personne de la bibliothèque à une toile, et l'agent
+          peut l'y mener sans perdre le tour en cours. La bulle ne paraît que sur ces vues-là. */}
+      <BulleAgent racine={etat.moi.racine} espace={espacePour(etat.moi)} />
     </>
   )
 }
@@ -460,7 +463,6 @@ function Espace({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
         actions={(courant, ouvrir) => (
           <>
             <BullesDecouverte espace={espace} tableau={courant} compte={moi.id} />
-            <Agent tableau={courant} espace={espace} />
             <Favori tableau={courant} accueil={moi.racine} />
             <PlusEntete>
               <Activite tableau={courant} moi={moi.id} surNouveaux={recents.noter} />

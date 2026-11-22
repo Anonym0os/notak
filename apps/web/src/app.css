@@ -1173,28 +1173,189 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   padding: 8px;
 }
 
-/* L'agent d'un outil rattaché (Agent.tsx) : le fil de ce qu'on lui a demandé sur ce tableau, puis la saisie. */
-.agent {
-  position: relative;
+/*
+ * La bulle de l'agent d'un outil rattaché (BulleAgent.tsx) : un bouton rond dans le coin bas droit de chaque vue, et
+ * son panneau au-dessus d'elle. Elle passe devant la carte et le document ouverts en grand (1000), derrière les menus
+ * (1100) et les feuilles du bas (1200). Tant qu'elle paraît, elle tient le coin : le zoom, la mini-carte et la barre de
+ * la carte se posent à sa gauche (`--notak-coin-droit`, lu par la toile).
+ */
+:root[data-bulle-agent] {
+  --notak-coin-droit: 60px;
 }
 
-.agent-pastille {
-  width: 7px;
-  height: 7px;
-  margin-left: 2px;
-  border-radius: 50%;
-  background: currentColor;
-  animation: agent-souffle 1.4s ease-in-out infinite;
-}
-
-.agent-panneau {
+.bulle-agent {
+  position: fixed;
+  right: calc(16px + var(--notak-zone-droite, 0px));
+  bottom: calc(16px + var(--notak-zone-bas, 0px));
+  z-index: 1060;
   display: flex;
   flex-direction: column;
-  width: min(380px, calc(100vw - 32px));
-  max-height: min(75vh, 600px, calc(100vh - 64px));
-  padding: 0;
-  overflow: hidden;
+  align-items: flex-end;
+  gap: 12px;
+  pointer-events: none;
 }
+
+.bulle-agent > * {
+  pointer-events: auto;
+}
+
+.bulle-agent-bouton {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--app-plein);
+  box-shadow:
+    var(--app-ombre-ilot),
+    0 10px 24px -10px rgb(27 37 54 / 0.5);
+  color: var(--app-encre);
+  cursor: pointer;
+  transition: scale 0.15s ease;
+}
+
+.bulle-agent-bouton:hover {
+  scale: 1.05;
+}
+
+.bulle-agent-bouton:active {
+  scale: 0.96;
+}
+
+.bulle-agent-bouton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* L'agent travaille : un anneau tourne autour de la bulle, panneau ouvert ou non. */
+.bulle-agent[data-travaille] .bulle-agent-bouton::before {
+  position: absolute;
+  inset: -5px;
+  border: 2.5px solid transparent;
+  border-top-color: var(--accent);
+  border-right-color: var(--accent);
+  border-radius: 50%;
+  content: '';
+  animation: bulle-agent-tourne 0.9s linear infinite;
+}
+
+/* Il attend un accord : l'anneau s'arrête, plein, à la couleur d'une alerte. */
+.bulle-agent[data-attend] .bulle-agent-bouton::before {
+  border-color: #f59e0b;
+  animation: none;
+}
+
+@keyframes bulle-agent-tourne {
+  to {
+    rotate: 1turn;
+  }
+}
+
+/* Une réponse arrivée bulle fermée. */
+.bulle-agent-pastille {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #e5484d;
+  box-shadow: 0 0 0 2px var(--carte);
+}
+
+/* Le panneau : un dialogue qui n'empêche rien, au-dessus de la bulle, aligné sur son bord droit. */
+.bulle-agent-panneau {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(380px, calc(100vw - 32px - var(--notak-zone-gauche, 0px) - var(--notak-zone-droite, 0px)));
+  /* L'écran, moins la bulle et son écart en bas, et la barre du haut. */
+  max-height: min(600px, calc(100vh - 160px));
+  max-height: min(600px, calc(100dvh - 160px - var(--notak-zone-haut, 0px) - var(--notak-zone-bas, 0px)));
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--carte);
+  box-shadow: var(--app-ombre-menu);
+  color: var(--texte);
+  font-size: 13px;
+  transform-origin: bottom right;
+  animation: bulle-agent-ouvre 0.16s ease-out;
+}
+
+@keyframes bulle-agent-ouvre {
+  from {
+    opacity: 0;
+    scale: 0.96;
+    translate: 0 6px;
+  }
+}
+
+.bulle-agent-tete {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 8px 10px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--texte) 9%, transparent);
+}
+
+.bulle-agent-tete h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.bulle-agent-tete p,
+.bulle-agent-ici {
+  margin: 2px 0 0;
+  color: var(--app-pale);
+  font-size: 12px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+/* Au téléphone, d'où l'on écrit se lit sous le nom de l'agent, dans le titre de la feuille. */
+.bulle-agent-ici {
+  display: block;
+  font-size: 12.5px;
+}
+
+/* Au téléphone, la bulle grandit au pouce ; la capsule d'une sélection, ou la barre du choix dans la bibliothèque,
+   tient le bas de l'écran : la bulle monte au-dessus d'elle plutôt que d'en cacher le bout. */
+@media (pointer: coarse) and (max-width: 640px) {
+  :root[data-bulle-agent] {
+    --notak-coin-droit: 64px;
+  }
+
+  .bulle-agent-bouton {
+    width: 52px;
+    height: 52px;
+  }
+
+  .notak-espace:has(.notak-barre-outils[data-capsule], .biblio-locale-choix) .bulle-agent {
+    bottom: calc(80px + var(--notak-zone-bas, 0px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bulle-agent[data-travaille] .bulle-agent-bouton::before {
+    border-color: var(--accent);
+    animation: none;
+  }
+
+  .bulle-agent-panneau {
+    animation: none;
+  }
+
+  .bulle-agent-bouton {
+    transition: none;
+  }
+}
+
+/* Le fil de ce qu'on a demandé à l'agent (Agent.tsx), puis la saisie : dans le panneau de la bulle, ou sa feuille. */
 
 .agent-fil {
   display: flex;
@@ -1373,7 +1534,6 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .agent-pastille,
   .agent-travaille {
     animation: none;
   }

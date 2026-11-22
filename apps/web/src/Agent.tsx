@@ -1,17 +1,17 @@
 import { type FormEvent, type KeyboardEvent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { type EspaceNavigable, Icone } from '@notak/tableau'
+import type { Ici } from './ici'
 import { t, tn } from './langue'
 import { suivreAdresse } from './naviguer'
-import { usePanneau } from './panneaux'
 
-/** Un échange du fil de l'agent sur ce tableau, tel que l'outil le garde. */
+/** Un échange du fil de l'agent, tel que l'outil le garde : un seul fil par personne, d'où qu'elle écrive. */
 export interface EchangeAgent {
   qui: 'personne' | 'fram'
   texte: string
   quand: string
 }
 
-/** L'agent pour cette personne, sur ce tableau : `disponible` faux, le panneau ne paraît pas. */
+/** L'agent pour cette personne : `disponible` faux, la bulle ne paraît pas. */
 export interface EtatAgent {
   agent: string
   disponible: boolean
@@ -54,8 +54,9 @@ async function appeler<T>(adresse: string, corps?: unknown): Promise<T> {
 }
 
 export const lireAgent = (tableau: string) => appeler<EtatAgent>(chemin(tableau))
-export const demanderAgent = (tableau: string, message: string, selection: SelectionAgent = []) =>
-  appeler<{ tour: string; etat: string }>(chemin(tableau), selection.length > 0 ? { message, selection } : { message })
+/** Une demande, rattachée à ce tableau ; `ouvert` : la page ou la carte ouverte en grand d'où l'on écrit. */
+export const demanderAgent = (tableau: string, message: string, selection: SelectionAgent = [], ouvert: string | null = null) =>
+  appeler<{ tour: string; etat: string }>(chemin(tableau), { message, ...(selection.length > 0 ? { selection } : {}), ...(ouvert ? { ouvert } : {}) })
 
 /** Ce que la personne a sélectionné sur le tableau, chaque élément avec un extrait de ce qu'il dit. */
 export type SelectionAgent = { id: string; texte: string }[]
@@ -177,14 +178,40 @@ export function TexteAgent({ texte }: { texte: string }) {
   )
 }
 
+/** Le tour qu'on suit : son id, et le tableau d'où il est parti, où ses routes sont gardées. */
+interface TourSuivi {
+  id: string
+  tableau: string
+}
+
+/** Ce qui s'ouvre en grand et qu'une demande peut dire ouvert : une page, une carte mentale. */
+const OUVRABLES: ReadonlySet<string> = new Set(['document', 'arbre'])
+
 /**
- * L'agent pour ce tableau : s'il est là pour cette personne (`disponible`), le fil de ce qu'on lui a demandé ici, le
- * tour en cours suivi jusqu'à son repos (trois minutes au plus), et l'envoi d'une demande. Le bouton du bureau et la
- * feuille du téléphone le partagent.
+ * La page ou la carte ouverte en grand d'où l'on écrit, si l'adresse en nomme une : la demande la porte (`ouvert`), et
+ * le relais la met en tête de la sélection. Un élément que l'adresse ne fait que montrer (une note) n'est pas ouvert.
  */
-export function useAgent(tableau: string, espace?: EspaceNavigable) {
-  const [etat, setEtat] = useState<EtatAgent | null>(null)
-  const [tour, setTour] = useState<string | null>(null)
+export function ouvertDe(espace: EspaceNavigable | undefined, ici: Ici): string | null {
+  if (!ici.element) return null
+  const type = espace?.tableau(ici.tableau)?.elements.find((e) => e.id === ici.element)?.contenu.type
+  return type && OUVRABLES.has(type) ? ici.element : null
+}
+
+/**
+ * L'agent, pour cette personne : une seule conversation, qui la suit d'une vue à l'autre. Deux choses distinctes :
+ *
+ * - **d'où l'on écrit** (`ici`, lu dans l'adresse) : le tableau auquel une demande se rattache, la sélection qui part
+ *   avec elle sur une toile, la page ou la carte ouverte en grand ;
+ * - **le fil affiché** : les échanges, et le tour en cours, suivi depuis le tableau d'où il est parti. L'agent peut
+ *   mener la personne ailleurs pendant qu'il travaille : le fil reste à l'écran, et le tour se suit jusqu'au bout.
+ *
+ * La première vue d'où le relais répond dit si l'agent est là pour la personne ; on ne le redemande plus ensuite. Le
+ * fil se relit à l'ouverture du panneau et à la fin de chaque tour.
+ */
+export function useAgent(ici: Ici | null, espace?: EspaceNavigable) {
+  const [agent, setAgent] = useState<{ nom: string; disponible: boolean } | null>(null)
+  const [echanges, setEchanges] = useState<EchangeAgent[]>([])
+  const [tour, setTour] = useState<TourSuivi | null>(null)
   const [attendCartes, setAttendCartes] = useState(false)
   const [cartes, setCartes] = useState<CarteAgent[]>([])
   // Relancé à chaque réponse aux cartes : le suivi du même tour reprend, avec ses trois minutes.
@@ -194,59 +221,67 @@ export function useAgent(tableau: string, espace?: EspaceNavigable) {
   const [envoi, setEnvoi] = useState(false)
   const [dit, setDit] = useState<string | null>(null)
   const [avecSelection, setAvecSelection] = useState(0)
+  /** Les tours finis depuis l'ouverture de la page : la bulle en tire sa pastille « réponse non lue ». */
+  const [reponses, setReponses] = useState(0)
+  const iciCourant = useRef(ici)
+  iciCourant.current = ici
 
   // Chaque envoi ouvre une génération : un fil relu AVANT lui, et revenu après (un outil lent), est d'avant la demande et
   // l'effacerait de l'écran ; il est ignoré. Le fil relu à la fin du tour, lui, la contient.
   const generation = useRef(0)
-  const relire = useCallback(async () => {
+  /** Relit le fil depuis ce tableau (à défaut, d'où l'on écrit), et apprend au passage si l'agent est là. */
+  const relire = useCallback(async (depuis?: string) => {
+    const tableau = depuis ?? iciCourant.current?.tableau
+    if (!tableau) return
     const lancee = generation.current
     try {
       const e = await lireAgent(tableau)
       if (lancee !== generation.current) return
-      setEtat(e)
+      setAgent({ nom: e.agent, disponible: e.disponible })
+      if (!e.disponible) return
+      setEchanges(e.echanges ?? [])
       setDit(null)
-      if (e.tour?.id) setTour(e.tour.id)
+      // Un tour en cours, lancé d'un autre onglet ou avant un rechargement : il se suit aussi.
+      const enCours = e.tour?.id
+      if (enCours) setTour((avant) => avant ?? { id: enCours, tableau })
     } catch {
       // Le fil reste tel qu'il était ; la prochaine ouverture le relira.
     }
-  }, [tableau])
+  }, [])
 
-  // À l'ouverture du tableau : l'agent est-il là pour cette personne ?
+  // Tant qu'on ne sait pas si l'agent est là, chaque tableau neuf le demande, une fois : une toile qu'on ne fait que
+  // lire peut refuser, et un serveur sans agent répond 404 à tout, qu'on ne redemande pas à chaque pas.
+  const tableau = ici?.tableau ?? null
+  const connu = agent !== null
+  const demandes = useRef(new Set<string>())
   useEffect(() => {
-    let vivant = true
-    setEtat(null)
-    setTour(null)
-    setErreur(null)
-    lireAgent(tableau).then(
-      (e) => {
-        if (!vivant) return
-        setEtat(e)
-        if (e.tour?.id) setTour(e.tour.id)
-      },
-      () => vivant && setEtat(null),
-    )
-    return () => {
-      vivant = false
-    }
-  }, [tableau])
+    if (!tableau || connu || demandes.current.has(tableau)) return
+    demandes.current.add(tableau)
+    void relire(tableau)
+  }, [tableau, connu, relire])
 
-  const nom = etat?.agent ?? ''
-  // Le tour en cours se relit jusqu'à son repos, trois minutes au plus.
+  const nom = agent?.nom ?? ''
+  const nomCourant = useRef(nom)
+  nomCourant.current = nom
+  // Le tour en cours se relit jusqu'à son repos, trois minutes au plus, depuis le tableau d'où il est parti.
+  const idTour = tour?.id ?? null
+  const origine = tour?.tableau ?? null
   useEffect(() => {
-    if (!tour) return
+    if (!idTour || !origine) return
     let vivant = true
     const debut = Date.now()
     let minuteur: ReturnType<typeof setTimeout>
     const suivre = async () => {
       try {
-        const e = await lireTourAgent(tableau, tour)
+        const e = await lireTourAgent(origine, idTour)
         if (!vivant) return
         setAttendCartes(e.etat === 'awaiting_approval')
         setCartes(e.etat === 'awaiting_approval' ? e.cartes : [])
         if (e.fini) {
           if (e.etat === 'failed') setErreur(e.echec || t('agent.echec'))
           setTour(null)
-          void relire()
+          setReponses((n) => n + 1)
+          void relire(origine)
           return
         }
       } catch {
@@ -255,7 +290,7 @@ export function useAgent(tableau: string, espace?: EspaceNavigable) {
       if (!vivant) return
       if (Date.now() - debut > SUIVRE_MAX_MS) {
         setTour(null)
-        setErreur(t('agent.long', { nom }))
+        setErreur(t('agent.long', { nom: nomCourant.current }))
         return
       }
       minuteur = setTimeout(() => void suivre(), SUIVRE_MS)
@@ -265,21 +300,24 @@ export function useAgent(tableau: string, espace?: EspaceNavigable) {
       vivant = false
       clearTimeout(minuteur)
     }
-  }, [tour, tableau, relire, nom, relance])
+  }, [idTour, origine, relire, relance])
 
   const envoyer = async () => {
     const texte = message.trim()
-    if (!texte || envoi || tour) return
+    const ou = iciCourant.current
+    if (!texte || envoi || tour || !ou) return
     setEnvoi(true)
     setErreur(null)
     generation.current++
     setDit(texte)
-    const selection = selectionDe(espace, tableau)
+    // La sélection se lit dans la présence de la toile qu'on regarde. Hors d'une toile, il n'y en a pas, et la demander
+    // ouvrirait le tableau du dossier pour rien.
+    const selection = ou.vue === 'toile' || ou.vue === 'element' ? selectionDe(espace, ou.tableau) : []
     setAvecSelection(selection.length)
     try {
-      const r = await demanderAgent(tableau, texte.slice(0, MESSAGE_MAX), selection)
+      const r = await demanderAgent(ou.tableau, texte.slice(0, MESSAGE_MAX), selection, ouvertDe(espace, ou))
       setMessage('')
-      setTour(r.tour)
+      setTour({ id: r.tour, tableau: ou.tableau })
     } catch (x) {
       setDit(null)
       setErreur((x as Error).message || t('agent.echec'))
@@ -289,11 +327,11 @@ export function useAgent(tableau: string, espace?: EspaceNavigable) {
   }
 
   /** Répond aux cartes du tour en cours : l'outil reprend le tour, et le suivi avec lui. */
-  const decider = async (reponses: { id: string; accord: boolean; toujours: boolean }[]) => {
-    if (!tour || reponses.length === 0) return
+  const decider = async (choix: { id: string; accord: boolean; toujours: boolean }[]) => {
+    if (!tour || choix.length === 0) return
     setErreur(null)
     try {
-      await deciderCartes(tableau, tour, reponses)
+      await deciderCartes(tour.tableau, tour.id, choix)
       setCartes([])
       setAttendCartes(false)
       setRelance((n) => n + 1)
@@ -302,15 +340,40 @@ export function useAgent(tableau: string, espace?: EspaceNavigable) {
     }
   }
 
-  return { disponible: etat?.disponible === true, nom, echanges: etat?.echanges ?? [], tour, attendCartes, cartes, decider, erreur, message, setMessage, envoi, dit, avecSelection, relire, envoyer }
+  // La page ou la carte ouverte d'où l'on écrit : la saisie en parle.
+  const ouvert = ici ? ouvertDe(espace, ici) : null
+  const genreOuvert = ouvert ? (espace?.tableau(ici!.tableau)?.elements.find((e) => e.id === ouvert)?.contenu.type ?? null) : null
+
+  return {
+    disponible: agent?.disponible === true,
+    nom,
+    ici,
+    genreOuvert,
+    echanges,
+    tour: idTour,
+    attendCartes,
+    cartes,
+    decider,
+    erreur,
+    message,
+    setMessage,
+    envoi,
+    dit,
+    avecSelection,
+    reponses,
+    relire,
+    envoyer,
+  }
 }
 
 export type Agent = ReturnType<typeof useAgent>
 
-/** Le fil, l'état du tour et la saisie : le contenu du panneau, au bureau comme au téléphone. Relit le fil à l'ouverture. */
+/** Le fil, l'état du tour et la saisie : le contenu de la bulle, au bureau comme au téléphone. Relit le fil à l'ouverture. */
 export function FilAgent({ agent }: { agent: Agent }) {
-  const { nom, echanges, tour, attendCartes, cartes, decider, erreur, message, setMessage, envoi, dit, avecSelection, relire, envoyer } = agent
+  const { nom, ici, genreOuvert, echanges, tour, attendCartes, cartes, decider, erreur, message, setMessage, envoi, dit, avecSelection, relire, envoyer } = agent
   const fil = useRef<HTMLOListElement>(null)
+  // Depuis la bibliothèque, on ne parle pas d'« un tableau » : ce qu'on peut demander n'y est pas le même.
+  const biblio = ici?.vue === 'bibliotheque' || ici?.vue === 'dossier'
 
   useEffect(() => {
     void relire()
@@ -339,7 +402,7 @@ export function FilAgent({ agent }: { agent: Agent }) {
         {echanges.length === 0 && !dit && (
           <li className="app-panneau-vide agent-vide">
             <Icone nom="idee" taille={22} trait={1.5} />
-            {t('agent.vide', { nom })}
+            {t(biblio ? 'agent.vide.bibliotheque' : 'agent.vide', { nom })}
           </li>
         )}
         {echanges.map((x, i) => (
@@ -362,7 +425,7 @@ export function FilAgent({ agent }: { agent: Agent }) {
           </li>
         )}
         {tour && cartes.length > 0 && (
-          <li className="agent-cartes" aria-live="polite">
+          <li className="agent-cartes">
             <strong>{t('agent.cartes', { nom })}</strong>
             {cartes.map((c) => (
               <div key={c.id} className="agent-carte">
@@ -387,11 +450,7 @@ export function FilAgent({ agent }: { agent: Agent }) {
             ))}
           </li>
         )}
-        {tour && cartes.length === 0 && (
-          <li className="agent-travaille" aria-live="polite">
-            {attendCartes ? t('agent.cartesAilleurs', { nom }) : t('agent.travaille', { nom })}
-          </li>
-        )}
+        {tour && cartes.length === 0 && <li className="agent-travaille">{attendCartes ? t('agent.cartesAilleurs', { nom }) : t('agent.travaille', { nom })}</li>}
       </ol>
       {erreur && (
         <p className="agent-erreur" role="alert">
@@ -403,7 +462,10 @@ export function FilAgent({ agent }: { agent: Agent }) {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={touche}
-          placeholder={t('agent.placeholder', { nom })}
+          placeholder={t(
+            biblio ? 'agent.placeholder.bibliotheque' : genreOuvert === 'document' ? 'agent.placeholder.page' : genreOuvert === 'arbre' ? 'agent.placeholder.carte' : 'agent.placeholder',
+            { nom },
+          )}
           aria-label={t('agent.demander', { nom })}
           rows={2}
           maxLength={MESSAGE_MAX}
@@ -414,33 +476,5 @@ export function FilAgent({ agent }: { agent: Agent }) {
         </button>
       </form>
     </>
-  )
-}
-
-/**
- * Le bouton de l'agent d'un outil rattaché (Fram, pour Silak) et son panneau : le fil de ce qu'on lui a demandé sur ce
- * tableau, l'état « Fram travaille… », sa réponse. L'agent agit sur le tableau lui-même, et ses gestes arrivent par la
- * synchro, sous les yeux de la personne. Rien ne paraît si le serveur n'a pas d'agent, si la personne n'est pas liée à
- * l'outil, ou si l'outil ne le lui ouvre pas encore.
- */
-export function Agent({ tableau, espace }: { tableau: string; espace?: EspaceNavigable }) {
-  const { ouvert, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
-  const agent = useAgent(tableau, espace)
-  if (!agent.disponible) return null
-  const { nom } = agent
-
-  return (
-    <div className="agent" ref={ancre}>
-      <button type="button" ref={bouton} className="bouton" aria-expanded={ouvert} onClick={basculer} title={t('agent.demander', { nom })}>
-        <Icone nom="idee" taille={16} />
-        {nom}
-        {agent.tour && <span className="agent-pastille" aria-label={t('agent.travaille', { nom })} />}
-      </button>
-      {ouvert && (
-        <div className="app-panneau agent-panneau" ref={panneau} role="dialog" aria-label={t('agent.demander', { nom })}>
-          <FilAgent agent={agent} />
-        </div>
-      )}
-    </div>
   )
 }

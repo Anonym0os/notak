@@ -89,6 +89,7 @@ import {
   IconMap,
   IconMapPin,
   IconMessage,
+  IconMessageCircle,
   IconMessagePlus,
   IconMicrophone,
   IconMinus,
@@ -420,6 +421,8 @@ const ICONES = {
   image: IconPhoto,
   trombone: IconPaperclip,
   commentaire: IconMessage,
+  /** La bulle de l'agent : on lui parle comme dans une messagerie. */
+  discussion: IconMessageCircle,
   copie: IconCopy,
   epingle: IconMapPin,
   lien: IconLink,
