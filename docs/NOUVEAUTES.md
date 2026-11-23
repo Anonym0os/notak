@@ -68,3 +68,13 @@ fil des changements ; `bun run nouvelle-version x.y.z` en fait la section de la 
 - **Ce que l'agent crée s'ouvre d'un clic** : sous sa réponse, une puce « Ouvrir « … » » par page, carte mentale ou
   toile qu'il vient de faire. Quand vous lui demandez de l'ouvrir, il vous y mène, une fois, dans la fenêtre d'où vous
   lui avez écrit ; refermer la page vous ramène où vous étiez.
+- **La bulle de l'agent devient un vrai chat.** Vous voyez ce qu'il fait pendant qu'il travaille : une ligne sous votre
+  question dit ce qu'il fait à l'instant, et depuis combien de temps ; ses étapes s'alignent dessous (« J'ai lu le
+  tableau », « Je dessine la carte… »), avec son plan ; sa réponse s'écrit au fil de l'eau, et ce qu'il crée paraît aussitôt.
+  Une fois fini, ses étapes se replient sous la réponse (« 5 étapes »). « Arrêter » l'interrompt, et il n'y a plus de
+  limite de temps : un long travail se suit jusqu'au bout.
+- **On joint des fichiers à l'agent** : ⌘V d'une ou plusieurs images, un dépôt de fichiers de tout genre sur la
+  conversation ou sur la bulle, ou le trombone. Chacun montre sa vignette, son nom et sa taille ; 25 Mo par fichier et
+  10 par message, dit avant l'envoi.
+- **On peut écrire à l'agent pendant qu'il travaille** : le message attend « en attente » et part à la fin du tour.
+  « Plus tôt » déplie les parties précédentes de la conversation, chacune résumée.
