@@ -4,7 +4,7 @@ import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { EntreeBibliotheque } from './api'
-import { PageBibliotheque, adresseDe, entreesDe, filtrer, sectionsDeLAccueil, sectionsParDate, sectionsParDossier, titreDe } from './Bibliotheque'
+import { PageBibliotheque, adresseDe, dateDeCreation, entreesDe, filtrer, quandRecent, sectionsParDate, titreDe } from './Bibliotheque'
 import { allerA } from './chemin'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -40,10 +40,24 @@ const TOUTES: EntreeBibliotheque[] = [
   entree({ tableau: 'voyage', element: 'notes', genre: 'document', titre: '', ou: 'Voyage', dans: 'voyage', vu: MAINTENANT - 20 * JOUR }),
 ]
 
+/** Un identifiant de Notak né à cet instant (`nouvelId`) : dix signes de date, seize de hasard. */
+const neA = (ms: number, suite = 'AAAAAAAAAAAAAAAA') => {
+  let date = ''
+  for (let t = ms, i = 0; i < 10; i++, t = Math.floor(t / 32)) date = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'[t % 32] + date
+  return date + suite
+}
+
 describe('entreesDe', () => {
-  it('trie par dernière ouverture, puis par titre, sans tenir à la casse', () => {
-    expect(entreesDe({ portee: 'tout', filtre: 'toile' }, TOUTES).map((e) => e.titre)).toEqual(['Budget', 'Voyage', 'atelier'])
+  it('les récents, par dernière ouverture ; ailleurs, l’ordre de la bibliothèque, que l’ouverture ne change pas', () => {
     expect(entreesDe({ portee: 'recents', filtre: 'tout' }, TOUTES).map((e) => e.titre)).toEqual(['Budget', 'Plan', 'Voyage', ''])
+    // Des identifiants sans date : par nom, sans tenir à la casse ; « Voyage », ouvert, ne passe pas devant.
+    expect(entreesDe({ portee: 'tout', filtre: 'tout', dossier: 'racine' }, TOUTES, 'creation', 'racine').map((e) => e.titre)).toEqual(['atelier', 'Voyage'])
+    expect(entreesDe({ portee: 'tout', filtre: 'toile' }, TOUTES, 'nom').map((e) => e.titre)).toEqual(['atelier', 'Budget', 'Voyage'])
+  })
+
+  it('les récents ne montrent pas les dossiers : on y reprend ce qu’on ouvre pour travailler', () => {
+    const dossier = entree({ tableau: 'clients', titre: 'Clients', vu: MAINTENANT, dans: 'racine', resume: { genre: 'toile', element: '', titre: 'Clients', boites: [], dossier: true } })
+    expect(entreesDe({ portee: 'recents', filtre: 'tout' }, [...TOUTES, dossier]).map((e) => e.tableau)).not.toContain('clients')
   })
 
   it('range chaque genre dans sa rubrique, favoris et partages compris', () => {
@@ -104,23 +118,7 @@ describe('les photos, les liens et les fichiers', () => {
 describe('les sections', () => {
   beforeEach(() => definirLangue('fr'))
 
-  it('l’accueil de la bibliothèque : reprendre, favoris, puis un genre qui s’ouvre par rubrique, chaque entrée une seule fois', () => {
-    const beaucoup = Array.from({ length: 10 }, (_, i) => entree({ tableau: `t${i}`, titre: `Toile ${i}` }))
-    const s = sectionsDeLAccueil(entreesDe({ portee: 'tout', filtre: 'tout' }, [...TOUTES, ...PORTES, ...beaucoup]))
-    // Ni photos, ni liens, ni fichiers : le PDF ouvert n'entre pas dans « Reprendre », et ils n'ont pas de rubrique.
-    expect(s.map((x) => [x.titre, x.entrees.length, x.voir ?? null])).toEqual([
-      ['Reprendre', 4, null],
-      ['Toiles', 8, { portee: 'tout', filtre: 'toile' }],
-    ])
-    // Même si on les lui donnait, il ne leur fait pas de rubrique : leur puce les montre.
-    expect(sectionsDeLAccueil(PORTES).map((x) => x.cle)).toEqual(['reprendre'])
-    const cles = s.flatMap((x) => x.entrees.map((e) => `${e.tableau}/${e.element ?? ''}`))
-    expect(new Set(cles).size).toBe(cles.length)
-    // « Voyage », favori et ouvert, est dans « Reprendre » : « Favoris » n'a plus rien à montrer.
-    expect(s.some((x) => x.cle === 'favoris')).toBe(false)
-  })
-
-  it('par date : aujourd’hui, cette semaine, plus tôt, puis jamais ouvertes', () => {
+  it('les récents, par jour : aujourd’hui, cette semaine, plus tôt (puis jamais ouvertes, par sûreté)', () => {
     expect(sectionsParDate(TOUTES, MAINTENANT).map((s) => [s.titre, s.entrees.map((e) => e.titre)])).toEqual([
       ['Aujourd’hui', ['Budget', 'Plan']],
       ['Cette semaine', ['Voyage']],
@@ -129,12 +127,19 @@ describe('les sections', () => {
     ])
   })
 
-  it('par dossier : une section par toile, la plus récemment ouverte d’abord, ce qui vient d’ailleurs en dernier', () => {
-    expect(sectionsParDossier(TOUTES).map((s) => [s.titre, s.dans, s.entrees.map((e) => e.titre)])).toEqual([
-      ['Voyage', 'voyage', ['Plan', '']],
-      ['Accueil', 'racine', ['Voyage', 'atelier']],
-      ['Partagés avec moi', null, ['Budget']],
-    ])
+  it('quand on l’a ouvert : l’heure aujourd’hui, le jour dans la semaine, la date au-delà', () => {
+    const lundi = new Date(2026, 10, 23, 15, 0).getTime()
+    expect(quandRecent(lundi - 2 * 3_600_000, lundi)).toBe('13:00')
+    expect(quandRecent(lundi - 3 * JOUR, lundi)).toBe('ven.')
+    expect(quandRecent(new Date(2026, 9, 12).getTime(), lundi)).toBe('12 oct.')
+    expect(quandRecent(new Date(2025, 9, 12).getTime(), lundi)).toBe('12 oct. 2025')
+  })
+
+  it('sous une tuile du rangement, sa date de création : aujourd’hui, sinon la date ; rien quand l’identifiant ne la dit pas', () => {
+    const lundi = new Date(2026, 10, 23, 15, 0).getTime()
+    expect(dateDeCreation({ tableau: neA(lundi - 3_600_000), element: null }, lundi)).toBe('Aujourd’hui')
+    expect(dateDeCreation({ tableau: neA(new Date(2026, 10, 12).getTime()), element: null }, lundi)).toBe('12 nov.')
+    expect(dateDeCreation({ tableau: 'voyage', element: null }, lundi)).toBeNull()
   })
 
   it('la recherche ne tient ni aux accents ni à la casse, et lit aussi la toile qui porte', () => {
@@ -156,6 +161,7 @@ describe('la page', () => {
   beforeEach(() => {
     definirLangue('fr')
     localStorage.clear()
+    sessionStorage.clear()
     history.replaceState(null, '', '/')
     hote = document.createElement('div')
     document.body.append(hote)
@@ -166,27 +172,51 @@ describe('la page', () => {
     hote.remove()
   })
 
+  // La racine des essais : la toile d'accueil « racine », que portent « Voyage » et « atelier ».
   const ouvrir = async (charger: () => Promise<EntreeBibliotheque[]>, creer?: Parameters<typeof PageBibliotheque>[0]['creer']) => {
-    await act(async () => racine.render(<PageBibliotheque charger={charger} {...(creer ? { creer } : {})} />))
+    await act(async () => racine.render(<PageBibliotheque charger={charger} racine="racine" {...(creer ? { creer } : {})} />))
   }
   const rubrique = (nom: string) => [...hote.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.textContent?.startsWith(nom))!
   const puce = (nom: string) => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-puce')].find((b) => b.textContent?.startsWith(nom))!
-  const titres = () => [...hote.querySelectorAll('.biblio-section h2')].map((h) => h.textContent)
   const tuiles = () => [...hote.querySelectorAll<HTMLElement>('[data-cle]')].map((li) => [li.querySelector('.biblio-tuile-titre')!.textContent, li.dataset.cle])
 
-  it('s’ouvre sur les récents, rangés par date, avec la tuile qui crée en tête ; la colonne et les puces disent combien', async () => {
+  it('s’ouvre sur la racine : ce qui y est rangé, rien d’autre, la tuile qui crée en tête ; la colonne la nomme et dit combien', async () => {
     await ouvrir(async () => TOUTES)
-    expect(rubrique('Récents').getAttribute('aria-current')).toBe('page')
-    expect(hote.querySelector('h1')!.textContent).toBe('Récents')
-    expect(rubrique('Bibliothèque').textContent).toBe('Bibliothèque5')
+    expect(location.pathname + location.search).toBe('/')
+    expect(rubrique('Mon espace').getAttribute('aria-current')).toBe('page')
+    expect(hote.querySelector('h1')!.textContent).toBe('Mon espace')
+    // Ni « Bibliothèque » mêlée, ni « Reprendre » : la racine, puis les récents, les favoris, les partages.
+    expect([...hote.querySelectorAll<HTMLElement>('.biblio-colonne [data-rubrique]')].map((b) => b.dataset.rubrique)).toEqual(['tout', 'recents', 'favoris', 'partages'])
     expect(rubrique('Favoris').textContent).toBe('Favoris1')
-    // Les puces comptent là où l'on est : deux toiles ouvertes parmi trois.
-    expect(puce('Tout').getAttribute('aria-pressed')).toBe('true')
-    expect(puce('Toiles').textContent).toBe('Toiles2')
-    expect(puce('Photos').hasAttribute('data-vide')).toBe(true)
+    // « Budget », partagé avec moi, et « Plan », rangé dans « Voyage », n'y sont pas.
+    expect(tuiles()).toEqual([
+      ['atelier', 'atelier/'],
+      ['Voyage', 'voyage/'],
+    ])
     expect(hote.querySelector('.biblio-tuile-neuve')!.textContent).toContain('Nouvelle toile')
-    expect(tuiles()[0]).toEqual(['Budget', 'budget/'])
-    expect(hote.querySelectorAll('.biblio-tuile-ou')[2]!.textContent).toBe('dans Voyage')
+    // Une seule sorte de chose ici (des toiles) : pas de puces à choisir.
+    expect(hote.querySelector('.biblio-puces')).toBeNull()
+    // La racine ne répète pas où elles sont : la tuile dit ce qu'elle est (sa date, quand l'identifiant la dit).
+    expect([...hote.querySelectorAll('[data-cle] .biblio-tuile-ou')].map((n) => n.textContent)).toEqual(['Toile', 'Toile'])
+  })
+
+  it('les récents : une liste à part, sans vignette, ni puce, ni tri, ni tuile qui crée ; chaque ligne dit où c’est rangé, et y mène', async () => {
+    await ouvrir(async () => TOUTES)
+    act(() => rubrique('Récents').click())
+    expect(location.search).toBe('?vue=recents')
+    expect(hote.querySelector('h1')!.textContent).toBe('Récents')
+    expect(hote.querySelector('.biblio-grille')!.getAttribute('data-affichage')).toBe('recents')
+    expect(hote.querySelector('.biblio-corps .biblio-vignette')).toBeNull()
+    expect(hote.querySelector('.biblio-puces, .biblio-tri, .biblio-tuile-neuve')).toBeNull()
+    expect(tuiles().map(([titre]) => titre)).toEqual(['Budget', 'Plan', 'Voyage', 'Sans titre'])
+    // Où c'est rangé : un partage dont on ne lit pas le haut, la toile qui porte, la racine.
+    expect([...hote.querySelectorAll('.biblio-recent-ou')].map((n) => n.textContent)).toEqual(['Partagé avec moi', 'Voyage', 'Mon espace', 'Voyage'])
+    expect(hote.querySelector<HTMLElement>('[data-cle="voyage/plan"] .biblio-recent-ou')!.title).toBe('Mon espace › Voyage')
+    // « Mon espace », sous « Voyage » : la racine, où sa tuile se montre, choisie.
+    act(() => hote.querySelector<HTMLButtonElement>('[data-cle="voyage/"] .biblio-recent-ou')!.click())
+    expect(location.pathname + location.search).toBe('/')
+    expect(hote.querySelector('[data-cle="voyage/"]')!.getAttribute('aria-selected')).toBe('true')
+    expect(hote.querySelector('[data-cle="voyage/"]')!.classList.contains('biblio-recent')).toBe(false)
   })
 
   it('une toile privée porte un cadenas devant son nom, que son nom dit aussi au lecteur d’écran', async () => {
@@ -207,7 +237,6 @@ describe('la page', () => {
       if (panne) throw new Error('hors ligne')
       return liste
     })
-    act(() => rubrique('Bibliothèque').click())
     const avant = tuiles()
     liste = [...TOUTES, entree({ tableau: 'dupont', titre: 'Dupont SARL', ou: 'Accueil', dans: 'racine' })]
     // La page vient de se lire : un instant plus tard, la fenêtre redevient active.
@@ -231,44 +260,58 @@ describe('la page', () => {
     horloge.mockRestore()
   })
 
-  it('où et quoi se choisissent et se combinent ; le tri par dossier regroupe et se retient', async () => {
-    await ouvrir(async () => TOUTES)
+  it('les puces filtrent l’endroit où l’on est, et ne montrent que ce qu’il contient ; changer d’endroit les remet à « Tout »', async () => {
+    history.replaceState(null, '', '/?dossier=voyage')
+    await ouvrir(async () => [...TOUTES, ...PORTES])
+    // « Voyage » porte une page, une carte mentale, une photo, un lien et un PDF : une puce par genre présent.
+    expect([...hote.querySelectorAll('.biblio-puce')].map((b) => b.textContent)).toEqual(['Tout', 'Pages1', 'Cartes mentales1', 'Photos1', 'Liens1', 'Fichiers1'])
     act(() => puce('Cartes mentales').click())
-    expect(location.search).toBe('?type=arbre')
+    expect(location.search).toBe('?dossier=voyage&type=arbre')
     expect(tuiles()).toEqual([['Plan', 'voyage/plan']])
     act(() => rubrique('Favoris').click())
-    expect(hote.querySelector('.biblio-vide')!.textContent).toContain('Aucune carte mentale.La puce « Tout » montre le reste.')
-    act(() => rubrique('Bibliothèque').click())
-    act(() => puce('Toiles').click())
-    expect(location.search).toBe('?vue=tout&type=toile')
-    expect(hote.querySelector('h1')!.textContent).toBe('Toiles')
-    expect(tuiles().map(([, cle]) => cle)).toEqual(['budget/', 'voyage/', 'atelier/'])
-    act(() => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-tri-choix')].find((b) => b.textContent === 'Par dossier')!.click())
-    expect(titres()).toEqual(['Accueil', 'Partagés avec moi'])
-    expect(localStorage.getItem('notak:bibliotheque-tri')).toBe('dossier')
-    // Rangée par dossier, une tuile ne répète pas sa toile : elle dit son genre.
-    expect(hote.querySelector('[data-cle] .biblio-tuile-ou')!.textContent).toBe('Toile')
+    expect(location.search).toBe('?vue=favoris')
+    expect(tuiles()).toEqual([['Voyage', 'voyage/']])
+    // Là où les endroits se mêlent, la tuile dit où elle est rangée.
+    expect(hote.querySelector('[data-cle="voyage/"] .biblio-tuile-ou')!.textContent).toBe('dans Mon espace')
   })
 
-  it('« Tout » montre ce qui s’ouvre ; les photos, liens et fichiers restent sous leur puce, qui les compte', async () => {
+  it('l’ordre de la racine et des dossiers : les dossiers, puis la création la plus récente d’abord, ou par nom ; il se retient, et ouvrir ne le change pas', async () => {
+    const heure = 3_600_000
+    const maintenant = Date.now()
+    const dossier = entree({ tableau: neA(maintenant - 9 * heure, 'BBBBBBBBBBBBBBBB'), titre: 'Clients', ou: 'Accueil', dans: 'racine', resume: { genre: 'toile', element: '', titre: 'Clients', boites: [], dossier: true } })
+    const ici = [
+      entree({ tableau: neA(maintenant - 3 * heure), titre: 'Budget 2027', ou: 'Accueil', dans: 'racine' }),
+      dossier,
+      entree({ tableau: neA(maintenant - 2 * heure), titre: 'Atelier', ou: 'Accueil', dans: 'racine', vu: maintenant }),
+      entree({ tableau: neA(maintenant - heure), titre: 'Neuve', ou: 'Accueil', dans: 'racine' }),
+    ]
+    await ouvrir(async () => ici)
+    // La toile neuve arrive en tête, juste après les dossiers ; « Atelier », ouvert à l'instant, ne passe pas devant.
+    expect(tuiles().map(([titre]) => titre)).toEqual(['Clients', 'Neuve', 'Atelier', 'Budget 2027'])
+    // La tuile qui crée est là où arrive ce qu'on crée : après les dossiers.
+    expect([...hote.querySelectorAll('.biblio-grille > li')].map((li) => li.querySelector('.biblio-tuile-titre')!.textContent)).toEqual(['Clients', 'Nouvelle toile', 'Neuve', 'Atelier', 'Budget 2027'])
+    expect(hote.querySelector(`[data-cle="${dossier.tableau}/"] .biblio-tuile-ou`)!.textContent).toBe('Vide')
+    act(() => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-tri-choix')].find((b) => b.textContent === 'Nom')!.click())
+    expect(tuiles().map(([titre]) => titre)).toEqual(['Clients', 'Atelier', 'Budget 2027', 'Neuve'])
+    expect(localStorage.getItem('notak:bibliotheque-tri')).toBe('nom')
+    // Le clic droit du fond le propose aussi.
+    act(() => void hote.querySelector('.biblio-corps')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 40, clientY: 40 })))
+    const coches = [...hote.querySelectorAll<HTMLButtonElement>('.notak-menu [role="menuitemcheckbox"]')].map((b) => [b.textContent, b.getAttribute('aria-checked')])
+    expect(coches).toEqual([
+      ['Date de création', 'false'],
+      ['Nom', 'true'],
+    ])
+  })
+
+  it('la racine et les dossiers montrent tout ce qu’on y a rangé ; les récents, ce qu’on ouvre pour travailler ; la recherche trouve tout', async () => {
+    history.replaceState(null, '', '/?dossier=voyage')
     await ouvrir(async () => [...TOUTES, ...PORTES])
-    act(() => rubrique('Bibliothèque').click())
-    // La colonne compte ce que la rubrique montre : cinq toiles, pages et cartes mentales.
-    expect(rubrique('Bibliothèque').textContent).toBe('Bibliothèque5')
-    expect(titres()).toEqual(['Reprendre', 'ToilesTout voir'])
-    expect(tuiles().map(([, cle]) => cle).filter((c) => /port|site|billets/.test(c!))).toEqual([])
-    expect(['Photos', 'Liens', 'Fichiers'].map((p) => puce(p).textContent)).toEqual(['Photos1', 'Liens1', 'Fichiers1'])
-    act(() => puce('Photos').click())
-    expect(tuiles()).toEqual([['Photo', 'voyage/port']])
-    // Les récents gardent la puce ; sous « Tout », le PDF qu'on vient d'ouvrir reste sous la sienne.
+    expect(tuiles().map(([, cle]) => cle).sort()).toEqual(['voyage/billets', 'voyage/notes', 'voyage/plan', 'voyage/port', 'voyage/site'])
+    // Le PDF qu'on vient d'ouvrir n'est pas des récents : ni photos, ni liens, ni fichiers, comme les pièces jointes d'un message.
     act(() => rubrique('Récents').click())
-    act(() => puce('Tout').click())
     expect(tuiles().map(([, cle]) => cle)).toEqual(['budget/', 'voyage/plan', 'voyage/', 'voyage/notes'])
-    act(() => puce('Fichiers').click())
-    expect(tuiles()).toEqual([['Billets', 'voyage/billets']])
     // La recherche, elle, trouve tout : un PDF par son nom.
     const champ = hote.querySelector<HTMLInputElement>('input[type="search"]')!
-    act(() => puce('Tout').click())
     act(() => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ, 'tap.pdf')
       champ.dispatchEvent(new Event('input', { bubbles: true }))
@@ -326,17 +369,6 @@ describe('la page', () => {
     expect(hote.querySelector('.biblio-premiers-choix')).toBeNull()
   })
 
-  it('la bibliothèque s’ouvre sur son accueil en rubriques ; « Tout voir » mène à la puce du genre', async () => {
-    const beaucoup = Array.from({ length: 10 }, (_, i) => entree({ tableau: `t${i}`, titre: `Toile ${i}` }))
-    await ouvrir(async () => [...TOUTES, ...beaucoup])
-    act(() => rubrique('Bibliothèque').click())
-    expect(titres()).toEqual(['Reprendre', 'ToilesTout voir'])
-    act(() => hote.querySelector<HTMLButtonElement>('.biblio-voir')!.click())
-    expect(location.search).toBe('?vue=tout&type=toile')
-    expect(puce('Toiles').getAttribute('aria-pressed')).toBe('true')
-    expect(hote.querySelectorAll('[data-cle]')).toHaveLength(13)
-  })
-
   it('le tiroir de la colonne : ☰ l’ouvre ; une rubrique, Échap ou le voile le referment ; son « + » crée', async () => {
     const crees: string[] = []
     await ouvrir(
@@ -363,6 +395,40 @@ describe('la page', () => {
     expect(crees).toEqual(['toile'])
   })
 
+  it('ce qu’on crée depuis les récents va à la racine : le retour y mène, et sa tuile y bat, choisie', async () => {
+    const crees: [string, string | undefined][] = []
+    let liste = TOUTES
+    await ouvrir(
+      async () => liste,
+      async (genre, dans) => (crees.push([genre, dans]), { tableau: 'neuve', element: null }),
+    )
+    act(() => rubrique('Récents').click())
+    act(() => hote.querySelector<HTMLButtonElement>('.biblio-nouveau-bouton')!.click())
+    await act(async () => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-menu [role="menuitem"]')][0]!.click())
+    // Rien d'ouvert où ranger : `creer` pose à la racine (son défaut), et la toile s'ouvre.
+    expect(crees).toEqual([['toile', undefined]])
+    expect(location.pathname).toBe('/t/neuve')
+    // Précédent ne ramène pas aux récents : la page qu'on a quittée est devenue la racine, où la toile est rangée.
+    await act(async () => {
+      history.back()
+      for (let i = 0; i < 200 && location.pathname !== '/'; i++) await new Promise((fin) => setTimeout(fin, 10))
+    })
+    expect(location.pathname + location.search).toBe('/')
+    // L'application avait quitté la bibliothèque pour la toile : elle se remonte, et la liste porte la toile neuve.
+    liste = [...TOUTES, entree({ tableau: 'neuve', titre: 'Nouvelle toile', ou: 'Accueil', dans: 'racine' })]
+    act(() => racine.unmount())
+    racine = createRoot(hote)
+    await ouvrir(async () => liste)
+    expect(hote.querySelector('h1')!.textContent).toBe('Mon espace')
+    const neuve = hote.querySelector('[data-cle="neuve/"]')!
+    expect([neuve.getAttribute('aria-selected'), neuve.hasAttribute('data-arrivee')]).toEqual(['true', true])
+    // Une fois : y revenir encore ne la fait plus battre.
+    act(() => racine.unmount())
+    racine = createRoot(hote)
+    await ouvrir(async () => liste)
+    expect(hote.querySelector('[data-cle="neuve/"]')!.hasAttribute('data-arrivee')).toBe(false)
+  })
+
   it('le bouton Nouveau propose une toile, une page ou une carte mentale', async () => {
     const crees: string[] = []
     await ouvrir(
@@ -386,7 +452,7 @@ describe('la page', () => {
     })
     expect(hote.querySelector('[role="alert"]')!.textContent).toContain('Serveur injoignable')
     await act(async () => hote.querySelector<HTMLButtonElement>('[role="alert"] button')!.click())
-    expect(tuiles()).toHaveLength(4)
+    expect(tuiles()).toHaveLength(2)
   })
 })
 
@@ -396,6 +462,7 @@ describe('les gestes', () => {
   beforeEach(() => {
     definirLangue('fr')
     localStorage.clear()
+    sessionStorage.clear()
     history.replaceState(null, '', '/?vue=toiles')
     hote = document.createElement('div')
     document.body.append(hote)
@@ -424,13 +491,18 @@ describe('les gestes', () => {
         budget: { titre: 'Budget', elements: [] },
       },
     })
+  /**
+   * « Budget » est ici une toile à moi que rien ne range (ni carte, ni parent) : la racine la montre, à côté de
+   * « Voyage » et « atelier ». Les essais partent de `?vue=toiles` : la racine, sous la puce des toiles.
+   */
+  const MIENNES = TOUTES.map((e) => (e.tableau === 'budget' ? { ...e, partage: false } : e))
   const appels: [string, string, unknown][] = []
   const ouvrir = async (espace = monde(), nouveaux = 0, perdus = 0, membresPerdus = 0) => {
     appels.length = 0
     await act(async () =>
       racine.render(
         <PageBibliotheque
-          charger={async () => TOUTES}
+          charger={async () => MIENNES}
           espace={espace}
           rangerToile={async (toile, parent, options) => (appels.push([toile, parent, options ?? {}]), { nouveaux, perdus, permanents: 0, liensOuverts: 0, liensEteints: nouveaux > 0 ? 1 : 0, membresPerdus, membresNouveaux: 0, fait: !options?.essai })}
           definirFavori={async () => {}}
@@ -455,9 +527,10 @@ describe('les gestes', () => {
 
   it('un clic choisit, ⌘ ajoute, ⇧ prend la suite ; la barre de la sélection le dit ; Échap vide', async () => {
     await ouvrir()
-    appuyer(tuile('voyage/'))
-    expect(choisies()).toEqual(['voyage/'])
-    appuyer(tuile('budget/'), { metaKey: true })
+    // Par nom, faute de date dans ces identifiants : atelier, Budget, Voyage.
+    appuyer(tuile('atelier/'))
+    expect(choisies()).toEqual(['atelier/'])
+    appuyer(tuile('voyage/'), { metaKey: true })
     expect(choisies()).toHaveLength(2)
     expect(hote.querySelector('.biblio-barre-choix')!.textContent).toContain('2 sélectionnés')
     appuyer(tuile('atelier/'), { shiftKey: true })
@@ -510,8 +583,8 @@ describe('les gestes', () => {
       await act(async () =>
         racine.render(<PageBibliotheque charger={async () => AVEC_DOSSIER} espace={monde()} creer={async (g, dans) => (crees.push([g, dans]), { tableau: dans ?? 'racine', element: 'neuf' })} />),
       )
-      // Rangé à la racine, il dit ce qu'il est : la racine porte tout.
-      expect(tuile('voyage/').querySelector('.biblio-tuile-ou')!.textContent).toBe('Dossier')
+      // Un dossier dit ce qu'il contient : la racine porte tout, son nom et le fil disent déjà où l'on est.
+      expect(tuile('voyage/').querySelector('.biblio-tuile-ou')!.textContent).toBe('2 éléments')
       act(() => tuile('voyage/').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
       expect(location.pathname).toBe('/')
       expect(location.search).toBe('?dossier=voyage')
@@ -591,9 +664,9 @@ describe('les gestes', () => {
         'Copier le lien',
         'Mettre à la corbeille',
       ])
-      // Sa tuile n'est pas à l'écran : on va dans le dossier qui la range, où elle se renomme.
+      // Sa tuile n'est pas à l'écran : on va dans le dossier qui la range (la racine, `/`), où elle se renomme.
       act(() => entree('Renommer').click())
-      expect(location.search).toBe('?dossier=racine')
+      expect(location.pathname + location.search).toBe('/')
       expect(tuile('voyage/').querySelector<HTMLInputElement>('.biblio-renommer')!.value).toBe('Voyage')
       expect(tuile('voyage/').getAttribute('aria-selected')).toBe('true')
     })
@@ -602,7 +675,7 @@ describe('les gestes', () => {
       history.replaceState(null, '', '/?dossier=voyage')
       await act(async () => racine.render(<PageBibliotheque charger={async () => AVEC_DOSSIER} espace={monde()} />))
       act(() => hote.querySelector<HTMLButtonElement>('.biblio-fil button')!.click())
-      expect(location.search).toBe('?dossier=racine')
+      expect(location.pathname + location.search).toBe('/')
       expect(hote.querySelector('h1')!.textContent).toBe('Mon espace')
       expect([...hote.querySelectorAll<HTMLElement>('[data-cle]')].map((x) => x.dataset.cle).sort()).toEqual(['atelier/', 'voyage/'])
       act(() => [...hote.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.dataset.rubrique === 'favoris')!.click())
@@ -635,7 +708,8 @@ describe('les gestes', () => {
       expect([location.search, titre()]).toEqual(['?dossier=voyage', 'Voyage'])
       expect(choisies()).toEqual(['etape/'])
       await pas('back')
-      expect([location.search, titre()]).toEqual(['?vue=tout', 'Bibliothèque'])
+      // `?vue=tout`, d'avant : la racine.
+      expect([location.search, titre()]).toEqual(['?vue=tout', 'Mon espace'])
       expect(choisies()).toEqual(['voyage/'])
       await pas('forward')
       await pas('forward')
@@ -644,7 +718,7 @@ describe('les gestes', () => {
       expect(hote.querySelector('.biblio-arbre [aria-current="page"]')!.textContent).toBe('Étape')
       // Le fil, puis la colonne : deux pas encore, que précédent défait un à un.
       act(() => hote.querySelector<HTMLButtonElement>('.biblio-fil .notak-fil-segment[data-genre="accueil"]')!.click())
-      expect(location.search).toBe('?dossier=racine')
+      expect(location.pathname + location.search).toBe('/')
       act(() => [...hote.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.dataset.rubrique === 'favoris')!.click())
       expect(location.search).toBe('?vue=favoris')
       await pas('back')
@@ -681,10 +755,10 @@ describe('les gestes', () => {
       expect(choisies()).toEqual(['voyage/plan'])
       expect(location.pathname).toBe('/t/voyage/e/plan')
       history.replaceState(null, '', '/?dossier=voyage')
-      // La bibliothèque elle-même (`/`) : les récents, hors de tout dossier.
+      // La bibliothèque elle-même (`/`) : sa racine.
       await act(async () => allerA('/'))
-      expect(titre()).toBe('Récents')
-      expect(hote.querySelector('.biblio-fil')).toBeNull()
+      expect(titre()).toBe('Mon espace')
+      expect(hote.querySelector<HTMLElement>('.biblio-fil [aria-current="page"]')!.dataset.genre).toBe('accueil')
     })
 
     it('arrivé dans un dossier par son adresse, la colonne le montre, ses parents dépliés', async () => {
@@ -792,7 +866,6 @@ describe('les gestes', () => {
       await monter()
       expect(tuile('atelier/').querySelector('.biblio-tuile-titre .biblio-genere')!.textContent).toBe('Mon CRM')
       expect(tuile('atelier/').getAttribute('aria-label')).toBe('atelier, Généré par Mon CRM')
-      expect(tuile('budget/').querySelector('.biblio-genere')).toBeNull()
       expect([...hote.querySelectorAll('.biblio-arbre .biblio-rubrique')].map((b) => [b.querySelector('span')!.textContent, b.querySelector('.biblio-genere')?.textContent])).toEqual([
         ['atelier', 'Mon CRM'],
         ['Voyage', 'Mon CRM'],
@@ -844,6 +917,12 @@ describe('les gestes', () => {
     it('choisis avec d’autres, ils restent tels quels et l’avis le dit ; on range dedans ce qu’on veut', async () => {
       history.replaceState(null, '', '/?vue=tout')
       const espace = await monter()
+      // La recherche, qui lit toute la bibliothèque, met « Plan » (dans « Voyage ») et « atelier » (à la racine) côte à côte.
+      const champ = hote.querySelector<HTMLInputElement>('input[type="search"]')!
+      act(() => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ, 'a')
+        champ.dispatchEvent(new Event('input', { bubbles: true }))
+      })
       appuyer(tuile('voyage/plan'))
       appuyer(tuile('atelier/'), { metaKey: true })
       menu(tuile('voyage/plan'))
@@ -871,15 +950,16 @@ describe('les gestes', () => {
       await ouvrir()
       expect(hote.querySelector('.biblio-locale-vedette')).toBeNull()
       expect(hote.querySelector('.biblio-colonne [data-depot="racine"]')!.textContent).toBe('Mon espace')
+      expect(hote.querySelector('h1')!.textContent).toBe('Mon espace')
       expect(hote.querySelector('.biblio-tuile-neuve .biblio-tuile-ou')!.textContent).toBe('dans « Mon espace »')
       expect(tuile('voyage/').querySelector('.biblio-tuile-ou')!.textContent).toBe('Toile')
+      // « Budget », que rien ne range, est là aussi : rien ne se trouve seulement par les récents.
+      expect(tuile('budget/')).not.toBeNull()
       // Rien ne l'ouvre : vide, elle n'a rien à montrer.
       expect(hote.querySelector('.biblio-restes')).toBeNull()
-      act(() => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-tri-choix')].find((b) => b.textContent === 'Par dossier')!.click())
-      const titre = [...hote.querySelectorAll<HTMLElement>('.biblio-section h2')].find((h) => h.dataset.dossier === 'racine')!
-      expect(titre.textContent).toBe('Mon espace')
-      const libelles = menu(titre).map((b) => b.querySelector('.notak-e-libelle')!.textContent)
-      expect(libelles).toEqual(['Parcourir', 'Créer ici', 'Nouveau dossier'])
+      // Le clic droit du fond y crée et y range.
+      const libelles = menu(hote.querySelector('.biblio-corps')!).map((b) => b.querySelector('.notak-e-libelle')!.textContent)
+      expect(libelles).toEqual(['Nouveau', 'Nouveau dossier', 'Date de création', 'Nom', 'Tout sélectionner'])
     })
 
     it('qui porte encore des notes à elle : une ligne le dit, en tête de la racine et de la bibliothèque, et y mène', async () => {
@@ -893,7 +973,7 @@ describe('les gestes', () => {
       act(() => [...hote.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.dataset.rubrique === 'recents')!.click())
       expect(ligne()).toBeNull()
       act(() => hote.querySelector<HTMLButtonElement>('.biblio-colonne [data-depot="racine"]')!.click())
-      expect(location.search).toBe('?dossier=racine')
+      expect(location.pathname + location.search).toBe('/')
       const lien = ligne()!.querySelector<HTMLAnchorElement>('a')!
       expect([lien.textContent, lien.getAttribute('href')]).toEqual(['Ouvrir la toile', '/t/racine'])
       act(() => lien.click())
@@ -920,8 +1000,8 @@ describe('les gestes', () => {
       Object.defineProperty(lacher, 'dataTransfer', { value: { types: ['Files'], files: [new File(['x'], 'ph.jpg', { type: 'image/jpeg' })], dropEffect: 'none' } })
       await act(async () => void hote.querySelector('.biblio-corps')!.dispatchEvent(lacher))
       expect(importes).toEqual(['racine'])
-      // Une photo n'a pas sa place sous « Tout » : les récents, sous la puce des photos.
-      expect(location.search).toBe('?type=image')
+      // La racine montre tout ce qu'on y range : on y reste, la photo choisie.
+      expect(hote.querySelector('h1')!.textContent).toBe('Mon espace')
       expect(tuile('racine/ph').getAttribute('aria-selected')).toBe('true')
       const voir = [...hote.querySelectorAll<HTMLButtonElement>('.notak-avis button')].find((b) => b.textContent === 'Voir')!
       await act(async () => voir.click())
@@ -934,7 +1014,7 @@ describe('les gestes', () => {
   it('le clic droit du fond crée, range et choisit tout', async () => {
     await ouvrir()
     const libelles = menu(hote.querySelector('.biblio-corps')!).map((b) => b.querySelector('.notak-e-libelle')!.textContent)
-    expect(libelles).toEqual(['Nouveau', 'Nouveau dossier', 'Par date', 'Par dossier', 'Tout sélectionner'])
+    expect(libelles).toEqual(['Nouveau', 'Nouveau dossier', 'Date de création', 'Nom', 'Tout sélectionner'])
     act(() => entree('Tout sélectionner').click())
     expect(choisies()).toHaveLength(3)
   })
@@ -971,10 +1051,11 @@ describe('les gestes', () => {
   })
 
   it('une photo, un lien ou un fichier s’ouvrent sur leur toile, centrée sur eux, et entrent dans les récents', async () => {
-    history.replaceState(null, '', '/?vue=photos')
+    // « Voyage », une toile qu'on parcourt, sous la puce des photos.
+    history.replaceState(null, '', '/?dossier=voyage&type=image')
     const vus: unknown[] = []
     await act(async () => racine.render(<PageBibliotheque charger={async () => [...TOUTES, ...PORTES]} espace={monde()} noterVu={async (e) => void vus.push(e)} />))
-    expect(hote.querySelector('h1')!.textContent).toBe('Photos')
+    expect(hote.querySelector('h1')!.textContent).toBe('Voyage')
     expect(tuile('voyage/port').querySelector('.biblio-tuile-titre')!.textContent).toBe('Photo')
     act(() => tuile('voyage/port').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
     expect(location.pathname).toBe('/t/voyage')
@@ -983,7 +1064,7 @@ describe('les gestes', () => {
   })
 
   it('le menu d’un lien l’ouvre ; ce qu’une toile porte se met en favori', async () => {
-    history.replaceState(null, '', '/?vue=liens')
+    history.replaceState(null, '', '/?dossier=voyage&type=lien')
     const favoris: unknown[] = []
     const ouverture = vi.spyOn(window, 'open').mockReturnValue(null)
     await act(async () =>
@@ -1079,16 +1160,20 @@ describe('les gestes', () => {
     })
   })
 
-  it('« Afficher dans sa toile » ouvre celle qui la porte et lui demande de la montrer ; pas pour ce qui est à la racine', async () => {
-    history.replaceState(null, '', '/')
+  it('« Afficher dans sa toile » ouvre celle qui la porte et lui demande de la montrer ; pour ce qui est à la racine, « Afficher dans « Mon espace » »', async () => {
+    history.replaceState(null, '', '/?vue=recents')
     await ouvrir()
     menu(tuile('voyage/plan'))
     act(() => entree('Afficher dans sa toile').click())
     expect(location.pathname).toBe('/t/voyage')
     expect(montrerDemande()).toBe('plan')
-    // La carte d'une toile rangée à la racine est sur la toile d'accueil, qui ne se montre plus.
-    history.replaceState(null, '', '/?vue=toiles')
-    expect(menu(tuile('voyage/')).map((b) => b.querySelector('.notak-e-libelle')!.textContent)).not.toContain('Afficher dans sa toile')
+    // La carte d'une toile rangée à la racine est sur la toile d'accueil, qui ne se montre plus : la racine la montre.
+    history.replaceState(null, '', '/?vue=recents')
+    const libelles = menu(tuile('voyage/')).map((b) => b.querySelector('.notak-e-libelle')!.textContent)
+    expect(libelles).not.toContain('Afficher dans sa toile')
+    act(() => entree('Afficher dans « Mon espace »').click())
+    expect(location.pathname + location.search).toBe('/')
+    expect(choisies()).toEqual(['voyage/'])
   })
 
   it('renomme sur place', async () => {
@@ -1143,7 +1228,8 @@ describe('les gestes', () => {
     expect(appels).toEqual([['atelier', 'voyage', { essai: true }]])
   })
 
-  it('des fichiers lâchés sur une toile y sont importés ; ce qui en naît s’y montre aussitôt', async () => {
+  it('des fichiers lâchés sur une toile y sont importés ; ce qui en naît se montre là où c’est rangé', async () => {
+    history.replaceState(null, '', '/')
     const espace = monde()
     const importes: [string[], string][] = []
     const vus: string[] = []
@@ -1162,9 +1248,6 @@ describe('les gestes', () => {
         />,
       ),
     )
-    const rubrique = (nom: string) => [...hote.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.textContent?.startsWith(nom))!
-    const puce = (nom: string) => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-puce')].find((b) => b.textContent?.startsWith(nom))!
-    act(() => puce('Pages').click())
     const fichier = new File(['# Compte rendu'], 'Compte rendu.md', { type: 'text/markdown' })
     const glisser = (type: string, sur: Element) => {
       const e = new Event(type, { bubbles: true, cancelable: true })
@@ -1175,7 +1258,6 @@ describe('les gestes', () => {
     // Sur le fond : la racine ; le bandeau dit où ils iraient.
     expect(glisser('dragover', hote.querySelector('.biblio-corps')!).defaultPrevented).toBe(true)
     expect(hote.querySelector('.biblio-apport')!.textContent).toBe('Déposer pour importer dans « Mon espace »')
-    act(() => puce('Toiles').click())
     glisser('dragover', tuile('voyage/'))
     expect(hote.querySelector('.biblio-apport')!.textContent).toBe('Déposer pour importer dans « Voyage »')
     expect(tuile('voyage/').hasAttribute('data-survol-depot')).toBe(true)
@@ -1183,18 +1265,17 @@ describe('les gestes', () => {
     expect(importes).toEqual([[['Compte rendu.md'], 'voyage']])
     expect(hote.querySelector('.biblio-apport')).toBeNull()
     expect(hote.querySelector('.notak-avis')!.textContent).toContain('Un fichier importé dans « Voyage » « vieux.pages » n’a pas pu être lu.')
-    // Une page n'a pas sa place parmi les toiles : on passe aux récents, sans puce, où l'import compte, la tuile choisie.
-    expect(rubrique('Récents').getAttribute('aria-current')).toBe('page')
-    expect(puce('Tout').getAttribute('aria-pressed')).toBe('true')
+    // La page ne se voit pas à la racine : on va là où elle est rangée, « Voyage », parcourue comme un dossier, la tuile
+    // choisie et son anneau battant ; l'import compte parmi les récents.
+    expect(location.search).toBe('?dossier=voyage')
     expect(vus).toEqual(['voyage/cr'])
     const arrivee = hote.querySelector<HTMLElement>('[data-cle="voyage/cr"]')!
     expect(arrivee.getAttribute('aria-selected')).toBe('true')
     expect(arrivee.hasAttribute('data-arrivee')).toBe(true)
-    // Là où elle a sa place, on reste : une page lâchée sur les pages récentes.
-    act(() => puce('Pages').click())
+    // Là où elle a sa place, on reste : lâchée sur le fond du dossier, elle y arrive.
     await act(async () => void glisser('drop', hote.querySelector('.biblio-corps')!))
-    expect(puce('Pages').getAttribute('aria-pressed')).toBe('true')
-    expect(rubrique('Récents').getAttribute('aria-current')).toBe('page')
+    expect(importes[1]![1]).toBe('voyage')
+    expect(location.search).toBe('?dossier=voyage')
   })
 
   describe('au doigt et au Pencil', () => {

@@ -68,6 +68,7 @@ let racine: Root
 beforeEach(() => {
   definirLangue('fr')
   localStorage.clear()
+  sessionStorage.clear()
   history.replaceState(null, '', '/')
   hote = document.createElement('div')
   document.body.append(hote)
@@ -81,9 +82,9 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-const filtre = (nom: string) => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-locale-filtre')].find((b) => b.textContent?.startsWith(nom))!
+/** Une des portes sous le titre de la racine : les récents, les favoris, les partages. */
+const porte = (nom: string) => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-porte')].find((b) => b.textContent?.startsWith(nom))!
 const titres = (selecteur: string) => [...hote.querySelectorAll(`${selecteur} .biblio-tuile-titre`)].map((n) => n.textContent)
-const section = (titre: string) => [...hote.querySelectorAll('.biblio-section')].find((s) => s.querySelector('h2')?.firstChild?.textContent === titre)!
 const champ = () => hote.querySelector<HTMLInputElement>('.biblio-locale-recherche input')!
 const ecrire = (texte: string) =>
   act(() => {
@@ -109,40 +110,54 @@ describe('sur un serveur', () => {
     )
   }
 
-  it('prend la forme au doigt : grand titre, réglages, compte et « + », puis l’accueil en rubriques, sans toile d’accueil en vedette', async () => {
+  it('prend la forme au doigt : grand titre, réglages, compte et « + », puis la racine en grille, sans toile d’accueil en vedette', async () => {
     await ouvrir()
     expect(hote.querySelector('.biblio-colonne')).toBeNull()
-    expect(hote.querySelector('.biblio-telephone h1')!.textContent).toBe('Bibliothèque')
+    expect(hote.querySelector('.biblio-telephone h1')!.textContent).toBe('Mon espace')
     const actions = hote.querySelector('.biblio-locale-actions')!
     expect([...actions.children].map((n) => n.className)).toEqual(['biblio-locale-reglages', 'biblio-locale-avatar', 'biblio-locale-plus'])
     expect(actions.querySelector('.essai-avatar')).not.toBeNull()
     // Ni cloche, ni insecte : la barre du bureau reste au bureau.
     expect(hote.querySelector('.essai-cloche')).toBeNull()
     expect(hote.querySelector('.biblio-locale-vedette')).toBeNull()
-    // « Reprendre », ce qu'on a ouvert, glisse ; sous chaque tuile, la toile qui la porte, sinon quand on l'a ouverte.
-    expect(titres('[data-rail]')).toEqual(['Budget', 'Voyage', 'Plan'])
-    expect([...hote.querySelectorAll('[data-rail] .biblio-tuile-ou')].map((n) => n.textContent)).toEqual(['Aujourd’hui', 'Aujourd’hui', 'dans Voyage'])
-    // Les toiles qui n'y sont pas déjà, quatre au téléphone, et « Tout voir » qui mène à la puce.
-    expect(titres('.biblio-section:not([data-rail])')).toEqual(['Atelier', 'Cuisine', 'Jardin', 'Lectures'])
-    act(() => section('Toiles').querySelector<HTMLButtonElement>('.biblio-voir')!.click())
-    expect(filtre('Toiles').getAttribute('aria-pressed')).toBe('true')
-    expect(hote.querySelectorAll('[data-cle]')).toHaveLength(6)
+    // Les récents, les favoris et les partages : chacun sa porte, sous le titre ; ni « Reprendre », ni puces mêlées.
+    expect([...hote.querySelectorAll('.biblio-porte')].map((b) => b.textContent)).toEqual(['Récents', 'Favoris1', 'Partagés1'])
+    expect(hote.querySelector('[data-rail], .biblio-locale-filtres, .biblio-puces')).toBeNull()
+    // La racine : ce qui y est rangé, « Voyage » compris, que rien ne range ; ni « Budget », partagé, ni « Plan », dans « Voyage ».
+    expect(titres('.biblio-corps')).toEqual(['Atelier', 'Cuisine', 'Jardin', 'Lectures', 'Voyage'])
+    expect(hote.querySelector('.biblio-corps .biblio-tuile-ou')!.textContent).toBe('Toile')
   })
 
-  it('la rangée des filtres : où et quoi se combinent, un second toucher les retire, « Tout » revient à l’accueil', async () => {
+  it('les portes : chacune sa page, d’où « ‹ Mon espace » ramène ; les récents en lignes, qui disent où c’est rangé et quand', async () => {
     await ouvrir()
-    expect(filtre('Tout').getAttribute('aria-pressed')).toBe('true')
-    expect(filtre('Toiles').textContent).toBe('Toiles6')
-    act(() => filtre('Favoris').click())
+    act(() => porte('Favoris').click())
     expect(location.search).toBe('?vue=favoris')
+    expect(hote.querySelector('.biblio-telephone h1')!.textContent).toBe('Favoris')
     expect(titres('.biblio-corps')).toEqual(['Voyage'])
-    act(() => filtre('Cartes mentales').click())
-    expect(location.search).toBe('?vue=favoris&type=arbre')
-    expect(hote.querySelector('.biblio-vide')!.textContent).toContain('Aucune carte mentale.')
-    act(() => filtre('Favoris').click())
-    expect(titres('.biblio-corps')).toEqual(['Plan'])
-    act(() => filtre('Tout').click())
-    expect([filtre('Tout').getAttribute('aria-pressed'), filtre('Cartes mentales').getAttribute('aria-pressed')]).toEqual(['true', 'false'])
+    expect(hote.querySelector('.biblio-porte')).toBeNull()
+    act(() => hote.querySelector<HTMLButtonElement>('.biblio-locale-retour')!.click())
+    expect(location.pathname + location.search).toBe('/')
+    expect(hote.querySelector('.biblio-telephone h1')!.textContent).toBe('Mon espace')
+    act(() => porte('Récents').click())
+    expect(location.search).toBe('?vue=recents')
+    expect(hote.querySelector('.biblio-grille')!.getAttribute('data-affichage')).toBe('recents')
+    expect(titres('.biblio-corps')).toEqual(['Budget', 'Voyage', 'Plan'])
+    // Au doigt, l'endroit n'est pas une petite cible : du texte sous le titre ; le menu de l'appui long y mène.
+    expect([...hote.querySelectorAll('.biblio-recent-ou')].map((n) => [n.tagName, n.textContent])).toEqual([
+      ['SPAN', 'Partagé avec moi'],
+      ['SPAN', 'Mon espace'],
+      ['SPAN', 'Voyage'],
+    ])
+    expect(hote.querySelectorAll('.biblio-recent-quand')).toHaveLength(3)
+    // Toucher la ligne l'ouvre, son détail compris.
+    const detail = hote.querySelector('[data-cle="voyage/"] .biblio-recent-ou')!
+    act(() => {
+      const appui = new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 40, clientY: 40 })
+      Object.defineProperties(appui, { pointerType: { value: 'touch' }, pointerId: { value: 1 } })
+      detail.dispatchEvent(appui)
+      ;(detail as HTMLElement).click()
+    })
+    expect(location.pathname).toBe('/t/voyage')
   })
 
   it('« + » ouvre la feuille de ce qu’on crée, crée sur l’accueil, puis ouvre', async () => {
@@ -163,7 +178,7 @@ describe('sur un serveur', () => {
     await ouvrir({ chercherContenu: async () => passages })
     act(() => champ().focus())
     expect(hote.querySelector('.biblio-telephone')!.hasAttribute('data-cherche')).toBe(true)
-    expect(hote.querySelector('.biblio-locale-filtres')).toBeNull()
+    expect(hote.querySelector('.biblio-portes')).toBeNull()
     ecrire('jard')
     expect([...hote.querySelectorAll('.biblio-locale-resultats:not(.biblio-passages) .biblio-locale-titre')].map((n) => n.textContent)).toEqual(['Jardin'])
     expect(hote.querySelector('.biblio-locale-ligne mark')!.textContent).toBe('Jard')
@@ -185,7 +200,7 @@ describe('sur un serveur', () => {
     expect(hote.querySelector('.biblio-locale-vide')!.textContent).toContain('Aucun résultat pour « zzz »')
     expect(hote.querySelector('.biblio-locale-vide button')!.textContent).toBe('Créer la toile « zzz »')
     act(() => hote.querySelector<HTMLButtonElement>('.biblio-locale-annuler')!.click())
-    expect(hote.querySelector('.biblio-locale-filtres')).not.toBeNull()
+    expect(hote.querySelector('.biblio-portes')).not.toBeNull()
     expect(hote.querySelector('.biblio-telephone')!.hasAttribute('data-cherche')).toBe(false)
   })
 
@@ -248,31 +263,28 @@ describe('sur un serveur', () => {
     expect(titres('.biblio-corps')).toEqual(['Plan'])
     expect(hote.querySelector('.biblio-locale-dossier a')).toBeNull()
     act(() => hote.querySelector<HTMLButtonElement>('.biblio-locale-retour')!.click())
-    expect(location.search).toBe('?dossier=racine')
+    expect(location.pathname + location.search).toBe('/')
   })
 
-  it('entrer dans un dossier fait un pas que le geste du bord défait ; les filtres règlent la vue sans en faire, sauf à sortir du dossier', async () => {
+  it('entrer dans un dossier, ou passer une porte, fait un pas que le geste du bord défait', async () => {
     const avecDossier = TOUTES.map((e) => (e.tableau === 'voyage' && e.element === null ? { ...e, dans: 'racine', resume: { ...e.resume, dossier: true as const } } : e))
     await ouvrir({ charger: async () => avecDossier })
     const retour = () =>
       act(async () => {
+        const avant = location.href
         history.back()
+        for (let i = 0; i < 200 && location.href === avant; i++) await new Promise((fin) => setTimeout(fin, 10))
         await new Promise((fin) => setTimeout(fin, 20))
       })
-    act(() => filtre('Favoris').click())
+    act(() => porte('Favoris').click())
     act(() => hote.querySelector<HTMLElement>('[data-cle="voyage/"]')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
-    act(() => filtre('Cartes mentales').click())
-    expect(location.search).toBe('?dossier=voyage&type=arbre')
-    // « Récents » sort du dossier : un pas, que le retour défait.
-    act(() => filtre('Récents').click())
-    expect(location.search).toBe('?type=arbre')
-    await retour()
-    expect([location.search, hote.querySelector('.biblio-telephone h1')!.textContent]).toEqual(['?dossier=voyage&type=arbre', 'Voyage'])
+    expect([location.search, hote.querySelector('.biblio-telephone h1')!.textContent]).toEqual(['?dossier=voyage', 'Voyage'])
     // Au doigt, rien ne reste surligné du dossier d'où l'on revient.
     await retour()
-    expect(location.search).toBe('?vue=favoris')
-    expect(filtre('Favoris').getAttribute('aria-pressed')).toBe('true')
+    expect([location.search, hote.querySelector('.biblio-telephone h1')!.textContent]).toEqual(['?vue=favoris', 'Favoris'])
     expect(hote.querySelector('[aria-selected="true"]')).toBeNull()
+    await retour()
+    expect([location.pathname + location.search, hote.querySelector('.biblio-telephone h1')!.textContent]).toEqual(['/', 'Mon espace'])
   })
 
   it('le dossier d’une fiche d’un autre outil y mène aussi à sa fiche', async () => {

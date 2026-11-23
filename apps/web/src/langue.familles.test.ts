@@ -15,7 +15,7 @@ type Exhaustif<T, L extends readonly T[]> = [Exclude<T, L[number]>] extends [nev
 
 const GENRES_NEUFS = ['toile', 'arbre', 'document'] as const satisfies readonly GenreNeuf[]
 const GENRES_ENTREES = ['toile', 'arbre', 'document', 'image', 'lien', 'fichier'] as const satisfies readonly EntreeBibliotheque['genre'][]
-const TRIS = ['date', 'dossier'] as const satisfies readonly Tri[]
+const TRIS = ['creation', 'nom'] as const satisfies readonly Tri[]
 const couverts: [Exhaustif<GenreNeuf, typeof GENRES_NEUFS>, Exhaustif<EntreeBibliotheque['genre'], typeof GENRES_ENTREES>, Exhaustif<Tri, typeof TRIS>] = [
   true,
   true,
