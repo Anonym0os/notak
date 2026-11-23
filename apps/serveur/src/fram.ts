@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { Context, Hono } from 'hono'
 import type { Base, Utilisateur } from './base.ts'
 import type { Role } from './droits.ts'
+import { lireBorne } from './lireBorne.ts'
 import { AGENT_PAR_DEFAUT, type SourceRattachement, signer } from './rattachements.ts'
 
 /**
@@ -17,13 +18,24 @@ import { AGENT_PAR_DEFAUT, type SourceRattachement, signer } from './rattachemen
  * ce lien qui la désigne là-bas, par son sujet, et à défaut par son adresse.
  *
  * Le contrat côté outil (Silak : `agents/notak_desk.py`) : `POST <agentAdresse>`, signé `Notak-Signature`, un corps
- * fermé sur `type` : `fram.demander` (rend `tour`), `fram.lire` (l'état et la réponse), `fram.fil` (les échanges).
+ * fermé sur `type` : `fram.demander` (rend `tour`), `fram.lire` (l'état et la réponse), `fram.journal` (le direct),
+ * `fram.arreter`, `fram.fil` (les échanges et les parties), `fram.decider` (les cartes) ; et `fram.piece`, à
+ * `<agentAdresse>/pieces`. Le détail est dans docs/AUTO-HEBERGER.md, « Solliciter l'agent depuis un tableau ».
  *
  * La bulle paraît à qui lit le tableau (le 22/11/2026, avant il fallait pouvoir le modifier) : l'agent agit avec les
  * droits de la personne, et la porte des agents refuse ce qu'elle ne pourrait pas faire. `fram.lire` peut dire ce que le
  * tour a créé (`crees`) et ce que l'agent veut ouvrir (`ouvrir`) : Notak en refait les adresses et tait ce que la
  * personne ne lit pas. Une demande faite depuis une page ou une carte ouverte en grand (`ouvert`) la porte en tête de
  * sa sélection, avec son lien, sans rien changer aux formes de l'outil.
+ *
+ * Le direct (23/11/2026) : un tour de Fram dure souvent plusieurs minutes, parfois vingt. La bulle ne se contente plus
+ * de l'état et de la réponse finale : elle lit le **journal** du tour (`fram.journal`), chaque seconde, depuis le dernier
+ * événement vu. L'outil y écrit ce que l'agent fait (une phrase par geste, au présent puis au passé), ce qu'il pense, son
+ * plan, et sa réponse au fil de l'eau ; il garantit un événement toutes les huit secondes au moins, pour que la personne
+ * ne regarde jamais longtemps la même phrase. La personne peut arrêter le tour (`fram.arreter`), écrire pendant qu'il
+ * tourne (l'outil met le message en file, `etat: "waiting"`), et joindre des pièces : chaque fichier passe par ici,
+ * borné, puis part à l'outil (`fram.piece`, à `<agentAdresse>/pieces`), et la demande ne porte que leurs identifiants.
+ * Le fil rend aussi les parties précédentes de la conversation (`parties`), chacune avec son résumé.
  */
 
 /** L'agent d'une source, tel que ce module le relaie. */
@@ -51,6 +63,18 @@ const ID_ELEMENT = /^[A-Za-z0-9][A-Za-z0-9_-]{5,63}$/
 const ID_TABLEAU = /^[A-Za-z0-9_-]{8,64}$/
 /** Ce qu'un tour dit avoir créé, au plus. */
 const CREES_MAX = 20
+/** Les pièces d'un message, au plus, et ce que pèse chacune (comme un fichier posé sur une toile). */
+export const PIECES_MAX = 10
+export const PIECE_MAX = 25 * 1024 * 1024
+/** Une pièce part en base64 : 25 Mo en font un peu plus de 33. L'outil lit 36 Mo au plus. */
+const DELAI_PIECE_MS = 120_000
+const ID_PIECE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/
+/** Où l'on reprend le journal d'un tour : la `suite` que la lecture précédente a rendue. */
+const SUITE = /^[A-Za-z0-9._:-]{1,64}$/
+/** Les événements qu'une lecture du journal rend, au plus, et ce que dit chacun. */
+const EVENEMENTS_MAX = 500
+const AJOUT_MAX = 20_000
+const PHRASE_MAX = 300
 
 /** Une chose que la personne peut ouvrir dans l'app : son adresse, son titre et son genre (`page`, `toile`, `dossier`…). */
 export interface Ouvrable {
@@ -146,16 +170,25 @@ export function selectionLue(brute: unknown): { id: string; texte: string }[] {
 
 type Reponse = { statut: number; corps: Record<string, unknown> | null }
 
-/** Envoie un corps à l'agent, signé ; rend son statut et son JSON (borné), ou `null` s'il est injoignable. */
-export async function relayer(agent: AgentRelaye, corps: Record<string, unknown>, maintenant: number, envoyer: typeof fetch = fetch): Promise<Reponse | null> {
+/**
+ * Envoie un corps à l'agent, signé ; rend son statut et son JSON (borné), ou `null` s'il est injoignable. Les pièces
+ * vont à `<adresse>/pieces` (`vers`), avec plus de temps : un fichier de 25 Mo met plus de quinze secondes à partir.
+ */
+export async function relayer(
+  agent: AgentRelaye,
+  corps: Record<string, unknown>,
+  maintenant: number,
+  envoyer: typeof fetch = fetch,
+  o: { vers?: string; delai?: number } = {},
+): Promise<Reponse | null> {
   const texte = JSON.stringify(corps)
   try {
-    const r = await envoyer(agent.adresse, {
+    const r = await envoyer(o.vers ?? agent.adresse, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'notak-signature': signer(agent.secret, texte, maintenant) },
       body: texte,
       redirect: 'error',
-      signal: AbortSignal.timeout(DELAI_MS),
+      signal: AbortSignal.timeout(o.delai ?? DELAI_MS),
     })
     const lu = await r.text()
     if (lu.length > REPONSE_MAX) return { statut: 502, corps: null }
@@ -171,14 +204,115 @@ export async function relayer(agent: AgentRelaye, corps: Record<string, unknown>
   }
 }
 
+/** Où vont les pièces : l'adresse de l'agent, suivie de `/pieces`. */
+export const adressePieces = (agent: AgentRelaye): string => `${agent.adresse.replace(/\/+$/, '')}/pieces`
+
+/** Les pièces d'une demande : des identifiants rendus par l'outil, sans doublon, dix au plus ; `null` : mal écrites. */
+export function piecesLues(brute: unknown): string[] | null {
+  if (brute === undefined || brute === null) return []
+  if (!Array.isArray(brute) || brute.length > PIECES_MAX) return null
+  const ids = [...new Set(brute)]
+  return ids.every((x) => typeof x === 'string' && ID_PIECE.test(x)) ? (ids as string[]) : null
+}
+
+/** Le nom d'une pièce, tel qu'on le garde : sans chemin ni signe de contrôle, 200 signes au plus. */
+export function nomDePiece(brut: string | undefined): string {
+  let nom = ''
+  try {
+    nom = decodeURIComponent(brut ?? '')
+  } catch {
+    nom = brut ?? ''
+  }
+  nom = nom.replace(/[\u0000-\u001f\u007f]/g, '').split(/[\\/]/).pop()!.trim().slice(0, 200)
+  return nom || 'fichier'
+}
+
+/** Le genre d'une pièce, tel que le navigateur le dit ; à défaut, des octets sans genre. */
+export function typeDePiece(brut: string | undefined): string {
+  const t = (brut ?? '').split(';')[0]!.trim().toLowerCase()
+  return /^[a-z0-9][a-z0-9!#$&^_.+-]{0,63}\/[a-z0-9][a-z0-9!#$&^_.+-]{0,126}$/.test(t) ? t : 'application/octet-stream'
+}
+
+const borne = (v: unknown, max: number): string => (typeof v === 'string' ? v.slice(0, max) : '')
+const STATUTS_GESTE: ReadonlySet<string> = new Set(['en_cours', 'attente', 'fait', 'echec', 'refuse'])
+const STATUTS_ETAPE: ReadonlySet<string> = new Set(['a_faire', 'en_cours', 'fait', 'echec', 'saute'])
+
+/** Un événement du journal d'un tour ; ce que la bulle en montre. */
+export type Evenement =
+  | { seq: number; genre: 'etat'; etat: string }
+  | { seq: number; genre: 'texte'; bloc: string; ajout: string; etape: boolean }
+  | { seq: number; genre: 'pensee'; titre: string; resume?: string }
+  | { seq: number; genre: 'geste'; id: string; statut: string; phrase: string }
+  | { seq: number; genre: 'plan'; etapes: { titre: string; statut: string }[] }
+  | { seq: number; genre: 'echec'; message: string }
+  | { seq: number; genre: 'fin' }
+
+/**
+ * Un événement du journal, relu sans faire confiance à l'outil : un numéro, un genre connu, des textes bornés. Un
+ * événement d'un genre que Notak ne connaît pas encore (l'outil a pu grandir) est tu, sans casser la lecture.
+ */
+export function evenementLu(brut: unknown): Evenement | null {
+  const o = brut && typeof brut === 'object' ? (brut as Record<string, unknown>) : null
+  const seq = o?.seq
+  if (!o || typeof seq !== 'number' || !Number.isSafeInteger(seq) || seq < 0) return null
+  switch (o.genre) {
+    case 'etat':
+      return typeof o.etat === 'string' ? { seq, genre: 'etat', etat: o.etat.slice(0, 40) } : null
+    case 'texte': {
+      const bloc = typeof o.bloc === 'number' || typeof o.bloc === 'string' ? String(o.bloc).slice(0, 64) : ''
+      return bloc && typeof o.ajout === 'string' ? { seq, genre: 'texte', bloc, ajout: o.ajout.slice(0, AJOUT_MAX), etape: o.etape === true } : null
+    }
+    case 'pensee': {
+      const titre = borne(o.titre, PHRASE_MAX).trim()
+      const resume = borne(o.resume, 2000).trim()
+      return titre ? { seq, genre: 'pensee', titre, ...(resume ? { resume } : {}) } : null
+    }
+    case 'geste': {
+      const id = borne(o.id, 200)
+      const phrase = borne(o.phrase, PHRASE_MAX).trim()
+      return id && phrase && typeof o.statut === 'string' && STATUTS_GESTE.has(o.statut) ? { seq, genre: 'geste', id, statut: o.statut, phrase } : null
+    }
+    case 'plan': {
+      if (!Array.isArray(o.etapes)) return null
+      const etapes = o.etapes.slice(0, 30).flatMap((e) => {
+        const x = e && typeof e === 'object' ? (e as Record<string, unknown>) : {}
+        const titre = borne(x.titre, PHRASE_MAX).trim()
+        return titre ? [{ titre, statut: typeof x.statut === 'string' && STATUTS_ETAPE.has(x.statut) ? x.statut : 'a_faire' }] : []
+      })
+      return { seq, genre: 'plan', etapes }
+    }
+    case 'echec':
+      return { seq, genre: 'echec', message: borne(o.message, 1000).trim() }
+    case 'fin':
+      return { seq, genre: 'fin' }
+    default:
+      return null
+  }
+}
+
+/** Les parties précédentes de la conversation, telles que le fil les dit : la plus récente d'abord, vingt au plus. */
+export function partiesLues(brute: unknown): { id: string; debut: string; fin: string; resume: string }[] {
+  if (!Array.isArray(brute)) return []
+  return brute.slice(0, 20).flatMap((p) => {
+    const o = p && typeof p === 'object' ? (p as Record<string, unknown>) : {}
+    const id = typeof o.id === 'string' || typeof o.id === 'number' ? String(o.id).slice(0, 64) : ''
+    return id ? [{ id, debut: borne(o.debut, 40), fin: borne(o.fin, 40), resume: borne(o.resume, 4000) }] : []
+  })
+}
+
 type Garde = (c: Context, minimum: Role) => Promise<{ u: Utilisateur; id: string; role: Role } | Response>
 
 /**
  * Les routes du panneau, sur un tableau qu'on lit :
  *
- * - `GET /api/tableaux/:id/agent` : l'agent est-il là pour cette personne, et le fil de ses échanges sur ce tableau ;
- * - `POST /api/tableaux/:id/agent` `{ message, selection? }` : une demande, qui rend le tour à suivre ;
- * - `GET /api/tableaux/:id/agent/tours/:tour` : où en est ce tour, et la réponse une fois au repos.
+ * - `GET /api/tableaux/:id/agent` : l'agent est-il là pour cette personne, le fil de ses échanges, et les parties
+ *   précédentes de sa conversation ;
+ * - `POST /api/tableaux/:id/agent` `{ message, selection?, ouvert?, pieces? }` : une demande, qui rend le tour à suivre
+ *   (`etat: "waiting"` : en file derrière le tour en cours) ;
+ * - `POST /api/tableaux/:id/agent/pieces?nom=…` (les octets du fichier) : une pièce, qui rend son identifiant ;
+ * - `GET /api/tableaux/:id/agent/tours/:tour` : où en est ce tour, et la réponse une fois au repos ;
+ * - `GET /api/tableaux/:id/agent/tours/:tour/journal?depuis=…` : le direct du tour, depuis la dernière `suite` ;
+ * - `POST /api/tableaux/:id/agent/tours/:tour/arreter` : arrêter le tour ;
  * - `POST /api/tableaux/:id/agent/tours/:tour/cartes` `{ cartes: [{ id, accord, toujours }] }` : les cartes d'un tour
  *   arrêté sur elles, répondues depuis le panneau (`fram.decider`).
  */
@@ -219,6 +353,15 @@ export function routesAgent(
     return c.json({ erreur: `${agent!.nom} n’a pas pu répondre.`, code: 'injoignable' }, 502)
   }
 
+  /** Le tour nommé par l'adresse, et la personne qui le suit ; ou la réponse à rendre. */
+  const entrerTour = async (c: Context) => {
+    const g = await entrer(c)
+    if (g instanceof Response) return g
+    const tour = c.req.param('tour') ?? ''
+    if (!g.personne || !ID_TOUR.test(tour)) return introuvable(c)
+    return { ...g, personne: g.personne, tour }
+  }
+
   app.get('/api/tableaux/:id/agent', async (c) => {
     const g = await entrer(c)
     if (g instanceof Response) return g
@@ -227,7 +370,11 @@ export function routesAgent(
     // L'outil ne connaît pas cette personne, ou ne lui ouvre pas encore l'agent : le panneau ne paraît pas.
     if (r?.statut === 404) return c.json({ agent: agent!.nom, disponible: false }, 200, { 'cache-control': 'no-store' })
     if (!r || r.statut !== 200 || !r.corps) return echec(c, r)
-    return c.json({ agent: agent!.nom, disponible: true, echanges: r.corps.echanges ?? [], tour: r.corps.tour ?? null }, 200, { 'cache-control': 'no-store' })
+    return c.json(
+      { agent: agent!.nom, disponible: true, echanges: r.corps.echanges ?? [], tour: r.corps.tour ?? null, parties: partiesLues(r.corps.parties) },
+      200,
+      { 'cache-control': 'no-store' },
+    )
   })
 
   app.post('/api/tableaux/:id/agent', async (c) => {
@@ -236,7 +383,10 @@ export function routesAgent(
     if (!g.personne) return introuvable(c)
     const b = (await c.req.json().catch(() => null)) as Record<string, unknown> | null
     const message = typeof b?.message === 'string' ? b.message.trim() : ''
-    if (!message) return c.json({ erreur: 'message vide', code: 'message_vide' }, 400)
+    const pieces = piecesLues(b?.pieces)
+    if (pieces === null) return c.json({ erreur: `${PIECES_MAX} pièces au plus`, code: 'pieces_invalides' }, 400)
+    // Une image seule, collée puis envoyée, est un message : il dit ce qu'il joint.
+    if (!message && pieces.length === 0) return c.json({ erreur: 'message vide', code: 'message_vide' }, 400)
     if (message.length > MESSAGE_MAX) return c.json({ erreur: 'message trop long', code: 'message_trop_long' }, 400)
     const titre = o.base.tableau(g.id)?.titre?.trim() || 'Sans titre'
     // Le lien du tableau, comme l'app l'ouvre : un dossier dans la bibliothèque, une toile en toile.
@@ -254,9 +404,11 @@ export function routesAgent(
       tableau: { id: g.id, titre: titre.slice(0, 200), lien },
       selection,
       message,
+      ...(pieces.length > 0 ? { pieces } : {}),
     }
     const r = await relayer(agent!, corps, o.maintenant(), o.envoyer)
     if (!r || r.statut !== 200 || typeof r.corps?.tour !== 'string') return echec(c, r)
+    // Pendant un tour, l'outil met le message en file (`waiting`) : il partira à la fin du tour en cours.
     return c.json({ tour: r.corps.tour, etat: r.corps.etat ?? 'queued' }, 202)
   })
 
@@ -285,6 +437,74 @@ export function routesAgent(
     )
   })
 
+  // Le journal d'un tour : ce que l'agent a fait, pense et écrit depuis `depuis`, avec l'état, ce qu'il a créé et ses cartes.
+  app.get('/api/tableaux/:id/agent/tours/:tour/journal', async (c) => {
+    const g = await entrerTour(c)
+    if (g instanceof Response) return g
+    const brut = c.req.query('depuis') ?? ''
+    if (brut && !SUITE.test(brut)) return c.json({ erreur: 'suite mal écrite', code: 'suite_invalide' }, 400)
+    // La suite est un numéro d'événement, le plus souvent ; l'outil peut en faire un curseur, qu'on lui rend tel quel.
+    const depuis = !brut ? 0 : /^\d{1,15}$/.test(brut) ? Number(brut) : brut
+    const r = await relayer(agent!, { type: 'fram.journal', personne: g.personne, tableau: g.id, tour: g.tour, depuis }, o.maintenant(), o.envoyer)
+    if (!r || r.statut !== 200 || !r.corps) return echec(c, r)
+    const x = r.corps
+    const ouvrable = ouvrablePour(g.u)
+    const suite = typeof x.suite === 'number' || (typeof x.suite === 'string' && SUITE.test(x.suite)) ? x.suite : depuis
+    const evenements = Array.isArray(x.evenements) ? x.evenements.slice(0, EVENEMENTS_MAX).flatMap((e) => evenementLu(e) ?? []) : []
+    return c.json(
+      {
+        tour: g.tour,
+        etat: typeof x.etat === 'string' ? x.etat.slice(0, 40) : 'running',
+        fini: x.fini === true,
+        suite,
+        encore: x.encore === true,
+        evenements,
+        crees: await creesLus(x.crees, ouvrable),
+        ouvrir: await ouvrirLu(x.ouvrir, ouvrable),
+        texte: typeof x.texte === 'string' ? x.texte : null,
+        echec: typeof x.echec === 'string' ? x.echec.slice(0, 1000) : null,
+        cartes: cartesLues(x.cartes),
+      },
+      200,
+      { 'cache-control': 'no-store' },
+    )
+  })
+
+  // Arrêter le tour en cours : l'outil l'arrête au prochain pas, et le journal dit la fin.
+  app.post('/api/tableaux/:id/agent/tours/:tour/arreter', async (c) => {
+    const g = await entrerTour(c)
+    if (g instanceof Response) return g
+    const r = await relayer(agent!, { type: 'fram.arreter', id: randomUUID(), personne: g.personne, tableau: g.id, tour: g.tour }, o.maintenant(), o.envoyer)
+    if (!r || r.statut !== 200 || !r.corps) return echec(c, r)
+    return c.json({ tour: g.tour, etat: typeof r.corps.etat === 'string' ? r.corps.etat : 'cancelled' }, 202)
+  })
+
+  // Une pièce jointe : les octets du fichier, son genre dans `content-type` et son nom dans `?nom=`. Elle part à l'outil,
+  // qui la garde et rend son identifiant ; le message la nommera ensuite. Rien n'est gardé ici.
+  app.post('/api/tableaux/:id/agent/pieces', async (c) => {
+    const g = await entrer(c)
+    if (g instanceof Response) return g
+    if (!g.personne) return introuvable(c)
+    const annonce = Number(c.req.header('content-length') ?? 0)
+    const octets = annonce > PIECE_MAX ? 'trop gros' : await lireBorne(c.req.raw.body, PIECE_MAX)
+    if (octets === 'trop gros') return c.json({ erreur: 'Un fichier pèse 25 Mo au plus.', code: 'trop_gros' }, 413)
+    if (!octets) return c.json({ erreur: 'Ce fichier est vide.', code: 'fichier_vide' }, 400)
+    const corps = {
+      type: 'fram.piece',
+      id: randomUUID(),
+      personne: g.personne,
+      tableau: g.id,
+      nom: nomDePiece(c.req.query('nom')),
+      type_mime: typeDePiece(c.req.header('content-type')),
+      contenu: octets.toString('base64'),
+    }
+    const r = await relayer(agent!, corps, o.maintenant(), o.envoyer, { vers: adressePieces(agent!), delai: DELAI_PIECE_MS })
+    // Un refus de l'outil (un genre qu'il ne lit pas, un quota) se dit dans ses mots, à côté de la pièce.
+    if (r && r.statut !== 404 && typeof r.corps?.erreur === 'string' && r.corps.erreur.trim()) return c.json({ erreur: r.corps.erreur.trim().slice(0, 300), code: 'piece_refusee' }, 422)
+    if (!r || r.statut !== 200 || typeof r.corps?.piece !== 'string' || !ID_PIECE.test(r.corps.piece)) return echec(c, r)
+    return c.json({ piece: r.corps.piece, nom: typeof r.corps.nom === 'string' ? r.corps.nom.slice(0, 200) : corps.nom, taille: typeof r.corps.taille === 'number' ? r.corps.taille : octets.length }, 201)
+  })
+
   // Les cartes d'un tour arrêté sur elles, répondues depuis le panneau : l'outil les décide par sa propre porte.
   app.post('/api/tableaux/:id/agent/tours/:tour/cartes', async (c) => {
     const g = await entrer(c)
@@ -311,7 +531,7 @@ export function cartesLues(brute: unknown): { id: string; resume: string; defini
   })
 }
 
-/** Les réponses du panneau : une carte, oui ou non, et « toujours » (pour la conversation de ce tableau). */
+/** Les réponses du panneau : une carte, oui ou non, et « toujours » (pour toute la conversation de la personne). */
 export function reponsesLues(brute: unknown): { id: string; accord: boolean; toujours: boolean }[] {
   if (!Array.isArray(brute)) return []
   return brute.slice(0, 20).flatMap((e) => {

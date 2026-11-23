@@ -55,6 +55,7 @@ import { AUCUN_CHANGEMENT, type Bilan, bilanDuRangement, rienNeChange } from './
 import { RELATION_DU_ROLE, type Role, auMoins, role, roleDeRelation } from './droits.ts'
 import { decouvrirOidc } from './sso.ts'
 import { routesAgent } from './fram.ts'
+import { lireBorne } from './lireBorne.ts'
 import { estFormatExport, exporterTexte, langueExport } from './exporter.ts'
 import { ErreurBanque, chercherImages } from './images.ts'
 import { indexerDocument, requeteIndex } from './indexation.ts'
@@ -285,25 +286,6 @@ export function cleDAdresse(adresse: string): string {
 }
 
 const moi = (u: Utilisateur, admin: boolean) => ({ id: u.id, email: u.email, nom: u.nom, couleur: u.couleur, racine: u.racine, photo: u.photo ?? null, admin })
-
-/** Lit un corps de requête jusqu'à `max` octets : `null` s'il est vide, `'trop gros'` s'il dépasse (la lecture s'arrête alors). */
-async function lireBorne(flux: ReadableStream<Uint8Array> | null, max: number): Promise<Buffer | null | 'trop gros'> {
-  if (!flux) return null
-  const morceaux: Uint8Array[] = []
-  let taille = 0
-  const lecteur = flux.getReader()
-  for (;;) {
-    const { done, value } = await lecteur.read()
-    if (done) break
-    taille += value.length
-    if (taille > max) {
-      void lecteur.cancel().catch(() => {})
-      return 'trop gros'
-    }
-    morceaux.push(value)
-  }
-  return taille === 0 ? null : Buffer.concat(morceaux)
-}
 
 /** Les méthodes qui écrivent : celles qu'une page d'ailleurs ne doit pas pouvoir faire partir avec le cookie de quelqu'un. */
 const METHODES_QUI_ECRIVENT = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])

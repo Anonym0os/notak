@@ -3,7 +3,24 @@ import type { Context } from 'hono'
 import { describe, expect, it } from 'vitest'
 import { type Base, type Utilisateur, ouvrirBase } from './base.ts'
 import type { Role } from './droits.ts'
-import { type AgentRelaye, type Ouvrabilite, agentsRelayes, cartesLues, creesLus, enTeteOuverte, ouvrirLu, reponsesLues, routesAgent, selectionLue } from './fram.ts'
+import {
+  type AgentRelaye,
+  type Ouvrabilite,
+  adressePieces,
+  agentsRelayes,
+  cartesLues,
+  creesLus,
+  enTeteOuverte,
+  evenementLu,
+  nomDePiece,
+  ouvrirLu,
+  partiesLues,
+  piecesLues,
+  reponsesLues,
+  routesAgent,
+  selectionLue,
+  typeDePiece,
+} from './fram.ts'
 import { signatureValable, sourcesDe } from './rattachements.ts'
 
 const SECRET = 'un-secret-partage-de-plus-de-trente-deux-signes'
@@ -21,7 +38,9 @@ function base(lie = true): Base {
 /** Un Silak qui vérifie la signature, garde ce qu'on lui envoie et répond selon le type. */
 function silak(reponses: Record<string, { statut?: number; corps?: unknown }>) {
   const recus: Record<string, unknown>[] = []
-  const envoyer = (async (_adresse: string, init: RequestInit) => {
+  const adresses: string[] = []
+  const envoyer = (async (adresse: string, init: RequestInit) => {
+    adresses.push(adresse)
     const corps = String(init.body)
     const entete = (init.headers as Record<string, string>)['notak-signature']
     if (!signatureValable(SECRET, corps, entete, Date.now())) return new Response('', { status: 404 })
@@ -30,7 +49,7 @@ function silak(reponses: Record<string, { statut?: number; corps?: unknown }>) {
     const r = reponses[String(lu.type)] ?? { statut: 404 }
     return new Response(r.corps === undefined ? '' : JSON.stringify(r.corps), { status: r.statut ?? 200 })
   }) as typeof fetch
-  return { recus, envoyer }
+  return { recus, envoyer, adresses }
 }
 
 function app(o: { base: Base; role?: Role | null; envoyer: typeof fetch; agents?: AgentRelaye[]; ouvrable?: Ouvrabilite }) {
@@ -110,7 +129,7 @@ describe('L’agent sollicité depuis un tableau', () => {
     })
     const a = app({ base: base(), envoyer })
 
-    expect(await (await a.request('/api/tableaux/t1/agent')).json()).toEqual({ agent: 'Fram', disponible: true, echanges, tour: null })
+    expect(await (await a.request('/api/tableaux/t1/agent')).json()).toEqual({ agent: 'Fram', disponible: true, echanges, tour: null, parties: [] })
     const demande = await poster(a, '/api/tableaux/t1/agent', { message: '  Range ce tableau.  ', selection: [{ id: 'element-1', texte: ' Une   note ' }, { id: '../x' }] })
     expect(demande.status).toBe(202)
     expect(await demande.json()).toEqual({ tour: TOUR, etat: 'queued' })
@@ -225,5 +244,183 @@ describe('L’agent sollicité depuis un tableau', () => {
   it('borne les cartes lues et les réponses', () => {
     expect(cartesLues([{ id: 'a', resume: 'x'.repeat(600), definitif: 'oui' }, null])).toEqual([{ id: 'a', resume: 'x'.repeat(500), definitif: false }])
     expect(reponsesLues([{ id: 'a', accord: 'oui' }, { id: 'b', accord: false, toujours: true }])).toEqual([{ id: 'b', accord: false, toujours: false }])
+  })
+})
+
+describe('L’agent en direct (23/11/2026)', () => {
+  const PERSONNE = { sub: 'sub-42', email: 'samy@silak.fr' }
+
+  it('relaie le journal d’un tour depuis la dernière suite, et relit chaque événement sans faire confiance à l’outil', async () => {
+    const evenements = [
+      { seq: 4, genre: 'etat', etat: 'running' },
+      { seq: 5, genre: 'geste', id: 'g1', statut: 'en_cours', phrase: 'Je lis le tableau « Voyage »…' },
+      { seq: 6, genre: 'geste', id: 'g1', statut: 'fait', phrase: 'J’ai lu le tableau « Voyage ».' },
+      { seq: 7, genre: 'pensee', titre: 'Trois sujets se dégagent', resume: 'Le budget, les dates, les invités.' },
+      { seq: 8, genre: 'plan', etapes: [{ titre: 'Lire', statut: 'fait' }, { titre: 'Dessiner', statut: 'en_cours' }, { titre: '', statut: 'fait' }, { titre: 'Relire', statut: 'bizarre' }] },
+      { seq: 9, genre: 'texte', bloc: 1, ajout: 'Je pose ', etape: false },
+      { seq: 10, genre: 'texte', bloc: 'b2', ajout: 'Je regarde les dates.', etape: true },
+      { seq: 11, genre: 'geste', id: 'g2', statut: 'pas-un-statut', phrase: 'x' },
+      { seq: 12, genre: 'inconnu' },
+      { seq: -1, genre: 'fin' },
+      { genre: 'fin' },
+      'rien',
+    ]
+    const { envoyer, recus } = silak({
+      'fram.journal': {
+        corps: {
+          tour: TOUR,
+          etat: 'running',
+          fini: false,
+          suite: 12,
+          encore: true,
+          evenements,
+          crees: [{ type: 'carte_mentale', tableau: 't1-prism', element: 'carte-1' }],
+          ouvrir: null,
+          texte: null,
+          echec: null,
+          cartes: [],
+        },
+      },
+    })
+    const a = app({ base: base(), envoyer, ouvrable: OUVRABLE })
+    const r = await a.request(`/api/tableaux/t1/agent/tours/${TOUR}/journal?depuis=3`)
+    expect(r.status).toBe(200)
+    const lu = (await r.json()) as Record<string, unknown>
+    expect(recus[0]).toEqual({ type: 'fram.journal', personne: PERSONNE, tableau: 't1', tour: TOUR, depuis: 3 })
+    expect(lu).toMatchObject({ tour: TOUR, etat: 'running', fini: false, suite: 12, encore: true, ouvrir: null, texte: null, echec: null, cartes: [] })
+    expect(lu.evenements).toEqual([
+      { seq: 4, genre: 'etat', etat: 'running' },
+      { seq: 5, genre: 'geste', id: 'g1', statut: 'en_cours', phrase: 'Je lis le tableau « Voyage »…' },
+      { seq: 6, genre: 'geste', id: 'g1', statut: 'fait', phrase: 'J’ai lu le tableau « Voyage ».' },
+      { seq: 7, genre: 'pensee', titre: 'Trois sujets se dégagent', resume: 'Le budget, les dates, les invités.' },
+      { seq: 8, genre: 'plan', etapes: [{ titre: 'Lire', statut: 'fait' }, { titre: 'Dessiner', statut: 'en_cours' }, { titre: 'Relire', statut: 'a_faire' }] },
+      { seq: 9, genre: 'texte', bloc: '1', ajout: 'Je pose ', etape: false },
+      { seq: 10, genre: 'texte', bloc: 'b2', ajout: 'Je regarde les dates.', etape: true },
+    ])
+    // Ce qui est créé paraît dès qu'il est écrit, refait par Notak comme à la lecture du tour.
+    expect(lu.crees).toEqual([{ type: 'carte_mentale', titre: 'Rendez-vous', tableau: 't1-prism', element: 'carte-1', adresse: 'https://notak.test/t/t1-prism/e/carte-1' }])
+
+    // Sans `depuis`, le journal se lit depuis le début ; un curseur de l'outil lui revient tel quel ; un curseur mal écrit est refusé.
+    await a.request(`/api/tableaux/t1/agent/tours/${TOUR}/journal`)
+    await a.request(`/api/tableaux/t1/agent/tours/${TOUR}/journal?depuis=c-17.a`)
+    expect(recus.slice(1).map((x) => x.depuis)).toEqual([0, 'c-17.a'])
+    expect((await a.request(`/api/tableaux/t1/agent/tours/${TOUR}/journal?depuis=${encodeURIComponent('../x')}`)).status).toBe(400)
+    expect((await a.request('/api/tableaux/t1/agent/tours/pas-un-tour/journal')).status).toBe(404)
+  })
+
+  it('le journal d’un tour fini dit sa fin, sa réponse et son échec ; une suite absente reste celle qu’on a donnée', async () => {
+    const { envoyer } = silak({
+      'fram.journal': { corps: { tour: TOUR, etat: 'failed', fini: true, evenements: [{ seq: 30, genre: 'echec', message: 'Silak ne répond plus.' }, { seq: 31, genre: 'fin' }], texte: 'Je n’ai pas pu finir.', echec: 'Silak ne répond plus.' } },
+    })
+    const lu = (await (await app({ base: base(), envoyer }).request(`/api/tableaux/t1/agent/tours/${TOUR}/journal?depuis=29`)).json()) as Record<string, unknown>
+    expect(lu).toEqual({
+      tour: TOUR,
+      etat: 'failed',
+      fini: true,
+      suite: 29,
+      encore: false,
+      evenements: [
+        { seq: 30, genre: 'echec', message: 'Silak ne répond plus.' },
+        { seq: 31, genre: 'fin' },
+      ],
+      crees: [],
+      ouvrir: null,
+      texte: 'Je n’ai pas pu finir.',
+      echec: 'Silak ne répond plus.',
+      cartes: [],
+    })
+  })
+
+  it('arrête un tour, au nom de la personne, d’un identifiant neuf', async () => {
+    const { envoyer, recus } = silak({ 'fram.arreter': { corps: { tour: TOUR, etat: 'cancelled' } } })
+    const a = app({ base: base(), envoyer })
+    const r = await poster(a, `/api/tableaux/t1/agent/tours/${TOUR}/arreter`, {})
+    expect(r.status).toBe(202)
+    expect(await r.json()).toEqual({ tour: TOUR, etat: 'cancelled' })
+    expect(recus[0]).toMatchObject({ type: 'fram.arreter', personne: PERSONNE, tableau: 't1', tour: TOUR })
+    expect(String(recus[0]!.id)).toMatch(/^[0-9a-f-]{36}$/)
+    expect((await poster(a, '/api/tableaux/t1/agent/tours/pas-un-tour/arreter', {})).status).toBe(404)
+    expect((await poster(app({ base: base(false), envoyer }), `/api/tableaux/t1/agent/tours/${TOUR}/arreter`, {})).status).toBe(404)
+  })
+
+  it('un message porte ses pièces ; une image seule est un message ; pendant un tour, il part en file', async () => {
+    const { envoyer, recus } = silak({ 'fram.demander': { corps: { tour: TOUR, fil: 'f1', etat: 'waiting' } } })
+    const a = app({ base: base(), envoyer })
+    const r = await poster(a, '/api/tableaux/t1/agent', { message: 'Regarde ces photos.', pieces: ['p-1', 'p-2', 'p-1'] })
+    expect(r.status).toBe(202)
+    expect(await r.json()).toEqual({ tour: TOUR, etat: 'waiting' })
+    expect(recus[0]).toMatchObject({ type: 'fram.demander', message: 'Regarde ces photos.', pieces: ['p-1', 'p-2'] })
+    await poster(a, '/api/tableaux/t1/agent', { message: '', pieces: ['p-3'] })
+    expect(recus[1]).toMatchObject({ message: '', pieces: ['p-3'] })
+    // Sans pièce, rien n'est ajouté au corps : un Silak d'avant le lit comme hier.
+    await poster(a, '/api/tableaux/t1/agent', { message: 'Bonjour' })
+    expect(recus[2]).not.toHaveProperty('pieces')
+    expect((await poster(a, '/api/tableaux/t1/agent', { message: 'x', pieces: Array.from({ length: 11 }, (_, i) => `p-${i}`) })).status).toBe(400)
+    expect((await poster(a, '/api/tableaux/t1/agent', { message: 'x', pieces: ['../etc'] })).status).toBe(400)
+    expect((await poster(a, '/api/tableaux/t1/agent', { message: '', pieces: [] })).status).toBe(400)
+    expect(recus).toHaveLength(3)
+  })
+
+  it('une pièce passe par Notak, bornée à 25 Mo, et part en base64 à l’adresse des pièces', async () => {
+    const { envoyer, recus, adresses } = silak({ 'fram.piece': { statut: 200, corps: { piece: 'piece-0190', nom: 'plan.png', taille: 4 } } })
+    const a = app({ base: base(), envoyer })
+    const envoyerPiece = (corps: Uint8Array<ArrayBuffer>, nom: string, type = 'image/png', entetes: Record<string, string> = {}) =>
+      a.request(`/api/tableaux/t1/agent/pieces?nom=${encodeURIComponent(nom)}`, { method: 'POST', headers: { 'content-type': type, ...entetes }, body: corps })
+
+    const r = await envoyerPiece(new Uint8Array([1, 2, 3, 4]), 'Mes images/plan.png')
+    expect(r.status).toBe(201)
+    expect(await r.json()).toEqual({ piece: 'piece-0190', nom: 'plan.png', taille: 4 })
+    expect(adresses).toEqual(['https://api.silak.test/hooks/notak/fram/pieces'])
+    expect(recus[0]).toMatchObject({ type: 'fram.piece', personne: PERSONNE, tableau: 't1', nom: 'plan.png', type_mime: 'image/png', contenu: 'AQIDBA==' })
+    expect(String(recus[0]!.id)).toMatch(/^[0-9a-f-]{36}$/)
+
+    // Trop gros (annoncé, ou lu), vide : refusé ici, rien ne part.
+    expect((await envoyerPiece(new Uint8Array(1), 'x', 'image/png', { 'content-length': String(26 * 1024 * 1024) })).status).toBe(413)
+    expect((await envoyerPiece(new Uint8Array(25 * 1024 * 1024 + 1), 'x')).status).toBe(413)
+    expect((await envoyerPiece(new Uint8Array(0), 'vide.txt')).status).toBe(400)
+    expect(recus).toHaveLength(1)
+    expect((await envoyerPiece(new Uint8Array(1), 'x', 'image/png')).status).toBe(201)
+    expect((await app({ base: base(false), envoyer }).request('/api/tableaux/t1/agent/pieces?nom=x', { method: 'POST', body: new Uint8Array(1) })).status).toBe(404)
+  })
+
+  it('un refus de l’outil se dit dans ses mots ; une panne, comme ailleurs', async () => {
+    const refus = silak({ 'fram.piece': { statut: 422, corps: { erreur: 'Fram ne lit pas encore les vidéos.' } } })
+    const r = await app({ base: base(), envoyer: refus.envoyer }).request('/api/tableaux/t1/agent/pieces?nom=film.mov', { method: 'POST', headers: { 'content-type': 'video/quicktime' }, body: new Uint8Array(8) })
+    expect(r.status).toBe(422)
+    expect(await r.json()).toEqual({ erreur: 'Fram ne lit pas encore les vidéos.', code: 'piece_refusee' })
+    const muet = silak({ 'fram.piece': { statut: 200, corps: { piece: '../x' } } })
+    expect((await app({ base: base(), envoyer: muet.envoyer }).request('/api/tableaux/t1/agent/pieces?nom=a', { method: 'POST', body: new Uint8Array(8) })).status).toBe(502)
+  })
+
+  it('le fil rend les parties précédentes de la conversation, bornées', async () => {
+    const parties = [
+      { id: 'partie-2', debut: '2026-11-22T09:00:00Z', fin: '2026-11-22T09:40:00Z', resume: 'La carte des invités.' },
+      { id: 7, debut: '2026-11-21T09:00:00Z', fin: '2026-11-21T10:00:00Z', resume: 'x'.repeat(5000) },
+      { resume: 'sans id' },
+    ]
+    const { envoyer } = silak({ 'fram.fil': { corps: { fil: 'f1', echanges: [], tour: null, parties } } })
+    const lu = (await (await app({ base: base(), envoyer }).request('/api/tableaux/t1/agent')).json()) as { parties: { id: string; resume: string }[] }
+    expect(lu.parties.map((p) => p.id)).toEqual(['partie-2', '7'])
+    expect(lu.parties[1]!.resume).toHaveLength(4000)
+    // Un Silak d'avant, sans parties : une liste vide.
+    const avant = silak({ 'fram.fil': { corps: { fil: 'f1', echanges: [], tour: null } } })
+    expect(await (await app({ base: base(), envoyer: avant.envoyer }).request('/api/tableaux/t1/agent')).json()).toMatchObject({ parties: [] })
+  })
+
+  it('borne les noms, les genres et les identifiants des pièces', () => {
+    expect(nomDePiece(encodeURIComponent('../../etc/pass\nwd\u0007.txt'))).toBe('passwd.txt')
+    expect(nomDePiece('%E0%A4%A')).toBe('%E0%A4%A')
+    expect(nomDePiece('')).toBe('fichier')
+    expect(nomDePiece('x'.repeat(300))).toHaveLength(200)
+    expect(typeDePiece('image/PNG; charset=binary')).toBe('image/png')
+    expect(typeDePiece('pas un genre')).toBe('application/octet-stream')
+    expect(typeDePiece(undefined)).toBe('application/octet-stream')
+    expect(piecesLues(undefined)).toEqual([])
+    expect(piecesLues('p-1')).toBeNull()
+    expect(adressePieces({ ...AGENT, adresse: 'https://silak.test/hooks/notak/fram/' })).toBe('https://silak.test/hooks/notak/fram/pieces')
+    expect(evenementLu({ seq: 1, genre: 'texte', bloc: '', ajout: 'x' })).toBeNull()
+    expect(evenementLu({ seq: 1, genre: 'pensee', titre: '  ' })).toBeNull()
+    expect(evenementLu({ seq: 1.5, genre: 'fin' })).toBeNull()
+    expect(partiesLues(null)).toEqual([])
   })
 })
