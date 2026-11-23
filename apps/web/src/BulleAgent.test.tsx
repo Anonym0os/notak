@@ -37,6 +37,7 @@ beforeEach(() => {
     const methode = init?.method ?? 'GET'
     appels.push({ chemin, methode })
     const corps = (() => {
+      if (chemin.includes('/agent/pieces')) return { piece: 'p-1', nom: 'plan.pdf', taille: 3 }
       if (methode === 'POST') return { tour: TOUR, etat: 'queued' }
       if (chemin.includes('/tours/'))
         return fini ? { tour: TOUR, etat: 'done', fini: true, texte: 'C’est fait.', echec: null, cartes: [], ouvrir } : { tour: TOUR, etat: 'running', fini: false, texte: null, echec: null, cartes: [], ouvrir }
@@ -132,7 +133,7 @@ describe('la bulle de l’agent', () => {
     expect(espaceDeLaPage.querySelector('.bulle-agent')!.hasAttribute('data-travaille')).toBe(true)
     expect(annonce()).toBe('Fram travaille…')
     fini = true
-    await attendre(700)
+    await attendre(1100)
     await attendre()
     expect(espaceDeLaPage.querySelector('.bulle-agent')!.hasAttribute('data-travaille')).toBe(false)
     expect(bulle()!.querySelector('.bulle-agent-pastille')).not.toBeNull()
@@ -172,5 +173,40 @@ describe('la bulle de l’agent', () => {
     expect(location.pathname).toBe('/t/01CLIENTS/e/01PAGE')
     expect(document.querySelector('.agent-feuille')).toBeNull()
     expect(bulle()!.querySelector('.bulle-agent-pastille')).not.toBeNull()
+  })
+
+  it('des fichiers déposés sur la bulle fermée l’ouvrent et s’y joignent, partis par le serveur de Notak', async () => {
+    await monter()
+    expect(panneau()).toBeNull()
+    const f = new File([new Uint8Array(3)], 'plan.pdf', { type: 'application/pdf' })
+    for (const genre of ['dragenter', 'dragover', 'drop']) {
+      const e = new Event(genre, { bubbles: true, cancelable: true })
+      Object.defineProperty(e, 'dataTransfer', { value: { files: [f], types: ['Files'], dropEffect: 'none' } })
+      await act(async () => void bulle()!.dispatchEvent(e))
+      if (genre === 'dragover') expect(bulle()!.hasAttribute('data-depot')).toBe(true)
+      if (genre === 'drop') expect(e.defaultPrevented).toBe(true)
+    }
+    await attendre()
+    expect(bulle()!.hasAttribute('data-depot')).toBe(false)
+    expect(panneau()).not.toBeNull()
+    expect(panneau()!.querySelector('.agent-piece-nom')?.textContent).toBe('plan.pdf')
+    expect(panneau()!.querySelector('.agent-piece')?.getAttribute('data-etat')).toBe('prete')
+    expect(appels.some((a) => a.chemin === `/api/tableaux/t1/agent/pieces?nom=plan.pdf` && a.methode === 'POST')).toBe(true)
+  })
+
+  it('pendant un tour, la ligne vivante et « Arrêter » sont dans le panneau ; le champ reste ouvert', async () => {
+    await monter()
+    await act(async () => bulle()!.click())
+    const champ = panneau()!.querySelector('textarea')!
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(champ, 'Range ce tableau.')
+      champ.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    await act(async () => panneau()!.querySelector<HTMLFormElement>('.agent-saisie')!.requestSubmit())
+    await attendre()
+    expect(panneau()!.querySelector('.agent-direct-ligne')).not.toBeNull()
+    expect(panneau()!.querySelector('.agent-arreter')?.textContent).toBe('Arrêter')
+    expect(panneau()!.querySelector('textarea')!.disabled).toBe(false)
+    expect(annonce()).toBe('Fram travaille…')
   })
 })

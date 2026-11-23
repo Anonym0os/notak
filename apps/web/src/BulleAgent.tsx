@@ -1,7 +1,7 @@
 import { type EspaceNavigable, FeuilleBas, Icone } from '@notak/tableau'
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { type DragEvent, useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
-import { FilAgent, extraitDe, ouvertDe, useAgent } from './Agent'
+import { FilAgent, avecFichiers, extraitDe, ouvertDe, useAgent } from './Agent'
 import { useAuTelephone } from './bibliotheque/AuDoigt'
 import { type Ici, useIci } from './ici'
 import { t } from './langue'
@@ -40,6 +40,9 @@ function useOuJEcris(ici: Ici | null, espace: EspaceNavigable): string {
  * écrire (la bibliothèque, un dossier, une toile, une page ou une carte ouverte en grand), et sa conversation, une seule
  * par personne, qui la suit d'une vue à l'autre. Montée une fois au-dessus des pages, elle garde le fil et le tour en
  * cours quand l'agent mène la personne ailleurs.
+ *
+ * C'est un vrai chat (23/11/2026) : le tour de l'agent se suit en direct, sa ligne vivante sous la question ; on joint
+ * des fichiers par ⌘V, par le trombone, ou en les déposant sur la conversation ou sur la bulle elle-même, qui s'ouvre.
  *
  * Au bureau, le panneau s'ouvre au-dessus d'elle, en dialogue non modal : il reste ouvert pendant qu'on choisit sur la
  * toile ce dont on parle, et ne se ferme que par la bulle, sa croix, ou Échap quand on y est. Au téléphone, c'est la
@@ -120,6 +123,30 @@ export function BulleAgent({ racine, espace }: { racine: string; espace: EspaceN
         : ''
   const ou = useOuJEcris(ici, espace)
 
+  // Des fichiers déposés sur la bulle, même fermée, ou sur la tête du panneau : la conversation s'ouvre et les joint.
+  const [survol, setSurvol] = useState(false)
+  const depot = {
+    onDragEnter: (e: DragEvent) => {
+      if (!avecFichiers(e)) return
+      e.preventDefault()
+      setSurvol(true)
+    },
+    onDragOver: (e: DragEvent) => {
+      if (!avecFichiers(e)) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'copy'
+    },
+    onDragLeave: () => setSurvol(false),
+    onDrop: (e: DragEvent) => {
+      if (!avecFichiers(e)) return
+      e.preventDefault()
+      e.stopPropagation()
+      setSurvol(false)
+      setOuvert(true)
+      agent.joindre([...e.dataTransfer.files])
+    },
+  }
+
   if (!visible || !hote || !ici) return null
   const libelle = t('agent.bulle', { nom: agent.nom })
   return createPortal(
@@ -131,6 +158,7 @@ export function BulleAgent({ racine, espace }: { racine: string; espace: EspaceN
           role="dialog"
           aria-modal="false"
           aria-labelledby={`${id}-titre`}
+          {...depot}
           onKeyDown={(e) => {
             if (e.key !== 'Escape' || e.nativeEvent.isComposing) return
             e.preventDefault()
@@ -172,6 +200,8 @@ export function BulleAgent({ racine, espace }: { racine: string; espace: EspaceN
         title={libelle}
         aria-expanded={ouvert}
         aria-controls={ouvert && !telephone ? `${id}-panneau` : undefined}
+        data-depot={survol ? '' : undefined}
+        {...depot}
         onClick={() => (ouvert ? fermer() : setOuvert(true))}
       >
         <Icone nom="discussion" taille={24} trait={1.75} />

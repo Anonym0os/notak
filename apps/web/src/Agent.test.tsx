@@ -2,8 +2,24 @@
 import type { EspaceNavigable } from '@notak/tableau'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { type EchangeAgent, FilAgent, TexteAgent, creesLus, extraitDe, ouvertureLue, pucesParEchange, selectionDe, useAgent } from './Agent'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import {
+  type EchangeAgent,
+  FilAgent,
+  PIECE_MAX,
+  TexteAgent,
+  creesLus,
+  extraitDe,
+  messagesLocaux,
+  nomDePiece,
+  ouvertureLue,
+  piecesParEchange,
+  apresParEchange,
+  selectionDe,
+  trierFichiers,
+  useAgent,
+} from './Agent'
+import { type EvenementAgent, appliquer, directVide, duree, reponseDe } from './agentDirect'
 import type { Ici } from './ici'
 import './langue'
 
@@ -25,7 +41,7 @@ beforeEach(() => {
   racine = createRoot(hote)
   appels.length = 0
   vi.stubGlobal('fetch', async (chemin: string, init?: RequestInit) => {
-    appels.push({ chemin, methode: init?.method ?? 'GET', corps: init?.body ? JSON.parse(String(init.body)) : undefined })
+    appels.push({ chemin, methode: init?.method ?? 'GET', corps: typeof init?.body === 'string' ? JSON.parse(init.body) : init?.body })
     const suivante = reponses.length > 1 ? reponses.shift()! : reponses[0]!
     const corps = suivante(chemin, init)
     return corps instanceof Response ? corps : new Response(JSON.stringify(corps), { status: 200 })
@@ -83,10 +99,11 @@ describe('L’agent, pour cette personne', () => {
     await ecrire('Résume ce tableau.')
     await attendre()
     expect(appels.find((a) => a.corps)).toEqual({ chemin: '/api/tableaux/t1/agent', methode: 'POST', corps: { message: 'Résume ce tableau.' } })
-    expect(hote.querySelector('.agent-travaille')?.textContent).toBe('Fram travaille…')
+    // Le tour se suit en direct dès l'envoi : son journal se lit tout de suite.
+    expect(appels.some((a) => a.chemin === `/api/tableaux/t1/agent/tours/${TOUR}/journal`)).toBe(true)
     expect(hote.querySelector('.agent-moi p')?.textContent).toBe('Résume ce tableau.')
 
-    await attendre(700)
+    await attendre(1100)
     await attendre()
     expect(hote.querySelector('.agent-travaille')).toBeNull()
     expect([...hote.querySelectorAll('.agent-echange p')].map((p) => p.textContent)).toEqual([VU.texte, REPONSE.texte])
@@ -354,16 +371,409 @@ describe('L’agent, pour cette personne', () => {
     })
 
     it('range les puces sous la réponse de leur tour, sinon sous la dernière, sans doublon', () => {
+      const pucesDe = (e: EchangeAgent[], crees: { reponse: string; crees: ReturnType<typeof creesLus> }[]) =>
+        new Map([...apresParEchange(e, crees.map((c) => ({ ...c, etapes: [], duree: 0, arrete: false })))].map(([i, a]) => [i, a.crees]))
       const echanges = [VU, { qui: 'fram', texte: 'Première  réponse', quand: 'a' }, VU, { qui: 'fram', texte: 'Seconde', quand: 'b' }] as EchangeAgent[]
       const c = (tableau: string) => ({ type: 'page', titre: tableau, tableau, element: null, chemin: `/t/${tableau}` })
-      const puces = pucesParEchange(echanges, [
+      const puces = pucesDe(echanges, [
         { reponse: 'Première réponse', crees: [c('01A')] },
         { reponse: 'Dite autrement', crees: [c('01B'), c('01B')] },
       ])
-      expect([...puces.entries()].map(([i, l]) => [i, l.map((x) => x.tableau)])).toEqual([
+      expect([...puces.entries()].sort(([a], [b]) => a - b).map(([i, l]) => [i, l.map((x) => x.tableau)])).toEqual([
+        [1, ['01A']],
+        [3, ['01B']],
+      ])
+      // Deux réponses dites pareil : chacune garde ce que son tour a laissé.
+      const pareil = [VU, { qui: 'fram', texte: 'Fait.', quand: 'a' }, VU, { qui: 'fram', texte: 'Fait.', quand: 'b' }] as EchangeAgent[]
+      const deux = pucesDe(pareil, [
+        { reponse: 'Fait.', crees: [c('01A')] },
+        { reponse: 'Fait.', crees: [c('01B')] },
+      ])
+      expect([...deux.entries()].sort(([a], [b]) => a - b).map(([i, l]) => [i, l.map((x) => x.tableau)])).toEqual([
         [1, ['01A']],
         [3, ['01B']],
       ])
     })
+  })
+})
+
+describe('le direct d’un tour (23/11/2026)', () => {
+  const TOUR2 = '0190aaaa-bbbb-7ccc-8ddd-ffffffffffff'
+  const avancer = async (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)))
+  const texte = (sel: string) => hote.querySelector(sel)?.textContent ?? null
+  const textes = (sel: string) => [...hote.querySelectorAll(sel)].map((e) => e.textContent)
+  const journaux = (tour = TOUR) => appels.filter((a) => a.chemin.includes(`/tours/${tour}/journal`))
+
+  /** Un journal simulé : à chaque lecture, l'étape suivante du scénario (la dernière se répète). */
+  const scenario = (etapes: Record<string, unknown>[]) => {
+    let i = 0
+    return () => {
+      const e = etapes[Math.min(i, etapes.length - 1)]!
+      i++
+      return { tour: TOUR, etat: 'running', fini: false, encore: false, evenements: [], crees: [], ouvrir: null, texte: null, echec: null, cartes: [], ...e }
+    }
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    history.replaceState(null, '', '/t/t1')
+  })
+  afterEach(() => vi.useRealTimers())
+
+  it('suit le journal chaque seconde : la ligne vivante change à chaque événement, le fil se forme, la réponse s’écrit, sans coupure ; puis le fil se replie sous la réponse', async () => {
+    let fini = false
+    const CARTE = { type: 'carte_mentale', titre: 'Voyage', tableau: 't1', element: '01CARTE', adresse: '/t/t1/e/01CARTE' }
+    const journal = scenario([
+      { evenements: [{ seq: 1, genre: 'etat', etat: 'running' }, { seq: 2, genre: 'geste', id: 'g1', statut: 'en_cours', phrase: 'Je lis le tableau « Voyage »…' }], suite: 2 },
+      { evenements: [{ seq: 3, genre: 'geste', id: 'g1', statut: 'fait', phrase: 'J’ai lu le tableau « Voyage ».' }, { seq: 4, genre: 'pensee', titre: 'Trois sujets se dégagent' }], suite: 4, crees: [CARTE] },
+      {
+        evenements: [
+          { seq: 5, genre: 'plan', etapes: [{ titre: 'Lire', statut: 'fait' }, { titre: 'Dessiner la carte', statut: 'en_cours' }] },
+          { seq: 6, genre: 'texte', bloc: 'n1', ajout: 'Je regarde les dates.', etape: true },
+          { seq: 7, genre: 'geste', id: 'g2', statut: 'en_cours', phrase: 'Je dessine la carte…' },
+        ],
+        suite: 7,
+        crees: [CARTE],
+      },
+      { evenements: [{ seq: 8, genre: 'texte', bloc: 'r1', ajout: 'La carte ', etape: false }, { seq: 9, genre: 'texte', bloc: 'r1', ajout: 'est prête.', etape: false }], suite: 9, crees: [CARTE] },
+      { evenements: [], suite: 9, crees: [CARTE] },
+    ])
+    reponses = [
+      (chemin, init) => {
+        if (init?.method === 'POST') return { tour: TOUR, etat: 'queued' }
+        if (chemin.includes('/journal')) {
+          if (!fini) return journal()
+          return { tour: TOUR, etat: 'done', fini: true, encore: false, suite: 11, evenements: [{ seq: 10, genre: 'geste', id: 'g2', statut: 'fait', phrase: 'J’ai dessiné la carte.' }, { seq: 11, genre: 'fin' }], crees: [CARTE], ouvrir: null, texte: 'La carte est prête.', echec: null, cartes: [] }
+        }
+        return { agent: 'Fram', disponible: true, echanges: fini ? [VU, { qui: 'fram', texte: 'La carte est prête.', quand: '2026-11-23T10:00:00Z' }] : [], tour: null }
+      },
+    ]
+    await act(async () => racine.render(<Harnais ici={SUR_T1} />))
+    await avancer(0)
+    await ecrire('Résume ce tableau.')
+    await avancer(0)
+    expect(texte('.agent-direct-phrase')).toBe('Je lis le tableau « Voyage »…')
+    expect(texte('.agent-chrono')).toBe('0 s')
+    expect(journaux()[0]!.chemin).toBe(`/api/tableaux/t1/agent/tours/${TOUR}/journal`)
+
+    await avancer(1000)
+    expect(journaux()[1]!.chemin).toBe(`/api/tableaux/t1/agent/tours/${TOUR}/journal?depuis=2`)
+    expect(texte('.agent-direct-phrase')).toBe('Trois sujets se dégagent')
+    // Un geste de même id remplace le précédent : au passé, une fois fait.
+    expect(textes('.agent-direct .agent-etape')).toEqual(['J’ai lu le tableau « Voyage ».', 'Trois sujets se dégagent'])
+    // Ce qui est créé paraît dès qu'il est écrit.
+    expect(textes('.agent-direct .agent-puce')).toEqual(['Ouvrir « Voyage »'])
+
+    await avancer(1000)
+    expect(texte('.agent-direct-phrase')).toBe('Je dessine la carte…')
+    expect(textes('.agent-plan li')).toEqual(['Lire', 'Dessiner la carte'])
+    expect(hote.querySelector('.agent-plan li[data-statut="en_cours"]')?.textContent).toBe('Dessiner la carte')
+    expect(textes('.agent-direct .agent-etape')).toEqual(['J’ai lu le tableau « Voyage ».', 'Trois sujets se dégagent', 'Je regarde les dates.', 'Je dessine la carte…'])
+
+    await avancer(1000)
+    expect(texte('.agent-direct-phrase')).toBe('Fram écrit sa réponse…')
+    expect(texte('.agent-direct .agent-ecrit')).toBe('La carte est prête.')
+
+    // Vingt minutes sans fin : le tour se suit toujours, la ligne garde l'heure, rien ne coupe.
+    const lus = journaux().length
+    await avancer(20 * 60_000)
+    expect(journaux().length).toBeGreaterThan(lus + 1000)
+    expect(hote.querySelector('.agent-direct')).not.toBeNull()
+    expect(texte('.agent-chrono')).toMatch(/^20 min 0\d$/)
+    expect(hote.querySelector('.agent-erreur')).toBeNull()
+
+    fini = true
+    await avancer(1000)
+    await avancer(0)
+    expect(hote.querySelector('.agent-direct')).toBeNull()
+    expect(textes('.agent-lui > .agent-texte p')).toEqual(['La carte est prête.'])
+    expect(texte('.agent-lui .agent-repli summary')).toMatch(/^4 étapes · 20 min 0\d$/)
+    expect(textes('.agent-lui .agent-repli .agent-etape').at(-1)).toBe('J’ai dessiné la carte.')
+    expect(textes('.agent-lui .agent-puce')).toEqual(['Ouvrir « Voyage »'])
+  })
+
+  it('relit tout de suite quand le journal dit qu’il y a encore, et ne rejoue pas un événement déjà vu', async () => {
+    const journal = scenario([
+      { evenements: [{ seq: 1, genre: 'texte', bloc: 'r', ajout: 'Bonjour', etape: false }], suite: 1, encore: true },
+      { evenements: [{ seq: 1, genre: 'texte', bloc: 'r', ajout: 'Bonjour', etape: false }, { seq: 2, genre: 'texte', bloc: 'r', ajout: ' Samy', etape: false }], suite: 2 },
+    ])
+    reponses = [(chemin) => (chemin.includes('/journal') ? journal() : { agent: 'Fram', disponible: true, echanges: [], tour: { id: TOUR, etat: 'running' } })]
+    await act(async () => racine.render(<Harnais ici={SUR_T1} />))
+    await avancer(50)
+    await avancer(50)
+    expect(journaux()).toHaveLength(2)
+    expect(texte('.agent-ecrit')).toBe('Bonjour Samy')
+  })
+
+  it('« Arrêter » arrête le tour ; la réponse dit qu’il s’est arrêté', async () => {
+    let arrete = false
+    reponses = [
+      (chemin, init) => {
+        if (chemin.endsWith('/arreter')) {
+          arrete = true
+          return { tour: TOUR, etat: 'cancelling' }
+        }
+        if (chemin.includes('/journal'))
+          return arrete
+            ? { tour: TOUR, etat: 'cancelled', fini: true, suite: 3, evenements: [{ seq: 3, genre: 'etat', etat: 'cancelled' }, { seq: 4, genre: 'fin' }], crees: [], ouvrir: null, texte: 'Je me suis arrêté là.', echec: null, cartes: [] }
+            : { tour: TOUR, etat: 'running', fini: false, suite: 2, evenements: [{ seq: 2, genre: 'geste', id: 'g', statut: 'en_cours', phrase: 'Je range les notes…' }], crees: [], ouvrir: null, texte: null, echec: null, cartes: [] }
+        if (init?.method === 'POST') return { tour: TOUR, etat: 'queued' }
+        // L'outil peut encore dire le tour en cours juste après sa fin : il n'est pas suivi une seconde fois.
+        return { agent: 'Fram', disponible: true, echanges: arrete ? [{ qui: 'fram', texte: 'Je me suis arrêté là.', quand: 'z' }] : [], tour: { id: TOUR, etat: 'running' } }
+      },
+    ]
+    await act(async () => racine.render(<Harnais ici={SUR_T1} />))
+    await avancer(0)
+    await avancer(0)
+    const bouton = hote.querySelector<HTMLButtonElement>('.agent-arreter')!
+    expect(bouton.textContent).toBe('Arrêter')
+    await act(async () => bouton.click())
+    expect(appels.find((a) => a.chemin.endsWith('/arreter'))).toEqual({ chemin: `/api/tableaux/t1/agent/tours/${TOUR}/arreter`, methode: 'POST', corps: {} })
+    expect(texte('.agent-direct-phrase')).toBe('Fram s’arrête…')
+    expect(hote.querySelector<HTMLButtonElement>('.agent-arreter')!.disabled).toBe(true)
+    await avancer(1000)
+    await avancer(0)
+    expect(hote.querySelector('.agent-direct')).toBeNull()
+    expect(texte('.agent-lui .agent-arrete')).toBe('Arrêté')
+  })
+
+  it('pendant un tour, le champ reste ouvert ; un message envoyé attend « en attente », puis part à la fin du tour', async () => {
+    let premierFini = false
+    reponses = [
+      (chemin, init) => {
+        if (init?.method === 'POST') return { tour: TOUR2, fil: 'f1', etat: 'waiting' }
+        if (chemin.includes(`/tours/${TOUR}/journal`))
+          return premierFini
+            ? { tour: TOUR, etat: 'done', fini: true, suite: 9, evenements: [], crees: [], ouvrir: null, texte: REPONSE.texte, echec: null, cartes: [] }
+            : { tour: TOUR, etat: 'running', fini: false, suite: 1, evenements: [{ seq: 1, genre: 'geste', id: 'g', statut: 'en_cours', phrase: 'Je lis…' }], crees: [], ouvrir: null, texte: null, echec: null, cartes: [] }
+        if (chemin.includes(`/tours/${TOUR2}/journal`))
+          return { tour: TOUR2, etat: 'running', fini: false, suite: 1, evenements: [{ seq: 1, genre: 'geste', id: 'h', statut: 'en_cours', phrase: 'Je regarde la photo…' }], crees: [], ouvrir: null, texte: null, echec: null, cartes: [] }
+        return { agent: 'Fram', disponible: true, echanges: premierFini ? [VU, REPONSE] : [VU], tour: premierFini ? { id: TOUR2, etat: 'running' } : { id: TOUR, etat: 'running' } }
+      },
+    ]
+    await act(async () => racine.render(<Harnais ici={SUR_T1} />))
+    await avancer(0)
+    await avancer(0)
+    const champ = hote.querySelector('textarea')!
+    expect(champ.disabled).toBe(false)
+    expect(champ.placeholder).toBe('Votre message partira après ce tour')
+    await ecrire('Et ajoute les dates.')
+    await avancer(0)
+    expect(appels.find((a) => a.methode === 'POST')?.corps).toEqual({ message: 'Et ajoute les dates.' })
+    const attente = hote.querySelector('.agent-moi[data-attente]')!
+    expect(attente.querySelector('strong')?.textContent).toBe('En attente, partira à la fin du tour')
+    expect(attente.querySelector('p')?.textContent).toBe('Et ajoute les dates.')
+    // Le message en file vient après le tour en cours.
+    expect(hote.querySelector('.agent-direct + .agent-moi[data-attente]')).not.toBeNull()
+
+    premierFini = true
+    await avancer(1000)
+    await avancer(0)
+    await avancer(0)
+    expect(journaux(TOUR2).length).toBeGreaterThanOrEqual(1)
+    expect(hote.querySelector('.agent-moi[data-attente]')).toBeNull()
+    expect(texte('.agent-direct-phrase')).toBe('Je regarde la photo…')
+    expect(textes('.agent-echange > p, .agent-echange .agent-texte p')).toEqual([VU.texte, REPONSE.texte, 'Et ajoute les dates.'])
+  })
+
+  it('« Plus tôt » déplie les parties précédentes de la conversation, avec leur résumé, de la plus ancienne à la dernière', async () => {
+    const parties = [
+      { id: 'p2', debut: '2026-11-22T09:00:00Z', fin: '2026-11-22T09:40:00Z', resume: 'La carte des **invités**.' },
+      { id: 'p1', debut: '2026-11-21T14:00:00Z', fin: '2026-11-21T15:00:00Z', resume: '' },
+    ]
+    reponses = [() => ({ agent: 'Fram', disponible: true, echanges: [VU], tour: null, parties })]
+    await act(async () => racine.render(<Harnais ici={SUR_T1} />))
+    await avancer(0)
+    const bouton = hote.querySelector<HTMLButtonElement>('.agent-plus-tot-bouton')!
+    expect(bouton.textContent).toBe('Plus tôt : 2 parties')
+    expect(bouton.getAttribute('aria-expanded')).toBe('false')
+    expect(hote.querySelector('.agent-partie')).toBeNull()
+    await act(async () => bouton.click())
+    expect(textes('.agent-partie .agent-texte')).toEqual(['Pas de résumé pour cette partie.', 'La carte des invités.'])
+    expect(hote.querySelector('.agent-partie strong')?.textContent).toBe('invités')
+    expect(hote.querySelector('.agent-partie small')?.textContent).toMatch(/21 nov/)
+    await act(async () => bouton.click())
+    expect(hote.querySelector('.agent-partie')).toBeNull()
+  })
+})
+
+describe('les pièces jointes', () => {
+  /** Un collage ou un dépôt comme le navigateur les fait : des fichiers, et les genres de ce qu'on porte. */
+  const coller = async (cible: Element, fichiers: File[], o: { texte?: string; html?: boolean } = {}) => {
+    const e = new Event('paste', { bubbles: true, cancelable: true })
+    const types = [...(o.texte ? ['text/plain'] : []), ...(o.html ? ['text/html'] : []), ...(fichiers.length ? ['Files'] : [])]
+    Object.defineProperty(e, 'clipboardData', { value: { files: fichiers, types, getData: (t: string) => (t === 'text/plain' ? (o.texte ?? '') : '') } })
+    await act(async () => void cible.dispatchEvent(e))
+    return e.defaultPrevented
+  }
+  const deposer = async (cible: Element, fichiers: File[]) => {
+    for (const genre of ['dragenter', 'dragover']) {
+      const e = new Event(genre, { bubbles: true, cancelable: true })
+      Object.defineProperty(e, 'dataTransfer', { value: { files: fichiers, types: ['Files'], dropEffect: 'none' } })
+      await act(async () => void cible.dispatchEvent(e))
+    }
+    const lache = new Event('drop', { bubbles: true, cancelable: true })
+    Object.defineProperty(lache, 'dataTransfer', { value: { files: fichiers, types: ['Files'] } })
+    await act(async () => void cible.dispatchEvent(lache))
+    return lache.defaultPrevented
+  }
+  const fichier = (nom: string, type: string, taille = 4) => {
+    const f = new File([new Uint8Array(4)], nom, { type })
+    if (taille !== 4) Object.defineProperty(f, 'size', { value: taille })
+    return f
+  }
+  const pieces = () => [...hote.querySelectorAll('.agent-saisie .agent-piece')]
+  let numero = 0
+  let refuser: string | null = null
+
+  beforeEach(() => {
+    numero = 0
+    refuser = null
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:apercu', revokeObjectURL: () => {} }))
+    reponses = [
+      (chemin, init) => {
+        if (chemin.includes('/agent/pieces')) {
+          const nom = decodeURIComponent(new URL(chemin, 'https://notak.test').searchParams.get('nom') ?? '')
+          if (refuser && nom === refuser) return new Response(JSON.stringify({ erreur: 'Fram ne lit pas les vidéos.', code: 'piece_refusee' }), { status: 422 })
+          return { piece: `p-${++numero}`, nom, taille: (init?.body as File).size }
+        }
+        if (init?.method === 'POST') return { tour: TOUR, etat: 'queued' }
+        if (chemin.includes('/journal')) return { tour: TOUR, etat: 'running', fini: false, suite: 0, evenements: [], crees: [], ouvrir: null, texte: null, echec: null, cartes: [] }
+        return { agent: 'Fram', disponible: true, echanges: [], tour: null }
+      },
+    ]
+  })
+
+  it('⌘V d’images les joint, une vignette chacune, et les envoie aussitôt par le serveur de Notak', async () => {
+    await act(async () => racine.render(<Harnais ici={SUR_T1} />))
+    await attendre()
+    const champ = hote.querySelector('textarea')!
+    expect(await coller(champ, [fichier('image.png', 'image/png'), fichier('image.png', 'image/png')])).toBe(true)
+    await attendre()
+    expect(pieces().map((p) => p.querySelector('.agent-piece-nom')?.textContent)).toEqual(['Image collée 1.png', 'Image collée 2.png'])
+    expect(pieces().every((p) => p.querySelector('img')?.getAttribute('src') === 'blob:apercu')).toBe(true)
+    expect(pieces().map((p) => p.getAttribute('data-etat'))).toEqual(['prete', 'prete'])
+    expect(pieces()[0]!.querySelector('small')?.textContent).toBe('4 B')
+    const envois = appels.filter((a) => a.chemin.includes('/agent/pieces'))
+    expect(envois.map((a) => [a.chemin, a.methode])).toEqual([
+      [`/api/tableaux/t1/agent/pieces?nom=${encodeURIComponent('Image collée 1.png')}`, 'POST'],
+      [`/api/tableaux/t1/agent/pieces?nom=${encodeURIComponent('Image collée 2.png')}`, 'POST'],
+    ])
+    expect(envois[0]!.corps).toBeInstanceOf(File)
+
+    // On retire la seconde ; le message part avec la première, et sans texte : une image seule est un message.
+    await act(async () => pieces()[1]!.querySelector<HTMLButtonElement>('.agent-piece-retirer')!.click())
+    expect(pieces()).toHaveLength(1)
+    await act(async () => hote.querySelector<HTMLFormElement>('.agent-saisie')!.requestSubmit())
+    await attendre()
+    expect(appels.find((a) => a.chemin === '/api/tableaux/t1/agent' && a.methode === 'POST')?.corps).toEqual({ message: '', pieces: ['p-1'] })
+    expect(pieces()).toHaveLength(0)
+    // Le message envoyé montre sa pièce.
+    expect(hote.querySelector('.agent-moi .agent-piece-nom')?.textContent).toBe('Image collée 1.png')
+  })
+
+  it('du texte collé d’un tableur garde son texte, même s’il porte une image de lui-même', async () => {
+    await act(async () => racine.render(<Harnais ici={SUR_T1} />))
+    await attendre()
+    expect(await coller(hote.querySelector('textarea')!, [fichier('image.png', 'image/png')], { texte: 'A1	B1', html: true })).toBe(false)
+    expect(pieces()).toHaveLength(0)
+  })
+
+  it('un dépôt de fichiers de tout genre, n’importe où sur la conversation, les joint ; la toile dessous n’en reçoit rien', async () => {
+    const dessous = vi.fn()
+    document.addEventListener('drop', dessous)
+    onTestFinished(() => document.removeEventListener('drop', dessous))
+    await act(async () => racine.render(<Harnais ici={SUR_T1} />))
+    await attendre()
+    expect(await deposer(hote.querySelector('.agent-fil')!, [fichier('devis.pdf', 'application/pdf'), fichier('notes.md', '')])).toBe(true)
+    await attendre()
+    expect(dessous).not.toHaveBeenCalled()
+    expect(pieces().map((p) => p.querySelector('.agent-piece-nom')?.textContent)).toEqual(['devis.pdf', 'notes.md'])
+    expect(pieces().every((p) => p.querySelector('.agent-piece-icone'))).toBe(true)
+    expect(hote.querySelector('.agent-depot')).toBeNull()
+    // Le trombone ouvre le choix des fichiers, plusieurs à la fois.
+    const choix = hote.querySelector<HTMLInputElement>('.agent-saisie input[type="file"]')!
+    expect(choix.multiple).toBe(true)
+    expect(hote.querySelector('.agent-joindre')?.getAttribute('title')).toBe('Joindre des fichiers : 10 au plus par message, 25 Mo chacun')
+  })
+
+  it('dit les limites avant d’envoyer : 25 Mo par fichier, dix par message ; un refus de l’outil se lit sur la pièce et retient le message', async () => {
+    refuser = 'film.mov'
+    await act(async () => racine.render(<Harnais ici={SUR_T1} />))
+    await attendre()
+    const conversation = hote.querySelector('.agent-conversation')!
+    await deposer(conversation, [fichier('gros.mov', 'video/quicktime', PIECE_MAX + 1)])
+    expect(texte('.agent-avis')).toBe('« gros.mov » dépasse 25 Mo : il ne part pas.')
+    expect(pieces()).toHaveLength(0)
+    expect(appels.some((a) => a.chemin.includes('/agent/pieces'))).toBe(false)
+
+    await deposer(conversation, Array.from({ length: 12 }, (_, i) => fichier(`photo-${i}.jpg`, 'image/jpeg')))
+    await attendre()
+    expect(pieces()).toHaveLength(10)
+    expect(texte('.agent-avis')).toBe('Un message joint 10 fichiers au plus : les suivants ne partent pas.')
+    expect(hote.querySelector<HTMLButtonElement>('.agent-joindre')!.disabled).toBe(true)
+    for (let i = 0; i < 9; i++) await act(async () => pieces()[0]!.querySelector<HTMLButtonElement>('.agent-piece-retirer')!.click())
+
+    await deposer(conversation, [fichier('film.mov', 'video/quicktime')])
+    await attendre()
+    const refusee = pieces().find((p) => p.getAttribute('data-etat') === 'refusee')!
+    expect(refusee.querySelector('small')?.textContent).toBe('Fram ne lit pas les vidéos.')
+    await ecrire('Regarde.')
+    await attendre()
+    expect(texte('.agent-avis')).toBe('Retirez les pièces refusées pour envoyer le message.')
+    expect(appels.some((a) => a.chemin === '/api/tableaux/t1/agent' && a.methode === 'POST')).toBe(false)
+  })
+
+  function texte(sel: string) {
+    return hote.querySelector(sel)?.textContent ?? null
+  }
+})
+
+describe('ce que le direct fait du journal, et le reste, sans écran', () => {
+  const ev = (e: Record<string, unknown>) => e as unknown as EvenementAgent
+
+  it('replie les événements dans l’ordre, une fois chacun', () => {
+    let d = directVide('Fram')
+    expect(d.ligne).toBe('Fram s’y met…')
+    d = appliquer(d, [ev({ seq: 2, genre: 'geste', id: 'a', statut: 'en_cours', phrase: 'Je lis…' }), ev({ seq: 1, genre: 'etat', etat: 'running' })], 'Fram')
+    expect(d.ligne).toBe('Je lis…')
+    expect(d.etat).toBe('running')
+    d = appliquer(d, [ev({ seq: 2, genre: 'geste', id: 'a', statut: 'en_cours', phrase: 'rejoué' }), ev({ seq: 3, genre: 'geste', id: 'a', statut: 'fait', phrase: 'J’ai lu.' })], 'Fram')
+    expect(d.etapes).toEqual([{ genre: 'geste', cle: 'g:a', statut: 'fait', phrase: 'J’ai lu.' }])
+    d = appliquer(d, [ev({ seq: 4, genre: 'texte', bloc: 'x', ajout: '## Étape\n- Je compare **les** dates', etape: true })], 'Fram')
+    expect(d.ligne).toBe('Je compare les dates')
+    d = appliquer(d, [ev({ seq: 5, genre: 'texte', bloc: 'r1', ajout: 'Un.', etape: false }), ev({ seq: 6, genre: 'texte', bloc: 'r2', ajout: 'Deux.', etape: false })], 'Fram')
+    expect(reponseDe(d)).toBe('Un.\n\nDeux.')
+    d = appliquer(d, [ev({ seq: 7, genre: 'plan', etapes: [{ titre: 'A', statut: 'fait' }, { titre: 'B', statut: 'a_faire' }] })], 'Fram')
+    expect(d.ligne).toBe('B')
+    d = appliquer(d, [ev({ seq: 8, genre: 'echec', message: '' }), ev({ seq: 9, genre: 'fin' })], 'Fram')
+    expect(d.echec).toBe('La demande n’a pas abouti. Réessayez dans un instant.')
+    expect(d.fin).toBe(true)
+    expect(appliquer(d, [], 'Fram')).toBe(d)
+  })
+
+  it('dit les durées à la seconde', () => {
+    expect([duree(8_400), duree(65_000), duree(3_725_000)]).toEqual(['8 s', '1 min 05', '1 h 02'])
+  })
+
+  it('trie les fichiers à joindre, et nomme une image collée', () => {
+    const f = (nom: string, taille: number) => Object.defineProperty(new File([''], nom), 'size', { value: taille }) as File
+    expect(trierFichiers(9, [f('a', 1), f('b', 1), f('vide', 0), f('gros', PIECE_MAX + 1)])).toEqual({
+      acceptes: [expect.objectContaining({ name: 'a' })],
+      avis: '« vide » est vide : il ne part pas. « gros » dépasse 25 Mo : il ne part pas. Un message joint 10 fichiers au plus : les suivants ne partent pas.',
+    })
+    expect(trierFichiers(0, [f('a', PIECE_MAX)]).avis).toBeNull()
+    expect(nomDePiece(new File([''], 'image.png', { type: 'image/png' }), 3)).toBe('Image collée 3.png')
+    expect(nomDePiece(new File([''], '', { type: 'image/jpeg' }), 1)).toBe('Image collée 1.jpeg')
+    expect(nomDePiece(new File([''], 'Devis Rœderer.pdf'), 1)).toBe('Devis Rœderer.pdf')
+  })
+
+  it('ne montre pas deux fois un message que le fil relu porte déjà, et range les pièces sous leur message', () => {
+    const fil = [VU, REPONSE, { qui: 'personne', texte: 'Et  les dates ?', quand: 'c' }] as EchangeAgent[]
+    const locaux = [{ texte: 'Et les dates ?' }, { texte: 'Et les dates ?' }, { texte: 'Autre' }]
+    expect(messagesLocaux(fil, locaux)).toEqual([{ texte: 'Et les dates ?' }, { texte: 'Autre' }])
+    expect(messagesLocaux([REPONSE] as EchangeAgent[], [{ texte: 'x' }])).toEqual([{ texte: 'x' }])
+    const piece = { cle: 'k', nom: 'a.png', taille: 1, type: 'image/png', apercu: null, etat: 'prete' as const, id: 'p', erreur: null }
+    expect([...piecesParEchange(fil, [{ texte: 'Et les dates ?', pieces: [piece] }, { texte: 'rien', pieces: [] }]).keys()]).toEqual([2])
   })
 })
