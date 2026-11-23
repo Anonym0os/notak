@@ -578,6 +578,29 @@ CREATE INDEX envois_a_faire ON envois(prochain) WHERE livre IS NULL AND prochain
       if (!colonnes.some((c) => c.name === 'agent')) db.exec(`ALTER TABLE activite ADD COLUMN agent TEXT NOT NULL DEFAULT '';`)
     },
   },
+  {
+    version: 19,
+    nom: 'les raccourcis du dossier d’une fiche sous ses autres entités',
+    // Le dossier d'une fiche rangée sous plusieurs entités (`dans`, un projet sous ses sociétés et ses établissements) a
+    // son parent sous la première ; sous chacune des autres, Notak pose un raccourci, et il le note ici : au rappel avec
+    // une autre liste, il retire ceux qu'il a posés et que personne n'a touchés. `x` et `y` nuls : un raccourci déjà là,
+    // que Notak n'a pas posé, et qu'il ne retire jamais.
+    appliquer(db) {
+      db.exec(`CREATE TABLE IF NOT EXISTS raccourcis_rattaches (
+  espace TEXT NOT NULL REFERENCES organization(id) ON DELETE CASCADE,
+  source TEXT NOT NULL,
+  cle TEXT NOT NULL,
+  entite TEXT NOT NULL,
+  cible TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  porteur TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  element TEXT NOT NULL,
+  x REAL,
+  y REAL,
+  cree INTEGER NOT NULL,
+  PRIMARY KEY (espace, source, cle, entite)
+);`)
+    },
+  },
 ]
 
 /**

@@ -902,6 +902,7 @@ const REFUS_FICHE = {
   source_inconnue: 'relier.erreur.source',
   fiche_invalide: 'relier.erreur.fiche',
   adresse_refusee: 'relier.erreur.adresse',
+  dans_invalide: 'relier.erreur.dans',
   interdit: 'relier.erreur.interdit',
   espace_introuvable: 'relier.erreur.espace',
 }
@@ -913,9 +914,25 @@ export async function lireDossierDeFiche(source: string, cle: string): Promise<D
   return (await r.json()) as DossierDeFiche
 }
 
-/** Trouve le dossier de la fiche, ou le crée ; `adresse` : où la fiche s'ouvre dans l'outil. */
-export async function creerDossierDeFiche(source: string, cle: string, titre: string, adresse?: string): Promise<DossierDeFiche> {
-  const r = await appeler(cheminDeFiche(source, cle), { titre, ...(adresse ? { adresse } : {}) })
+/** Une autre fiche de l'outil sous laquelle ranger le dossier (`dans`) : sa clé, et le titre de son dossier s'il manque. */
+export interface EntiteDeFiche {
+  cle: string
+  titre?: string
+}
+
+/**
+ * Trouve le dossier de la fiche, ou le crée ; `adresse` : où la fiche s'ouvre dans l'outil ; `dans` : les fiches sous
+ * lesquelles le ranger, son dossier sous la première, un raccourci sous chacune des autres.
+ */
+export async function creerDossierDeFiche(source: string, cle: string, titre: string, adresse?: string, dans?: readonly EntiteDeFiche[]): Promise<DossierDeFiche> {
+  const r = await appeler(cheminDeFiche(source, cle), { titre, ...(adresse ? { adresse } : {}), ...(dans ? { dans } : {}) })
+  if (!r.ok) throw await refus(r, REFUS_FICHE)
+  return (await r.json()) as DossierDeFiche
+}
+
+/** Accorde les raccourcis d'un dossier déjà là à la liste `dans` : il ne se crée rien d'autre. */
+export async function accorderDossierDeFiche(source: string, cle: string, dans: readonly EntiteDeFiche[]): Promise<DossierDeFiche> {
+  const r = await appeler(cheminDeFiche(source, cle), { dans })
   if (!r.ok) throw await refus(r, REFUS_FICHE)
   return (await r.json()) as DossierDeFiche
 }

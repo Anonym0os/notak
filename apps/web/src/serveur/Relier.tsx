@@ -1,26 +1,40 @@
 import { Icone } from '@notak/tableau'
 import { useEffect, useRef, useState } from 'react'
-import { type DossierDeFiche, ErreurApi, creerDossierDeFiche, lireDossierDeFiche, remettreDossierDeFiche } from '../api'
+import { type DossierDeFiche, type EntiteDeFiche, ErreurApi, accorderDossierDeFiche, creerDossierDeFiche, lireDossierDeFiche, remettreDossierDeFiche } from '../api'
 import { allerA, surLien } from '../chemin'
 import { t } from '../langue'
 import { PageApp } from '../PageApp'
 
-/** Ce que l'adresse demande : l'outil, la fiche, le titre du dossier à créer, et où la fiche s'ouvre dans l'outil. */
+/**
+ * Ce que l'adresse demande : l'outil, la fiche, le titre du dossier à créer, où la fiche s'ouvre dans l'outil, et les
+ * autres fiches sous lesquelles la ranger (`dans`).
+ */
 export interface FicheDemandee {
   source: string
   cle: string
   titre: string
   retour?: string
+  dans?: EntiteDeFiche[]
 }
 
-/** La fiche que porte l'adresse (`/relier?source=&cle=&titre=&retour=`), ou `null` s'il manque l'outil ou la fiche. */
+/**
+ * La fiche que porte l'adresse (`/relier?source=&cle=&titre=&retour=&dans=`), ou `null` s'il manque l'outil ou la
+ * fiche. `dans` se répète, une fiche liée chacun : sa clé, puis, après une espace, le titre de son dossier
+ * (`dans=societe:12 Dupont SARL`). Un seul `dans=` vide : plus aucune.
+ */
 export function ficheDeLAdresse(recherche: string): FicheDemandee | null {
   const p = new URLSearchParams(recherche)
   const source = p.get('source')?.trim().slice(0, 32)
   const cle = p.get('cle')?.trim().slice(0, 128)
   if (!source || !cle) return null
   const retour = p.get('retour')?.trim()
-  return { source, cle, titre: p.get('titre')?.trim().slice(0, 200) || cle, ...(retour ? { retour } : {}) }
+  const dans = p.has('dans')
+    ? p.getAll('dans').flatMap((brut): EntiteDeFiche[] => {
+        const [c, ...titre] = brut.trim().split(/\s+/)
+        return c ? [{ cle: c.slice(0, 128), ...(titre.length ? { titre: titre.join(' ').slice(0, 200) } : {}) }] : []
+      })
+    : undefined
+  return { source, cle, titre: p.get('titre')?.trim().slice(0, 200) || cle, ...(retour ? { retour } : {}), ...(dans ? { dans } : {}) }
 }
 
 type Etat =
@@ -35,8 +49,9 @@ const ouvrirLeDossier = (tableau: string) => allerA(`/?dossier=${encodeURICompon
 
 /**
  * La page qu'ouvre le bouton d'une fiche d'un autre outil (un CRM…) : elle mène au dossier de la fiche, ou propose de
- * le créer. Rien ne se crée sans le clic : un lien seul n'écrit rien. Sans session, l'écran de connexion passe avant,
- * puis revient à cette adresse.
+ * le créer. Rien ne se crée sans le clic : un lien seul ne crée aucun dossier. Il accorde seulement les raccourcis d'un
+ * dossier déjà là à sa liste `dans`, sans créer celui d'aucune fiche liée. Sans session, l'écran de connexion passe
+ * avant, puis revient à cette adresse.
  */
 export function PageRelier({ recherche = location.search }: { recherche?: string }) {
   // Lue une fois : l'adresse change dès qu'on part vers le dossier.
@@ -57,7 +72,10 @@ export function PageRelier({ recherche = location.search }: { recherche?: string
     if (!fiche) return
     let vivant = true
     lireDossierDeFiche(fiche.source, fiche.cle).then(
-      (d) => {
+      async (d) => {
+        // Un dossier déjà là : ses raccourcis suivent les fiches liées que l'outil nomme, puis il s'ouvre. Un échec
+        // n'empêche pas de l'ouvrir : le prochain passage les accordera.
+        if (d.etat === 'present' && fiche.dans) await accorderDossierDeFiche(fiche.source, fiche.cle, fiche.dans).catch(() => null)
         if (!vivant) return
         const suite = suivre(d)
         if (suite) setEtat(suite)
@@ -78,7 +96,7 @@ export function PageRelier({ recherche = location.search }: { recherche?: string
     if (!fiche || etat.type !== 'absent' || etat.creation) return
     setEtat({ ...etat, creation: true, erreur: null })
     try {
-      const suite = suivre(await creerDossierDeFiche(fiche.source, fiche.cle, fiche.titre, fiche.retour))
+      const suite = suivre(await creerDossierDeFiche(fiche.source, fiche.cle, fiche.titre, fiche.retour, fiche.dans))
       if (suite) setEtat(suite)
     } catch (x) {
       // Un refus qui vaudra encore au prochain essai (une adresse de retour refusée, aucun droit) : la page le dit, et
@@ -121,7 +139,11 @@ export function PageRelier({ recherche = location.search }: { recherche?: string
             <Icone nom="dossier" taille={18} />
             {t('relier.absent.titre', { titre: fiche.titre })}
           </h2>
-          <p>{t('relier.absent.texte', { dossier: etat.dossier, source: etat.source })}</p>
+          <p>
+            {fiche.dans?.[0]
+              ? t(fiche.dans.length > 1 ? 'relier.absent.dansRaccourcis' : 'relier.absent.dans', { entite: fiche.dans[0].titre ?? fiche.dans[0].cle })
+              : t('relier.absent.texte', { dossier: etat.dossier, source: etat.source })}
+          </p>
           {etat.erreur && (
             <p className="connexion-erreur" role="alert">
               {etat.erreur}

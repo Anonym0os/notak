@@ -209,6 +209,51 @@ que le dossier rappelle par un lien. Quelqu'un qui n'est pas connecté passe d'a
 revient à la même adresse. Un dossier jeté à la corbeille y reste : le bouton propose de le remettre, jamais d'en faire
 un second.
 
+### Une fiche rangée sous d'autres : `dans`
+
+Une fiche qui appartient à d'autres (un projet à son client, ou à plusieurs : une société et ses établissements) se
+range sous elles, avec `dans`, une ou plusieurs fiches de la même source. Elle garde **un seul dossier** : son vrai
+parent est le dossier de la première, et sous chacune des autres, un **raccourci** y mène, une carte qui ouvre le même
+dossier sans en être une copie.
+
+```
+https://notak.exemple.fr/relier?source=crm&cle=projet:7&titre=Refonte%20du%20site&dans=societe:12%20Dupont%20SARL&dans=etablissement:4
+```
+
+`dans` se répète, une fiche chacun : sa clé, puis, après une espace, le titre de son dossier s'il faut le créer (à
+défaut, la clé). Sans `dans`, rien ne change : le dossier se range dans celui de l'outil. La page le transmet à
+`POST /api/rattachements/<source>/<cle>`, en JSON, `{ "titre", "adresse", "dans": ["societe:12", { "cle":
+"etablissement:4", "titre": "Atelier de Limoges" }] }` : chaque entrée est une clé, ou `{ cle, titre }` ; 20 au plus,
+sans la fiche elle-même. Une liste mal écrite est refusée (400, `dans_invalide`), et rien n'est créé.
+
+**À la création** (le clic sur « Créer le dossier ») :
+
+- le dossier de la fiche se range dans celui de la première fiche liée où la personne peut écrire, ce dernier créé au
+  besoin dans le dossier de l'outil (lui-même fait au besoin), au titre donné, et l'outil en est prévenu par
+  `dossier.cree` ;
+- une fiche liée dont le dossier est fermé à la personne (elle ne le voit pas, ou n'y écrit pas) ou à la corbeille est
+  passée : la suivante range le dossier. Si aucune ne le peut, il va dans le dossier de l'outil, comme sans `dans` ;
+  et si la personne n'y écrit pas non plus, la création est refusée (403, `interdit`) ;
+- sous chacune des autres, un raccourci est posé, là où la personne peut écrire.
+
+**Au rappel** d'un dossier déjà là, avec une liste changée : la page `/relier`, ouverte avec `dans`, accorde les
+raccourcis avant d'ouvrir le dossier, sans clic, puisqu'elle ne crée aucun dossier.
+
+- le vrai parent ne bouge jamais, même si sa fiche sort de la liste ;
+- une fiche liée nouvelle reçoit un raccourci, si son dossier existe et que la personne y écrit. Une fiche liée sans
+  dossier n'en reçoit pas au rappel : il se crée quand on ouvre sa fiche, et le rappel suivant y pose le raccourci ;
+- sous une fiche sortie de la liste, le raccourci que Notak a posé est retiré, s'il est resté tel quel. Celui que
+  quelqu'un a déplacé, rangé ou jeté reste, et Notak l'oublie ; un raccourci posé à la main n'est jamais retiré ;
+- un raccourci que Notak a déjà posé n'est pas reposé, même si quelqu'un l'a retiré depuis ;
+- `dans=` vide, seul, vaut une liste vide : Notak retire ses raccourcis restés tels quels.
+
+On n'écrit que là où la personne peut écrire : un raccourci sous une fiche qu'elle ne peut pas toucher n'est ni posé
+ni retiré, et attend le rappel de quelqu'un qui le peut. La réponse de `POST`, quand la demande porte `dans`, dit ce
+qu'il en est de chacune, dans l'ordre donné : `"dans": [{ "cle", "lien", "tableau"? }]`, où `lien` vaut `dossier` (elle
+range le vrai parent), `raccourci` (un raccourci y mène), `interdit` (son dossier est fermé à la personne), `jete` (il
+est à la corbeille) ou `absent` (pas encore de dossier, au rappel). Les lectures (`GET …/<cle>` et `…/<cle>/contenu`)
+ne changent pas.
+
 Ces dossiers, celui de chaque fiche et celui qui les range, sont générés par l'outil, et Notak le dit à la suite de leur
 titre. Personne ne les renomme, ne les déplace, ne les jette ni ne les modifie plus : ni leur nom, ni leur couleur, ni
 leur mot de passe, ni leur carte, qui ne fait que changer de place sur la toile qui la porte : elle n'en part pas, et ne

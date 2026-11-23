@@ -57,6 +57,15 @@ describe('ficheDeLAdresse', () => {
     expect(ficheDeLAdresse('?source=crm')).toBeNull()
     expect(ficheDeLAdresse('?cle=societe:42')).toBeNull()
   })
+
+  it('les fiches liées (`dans`) : la clé, puis le titre après une espace ; un `dans=` vide n’en nomme plus aucune', () => {
+    expect(ficheDeLAdresse('?source=crm&cle=projet:7&dans=societe:12%20Dupont%20SARL&dans=etablissement:4')?.dans).toEqual([
+      { cle: 'societe:12', titre: 'Dupont SARL' },
+      { cle: 'etablissement:4' },
+    ])
+    expect(ficheDeLAdresse('?source=crm&cle=projet:7&dans=')?.dans).toEqual([])
+    expect(ficheDeLAdresse('?source=crm&cle=projet:7')).not.toHaveProperty('dans')
+  })
 })
 
 describe('la page /relier', () => {
@@ -65,6 +74,30 @@ describe('la page /relier', () => {
     await monter()
     expect(location.pathname + location.search).toBe('/?dossier=d42')
     expect(appels.map((a) => a.cle)).toEqual([`GET ${CHEMIN}`])
+  })
+
+  it('un dossier qui existe, avec des fiches liées : ses raccourcis s’accordent, puis il s’ouvre', async () => {
+    routes[`GET ${CHEMIN}`] = () => json({ etat: 'present', tableau: 'd42', titre: 'Dupont SARL', source: 'Mon CRM', dossier: 'Clients' })
+    routes[`POST ${CHEMIN}`] = () => json({ etat: 'present', tableau: 'd42', titre: 'Dupont SARL', source: 'Mon CRM', dossier: 'Clients', dans: [] })
+    await monter(`${ADRESSE}&dans=societe:1&dans=societe:2%20Martin`)
+    expect(appels).toEqual([
+      { cle: `GET ${CHEMIN}`, corps: undefined },
+      { cle: `POST ${CHEMIN}`, corps: { dans: [{ cle: 'societe:1' }, { cle: 'societe:2', titre: 'Martin' }] } },
+    ])
+    expect(location.pathname + location.search).toBe('/?dossier=d42')
+  })
+
+  it('pas encore de dossier, avec des fiches liées : rangé chez la première, et le clic les envoie', async () => {
+    await monter(`${ADRESSE}&dans=societe:1%20Groupe%20Dupont&dans=etablissement:4`)
+    expect(hote.textContent).toContain('Il sera rangé dans le dossier de « Groupe Dupont », et un raccourci y mènera depuis celui de chacune des autres fiches liées.')
+    expect(appels.map((a) => a.cle)).toEqual([`GET ${CHEMIN}`])
+    routes[`POST ${CHEMIN}`] = () => json({ etat: 'present', tableau: 'neuf', titre: 'Dupont SARL', source: 'Mon CRM', dossier: 'Clients' }, 201)
+    await act(async () => bouton(/Créer le dossier/)!.click())
+    expect(appels.at(-1)).toEqual({
+      cle: `POST ${CHEMIN}`,
+      corps: { titre: 'Dupont SARL', adresse: 'https://crm.exemple.fr/societes/42', dans: [{ cle: 'societe:1', titre: 'Groupe Dupont' }, { cle: 'etablissement:4' }] },
+    })
+    expect(location.pathname + location.search).toBe('/?dossier=neuf')
   })
 
   it('pas encore de dossier : elle le propose, et ne crée rien avant le clic', async () => {

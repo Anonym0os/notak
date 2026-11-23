@@ -20,7 +20,7 @@ import { CORPS_AGENT_MAX, type NomOperation, OPERATIONS, SCHEMA_DEMANDE, valider
 import { type ElementArrive, elementImage, elementsDeTexte, nouvelId, poserDansNonTries } from './arrivee.ts'
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
 import { creerApercus } from './apercuLien.ts'
-import { type Base, DUREE_ACCES_PUBLIC_MS, DUREE_INVITATION_MS, type Fichier, type Invitation, type LienVisiteur, type NiveauVisiteur, type Rattachement, type Utilisateur } from './base.ts'
+import { type Base, DUREE_ACCES_PUBLIC_MS, DUREE_INVITATION_MS, type Fichier, type Invitation, type LienVisiteur, type NiveauVisiteur, type RaccourciRattache, type Rattachement, type Utilisateur } from './base.ts'
 import { type Auth, CHEMIN_AUTH, type Fournisseur, normaliserOrigine, utilisateurDeSession } from './auth.ts'
 import { type Demandes, creerDemandes, normaliserCode } from './demandesBureau.ts'
 import { type Autorisation, objetElement } from './autorisation.ts'
@@ -42,10 +42,14 @@ import {
   annoncerSignalement,
   dossierDeLaSource,
   dossiersGeneres,
+  type EntiteDans,
   ecrireDossierNeuf,
+  entitesDe,
   marquerCarte,
   mettreEnFile,
   poserCarteDeToile,
+  raccourciVers,
+  retirerRaccourciIntact,
   signatureValable,
   suivreLesDossiers,
   titreDuDossier,
@@ -2539,6 +2543,105 @@ export function creerApp(ctx: Contexte): Hono {
     }
     return range.tableau
   }
+  /**
+   * Ce que devient une entité de `dans` pour le dossier d'une fiche : `dossier`, elle range son vrai parent ;
+   * `raccourci`, un raccourci y mène ; `interdit`, la personne ne peut pas écrire dans le dossier de l'entité (ou ne le
+   * voit pas) ; `jete`, ce dossier est à la corbeille ; `absent`, l'entité n'a pas encore de dossier (au rappel, on n'en
+   * crée pas).
+   */
+  type LienDans = { cle: string; lien: 'dossier' | 'raccourci'; tableau: string } | { cle: string; lien: 'interdit' | 'jete' | 'absent' }
+  /**
+   * Le dossier rattaché d'une entité, où ce compte peut écrire : là ; ou, s'il manque et que `creer` le permet, créé
+   * dans le dossier de la source (fait au besoin), comme celui d'une fiche qu'on ouvre. Jamais sorti de la corbeille :
+   * on l'y a mis, il y reste.
+   */
+  const dossierDeLEntitePour = async (
+    u: Utilisateur,
+    source: SourceRattachement,
+    espace: string,
+    racine: string,
+    e: EntiteDans,
+    creer: boolean,
+  ): Promise<{ tableau: string } | { refus: 'interdit' | 'jete' | 'absent' }> => {
+    const etat = await etatDuDossier(u, base.rattachement(espace, source.source, e.cle))
+    if (etat.etat === 'cache') return { refus: 'interdit' }
+    if (etat.etat === 'corbeille') return { refus: 'jete' }
+    if (etat.etat === 'present') return auMoins(await roleSur(u.id, etat.tableau), 'edition') ? { tableau: etat.tableau } : { refus: 'interdit' }
+    if (!creer) return { refus: 'absent' }
+    const parent = await dossierDeLaSourcePour(u, source, espace, racine)
+    if (!parent) return { refus: 'interdit' }
+    const maintenant = ctx.maintenant()
+    const tableau = await creerDossierDans(u, parent, titreDuDossier(e.titre, e.cle))
+    base.poserRattachement({ espace, source: source.source, cle: e.cle, tableau, adresse: null, cree: maintenant })
+    mettreEnFile(base, ctx.rattachements ?? [], source.source, 'dossier.cree', e.cle, maintenant, u.nom)
+    return { tableau }
+  }
+  /**
+   * Accorde les raccourcis du dossier d'une fiche à la liste `dans` : un raccourci sous chaque entité qui ne range pas
+   * déjà son vrai parent, posé une fois (celui qu'on a jeté ou déplacé depuis ne revient pas) ; et, sous une entité
+   * sortie de la liste, celui que Notak a posé est retiré, s'il est resté tel quel. Le vrai parent ne bouge jamais. On
+   * n'écrit que dans les dossiers où ce compte peut écrire. `dejaVus` : les dossiers d'entités déjà résolus.
+   */
+  const accorderLesRaccourcis = async (
+    u: Utilisateur,
+    source: SourceRattachement,
+    espace: string,
+    racine: string,
+    cle: string,
+    tableau: string,
+    entites: readonly EntiteDans[],
+    creer: boolean,
+    dejaVus: ReadonlyMap<string, Awaited<ReturnType<typeof dossierDeLEntitePour>>> = new Map(),
+  ): Promise<LienDans[]> => {
+    const parent = base.tableau(tableau)?.parent ?? null
+    const notes = new Map<string, RaccourciRattache>()
+    for (const r of base.raccourcisRattaches(espace, source.source, cle)) {
+      // Noté pour un dossier d'avant (la fiche en a eu un autre) : oublié, l'élément reste.
+      if (r.cible === tableau) notes.set(r.entite, r)
+      else base.oublierRaccourciRattache(r)
+    }
+    const liens: LienDans[] = []
+    for (const e of entites) {
+      // L'entité qui range déjà le dossier : rien à poser, même pour qui ne fait qu'y lire.
+      const sien = base.rattachement(espace, source.source, e.cle)
+      if (sien && sien.tableau === parent && (await roleSur(u.id, parent)) !== null) {
+        liens.push({ cle: e.cle, lien: 'dossier', tableau: parent })
+        continue
+      }
+      const d = dejaVus.get(e.cle) ?? (await dossierDeLEntitePour(u, source, espace, racine, e, creer))
+      if ('refus' in d) {
+        liens.push({ cle: e.cle, lien: d.refus })
+        continue
+      }
+      const note = notes.get(e.cle)
+      if (!note || note.porteur !== d.tableau) {
+        const pose: { element?: string; x: number | null; y: number | null } = { x: null, y: null }
+        await modifierDocument(d.tableau, u, (doc) => {
+          // Un raccourci déjà là (posé à la main) suffit : il est noté, jamais retiré.
+          const deja = raccourciVers(doc, tableau)
+          if (deja) pose.element = deja
+          else {
+            const p = poserCarteDeToile(doc, tableau, ctx.maintenant(), true)
+            Object.assign(pose, { element: p.id, x: p.x, y: p.y })
+          }
+        })
+        if (pose.element) base.noterRaccourciRattache({ espace, source: source.source, cle, entite: e.cle, cible: tableau, porteur: d.tableau, element: pose.element, x: pose.x, y: pose.y, cree: ctx.maintenant() })
+      }
+      liens.push({ cle: e.cle, lien: 'raccourci', tableau: d.tableau })
+    }
+    const voulues = new Set(entites.map((e) => e.cle))
+    for (const note of notes.values()) {
+      if (voulues.has(note.entite)) continue
+      // Sous un dossier où ce compte n'écrit pas, on ne touche à rien : la note attend un rappel de quelqu'un qui le peut.
+      if (!base.tableau(note.porteur) || !auMoins(await roleSur(u.id, note.porteur), 'edition')) continue
+      if (note.x !== null && note.y !== null) {
+        const intact = { element: note.element, cible: note.cible, x: note.x, y: note.y }
+        await modifierDocument(note.porteur, u, (doc) => void retirerRaccourciIntact(doc, intact))
+      }
+      base.oublierRaccourciRattache(note)
+    }
+    return liens
+  }
   /** Rien sur cette toile que des cartes de toiles elles-mêmes vides ; ce qu'elle a jeté ne compte pas. */
   const toileVide = (id: string, vues = new Set<string>()): boolean => {
     if (vues.has(id)) return true
@@ -2704,17 +2807,35 @@ export function creerApp(ctx: Contexte): Hono {
     const titre = titreDuDossier(b?.titre, cle)
     const adresse = adresseDeLaFiche(b?.adresse, source)
     if (adresse === null) return c.json({ erreur: 'adresse hors de l’outil', code: 'adresse_refusee' }, 400)
+    const entites = entitesDe(b?.dans, cle)
+    if (entites === null) return c.json({ erreur: 'entités mal écrites', code: 'dans_invalide' }, 400)
     return aSonTour(async () => {
       const deja = await etatDuDossier(u, base.rattachement(espace, source.source, cle))
-      if (deja.etat !== 'absent') return c.json({ ...deja, source: source.nom, dossier: source.dossier }, 200)
-      // Le dossier de la source d'abord : là, remis s'il était jeté, créé s'il manque.
-      const parent = await dossierDeLaSourcePour(u, source, espace, racine)
+      if (deja.etat !== 'absent') {
+        // Le rappel d'un dossier déjà là : ses raccourcis suivent la liste ; il ne se crée aucun dossier d'entité.
+        const dans = entites && deja.etat === 'present' ? await accorderLesRaccourcis(u, source, espace, racine, cle, deja.tableau, entites, false) : null
+        return c.json({ ...deja, source: source.nom, dossier: source.dossier, ...(dans ? { dans } : {}) }, 200)
+      }
+      // Le vrai parent : le dossier de la première entité où ce compte écrit (créé au besoin) ; à défaut, ou sans
+      // `dans`, le dossier de la source, comme toujours (là, remis s'il était jeté, créé s'il manque).
+      const vus = new Map<string, Awaited<ReturnType<typeof dossierDeLEntitePour>>>()
+      let parent: string | null = null
+      for (const e of entites ?? []) {
+        const d = await dossierDeLEntitePour(u, source, espace, racine, e, true)
+        vus.set(e.cle, d)
+        if ('tableau' in d) {
+          parent = d.tableau
+          break
+        }
+      }
+      parent ??= await dossierDeLaSourcePour(u, source, espace, racine)
       if (!parent) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
       const maintenant = ctx.maintenant()
       const tableau = await creerDossierDans(u, parent, titre)
       base.poserRattachement({ espace, source: source.source, cle, tableau, adresse: adresse ?? null, cree: maintenant })
       mettreEnFile(base, ctx.rattachements ?? [], source.source, 'dossier.cree', cle, maintenant, u.nom)
-      return c.json({ etat: 'present', tableau, titre, source: source.nom, dossier: source.dossier }, 201)
+      const dans = entites ? await accorderLesRaccourcis(u, source, espace, racine, cle, tableau, entites, true, vus) : null
+      return c.json({ etat: 'present', tableau, titre, source: source.nom, dossier: source.dossier, ...(dans ? { dans } : {}) }, 201)
     })
   })
 

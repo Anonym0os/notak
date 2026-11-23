@@ -212,10 +212,14 @@ const LARGEUR_CARTE = 10
 /**
  * Pose sur une toile la carte d'une autre, à droite de ce qu'elle porte déjà (en haut du contenu), au-dessus de tout,
  * comme la bibliothèque le fait de ses dossiers neufs : c'est la carte qui range la toile dans l'autre. Écrite à même
- * le document, comme `poserDansNonTries` : le magasin de la toile ne se charge pas sous Node.
+ * le document, comme `poserDansNonTries` : le magasin de la toile ne se charge pas sous Node. `raccourci` : une carte qui
+ * mène à la toile sans la ranger là (elle a son parent ailleurs). Rend la carte posée et sa place.
  */
-export function poserCarteDeToile(doc: Y.Doc, cible: string, maintenant: number): void {
+export function poserCarteDeToile(doc: Y.Doc, cible: string, maintenant: number, raccourci = false): { id: string; x: number; y: number } {
   const stockes = doc.getMap<ElementLu & { plan?: string }>('elements')
+  const id = nouvelId(maintenant)
+  let x = 5
+  let y = 5
   doc.transact(() => {
     let plan = ''
     const posables: ElementLu[] = []
@@ -223,11 +227,70 @@ export function poserCarteDeToile(doc: Y.Doc, cible: string, maintenant: number)
       if (typeof e.plan === 'string' && e.plan > plan) plan = e.plan
       if (!e.parent && e.corbeille === undefined && e.nonTrie === undefined && e.contenu?.type !== 'ligne' && Number.isFinite(e.x) && Number.isFinite(e.y)) posables.push(e)
     })
-    const x = posables.length === 0 ? 5 : Math.max(...posables.map((e) => e.x + (Number.isFinite(e.largeur) ? e.largeur : 0))) + 4
-    const y = posables.length === 0 ? 5 : Math.min(...posables.map((e) => e.y))
-    const id = nouvelId(maintenant)
-    stockes.set(id, { id, x, y, largeur: LARGEUR_CARTE, contenu: { type: 'tableau', cible }, plan: planApres(plan) })
+    if (posables.length) {
+      x = Math.max(...posables.map((e) => e.x + (Number.isFinite(e.largeur) ? e.largeur : 0))) + 4
+      y = Math.min(...posables.map((e) => e.y))
+    }
+    stockes.set(id, { id, x, y, largeur: LARGEUR_CARTE, contenu: { type: 'tableau', cible, ...(raccourci ? { raccourci: true } : {}) }, plan: planApres(plan) })
   })
+  return { id, x, y }
+}
+
+/** Un raccourci vers cette toile, hors corbeille, déjà posé sur celle-ci (par Notak ou par quelqu'un), ou `null`. */
+export function raccourciVers(doc: Y.Doc, cible: string): string | null {
+  for (const [id, e] of doc.getMap<ElementLu>('elements').entries()) {
+    if (e.contenu?.type === 'tableau' && e.contenu.cible === cible && e.contenu.raccourci && e.corbeille === undefined) return id
+  }
+  return null
+}
+
+/**
+ * Retire un raccourci que Notak a posé, s'il est resté tel quel : même toile, même place, ni rangé dans un autre élément,
+ * ni à la corbeille, ni dans les non triés. Celui qu'une personne a déplacé, jeté ou rangé lui appartient : il reste.
+ * Rend s'il l'a retiré.
+ */
+export function retirerRaccourciIntact(doc: Y.Doc, r: { element: string; cible: string; x: number; y: number }): boolean {
+  const stockes = doc.getMap<ElementLu>('elements')
+  const e = stockes.get(r.element)
+  const intact =
+    e?.contenu?.type === 'tableau' &&
+    e.contenu.cible === r.cible &&
+    e.contenu.raccourci === true &&
+    e.x === r.x &&
+    e.y === r.y &&
+    !e.parent &&
+    e.corbeille === undefined &&
+    e.nonTrie === undefined
+  if (intact) doc.transact(() => stockes.delete(r.element))
+  return intact
+}
+
+/** Une entité sous laquelle ranger le dossier d'une fiche (`dans`) : sa clé, et le titre de son dossier s'il faut le créer. */
+export interface EntiteDans {
+  cle: string
+  titre?: string
+}
+/** Autant d'entités, au plus, pour une fiche. */
+export const DANS_MAX = 20
+
+/**
+ * Les entités de `dans` (`["societe:12", { "cle": "etablissement:4", "titre": "Atelier" }]`), sans doublon, dans
+ * l'ordre donné. `undefined` : pas de `dans` (rien ne change) ; `null` : refusé (pas une liste, une clé mal écrite, la
+ * fiche elle-même, plus de `DANS_MAX`).
+ */
+export function entitesDe(dans: unknown, cle: string): EntiteDans[] | null | undefined {
+  if (dans === undefined || dans === null) return undefined
+  if (!Array.isArray(dans) || dans.length > DANS_MAX) return null
+  const lues = new Map<string, EntiteDans>()
+  for (const x of dans) {
+    const o = typeof x === 'string' ? { cle: x } : x && typeof x === 'object' && !Array.isArray(x) ? (x as Record<string, unknown>) : null
+    const c = typeof o?.cle === 'string' ? o.cle.trim() : ''
+    if (!CLE_FICHE.test(c) || c === cle) return null
+    if (o!.titre !== undefined && typeof o!.titre !== 'string') return null
+    const titre = typeof o!.titre === 'string' ? o!.titre.trim().slice(0, TITRE_MAX) : ''
+    if (!lues.has(c)) lues.set(c, { cle: c, ...(titre ? { titre } : {}) })
+  }
+  return [...lues.values()]
 }
 
 /** Une adresse où Notak envoie (un webhook, le relais de l'agent) : en https, ou en http vers cette machine (un essai). */

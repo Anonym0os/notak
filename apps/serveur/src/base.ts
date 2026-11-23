@@ -33,6 +33,27 @@ export interface Rattachement {
   jete_par: 'outil' | 'personne' | null
 }
 
+/**
+ * Un raccourci que Notak a posé (ou trouvé) sous une autre entité de la fiche, vers son dossier (table
+ * `raccourcis_rattaches`). `x` et `y` : sa place à la pose ; nuls, il n'est pas de Notak et ne se retire pas.
+ */
+export interface RaccourciRattache {
+  espace: string
+  source: string
+  /** La fiche dont c'est le dossier (`projet:7`). */
+  cle: string
+  /** L'entité sous laquelle il est posé (`societe:12`). */
+  entite: string
+  /** Le dossier de la fiche, où il mène. */
+  cible: string
+  /** La toile qui le porte : le dossier de l'entité. */
+  porteur: string
+  element: string
+  x: number | null
+  y: number | null
+  cree: number
+}
+
 /** Ce que Notak doit envoyer à un outil (table `envois`). */
 export interface Envoi {
   id: string
@@ -373,6 +394,12 @@ export interface Base {
   rattachementsDeLaSource(source: string): Rattachement[]
   /** Oublie le rattachement d'une fiche : le dossier reste, ordinaire. */
   oublierRattachement(r: Pick<Rattachement, 'espace' | 'source' | 'cle'>): void
+  /** Les raccourcis posés sous les entités d'une fiche, vers son dossier, dans un espace. */
+  raccourcisRattaches(espace: string, source: string, cle: string): RaccourciRattache[]
+  /** Retient (ou remplace) le raccourci posé sous une entité. */
+  noterRaccourciRattache(r: RaccourciRattache): void
+  /** Oublie le raccourci d'une entité : l'élément, lui, reste où il est. */
+  oublierRaccourciRattache(r: Pick<RaccourciRattache, 'espace' | 'source' | 'cle' | 'entite'>): void
   /** Met le dossier d'une fiche à la corbeille (`corbeille` : depuis quand), ou l'en sort (`null`). */
   marquerCorbeille(r: Pick<Rattachement, 'espace' | 'source' | 'cle'>, corbeille: number | null, jetePar: 'outil' | 'personne' | null): void
   /** La réponse déjà faite à cette demande d'un outil, ou `null`. */
@@ -951,6 +978,24 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
       tous('SELECT * FROM rattachements WHERE source = ? AND cle = ? ORDER BY cree', source, cle) as unknown as Rattachement[],
     rattachementsDeLaSource: (source) => tous('SELECT * FROM rattachements WHERE source = ? ORDER BY cree', source) as unknown as Rattachement[],
     oublierRattachement: (r) => void executer('DELETE FROM rattachements WHERE espace = ? AND source = ? AND cle = ?', r.espace, r.source, r.cle),
+    raccourcisRattaches: (espace, source, cle) =>
+      tous('SELECT * FROM raccourcis_rattaches WHERE espace = ? AND source = ? AND cle = ? ORDER BY cree', espace, source, cle) as unknown as RaccourciRattache[],
+    noterRaccourciRattache: (r) =>
+      void executer(
+        'INSERT INTO raccourcis_rattaches (espace,source,cle,entite,cible,porteur,element,x,y,cree) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(espace,source,cle,entite) DO UPDATE SET cible = excluded.cible, porteur = excluded.porteur, element = excluded.element, x = excluded.x, y = excluded.y, cree = excluded.cree',
+        r.espace,
+        r.source,
+        r.cle,
+        r.entite,
+        r.cible,
+        r.porteur,
+        r.element,
+        r.x,
+        r.y,
+        r.cree,
+      ),
+    oublierRaccourciRattache: (r) =>
+      void executer('DELETE FROM raccourcis_rattaches WHERE espace = ? AND source = ? AND cle = ? AND entite = ?', r.espace, r.source, r.cle, r.entite),
     marquerCorbeille: (r, corbeille, jetePar) =>
       void executer('UPDATE rattachements SET corbeille = ?, jete_par = ? WHERE espace = ? AND source = ? AND cle = ?', corbeille, jetePar, r.espace, r.source, r.cle),
     demandeOutil: (source, id) => (un('SELECT reponse FROM demandes_outils WHERE source = ? AND id = ?', source, id)?.reponse as string | undefined) ?? null,
