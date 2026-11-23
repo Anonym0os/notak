@@ -1234,6 +1234,13 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   scale: 0.96;
 }
 
+/* Des fichiers glissés au-dessus de la bulle : elle grandit, prête à les prendre. */
+.bulle-agent-bouton[data-depot] {
+  outline: 2px dashed var(--accent);
+  outline-offset: 4px;
+  scale: 1.1;
+}
+
 .bulle-agent-bouton:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
@@ -1280,10 +1287,10 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  width: min(380px, calc(100vw - 32px - var(--notak-zone-gauche, 0px) - var(--notak-zone-droite, 0px)));
+  width: min(400px, calc(100vw - 32px - var(--notak-zone-gauche, 0px) - var(--notak-zone-droite, 0px)));
   /* L'écran, moins la bulle et son écart en bas, et la barre du haut. */
-  max-height: min(600px, calc(100vh - 160px));
-  max-height: min(600px, calc(100dvh - 160px - var(--notak-zone-haut, 0px) - var(--notak-zone-bas, 0px)));
+  height: min(640px, calc(100vh - 160px));
+  height: min(640px, calc(100dvh - 160px - var(--notak-zone-haut, 0px) - var(--notak-zone-bas, 0px)));
   overflow: hidden;
   border-radius: 16px;
   background: var(--carte);
@@ -1364,7 +1371,16 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   }
 }
 
-/* Le fil de ce qu'on a demandé à l'agent (Agent.tsx), puis la saisie : dans le panneau de la bulle, ou sa feuille. */
+/* Le fil de ce qu'on a demandé à l'agent (Agent.tsx), puis la saisie : dans le panneau de la bulle, ou sa feuille. Des
+   fichiers déposés n'importe où sur la conversation s'y joignent. */
+
+.agent-conversation {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
 
 .agent-fil {
   display: flex;
@@ -1374,8 +1390,17 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   min-height: 96px;
   margin: 0;
   padding: 14px 14px 10px;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
   list-style: none;
+  /* Le fil défile à la molette, au pavé et au doigt, sans barre : elle coupait la conversation en deux. */
+  scrollbar-width: none;
+}
+
+.agent-fil::-webkit-scrollbar,
+.agent-saisie textarea::-webkit-scrollbar {
+  display: none;
 }
 
 .agent-vide {
@@ -1559,15 +1584,36 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
 
 .agent-saisie {
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
   gap: 8px;
   padding: 10px 12px 12px;
   border-top: 1px solid color-mix(in srgb, var(--texte) 9%, transparent);
 }
 
+.agent-saisie-ligne {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.agent-joindre {
+  flex: none;
+  width: 36px;
+  height: 38px;
+  padding: 0;
+  color: var(--app-pale);
+}
+
+.agent-joindre:disabled {
+  opacity: 0.4;
+}
+
 .agent-saisie textarea {
   flex: 1;
+  box-sizing: border-box;
   min-height: 38px;
+  overflow-y: hidden;
+  scrollbar-width: none;
   max-height: 160px;
   padding: 8px 10px;
   border: 1px solid color-mix(in srgb, var(--texte) 14%, transparent);
@@ -1593,8 +1639,455 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   }
 }
 
+/* Le tour en direct. La ligne vivante, sous la question, dit ce que l'agent fait à l'instant et depuis combien de temps ;
+   elle reste en haut du fil quand ce qui s'écrit dessous le fait défiler. */
+.agent-direct {
+  max-width: 100%;
+}
+
+.agent-direct-ligne {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 4px 7px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 9%, var(--carte));
+  font-size: 12.5px;
+}
+
+.agent-direct-ligne[data-attend] {
+  background: color-mix(in srgb, #f59e0b 14%, var(--carte));
+}
+
+.agent-direct-point {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: agent-souffle 1.4s ease-in-out infinite;
+}
+
+.agent-direct-ligne[data-attend] .agent-direct-point {
+  background: #f59e0b;
+  animation: none;
+}
+
+.agent-direct-phrase {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
+.agent-chrono {
+  flex: none;
+  color: var(--app-pale);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-arreter {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.agent-arreter-carre {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+/* Le plan de l'agent : ses étapes, cochées au fil du tour. */
+.agent-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 6px 0 0;
+  padding: 0 0 0 4px;
+  list-style: none;
+  font-size: 12.5px;
+}
+
+.agent-plan li {
+  position: relative;
+  padding-left: 18px;
+  color: var(--app-pale);
+}
+
+.agent-plan li::before {
+  position: absolute;
+  top: 0.45em;
+  left: 2px;
+  box-sizing: border-box;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  content: '';
+}
+
+.agent-plan li[data-statut='en_cours'] {
+  color: var(--texte);
+  font-weight: 500;
+}
+
+.agent-plan li[data-statut='en_cours']::before {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.agent-plan li[data-statut='fait'] {
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--texte) 30%, transparent);
+}
+
+.agent-plan li[data-statut='fait']::before {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+/* Le fil conducteur : ce que l'agent a fait, pensé et noté, un pas par ligne. */
+.agent-etapes {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--app-pale);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.agent-etape {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.agent-etape-signe {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 14px;
+  height: 1.4em;
+}
+
+.agent-etape[data-statut='en_cours'] {
+  color: var(--texte);
+}
+
+.agent-etape[data-statut='fait'] .agent-etape-signe {
+  color: var(--accent);
+}
+
+.agent-etape[data-statut='echec'] .agent-etape-signe,
+.agent-etape[data-statut='refuse'] .agent-etape-signe {
+  color: #c2410c;
+}
+
+.agent-etape[data-statut='attente'] .agent-etape-signe {
+  color: #d97706;
+}
+
+.agent-pensee-titre {
+  display: block;
+  font-style: italic;
+}
+
+.agent-pensee-resume {
+  display: block;
+  margin-top: 1px;
+  font-size: 12px;
+}
+
+.agent-etape-texte {
+  min-width: 0;
+  font-size: 12.5px;
+}
+
+.agent-etapes-avant {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 2px 4px;
+  color: var(--app-pale);
+  font-size: 12px;
+}
+
+/* Ce qui s'écrit de la réponse, au fil de l'eau. */
+.agent-ecrit {
+  margin-top: 8px;
+}
+
+.agent-direct .agent-cartes {
+  margin-top: 8px;
+}
+
+/* Un petit cercle qui tourne : un geste en cours, une pièce qui part. */
+.agent-tourne {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: bulle-agent-tourne 0.8s linear infinite;
+}
+
+/* Sous la réponse d'un tour fini, son fil conducteur replié : « 5 étapes · 1 min 12 ». */
+.agent-repli {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.agent-repli summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px 2px 2px;
+  border-radius: 6px;
+  color: var(--app-pale);
+  cursor: pointer;
+  list-style: none;
+}
+
+.agent-repli summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Un chevron, tourné quand le fil est déplié. */
+.agent-repli summary::before {
+  width: 5px;
+  height: 5px;
+  margin: 0 3px 0 2px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  content: '';
+  rotate: -45deg;
+  transition: rotate 0.15s ease;
+}
+
+.agent-repli[open] summary::before {
+  rotate: 45deg;
+}
+
+.agent-repli summary:hover {
+  color: var(--texte);
+}
+
+.agent-repli[open] summary {
+  margin-bottom: 2px;
+}
+
+.agent-arrete {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--texte) 8%, transparent);
+  color: var(--app-pale);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Un message écrit pendant un tour, en file : il partira à la fin du tour. */
+.agent-moi[data-attente] {
+  opacity: 0.72;
+}
+
+.agent-moi[data-attente] p {
+  border: 1px dashed color-mix(in srgb, var(--texte) 22%, transparent);
+  background: transparent;
+}
+
+/* « Plus tôt » : les parties précédentes de la conversation, chacune résumée. */
+.agent-plus-tot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--texte) 8%, transparent);
+}
+
+.agent-plus-tot-bouton {
+  display: inline-flex;
+  align-self: center;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: var(--app-pale);
+  font-size: 12px;
+}
+
+.agent-parties {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-partie {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--texte) 4%, transparent);
+  font-size: 12.5px;
+}
+
+.agent-partie small {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--app-pale);
+  font-size: 11.5px;
+}
+
+/* Les pièces : celles du message qu'on écrit (avec leur retrait), et celles d'un message parti. */
+.agent-pieces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-pieces-envoyees {
+  justify-content: flex-end;
+}
+
+.agent-piece {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  max-width: 100%;
+  width: 172px;
+  padding: 5px 6px 5px 5px;
+  border: 1px solid color-mix(in srgb, var(--texte) 12%, transparent);
+  border-radius: 10px;
+  background: var(--carte);
+}
+
+.agent-piece[data-etat='refusee'] {
+  border-color: color-mix(in srgb, #c2410c 50%, transparent);
+}
+
+.agent-piece[data-etat='refusee'] small {
+  color: #c2410c;
+  white-space: normal;
+}
+
+.agent-piece-vignette {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: color-mix(in srgb, var(--texte) 6%, transparent);
+}
+
+.agent-piece-icone {
+  display: grid;
+  place-items: center;
+  color: var(--app-pale);
+}
+
+.agent-piece-texte {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.agent-piece-nom,
+.agent-piece-texte small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-piece-texte small {
+  color: var(--app-pale);
+  font-size: 11px;
+}
+
+.agent-piece-envoi {
+  flex: none;
+}
+
+.agent-piece-retirer {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 6px;
+  color: var(--app-pale);
+}
+
+.agent-avis {
+  margin: 0;
+  color: #b45309;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Des fichiers glissés au-dessus de la conversation : elle dit qu'elle les prend. */
+.agent-depot {
+  position: absolute;
+  inset: 6px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  border: 2px dashed var(--accent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--carte));
+  color: var(--texte);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  pointer-events: none;
+}
+
+@media (pointer: coarse) {
+  .agent-arreter {
+    min-height: 34px;
+  }
+
+  .agent-piece-retirer {
+    width: 32px;
+    height: 32px;
+  }
+
+  .agent-joindre {
+    width: 40px;
+    height: 40px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .agent-travaille {
+  .agent-travaille,
+  .agent-direct-point,
+  .agent-tourne {
     animation: none;
   }
 }
