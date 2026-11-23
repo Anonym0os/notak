@@ -506,7 +506,7 @@ export function jouerTransition(effet: Effet, source: Bout | null, cible: Bout):
   })
 }
 
-const masquer = (el: Element | null | undefined) => el instanceof HTMLElement && (el.style.visibility = 'hidden')
+const masquer = (el: Element | null | undefined) => (el instanceof HTMLElement || el instanceof SVGElement) && (el.style.visibility = 'hidden')
 
 /** L'animation d'affichage d'une diapositive arrivée (les bulles de Hubble Bubble) ; elle ne retient rien. */
 export function jouerAffichage(racine: HTMLElement): Jeu {
@@ -552,11 +552,16 @@ export function jouerFin(source: HTMLElement | null, fin: HTMLElement): Jeu {
   return executer(scene, pistes, [], minutage(0, d, 0).total, (auBout) => auBout && masquer(source))
 }
 
-/** « Suivant » sur l'écran de fin : il s'efface. */
+/**
+ * « Suivant » sur l'écran de fin : la carte et sa vignette s'effacent, le fond reste jusqu'à ce que la présentation rende
+ * la carte. Xmind efface l'écran entier : on passait alors par le noir de la scène, entre deux fonds clairs.
+ */
 export function jouerSortieFin(fin: HTMLElement): Jeu {
+  const contenu = [...fin.querySelectorAll('.notak-arbre-diapo-fin-carte, .notak-arbre-diapo-fin-vignette')]
+  if (!contenu.length) return FINIE
   const scene = new Scene()
-  scene.inscrire('cible', 'fin', { els: [fin], sorte: 'html', base: {} })
-  return executer(scene, [piste('cible', 'fin', { opacite: 1 }, { opacite: 0 }, 0, ECRAN_DE_FIN.disparition, COURBES.sortie)], [], ECRAN_DE_FIN.disparition, (auBout) => auBout && masquer(fin))
+  scene.inscrire('cible', 'contenu', { els: contenu, sorte: 'html', base: {} })
+  return executer(scene, [piste('cible', 'contenu', { opacite: 1 }, { opacite: 0 }, 0, ECRAN_DE_FIN.disparition, COURBES.sortie)], [], ECRAN_DE_FIN.disparition, (auBout) => auBout && contenu.forEach(masquer))
 }
 
 /** La durée d'ouverture et de fermeture de l'agrandissement d'une image (Xmind : 300). */

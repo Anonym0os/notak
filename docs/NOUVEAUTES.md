@@ -82,3 +82,5 @@ fil des changements ; `bun run nouvelle-version x.y.z` en fait la section de la 
 - **Les récents deviennent une liste**, jour par jour, sans vignettes : chaque ligne dit où la chose est rangée (un
   clic y mène, la tuile choisie) et quand vous l'avez ouverte. Au téléphone, « Récents », « Favoris » et « Partagés »
   ont chacun leur carte sous le titre.
+- **La fin d'une présentation reste sur le fond de la carte** : après « Merci », l'écran de fin ne bascule plus sur un
+  fond noir après un éclair blanc, et le quitter rend la carte sans repasser par le noir.

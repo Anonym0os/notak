@@ -716,7 +716,9 @@ s'il n'y a qu'un frère) et **« Merci »**, la diapositive de fin, traitée com
 d'avance plutôt que chaînée à la demande, pour la même séquence. Une image collée est réputée bitmap et sa taille affichée
 tient lieu de taille naturelle ; une équation et une illustration comptent comme vectorielles. Les polices
 propriétaires de Xmind sont remplacées par des polices libres (Signika, Nunito, Kalam) ; l'écran de fin prend le fond
-de la carte plutôt que la palette du thème, et la flèche des paroles ne change pas avec le thème.
+de la carte plutôt que la palette du thème, et en sortant, seules la carte et la vignette de « Merci » s'effacent : son
+fond reste jusqu'à ce que la carte revienne, là où Xmind efface tout l'écran et passe par le noir de la scène. La flèche
+des paroles ne change pas avec le thème.
 Entre deux étapes d'une liste, Notak superpose les deux diapositives au lieu de réutiliser la même vue : le mouvement est
 le même. Les couleurs des décors ne s'interpolent pas, et les formes de fond qui changent de dessin se croisent au lieu
 de se déformer.

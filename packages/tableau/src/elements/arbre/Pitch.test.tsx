@@ -242,6 +242,24 @@ describe('le mode présentation', () => {
     p.fin()
   })
 
+  it('l’écran de fin prend le fond de la carte, et l’écrit pour que son apparition le lui rende', () => {
+    const { a } = carte()
+    const cas: [Arbre, string][] = [
+      [a, 'var(--notak-arbre-fond)'],
+      [{ ...a, theme: 'nuit' }, 'rgb(22, 27, 38)'],
+      [{ ...a, theme: 'nuit', fond: '#ffeecc' }, 'rgb(255, 238, 204)'],
+    ]
+    for (const [carteDeFin, fond] of cas) {
+      const p = presenter(carteDeFin)
+      for (let i = 0; i < 20 && p.titre() !== 'Merci'; i++) p.touche('ArrowRight')
+      p.touche('ArrowRight')
+      // L'apparition note cette couleur pour la rendre en finissant : écrite par l'abrégé `background` avec une
+      // variable, elle se relisait vide, et l'écran de fin passait au noir de la scène.
+      expect(p.hote.querySelector<HTMLElement>('.notak-arbre-diapo-fin')?.style.getPropertyValue('background-color')).toBe(fond)
+      p.fin()
+    }
+  })
+
   it('le thème de la carte habille la diapositive, et la barre garde ses quatre groupes de boutons', () => {
     const { a } = carte()
     const p = presenter({ ...a, pitch: { theme: 'light', ratio: '4:3' } })
