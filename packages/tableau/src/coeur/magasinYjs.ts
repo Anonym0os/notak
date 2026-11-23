@@ -5,7 +5,7 @@ import { cleEntre, comparerOrdre } from './ordre'
 import { lireElement } from './valider'
 import { fusionnerParCles } from './fusion'
 import { NOM_ARBRES, clesEcrites, decouper, dicosEnLigne, ecrireDifference, indexerArbres, sansDicos } from './arbresYjs'
-import { type Arbre, type Auteur, type CouleurNote, type Element, type Etiquette, type Id, type Operation, type Tableau, type Trace, appliquer, inverse } from './tableau'
+import { type Arbre, type Auteur, type CouleurNote, type Element, type Etiquette, type Id, type Operation, type Tableau, type Trace, ORDRE_MAX, appliquer, inverse } from './tableau'
 
 /** Un élément tel qu'il vit dans le document : l'`Element` entier, plus sa place dans l'empilement. */
 export type ElementStocke = Element & { plan: string }
@@ -95,7 +95,8 @@ export function plansPour(actuel: readonly { id: Id; plan: string }[], voulu: re
 
 /**
  * Le magasin d'un tableau, posé sur un document Yjs :
- * `elements` (id → élément + `plan`) et `meta` (`titre`, `couleur`, `etiquettes`, `fond`, `dossier`).
+ * `elements` (id → élément + `plan`) et `meta` (`titre`, `couleur`, `etiquettes`, `fond`, `dossier`, `ordre`).
+ * Chaque clé de `meta` s'écrit à part : une version qui en ignore une (`ordre`, d'une app plus ancienne) la laisse.
  * Le document peut être relié à un serveur : le magasin n'en sait rien.
  */
 export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteur | undefined } = {}): MagasinYjs {
@@ -157,6 +158,15 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
     if (brut !== fondLu.brut) fondLu = { brut, fond: lireFond(brut) }
     return fondLu.fond
   }
+  // L'ordre à la main d'un dossier, venu peut-être d'un autre appareil : des textes courts, en nombre borné.
+  let ordreLu: { brut: unknown; liste: string[] } = { brut: undefined, liste: [] }
+  const ordreStocke = (): string[] => {
+    const brut = meta.get('ordre')
+    if (brut === ordreLu.brut) return ordreLu.liste
+    const liste = Array.isArray(brut) ? brut.filter((x): x is string => typeof x === 'string' && x.length > 0 && x.length <= 160).slice(0, ORDRE_MAX) : []
+    ordreLu = { brut, liste }
+    return liste
+  }
 
   const construire = (): Tableau => {
     const liste: { id: Id; plan: string; element: Element }[] = []
@@ -179,6 +189,7 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
     const couleur = meta.get('couleur')
     const etiquettes = etiquettesStockees()
     const fond = fondStocke()
+    const ordre = ordreStocke()
     return {
       ...(id !== undefined ? { id } : {}),
       titre: typeof titre === 'string' ? titre : '',
@@ -186,6 +197,7 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
       ...(etiquettes.length > 0 ? { etiquettes } : {}),
       ...(fond ? { fond } : {}),
       ...(meta.get('dossier') === true ? { dossier: true } : {}),
+      ...(ordre.length > 0 ? { ordre } : {}),
       elements: liste.map((l) => l.element),
     }
   }
@@ -485,6 +497,11 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
         if ((t.dossier === true) !== (meta.get('dossier') === true)) {
           if (t.dossier) meta.set('dossier', true)
           else meta.delete('dossier')
+        }
+        const ordre = (t.ordre ?? []).slice(0, ORDRE_MAX)
+        if (JSON.stringify(ordre) !== JSON.stringify(ordreStocke())) {
+          if (ordre.length > 0) meta.set('ordre', ordre)
+          else meta.delete('ordre')
         }
         const voulus = new Set(t.elements.map((e) => e.id))
         // Ce que la toile ne sait pas lire n'est pas dans `t` : ce n'est pas une raison de l'effacer.

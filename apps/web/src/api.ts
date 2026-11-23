@@ -854,9 +854,9 @@ export interface EntreeBibliotheque {
   resume: Extract<ResumeContenu, { genre: GenreMontre }> & { apercu?: ApercuDossier[] }
   /** Le titre de la toile qui le porte, s'il la lit. */
   ou: string | null
-  /** L'identifiant de cette toile, s'il la lit : le dossier du tri par dossier. */
+  /** L'identifiant de cette toile, s'il la lit : l'endroit qui la range (la racine, un dossier, une toile). */
   dans: string | null
-  /** La dernière fois que le compte l'a ouvert, ajouté ou changé, ou `null` : ce qui range les récents. */
+  /** La dernière fois que le compte l'a ouvert, ajouté ou changé, ou `null` : l'ordre des récents (pas celui du rangement). */
   vu: number | null
   favori: boolean
   /** Une toile que d'autres lui partagent. */
@@ -867,6 +867,11 @@ export interface EntreeBibliotheque {
   fiche?: { nom: string; adresse?: string }
   /** Le nom de l'outil qui a posé ce dossier, celui d'une fiche ou, sans `fiche`, celui qui les range : il ne se déplace pas. */
   outil?: string
+  /**
+   * N'a jamais rien porté (le serveur le lit dans l'activité) : une toile où rien n'a été posé, une page ou une carte
+   * mentale jamais changées depuis leur création. Vide et sous son nom d'origine, elle part d'elle-même à la corbeille.
+   */
+  vierge?: boolean
 }
 
 /** Tout ce que le compte peut lire : ses toiles (sauf l'accueil), et ce qu'elles portent de pages, cartes mentales, photos, liens et fichiers. */

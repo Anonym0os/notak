@@ -40,6 +40,12 @@ const TOUTES: EntreeBibliotheque[] = [
   entree({ tableau: 'voyage', element: 'notes', genre: 'document', titre: '', ou: 'Voyage', dans: 'voyage', vu: MAINTENANT - 20 * JOUR }),
 ]
 
+/** Choisit un ordre par le bouton « Trier » de l'en-tête, qui ouvre ses trois façons d'ordonner. */
+const trierPar = (hote: HTMLElement, nom: string) => {
+  act(() => hote.querySelector<HTMLButtonElement>('.biblio-tri-bouton')!.click())
+  act(() => [...hote.querySelectorAll<HTMLButtonElement>('.notak-menu [role="menuitemcheckbox"]')].find((b) => b.textContent === nom)!.click())
+}
+
 /** Un identifiant de Notak né à cet instant (`nouvelId`) : dix signes de date, seize de hasard. */
 const neA = (ms: number, suite = 'AAAAAAAAAAAAAAAA') => {
   let date = ''
@@ -271,8 +277,10 @@ describe('la page', () => {
     act(() => rubrique('Favoris').click())
     expect(location.search).toBe('?vue=favoris')
     expect(tuiles()).toEqual([['Voyage', 'voyage/']])
-    // Là où les endroits se mêlent, la tuile dit où elle est rangée.
+    // Là où les endroits se mêlent, la tuile dit où elle est rangée ; une toile partagée sans ce qui la range, ce qu'elle est.
     expect(hote.querySelector('[data-cle="voyage/"] .biblio-tuile-ou')!.textContent).toBe('dans Mon espace')
+    act(() => rubrique('Partagés').click())
+    expect(hote.querySelector('[data-cle="budget/"] .biblio-tuile-ou')!.textContent).toBe('Toile')
   })
 
   it('l’ordre de la racine et des dossiers : les dossiers, puis la création la plus récente d’abord, ou par nom ; il se retient, et ouvrir ne le change pas', async () => {
@@ -291,7 +299,9 @@ describe('la page', () => {
     // La tuile qui crée est là où arrive ce qu'on crée : après les dossiers.
     expect([...hote.querySelectorAll('.biblio-grille > li')].map((li) => li.querySelector('.biblio-tuile-titre')!.textContent)).toEqual(['Clients', 'Nouvelle toile', 'Neuve', 'Atelier', 'Budget 2027'])
     expect(hote.querySelector(`[data-cle="${dossier.tableau}/"] .biblio-tuile-ou`)!.textContent).toBe('Vide')
-    act(() => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-tri-choix')].find((b) => b.textContent === 'Nom')!.click())
+    expect(hote.querySelector('.biblio-tri-bouton')!.getAttribute('aria-label')).toBe('Trier : Date de création')
+    trierPar(hote, 'Nom')
+    expect(hote.querySelector('.biblio-tri-bouton')!.getAttribute('aria-label')).toBe('Trier : Nom')
     expect(tuiles().map(([titre]) => titre)).toEqual(['Clients', 'Atelier', 'Budget 2027', 'Neuve'])
     expect(localStorage.getItem('notak:bibliotheque-tri')).toBe('nom')
     // Le clic droit du fond le propose aussi.
@@ -300,6 +310,7 @@ describe('la page', () => {
     expect(coches).toEqual([
       ['Date de création', 'false'],
       ['Nom', 'true'],
+      ['Manuel', 'false'],
     ])
   })
 
@@ -549,6 +560,98 @@ describe('les gestes', () => {
     appuyer(tuile('voyage/'))
     touche('Enter')
     expect(location.pathname).toBe('/t/voyage')
+  })
+
+  it('à la main : « Manuel » suit l’ordre que retient le dossier ; « Reculer », « Avancer » et le glisser l’écrivent pour tous, ⌘Z le défait', async () => {
+    const espace = await ouvrir()
+    const cles = () => [...hote.querySelectorAll<HTMLElement>('[data-cle]')].map((x) => x.dataset.cle)
+    trierPar(hote, 'Manuel')
+    expect(localStorage.getItem('notak:bibliotheque-tri')).toBe('manuel')
+    // Rien encore de rangé à la main : l'ordre de la création (faute de date dans ces identifiants, par nom).
+    expect(cles()).toEqual(['atelier/', 'budget/', 'voyage/'])
+    // L'ordre que retient la toile du dossier (écrit d'un autre appareil) : la page le suit ; « Budget », pas encore
+    // rangé, passe devant.
+    const racineDuDossier = espace.magasin('racine')
+    await act(async () => racineDuDossier.remplacer({ ...racineDuDossier.lire(), ordre: ['voyage/', 'atelier/'] }))
+    expect(cles()).toEqual(['budget/', 'voyage/', 'atelier/'])
+    // « Reculer d'une place », au menu de la tuile (le geste du clavier et du doigt) : écrit dans la toile du dossier.
+    const libelles = menu(tuile('budget/')).map((b) => b.querySelector('.notak-e-libelle')!.textContent)
+    expect(libelles).toEqual(expect.arrayContaining(['Avancer d’une place', 'Reculer d’une place']))
+    expect(entree('Avancer d’une place').disabled).toBe(true)
+    await act(async () => entree('Reculer d’une place').click())
+    expect(espace.tableau('racine')!.ordre).toEqual(['voyage/', 'budget/', 'atelier/'])
+    expect(cles()).toEqual(['voyage/', 'budget/', 'atelier/'])
+    // ⌘Z le défait.
+    await act(async () => touche('z', { metaKey: true }))
+    expect(espace.tableau('racine')!.ordre).toEqual(['voyage/', 'atelier/'])
+    // Le glisser : sur le bord droit d'« atelier », « Voyage » se pose après lui ; au milieu, il y entrerait.
+    const atelier = tuile('atelier/')
+    atelier.getBoundingClientRect = () => ({ left: 0, top: 0, right: 100, bottom: 100, width: 100, height: 100, x: 0, y: 0, toJSON() {} }) as DOMRect
+    const sous = document.elementFromPoint
+    document.elementFromPoint = () => atelier
+    onTestFinished(() => void (document.elementFromPoint = sous))
+    act(() => void tuile('voyage/').dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 10, clientY: 10 })))
+    act(() => void window.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 50, clientY: 50 })))
+    expect(atelier.hasAttribute('data-insertion')).toBe(false)
+    expect(atelier.hasAttribute('data-survol-depot')).toBe(true)
+    act(() => void window.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 90, clientY: 50 })))
+    expect(atelier.dataset.insertion).toBe('apres')
+    await act(async () => void window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true })))
+    expect(espace.tableau('racine')!.ordre).toEqual(['budget/', 'atelier/', 'voyage/'])
+    expect(cles()).toEqual(['budget/', 'atelier/', 'voyage/'])
+    // Rien n'est parti dans « atelier » : prendre place n'est pas ranger dedans.
+    expect(appels).toEqual([])
+    // Par date de création, ou par nom, l'ordre à la main ne compte plus, sans être perdu.
+    trierPar(hote, 'Nom')
+    expect(cles()).toEqual(['atelier/', 'budget/', 'voyage/'])
+    expect(espace.tableau('racine')!.ordre).toEqual(['budget/', 'atelier/', 'voyage/'])
+  })
+
+  it('ce qui est resté vide et sans nom depuis sa création part à la corbeille en arrivant ; l’avis le dit, « Annuler » le reprend', async () => {
+    const vide = neA(Date.now() - 3_600_000)
+    const espace = creerEspace({
+      racine: 'racine',
+      tableaux: {
+        racine: { titre: 'Accueil', elements: [renvoi('c-voyage', 'voyage', 0), renvoi('c-atelier', 'atelier', 20), renvoi('c-vide', vide, 40)] },
+        voyage: { titre: 'Voyage', elements: [] },
+        atelier: { titre: 'atelier', elements: [] },
+        [vide]: { titre: 'Nouvelle toile', elements: [] },
+      },
+    })
+    // (Ici, `entree` est la ligne de menu : l'entrée s'écrit en entier.)
+    const restee: EntreeBibliotheque = {
+      tableau: vide,
+      element: null,
+      genre: 'toile',
+      titre: 'Nouvelle toile',
+      resume: { genre: 'toile', element: '', titre: 'Nouvelle toile', boites: [] },
+      ou: 'Accueil',
+      dans: 'racine',
+      vu: null,
+      favori: false,
+      partage: false,
+      vierge: true,
+    }
+    // « atelier », vide aussi, porte un nom à elle : elle reste ; « Voyage » n'est pas vierge.
+    const atelierNomme = { ...MIENNES.find((e) => e.tableau === 'atelier')!, vierge: true, resume: { genre: 'toile' as const, element: '' as const, titre: 'atelier', boites: [] } }
+    await act(async () =>
+      racine.render(
+        <PageBibliotheque
+          charger={async () => [...MIENNES.filter((e) => e.tableau !== 'atelier'), atelierNomme, restee]}
+          espace={espace}
+          rangerToile={async () => ({ nouveaux: 0, perdus: 0, permanents: 0, liensOuverts: 0, liensEteints: 0, membresPerdus: 0, membresNouveaux: 0, fait: true })}
+          definirFavori={async () => {}}
+        />,
+      ),
+    )
+    await act(async () => {})
+    expect(espace.tableau('racine')!.elements.find((e) => e.id === 'c-vide')!.corbeille).toBeDefined()
+    expect(hote.querySelector(`[data-cle="${vide}/"]`)).toBeNull()
+    expect(tuile('atelier/')).not.toBeNull()
+    expect(hote.querySelector('.notak-avis')!.textContent).toContain('À la corbeille : « Nouvelle toile », vide et sans nom depuis sa création.')
+    await act(async () => [...hote.querySelectorAll<HTMLButtonElement>('.notak-avis button')].find((b) => b.textContent === 'Annuler')!.click())
+    expect(espace.tableau('racine')!.elements.find((e) => e.id === 'c-vide')!.corbeille).toBeUndefined()
+    expect(hote.querySelector(`[data-cle="${vide}/"]`)).not.toBeNull()
   })
 
   it('le clic droit d’une tuile dit ce qu’on peut en faire, avec des icônes', async () => {
@@ -959,7 +1062,7 @@ describe('les gestes', () => {
       expect(hote.querySelector('.biblio-restes')).toBeNull()
       // Le clic droit du fond y crée et y range.
       const libelles = menu(hote.querySelector('.biblio-corps')!).map((b) => b.querySelector('.notak-e-libelle')!.textContent)
-      expect(libelles).toEqual(['Nouveau', 'Nouveau dossier', 'Date de création', 'Nom', 'Tout sélectionner'])
+      expect(libelles).toEqual(['Nouveau', 'Nouveau dossier', 'Date de création', 'Nom', 'Manuel', 'Tout sélectionner'])
     })
 
     it('qui porte encore des notes à elle : une ligne le dit, en tête de la racine et de la bibliothèque, et y mène', async () => {
@@ -1014,7 +1117,7 @@ describe('les gestes', () => {
   it('le clic droit du fond crée, range et choisit tout', async () => {
     await ouvrir()
     const libelles = menu(hote.querySelector('.biblio-corps')!).map((b) => b.querySelector('.notak-e-libelle')!.textContent)
-    expect(libelles).toEqual(['Nouveau', 'Nouveau dossier', 'Date de création', 'Nom', 'Tout sélectionner'])
+    expect(libelles).toEqual(['Nouveau', 'Nouveau dossier', 'Date de création', 'Nom', 'Manuel', 'Tout sélectionner'])
     act(() => entree('Tout sélectionner').click())
     expect(choisies()).toHaveLength(3)
   })

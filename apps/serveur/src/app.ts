@@ -1685,6 +1685,9 @@ export function creerApp(ctx: Contexte): Hono {
     )
     // Ceux qu'un outil a générés (chaque fiche, et le dossier qui les range) disent lequel : ils ne se modifient pas.
     const generes = dossiersGeneres(ctx.rattachements ?? [], rattaches)
+    // Ce qui n'a jamais rien porté (`vierge`) : une toile où rien n'a été posé, une page ou une carte mentale jamais
+    // changées depuis leur création. Vide et encore sous son nom d'origine, la bibliothèque la met à la corbeille.
+    const histoires = base.historiques(ouverts)
     const entrees = lignes.flatMap((l) => {
       if ((l.genre === 'toile' && l.tableau === u.racine) || cachees.has(l.tableau) || !genres.has(l.genre)) return []
       const ligne = base.tableau(l.tableau)
@@ -1708,6 +1711,7 @@ export function creerApp(ctx: Contexte): Hono {
           ...(toile && estPrivee(l.tableau) ? { prive: true } : {}),
           ...(toile && fiches.has(l.tableau) ? { fiche: fiches.get(l.tableau) } : {}),
           ...(toile && generes.has(l.tableau) ? { outil: generes.get(l.tableau) } : {}),
+          ...((toile ? !histoires.toiles.has(l.tableau) : !histoires.elements.has(`${l.tableau}/${l.element}`)) ? { vierge: true } : {}),
         },
       ]
     })

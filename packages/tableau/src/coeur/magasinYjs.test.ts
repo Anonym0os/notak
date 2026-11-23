@@ -31,6 +31,25 @@ describe('magasin Yjs', () => {
     expect(lireTableau(a)).not.toHaveProperty('dossier')
   })
 
+  it('l’ordre à la main d’un dossier arrive chez l’autre, survit à un autre changement, et se lit prudemment', () => {
+    const { a, ma, mb } = relies()
+    ma.faire([{ type: 'creer', element: note(1) }])
+    ma.remplacer({ ...ma.lire(), dossier: true, ordre: ['b/', 'a/', 'ici/n1'] })
+    expect(mb.lire().ordre).toEqual(['b/', 'a/', 'ici/n1'])
+    // Renommer, ou changer de couleur, ne touche pas à l'ordre ; ni aux éléments.
+    mb.remplacer({ ...mb.lire(), titre: 'Clients' })
+    expect(ma.lire().ordre).toEqual(['b/', 'a/', 'ici/n1'])
+    expect(ids(ma.lire())).toHaveLength(1)
+    // Venu d'un autre appareil, ce qui n'est pas un texte court est ignoré.
+    a.getMap('meta').set('ordre', ['a/', 42, '', 'x'.repeat(200), 'c/'])
+    expect(ma.lire().ordre).toEqual(['a/', 'c/'])
+    // Sans ordre, la clé part.
+    const { ordre: _o, ...sans } = ma.lire()
+    ma.remplacer(sans)
+    expect(a.getMap('meta').has('ordre')).toBe(false)
+    expect(mb.lire()).not.toHaveProperty('ordre')
+  })
+
   it('les gestes de chacun arrivent chez l’autre', () => {
     const { ma, mb } = relies()
     const [n1, n2] = [note(1), note(2)]

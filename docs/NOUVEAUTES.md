@@ -71,8 +71,14 @@ fil des changements ; `bun run nouvelle-version x.y.z` en fait la section de la 
 - **La bibliothèque s'ouvre sur « Mon espace »**, et on sait toujours où est une toile : n'y paraît que ce qui y est
   rangé, les dossiers d'abord, puis le plus récemment créé. Ce qui est créé sans dossier, d'où que ce soit (la
   bibliothèque, les récents, l'agent), y arrive en tête, et ce qui est créé dans un dossier y reste. Créé depuis la
-  bibliothèque, le retour vous y ramène, la tuile signalée. Ouvrir quelque chose ne le déplace plus ; « Nom » range
-  tout par ordre alphabétique. Le tableau de bord qui mêlait le contenu de tous les dossiers disparaît.
+  bibliothèque, le retour vous y ramène, la tuile signalée. Ouvrir quelque chose ne le déplace plus. « Trier » propose
+  aussi « Nom », et « Manuel » : glissez une tuile entre deux autres (ou « Avancer d'une place » au menu), l'ordre est
+  retenu par le dossier pour tous ceux qui le parcourent. Le tableau de bord qui mêlait le contenu de tous les dossiers
+  disparaît.
+- **Ce qui reste vide et sans nom part à la corbeille** : une « Nouvelle toile » quittée sans rien y poser, un dossier
+  jamais rempli, une page sans titre ni texte, une carte réduite à son « Sujet central ». Dix minutes après, au plus
+  tôt, la bibliothèque la met à la corbeille en vous le disant, et « Annuler » la reprend. Ce qui a déjà porté quelque
+  chose reste, même vidé.
 - **Les récents deviennent une liste**, jour par jour, sans vignettes : chaque ligne dit où la chose est rangée (un
   clic y mène, la tuile choisie) et quand vous l'avez ouverte. Au téléphone, « Récents », « Favoris » et « Partagés »
   ont chacun leur carte sous le titre.

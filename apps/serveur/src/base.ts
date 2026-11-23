@@ -412,6 +412,12 @@ export interface Base {
    * pas ce qu'il a jeté. `typeElement` : ce qu'était l'élément (`tableau` pour la carte d'une toile).
    */
   gestesDe(utilisateur: string, tableaux: readonly string[]): { tableau: string; element: string; typeElement: string; instant: number }[]
+  /**
+   * Ce qui, dans ces toiles, a une histoire, d'après l'activité gardée : `toiles`, celles où l'on a fait quoi que ce soit
+   * d'autre que renommer (y poser, y changer, y jeter un élément) ; `elements` (`<toile>/<élément>`), ceux qu'on a
+   * changés, déplacés ou commentés après les avoir créés. Ce qui n'y est pas n'a jamais rien porté.
+   */
+  historiques(tableaux: readonly string[]): { toiles: Set<string>; elements: Set<string> }
 
   /**
    * Ajoute une notification. Avec `fusionner` (ms), une notification non lue du même genre, sur le même tableau,
@@ -1130,6 +1136,23 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
         )
       }
       return lus
+    },
+    historiques(tableaux) {
+      const toiles = new Set<string>()
+      const elements = new Set<string>()
+      for (let i = 0; i < tableaux.length; i += 500) {
+        const paquet = tableaux.slice(i, i + 500)
+        const lus = tous(
+          `SELECT tableau, element, MAX(genre NOT IN ('cree', 'titre')) AS change, MAX(genre <> 'titre') AS geste FROM activite
+           WHERE tableau IN (${paquet.map(() => '?').join(',')}) GROUP BY tableau, element`,
+          ...paquet,
+        ) as unknown as { tableau: string; element: string; change: number; geste: number }[]
+        for (const l of lus) {
+          if (l.geste) toiles.add(l.tableau)
+          if (l.change) elements.add(`${l.tableau}/${l.element}`)
+        }
+      }
+      return { toiles, elements }
     },
     activite: (tableau, limite, apres = 0) =>
       (

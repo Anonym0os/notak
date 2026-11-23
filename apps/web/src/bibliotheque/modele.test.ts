@@ -143,6 +143,21 @@ describe('l’ordre de la bibliothèque', () => {
     // Ce qu'on vient de créer arrive en tête, juste après les dossiers.
     expect(titres(ordonner([...l, toile('Neuve', MAINTENANT - 1000)], 'creation', MAINTENANT)).slice(0, 3)).toEqual(['Clients', 'Projets', 'Neuve'])
   })
+
+  it('à la main : l’ordre que retient le dossier ; ce qui n’y est pas encore passe devant, par date de création', () => {
+    const budget = toile('Budget', MAINTENANT - 3 * HEURE)
+    const atelier = toile('Atelier', MAINTENANT - 2 * HEURE)
+    const voyage = toile('Voyage', MAINTENANT - 9 * HEURE)
+    const clients = dossier('Clients', MAINTENANT - 5 * HEURE)
+    const neuve = toile('Neuve', MAINTENANT - 1000)
+    const cle = (e: EntreeBibliotheque) => `${e.tableau}/`
+    const titres = (x: EntreeBibliotheque[]) => x.map((e) => e.titre)
+    // Rangé à la main, un dossier peut suivre une toile ; une clé qui n'est plus là ne gêne pas.
+    const ordre = [cle(voyage), cle(clients), 'partie/', cle(budget), cle(atelier)]
+    expect(titres(ordonner([budget, atelier, voyage, clients, neuve], 'manuel', MAINTENANT, ordre))).toEqual(['Neuve', 'Voyage', 'Clients', 'Budget', 'Atelier'])
+    // Jamais rangé à la main : l'ordre de la création.
+    expect(titres(ordonner([budget, atelier, voyage, clients], 'manuel', MAINTENANT))).toEqual(['Clients', 'Atelier', 'Budget', 'Voyage'])
+  })
 })
 
 describe('l’affichage', () => {
