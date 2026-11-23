@@ -115,12 +115,14 @@ export const contenuDuDossier = (id: string, entrees: readonly EntreeBibliothequ
 // ---- L'ordre de la bibliothèque ----
 
 /**
- * Comment la racine et les dossiers s'ordonnent, les dossiers toujours d'abord (par nom, comme l'arbre de la colonne) :
- * le reste par date de création, la plus récente d'abord (ce qu'on vient de créer arrive en tête, juste après les
- * dossiers), ou par nom. Jamais par dernière ouverture : ouvrir ou changer quelque chose ne le déplace pas, c'est
- * l'affaire des récents. Le choix vaut pour tous les dossiers.
+ * Comment la racine et les dossiers s'ordonnent. Par date de création ou par nom, les dossiers d'abord (par nom, comme
+ * l'arbre de la colonne), puis le reste, la création la plus récente d'abord (ce qu'on vient de créer arrive en tête,
+ * juste après les dossiers) ou par nom. « À la main » : l'ordre qu'on a donné en glissant les tuiles, retenu par le
+ * dossier pour tous ceux qui le parcourent (`Tableau.ordre`) ; ce qui n'y est pas encore passe devant, dans l'ordre de
+ * création. Jamais par dernière ouverture : ouvrir ou changer quelque chose ne le déplace pas, c'est l'affaire des
+ * récents. Le choix vaut pour tous les dossiers.
  */
-export const TRIS = ['creation', 'nom'] as const
+export const TRIS = ['creation', 'nom', 'manuel'] as const
 export type Tri = (typeof TRIS)[number]
 
 /** L'alphabet des identifiants (`nouvelId`) : la base 32 de Crockford. */
@@ -150,8 +152,18 @@ const parCle = (a: EntreeBibliotheque, b: EntreeBibliotheque) => {
   return x < y ? -1 : x > y ? 1 : 0
 }
 
-/** Les entrées d'un endroit, dans l'ordre où il les montre : les dossiers par nom, puis le reste selon `tri`. */
-export function ordonner(entrees: readonly EntreeBibliotheque[], tri: Tri, maintenant = Date.now()): EntreeBibliotheque[] {
+/**
+ * Les entrées d'un endroit, dans l'ordre où il les montre : les dossiers par nom, puis le reste selon `tri` ; à la main,
+ * celles qui ne sont pas encore dans `ordreManuel` d'abord (par date de création), puis les autres, dans son ordre.
+ */
+export function ordonner(entrees: readonly EntreeBibliotheque[], tri: Tri, maintenant = Date.now(), ordreManuel?: readonly string[]): EntreeBibliotheque[] {
+  if (tri === 'manuel') {
+    const rang = new Map((ordreManuel ?? []).map((c, i) => [c, i] as const))
+    const rangDe = (e: EntreeBibliotheque) => rang.get(`${e.tableau}/${e.element ?? ''}`)
+    const libres = entrees.filter((e) => rangDe(e) === undefined)
+    const rangees = entrees.filter((e) => rangDe(e) !== undefined).sort((a, b) => rangDe(a)! - rangDe(b)!)
+    return [...ordonner(libres, 'creation', maintenant), ...rangees]
+  }
   const date = new Map(entrees.map((e) => [e, neLe(e, maintenant) ?? -1]))
   return [...entrees].sort((a, b) => {
     const da = estDossier(a)

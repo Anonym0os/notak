@@ -91,6 +91,7 @@ import {
   type Vue,
   PLURIEL,
   RECENTS_MAX,
+  TRIS,
   TYPES,
   adresseDeLaVue,
   arbreDesDossiers,
@@ -114,6 +115,7 @@ import {
   vueDeLArrivee,
 } from './bibliotheque/modele'
 import { BarreChoix } from './bibliotheque/BarreChoix'
+import { videsAJeter } from './bibliotheque/vides'
 import { PremierPas } from './bibliotheque/PremierPas'
 import { preparerClavier } from './bibliotheque/clavier'
 import {
@@ -149,6 +151,7 @@ import { t, tn } from './langue'
 export type { Tri }
 
 const ICONE_PORTEE: Record<Portee, NomIcone> = { tout: 'maison', recents: 'horloge', favoris: 'etoile', partages: 'equipe' }
+const ICONE_TRI: Record<Tri, NomIcone> = { creation: 'calendrier', nom: 'texte', manuel: 'pointeur' }
 const ICONE_GENRE: Record<EntreeBibliotheque['genre'], NomIcone> = { toile: 'tableau', arbre: 'carteMentale', document: 'document', image: 'photo', lien: 'lien', fichier: 'fichier' }
 /** L'icône d'une entrée : celle de son genre, celle d'un dossier pour une toile qui se montre en dossier. */
 const iconeDe = (e: EntreeBibliotheque): NomIcone => (estDossier(e) ? 'dossier' : ICONE_GENRE[e.genre])
@@ -195,12 +198,13 @@ const baseDe = (vue: Vue, toutes: readonly EntreeBibliotheque[], racine?: string
 /**
  * Ce que montre une vue (où, et quoi), dans son ordre. Les récents : le plus récemment ouvert d'abord, sans les dossiers
  * (on y reprend ce qu'on ouvre pour travailler), pas plus de `RECENTS_MAX`. Partout ailleurs, l'ordre de la
- * bibliothèque (`ordonner`) : les dossiers, puis le reste par `tri`.
+ * bibliothèque (`ordonner`) : les dossiers, puis le reste par `tri` ; à la main, celui que retient le dossier
+ * (`ordreManuel`), hors de lui (les favoris, les partages), celui de la création.
  */
-export function entreesDe(vue: Vue, toutes: readonly EntreeBibliotheque[], tri: Tri = 'creation', racine?: string | null): EntreeBibliotheque[] {
+export function entreesDe(vue: Vue, toutes: readonly EntreeBibliotheque[], tri: Tri = 'creation', racine?: string | null, ordreManuel?: readonly string[]): EntreeBibliotheque[] {
   const l = parLesPuces(vue, baseDe(vue, toutes, racine))
   if (!vue.dossier && vue.portee === 'recents') return l.filter((e) => !estDossier(e)).sort(parOuverture).slice(0, RECENTS_MAX)
-  return ordonner(l, tri)
+  return vue.dossier ? ordonner(l, tri, Date.now(), ordreManuel) : ordonner(l, tri === 'manuel' ? 'creation' : tri)
 }
 
 /** Le titre d'une vue : la portée, ou le genre quand on regarde toute la bibliothèque à travers une puce. */
@@ -318,15 +322,25 @@ type Fenetre =
 /** La tuile qu'on renomme sur place. */
 type Renommage = { cle: string }
 
-/** Le menu du clic droit : sur des tuiles, ou sur le fond. */
-type Menu = { x: number; y: number } & ({ type: 'tuiles'; cles: string[] } | { type: 'fond' })
+/** Le menu du clic droit : sur des tuiles, ou sur le fond ; ou celui du bouton « Trier ». */
+type Menu = { x: number; y: number } & ({ type: 'tuiles'; cles: string[] } | { type: 'fond' } | { type: 'tri' })
 
-/** Le glisser de tuiles : ce qu'on glisse, où est le pointeur, et la toile survolée qui le prendrait. */
+/** Où ce qu'on glisse prendrait place, dans un dossier rangé à la main : avant ou après cette tuile. */
+interface Insertion {
+  cle: string
+  apres: boolean
+}
+
+/**
+ * Le glisser de tuiles : ce qu'on glisse, où est le pointeur, la toile survolée qui le prendrait, ou, rangé à la main,
+ * la place qu'il prendrait parmi les autres.
+ */
 interface Glisse {
   cles: string[]
   x: number
   y: number
   cible: string | null
+  insertion?: Insertion | null
 }
 
 /** Une toile, une carte ou un document entre dans les récents du compte. */
@@ -623,6 +637,29 @@ function BibliothequeBureau({
 
   // Au téléphone, ni tri ni affichage à choisir : en grille, dans l'ordre choisi sur un écran plus grand.
   const affichageVu: Affichage = telephone ? 'grille' : affichage
+  /**
+   * L'ordre à la main du dossier qu'on parcourt (la racine comprise), lu sur sa toile, que l'espace charge et suit :
+   * un autre appareil, ou une autre personne, qui le change le change ici.
+   */
+  const [versionDossier, setVersionDossier] = useState(0)
+  useEffect(() => {
+    if (!espace || !dossier || tri !== 'manuel') return
+    let vivant = true
+    void quandPretes(espace, [dossier]).then(
+      () => vivant && setVersionDossier((v) => v + 1),
+      () => {},
+    )
+    const arreter = espace.ecouter(() => setVersionDossier((v) => v + 1))
+    return () => {
+      vivant = false
+      arreter()
+    }
+  }, [espace, dossier, tri])
+  const ordreManuel = useMemo(
+    () => (tri === 'manuel' && espace && dossier ? espace.tableau(dossier)?.ordre : undefined),
+    // `versionDossier` n'est pas lu : il dit que la toile du dossier a changé, et qu'il faut la relire.
+    [espace, dossier, tri, versionDossier],
+  )
   const vue: Vue = { portee, filtre, ...(dossier ? { dossier } : {}) }
   const cherche = requete.trim() !== ''
   /** Les récents : une liste de lignes, à part du rangement, sans puces, ni tri, ni tuile qui crée. */
@@ -631,8 +668,13 @@ function BibliothequeBureau({
   // cachent pendant qu'on cherche : elles ne filtrent rien).
   const filtreDeRecherche: Filtre = telephone ? 'tout' : filtre
   const visibles = useMemo(
-    () => (toutes ? (cherche ? duFiltre(filtreDeRecherche, filtrer(toutes, requete)).sort(parOuverture) : entreesDe({ portee, filtre, ...(dossier ? { dossier } : {}) }, toutes, tri, racine)) : []),
-    [toutes, cherche, requete, portee, filtre, filtreDeRecherche, dossier, tri, racine],
+    () =>
+      toutes
+        ? cherche
+          ? duFiltre(filtreDeRecherche, filtrer(toutes, requete)).sort(parOuverture)
+          : entreesDe({ portee, filtre, ...(dossier ? { dossier } : {}) }, toutes, tri, racine, ordreManuel)
+        : [],
+    [toutes, cherche, requete, portee, filtre, filtreDeRecherche, dossier, tri, racine, ordreManuel],
   )
   /** Ce que chaque puce garderait, là où l'on est. */
   const parGenre = useMemo(
@@ -869,6 +911,56 @@ function BibliothequeBureau({
     plusTard(() => setArrivees(new Set()), 1200)
     plusTard(() => tuileDe(cle)?.scrollIntoView?.({ block: 'nearest' }), 60)
   }
+  /**
+   * Rangé à la main, là où on peut écrire : le dossier qu'on parcourt (la racine comprise), sans recherche, dont on écrit
+   * la toile. Les tuiles s'y glissent entre les autres, et « Avancer » et « Reculer » les déplacent d'une place.
+   */
+  const aLaMain = tri === 'manuel' && !!dossier && !cherche && !!outils && !espace?.lectureSeule?.(dossier)
+  /** Tout ce que le dossier range, dans son ordre à la main (les puces n'y font rien : elles ne font que cacher). */
+  const ordreIci = () => (toutes && dossier ? entreesDe({ portee: 'tout', filtre: 'tout', dossier }, toutes, 'manuel', racine, ordreManuel).map(cleDe) : [])
+  /**
+   * Écrit l'ordre à la main du dossier qu'on parcourt, sur sa toile, une fois arrivée du serveur ; ⌘Z le défait. Il
+   * vaut pour tous ceux qui le parcourent à la main.
+   */
+  const ecrireOrdre = async (ordre: string[]) => {
+    if (!espace || !dossier) return
+    const ici = dossier
+    await quandPretes(espace, [ici])
+    if (espace.lectureSeule?.(ici)) return
+    const m = espace.magasin(ici)
+    const avant = m.lire().ordre
+    m.remplacer({ ...m.lire(), ordre })
+    annulable.current = {
+      texte: '',
+      correctifs: [],
+      async annuler() {
+        const { ordre: _o, ...sans } = m.lire()
+        m.remplacer(avant ? { ...sans, ordre: avant } : sans)
+        return []
+      },
+    }
+  }
+  /** Pose ces tuiles avant ou après une autre, dans l'ordre à la main ; elles gardent entre elles l'ordre qu'elles avaient. */
+  const placerA = (cles: readonly string[], cible: Insertion) => {
+    const ici = ordreIci()
+    const partent = ici.filter((c) => cles.includes(c))
+    const reste = ici.filter((c) => !cles.includes(c))
+    const i = reste.indexOf(cible.cle)
+    if (partent.length === 0 || i < 0) return
+    const j = cible.apres ? i + 1 : i
+    void ecrireOrdre([...reste.slice(0, j), ...partent, ...reste.slice(j)])
+  }
+  /** Avance (ou recule) une tuile d'une place, dans l'ordre à la main : le geste du clavier et du doigt. */
+  const decaler = (cle: string, sens: -1 | 1) => {
+    const ici = ordreIci()
+    const i = ici.indexOf(cle)
+    const j = i + sens
+    if (i < 0 || j < 0 || j >= ici.length) return
+    const ordre = [...ici]
+    ;[ordre[i], ordre[j]] = [ordre[j]!, ordre[i]!]
+    void ecrireOrdre(ordre)
+    plusTard(() => tuileDe(cle)?.scrollIntoView?.({ block: 'nearest' }), 60)
+  }
   /** Ouvre la toile qui la porte, la vue centrée sur elle, choisie (pour une toile : sa carte). */
   const afficherDansSaToile = (e: Pick<EntreeBibliotheque, 'tableau' | 'element'>, porteuse: string) => {
     tenirLeChemin(porteuse)
@@ -1074,6 +1166,16 @@ function BibliothequeBureau({
       l.push({ libelle: t('biblio.menu.ouvrirLien'), icone: 'ouvrir', faire: () => ouvrirDehors(url) })
     }
     if (porteuse && !enDossier(porteuse)) l.push({ libelle: t('biblio.menu.afficher'), icone: 'tableau', faire: () => afficherDansSaToile(une!, porteuse) })
+    // Rangé à la main : une place plus tôt, ou plus tard ; ce n'est pas changer la chose, même générée par un outil.
+    if (une && aLaMain && ordre.includes(cleDe(une))) {
+      const ici = ordreIci()
+      const i = ici.indexOf(cleDe(une))
+      l.push(
+        null,
+        { libelle: t('biblio.menu.avancer'), icone: 'precedent', desactive: i <= 0, faire: () => decaler(cleDe(une), -1) },
+        { libelle: t('biblio.menu.reculer'), icone: 'suivant', desactive: i < 0 || i >= ici.length - 1, faire: () => decaler(cleDe(une), 1) },
+      )
+    }
     // Au doigt, l'appui long mène aussi au choix de plusieurs, comme dans Fichiers : la tuile tenue y est déjà.
     if (ecranAuDoigt() && !modeChoix) l.push({ libelle: t('biblio.choisir'), icone: 'menuSelectionner', faire: () => setModeChoix(true) })
     l.push(null)
@@ -1113,6 +1215,8 @@ function BibliothequeBureau({
   }
   const sousMenuCreer = (dans?: string): EntreeMenu[] =>
     (['toile', 'document', 'arbre'] as const).map((g) => ({ libelle: t(`biblio.genre.${g}`), icone: ICONE_GENRE[g], faire: () => void creerPuisOuvrir(g, dans) }))
+  /** Les trois façons d'ordonner la racine et les dossiers, la choisie cochée : le bouton « Trier », et le clic droit du fond. */
+  const menuDuTri = (): EntreeMenu[] => TRIS.map((x) => ({ libelle: t(`biblio.tri.${x}`), icone: ICONE_TRI[x], coche: tri === x, faire: () => trier(x) }))
   /** Le clic droit du fond : créer là où l'on range, l'ordre de la bibliothèque (pas dans les récents), tout choisir. */
   const menuDuFond = (): EntreeMenu[] => [
     ...(espace
@@ -1122,18 +1226,12 @@ function BibliothequeBureau({
           null,
         ]
       : []),
-    ...(enRecents
-      ? []
-      : [
-          { libelle: t('biblio.tri.creation'), icone: 'calendrier' as const, coche: tri === 'creation', faire: () => trier('creation') },
-          { libelle: t('biblio.tri.nom'), icone: 'texte' as const, coche: tri === 'nom', faire: () => trier('nom') },
-          null,
-        ]),
+    ...(enRecents ? [] : [...menuDuTri(), null]),
     { libelle: t('biblio.menu.toutChoisir'), icone: 'menuSelectionner', raccourci: '⌘A', desactive: ordre.length === 0, faire: () => setSel(toutChoisir(ordre)) },
   ]
   /** Au doigt, sans clavier sous la main, le menu ne parle pas de raccourcis (la feuille du téléphone non plus). */
   const sansRaccourcis = (l: EntreeMenu[]): EntreeMenu[] => (ecranAuDoigt() ? l.map((e) => (e && e.raccourci ? (({ raccourci: _r, ...reste }) => reste)(e) : e)) : l)
-  const entreesDuMenu = (m: Menu) => sansRaccourcis(m.type === 'tuiles' ? menuDesTuiles(m.cles) : menuDuFond())
+  const entreesDuMenu = (m: Menu) => sansRaccourcis(m.type === 'tuiles' ? menuDesTuiles(m.cles) : m.type === 'tri' ? menuDuTri() : menuDuFond())
 
   /** Le menu de ce qui est sous `el` : la tuile (et les autres choisies avec elle), ou le fond. */
   const ouvrirMenuSur = (el: HTMLElement, x: number, y: number) => {
@@ -1161,8 +1259,8 @@ function BibliothequeBureau({
 
   // ---- Le pointeur : choisir, tracer un cadre, glisser ----
 
-  const etat = useRef({ sel, ordre, choisies, parCle, toutes })
-  etat.current = { sel, ordre, choisies, parCle, toutes }
+  const etat = useRef({ sel, ordre, choisies, parCle, toutes, aLaMain, affichage: affichageVu })
+  etat.current = { sel, ordre, choisies, parCle, toutes, aLaMain, affichage: affichageVu }
   /** Les boîtes des tuiles, dans le repère du contenu de la page (qui défile). */
   const boitesTuiles = () => {
     const c = corps.current
@@ -1248,9 +1346,23 @@ function BibliothequeBureau({
     let arretDefilement = () => {}
     const viser = (x: number, y: number) => {
       if (!courant) return
-      const sous = document.elementFromPoint?.(x, y)?.closest<HTMLElement>('[data-depot]')
-      const id = sous?.dataset.depot ?? null
-      courant = { ...courant, x, y, cible: id && depotPossible(id, courant.cles) ? id : null }
+      const dessous = document.elementFromPoint?.(x, y)
+      let id = dessous?.closest<HTMLElement>('[data-depot]')?.dataset.depot ?? null
+      let insertion: Insertion | null = null
+      // Rangé à la main, une tuile se pose entre les autres : sur le bord d'une tuile, avant ou après elle ; au milieu
+      // d'une toile ou d'un dossier, elle y entre, comme ailleurs. En liste, les bords sont le haut et le bas.
+      const tuile = etat.current.aLaMain ? dessous?.closest<HTMLElement>('[data-cle]') : null
+      const sur = tuile?.dataset.cle
+      if (tuile && sur && !courant.cles.includes(sur) && corps.current?.contains(tuile)) {
+        const r = tuile.getBoundingClientRect()
+        const enLigne = etat.current.affichage !== 'grille'
+        const part = enLigne ? (y - r.top) / (r.height || 1) : (x - r.left) / (r.width || 1)
+        if (!(tuile.dataset.depot && part > 0.25 && part < 0.75)) {
+          insertion = { cle: sur, apres: part >= 0.5 }
+          id = null
+        }
+      }
+      courant = { ...courant, x, y, cible: id && depotPossible(id, courant.cles) ? id : null, insertion }
       setGlisse(courant)
     }
     const bouger = (e: PointerEvent) => {
@@ -1298,7 +1410,9 @@ function BibliothequeBureau({
       }
       window.addEventListener('click', bloquer, { capture: true, once: true })
       setTimeout(() => window.removeEventListener('click', bloquer, true), 0)
-      if (g.cible) deplacerVers([...g.cles, ...laisses].flatMap((c) => etat.current.parCle.get(c) ?? []), g.cible)
+      // Prendre place, à la main, ne change pas la chose : ce qu'un outil a généré se range aussi.
+      if (g.insertion) placerA([...g.cles, ...laisses], g.insertion)
+      else if (g.cible) deplacerVers([...g.cles, ...laisses].flatMap((c) => etat.current.parCle.get(c) ?? []), g.cible)
     }
     const abandon = () => {
       courant = null
@@ -1539,6 +1653,21 @@ function BibliothequeBureau({
     plusTard(() => setArrivees(new Set()), 1200)
     plusTard(() => tuileDe(a.cle)?.scrollIntoView?.({ block: 'nearest' }), 60)
   }, [toutes, dossier, cherche]) // à chaque lecture de la liste, et en arrivant dans un endroit
+  // Ce qui est resté vide, sous son nom d'origine, sans jamais rien porter (`videsAJeter`), part à la corbeille quand on
+  // arrive : une fois par visite, avec un avis qui le dit et « Annuler » qui le reprend.
+  const videsVus = useRef(false)
+  useEffect(() => {
+    if (!toutes || !outils || videsVus.current) return
+    videsVus.current = true
+    const vides = videsAJeter(toutes)
+    if (vides.length === 0) return
+    void executer(
+      jeterEntrees(outils, vides, toutes).then((r) => ({
+        ...r,
+        texte: vides.length === 1 ? t('biblio.annonce.vide', { titre: titreDe(vides[0]!) }) : tn('biblio.annonce.vides', vides.length),
+      })),
+    )
+  }, [toutes]) // une fois, à l'arrivée de la liste
   const importerCourant = useRef(importerIci)
   importerCourant.current = importerIci
   // Fichier › Importer… dans Notak de bureau : dans le dossier qu'on parcourt, sinon à la racine, comme un fichier lâché sur le fond.
@@ -1684,7 +1813,10 @@ function BibliothequeBureau({
       }
       return dateDeCreation(e) ?? genreDe(e)
     }
-    return t('biblio.dans', { toile: rangeDans(e).nom })
+    // Une toile qu'on nous partage sans ce qui la range : la rubrique le dit déjà ; cherchant, on le dit.
+    const r = rangeDans(e)
+    if (r.id === null) return cherche ? r.nom : genreDe(e)
+    return t('biblio.dans', { toile: r.nom })
   }
   const genreLigne = (e: EntreeBibliotheque): GenreLigne => (estDossier(e) ? 'dossier' : e.genre)
   /**
@@ -1820,6 +1952,7 @@ function BibliothequeBureau({
         glissee={glissees.has(cle)}
         survolee={e.element === null && survolDepot === e.tableau}
         arrivee={arrivees.has(cle)}
+        {...(glisse?.insertion?.cle === cle ? { insertion: glisse.insertion.apres ? ('apres' as const) : ('avant' as const) } : {})}
         detail={detailDe(e)}
         renommer={renommage?.cle === cle}
         valider={(titre) => {
@@ -1914,8 +2047,9 @@ function BibliothequeBureau({
         ) : (
           <>
             {sections.map((s) => {
-              // La tuile « Nouvelle… » se pose là où arrive ce qu'on crée : après les dossiers, en tête du reste.
-              const coupe = s.cle === 'ici' ? s.entrees.filter(estDossier).length : 0
+              // La tuile « Nouvelle… » se pose là où arrive ce qu'on crée : après les dossiers de tête, avant le reste.
+              const premier = s.cle === 'ici' ? s.entrees.findIndex((e) => !estDossier(e)) : 0
+              const coupe = premier < 0 ? s.entrees.length : premier
               return (
                 <section key={s.cle} className="biblio-section" aria-label={s.titre || undefined}>
                   {s.titre && <h2>{s.titre}</h2>}
@@ -2231,16 +2365,26 @@ function BibliothequeBureau({
               </button>
             </Ilot>
           )}
-          {/* L'ordre et l'affichage sont ceux du rangement : les récents ont les leurs, une liste par jour. */}
+          {/* L'ordre et l'affichage sont ceux du rangement : les récents ont les leurs, une liste par jour. Un seul bouton
+              dit l'ordre choisi et ouvre les trois façons d'ordonner. */}
           {!enRecents && (
             <Ilot className="biblio-tri" etiquette={t('biblio.tri')}>
-              {(['creation', 'nom'] as const).map((x) => (
-                <button key={x} type="button" className="biblio-tri-choix" aria-pressed={tri === x} aria-label={t(`biblio.tri.${x}`)} title={t(`biblio.tri.${x}`)} onClick={() => trier(x)}>
-                  <Icone nom={x === 'creation' ? 'calendrier' : 'texte'} taille={16} />
-                  {/* Dans une fenêtre moyenne (un iPad en portrait), le bouton garde son icône : son nom reste à aria-label. */}
-                  <span className="biblio-tri-libelle">{t(`biblio.tri.${x}`)}</span>
-                </button>
-              ))}
+              <button
+                type="button"
+                className="biblio-tri-choix biblio-tri-bouton"
+                aria-haspopup="menu"
+                aria-expanded={menu?.type === 'tri'}
+                aria-label={t('biblio.tri.bouton', { tri: t(`biblio.tri.${tri}`) })}
+                title={t('biblio.tri')}
+                onClick={(ev) => {
+                  const r = ev.currentTarget.getBoundingClientRect()
+                  setMenu((m) => (m?.type === 'tri' ? null : { x: r.left, y: r.bottom + 6, type: 'tri' }))
+                }}
+              >
+                <Icone nom={ICONE_TRI[tri]} taille={16} />
+                <span className="biblio-tri-libelle">{t(`biblio.tri.${tri}`)}</span>
+                <Icone nom="chevronBas" taille={12} trait={2} />
+              </button>
             </Ilot>
           )}
           {!enRecents && (
@@ -2346,6 +2490,7 @@ function Tuile({
   glissee,
   survolee,
   arrivee,
+  insertion,
   detail,
   renommer,
   valider,
@@ -2362,6 +2507,8 @@ function Tuile({
   survolee: boolean
   /** Vient d'arriver (un import) : son anneau bat une fois. */
   arrivee?: boolean
+  /** Rangé à la main : ce qu'on glisse se posera avant ou après elle. */
+  insertion?: 'avant' | 'apres'
   /** Ce qu'on dit sous son titre, à côté de l'icône de son genre. */
   detail: string
   renommer: boolean
@@ -2378,6 +2525,7 @@ function Tuile({
       data-depot={e.element === null ? e.tableau : undefined}
       data-survol-depot={survolee || undefined}
       data-arrivee={arrivee || undefined}
+      data-insertion={insertion}
       data-glissee={glissee || undefined}
       aria-label={[titreDe(e), e.outil ? t('biblio.genere', { outil: e.outil }) : null, e.prive && e.element === null ? t('partage.privee') : null].filter(Boolean).join(', ')}
       data-coche={coche || undefined}

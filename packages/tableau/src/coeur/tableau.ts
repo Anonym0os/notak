@@ -1014,8 +1014,18 @@ export interface Tableau {
    * range. Une toile se montre en dossier, et de nouveau en toile, depuis son menu dans la bibliothèque.
    */
   dossier?: boolean
+  /**
+   * L'ordre « à la main » de ce qu'il range, dans la bibliothèque : des clés d'entrées (`<toile>/` pour une toile ou un
+   * dossier, `<ici>/<élément>` pour ce qu'il porte), la première d'abord. Il vaut pour tous ceux qui le parcourent, à
+   * qui le choisit dans « Trier » ; ce qui n'y est pas encore (ce qui vient d'arriver) passe devant. Absent : jamais
+   * rangé à la main.
+   */
+  ordre?: string[]
   elements: Element[]
 }
+
+/** L'ordre à la main d'un dossier garde au plus tant de clés. */
+export const ORDRE_MAX = 2000
 
 /** Un geste élémentaire. Chacun a son inverse, ce qui fait l'historique. */
 export type Operation =

@@ -3455,12 +3455,13 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
 
 .biblio,
 .biblio-unie {
-  --biblio-pale: color-mix(in srgb, var(--notak-texte, #323b4a) 64%, transparent);
+  /* Le texte secondaire tient 4,5:1 sur les fonds clairs (à 64 %, il n'en faisait que 3,6). */
+  --biblio-pale: color-mix(in srgb, var(--notak-texte, #323b4a) 78%, transparent);
   --biblio-survol: rgb(50 59 74 / 0.05);
   --biblio-choisi: rgb(50 59 74 / 0.09);
   --biblio-ombre: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.08), 0 6px 16px -6px rgb(27 37 54 / 0.16);
-  /* Celles des pièces au doigt (les lignes des passages trouvés), que la page du bureau montre aussi. */
-  --biblio-discret: color-mix(in srgb, var(--notak-texte, #323b4a) 55%, transparent);
+  /* Celles des pièces au doigt (les lignes des passages trouvés), que la page du bureau montre aussi : le même gris. */
+  --biblio-discret: var(--biblio-pale);
   --biblio-remplissage: color-mix(in srgb, var(--notak-texte, #323b4a) 7%, transparent);
 }
 
@@ -3480,6 +3481,8 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
 
 [data-theme='sombre'] .biblio,
 [data-theme='sombre'] .biblio-unie {
+  /* Sur un fond sombre, 64 % suffit (plus de 5:1). */
+  --biblio-pale: color-mix(in srgb, var(--notak-texte, #323b4a) 64%, transparent);
   --biblio-survol: rgb(255 255 255 / 0.05);
   --biblio-choisi: rgb(255 255 255 / 0.1);
   --biblio-ombre: 0 0 0 1px rgb(255 255 255 / 0.06), 0 6px 16px -6px rgb(0 0 0 / 0.5);
@@ -3663,7 +3666,7 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 .biblio-groupe {
   margin: 18px 10px 4px;
   color: var(--biblio-pale);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -3748,7 +3751,7 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   background: transparent;
   color: var(--notak-texte, #323b4a);
   font-family: inherit;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 400;
   line-height: 1;
 }
@@ -3785,7 +3788,7 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   gap: 6px;
   min-width: 0;
   margin: 0 -6px;
-  padding: 2px 6px 4px;
+  padding: 2px 6px 8px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
@@ -3856,7 +3859,7 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   display: flex;
   align-items: center;
   gap: 7px;
-  margin: 0 0 14px;
+  margin: 0 0 16px;
   color: var(--biblio-pale);
   font-size: 13px;
   font-weight: 600;
@@ -3865,7 +3868,7 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 .biblio-grille {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(188px, 1fr));
-  gap: 28px 24px;
+  gap: 24px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -3876,7 +3879,7 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   width: 100%;
   min-width: 0;
   padding: 0;
@@ -3895,7 +3898,7 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   place-items: center;
   width: 100%;
   aspect-ratio: 206 / 136;
-  margin-bottom: 9px;
+  margin-bottom: 8px;
   overflow: hidden;
   border-radius: 12px;
   background: var(--notak-carte, #fff);
@@ -3939,7 +3942,7 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 
 .biblio-vignette-vide {
   color: var(--biblio-pale);
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 /*
@@ -4146,7 +4149,7 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   gap: 5px;
   max-width: 100%;
   color: var(--biblio-pale);
-  font-size: 12.5px;
+  font-size: 13px;
   white-space: nowrap;
 }
 
@@ -4248,6 +4251,46 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   opacity: 0.4;
 }
 
+/*
+ * Rangé à la main : là où se posera ce qu'on glisse, un trait à l'accent entre deux tuiles (au milieu de l'écart de la
+ * grille), entre deux lignes en liste.
+ */
+.biblio-tuile[data-insertion]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.biblio-tuile[data-insertion='avant']::after {
+  left: -13.5px;
+}
+
+.biblio-tuile[data-insertion='apres']::after {
+  right: -13.5px;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile[data-insertion]::after {
+  right: 0;
+  left: 0;
+  width: auto;
+  height: 3px;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile[data-insertion='avant']::after {
+  top: -2.5px;
+  bottom: auto;
+}
+
+.biblio-grille[data-affichage='liste'] .biblio-tuile[data-insertion='apres']::after {
+  top: auto;
+  bottom: -2.5px;
+}
+
 .biblio-tuile[data-survol-depot] .biblio-vignette {
   box-shadow: 0 0 0 3px var(--accent), 0 14px 30px -10px rgb(27 37 54 / 0.3);
   transform: scale(1.03);
@@ -4320,7 +4363,8 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 }
 
 .biblio-grille[data-affichage='liste'] .biblio-tuile-plus {
-  position: static;
+  /* Dans le flux, et repère de sa cible élargie (`::before`). */
+  position: relative;
   grid-area: plus;
 }
 
@@ -4373,16 +4417,20 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  max-width: 960px;
+  /* 720 px de contenu, comme les passages trouvés ; le fond du survol déborde dans la gouttière, la pastille tombe sur
+     l'axe du titre de la section. */
+  max-width: 736px;
+  margin: 0 -8px;
 }
 
 .biblio-grille[data-affichage='recents'] .biblio-tuile {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) minmax(0, 15rem) 4.5rem 30px;
+  /* La date d'une autre année (« 12 nov. 2025 ») tient dans ses 6 rem. */
+  grid-template-columns: 32px minmax(0, 1fr) minmax(0, 12rem) 6rem 32px;
   align-items: center;
-  gap: 0 14px;
+  gap: 0 16px;
   min-height: 48px;
-  padding: 6px 8px;
+  padding: 8px;
   box-sizing: border-box;
   text-align: left;
 }
@@ -4390,11 +4438,7 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 .biblio-recent-pastille {
   width: 32px;
   height: 32px;
-  border-radius: 9px;
-}
-
-.biblio-recent .biblio-tuile-titre {
-  font-weight: 500;
+  border-radius: 8px;
 }
 
 /* Sur une ligne de bureau, l'endroit et le moment ont chacun leur colonne. */
@@ -4409,10 +4453,10 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   justify-self: start;
   min-width: 0;
   max-width: 100%;
-  margin-left: -6px;
-  padding: 4px 6px;
+  margin-left: -8px;
+  padding: 4px 8px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 8px;
   background: none;
   color: var(--biblio-pale);
   font: inherit;
@@ -4451,9 +4495,10 @@ button.biblio-recent-ou:focus-visible {
 }
 
 .biblio-grille[data-affichage='recents'] .biblio-tuile-plus {
-  position: static;
-  width: 28px;
-  height: 28px;
+  /* Dans le flux, et repère de sa cible élargie (`::before`). */
+  position: relative;
+  width: 32px;
+  height: 32px;
   box-shadow: none;
   background: none;
 }
@@ -4873,6 +4918,12 @@ button.biblio-recent-ou:focus-visible {
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.12s ease;
+}
+
+.biblio-tuile-plus::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
 }
 
 .biblio-tuile:hover .biblio-tuile-plus,
@@ -6067,7 +6118,6 @@ button.biblio-arbre-chevron:hover {
 .biblio-locale {
   --biblio-gouttiere: 16px;
   --biblio-courbe: cubic-bezier(0.32, 0.72, 0, 1);
-  --biblio-discret: color-mix(in srgb, var(--notak-texte) 55%, transparent);
   --biblio-remplissage: color-mix(in srgb, var(--notak-texte) 7%, transparent);
   position: fixed;
   inset: 0;
@@ -6278,7 +6328,7 @@ button.biblio-arbre-chevron:hover {
   flex: none;
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: 8px;
   background: color-mix(in srgb, #2f6feb 14%, transparent);
   color: #2f6feb;
 }
@@ -6494,7 +6544,7 @@ button.biblio-arbre-chevron:hover {
 
 /*
  * La bibliothèque unique, au téléphone (Bibliotheque.tsx) : le cadre et l'en-tête de la bibliothèque au doigt, autour
- * des sections et des tuiles de toutes les largeurs. Grilles de deux, « Reprendre » qui glisse, titres de rubrique en
+ * des sections et des tuiles de toutes les largeurs. Grilles de deux, les récents en lignes, titres de section en
  * grand ; le choix de plusieurs tuiles monte en barre au bas de l'écran.
  */
 .biblio-unie .biblio-corps {
@@ -6536,6 +6586,8 @@ button.biblio-arbre-chevron:hover {
 .biblio-unie .biblio-grille[data-affichage='recents'] {
   display: flex;
   gap: 0;
+  max-width: none;
+  margin: 0;
 }
 
 .biblio-unie .biblio-grille[data-affichage='recents'] .biblio-tuile {
@@ -6545,7 +6597,27 @@ button.biblio-arbre-chevron:hover {
   min-height: 56px;
   padding: 6px 0;
   border-radius: 0;
-  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--notak-texte) 8%, transparent);
+}
+
+/* Le filet passe sous le texte, comme celui des lignes de la recherche ; la dernière ligne n'en a pas. */
+.biblio-unie .biblio-grille[data-affichage='recents'] .biblio-tuile::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 48px;
+  height: 1px;
+  background: color-mix(in srgb, var(--notak-texte) 8%, transparent);
+}
+
+.biblio-unie .biblio-grille[data-affichage='recents'] .biblio-tuile:last-child::after {
+  display: none;
+}
+
+.biblio-unie .biblio-grille[data-affichage='recents'] .biblio-tuile-plus {
+  width: 44px;
+  height: 44px;
+  margin-right: -8px;
 }
 
 .biblio-unie .biblio-grille[data-affichage='recents'] .biblio-tuile:hover {
@@ -6555,7 +6627,7 @@ button.biblio-arbre-chevron:hover {
 .biblio-unie .biblio-recent-pastille {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .biblio-unie .biblio-recent .biblio-tuile-titre {
@@ -6579,8 +6651,8 @@ button.biblio-arbre-chevron:hover {
   display: grid;
   grid-auto-columns: minmax(0, 1fr);
   grid-auto-flow: column;
-  gap: 10px;
-  margin: 0 0 24px;
+  gap: 12px;
+  margin: 0 0 32px;
 }
 
 .biblio-porte {
@@ -6588,12 +6660,12 @@ button.biblio-arbre-chevron:hover {
   grid-template-columns: auto 1fr;
   grid-template-areas: 'icone nombre' 'nom nom';
   align-items: center;
-  gap: 8px 6px;
-  min-height: 68px;
-  padding: 10px 12px;
+  gap: 8px;
+  min-height: 72px;
+  padding: 12px;
   box-sizing: border-box;
   border: 0;
-  border-radius: 14px;
+  border-radius: 12px;
   background: var(--notak-carte, #fff);
   box-shadow: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.05);
   text-align: left;
@@ -6609,6 +6681,7 @@ button.biblio-arbre-chevron:hover {
   overflow: hidden;
   font-size: 15px !important;
   font-weight: 600;
+  line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -6619,6 +6692,7 @@ button.biblio-arbre-chevron:hover {
   color: var(--biblio-discret);
   font-size: 15px;
   font-weight: 600;
+  line-height: 20px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -6686,7 +6760,8 @@ button.biblio-arbre-chevron:hover {
   padding: 0;
   border: 0;
   background: none;
-  color: var(--notak-accent, #2f6feb) !important;
+  /* L'accent mêlé au texte, comme les liens de l'application : 4,7:1 sur le fond clair. */
+  color: color-mix(in srgb, var(--notak-accent, #2f6feb) 80%, var(--notak-texte, #323b4a)) !important;
   font-size: 16px !important;
 }
 

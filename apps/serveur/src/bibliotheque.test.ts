@@ -144,6 +144,30 @@ describe('GET /api/bibliotheque', () => {
     expect(deBob.get('etape/tram')!.vu).toBeNull()
   })
 
+  it('dit ce qui n’a jamais rien porté (`vierge`) : une toile où rien n’a été posé, une page jamais changée depuis sa création', async () => {
+    m.tableau(ana, 'brouillon', 'Nouvelle toile', undefined, ana.utilisateur.racine)
+    ecrire('brouillon', 'Nouvelle toile', (d) => poser(d, { type: 'document', titre: '', texte: texte('') }, { id: 'page' }))
+    const geste = (element: string, typeElement: string, genre: 'cree' | 'modifie' | 'titre') =>
+      m.base.noterActivite({ tableau: 'brouillon', auteur: ana.utilisateur.id, genre, element, typeElement, libelle: '', instant: Date.now() - 600_000 }, 0)
+    const lu = async () => new Map(((await lire(ana)) as (Entree & { vierge?: boolean })[]).map((e) => [cle(e), e.vierge === true]))
+    let r = await lu()
+    expect([r.get('brouillon/'), r.get('brouillon/page')]).toEqual([true, true])
+    // Renommer la toile, créer la page : ce n'est pas encore une histoire.
+    geste('', 'tableau', 'titre')
+    geste('page', 'document', 'cree')
+    r = await lu()
+    expect([r.get('brouillon/'), r.get('brouillon/page')]).toEqual([false, true])
+    // La page changée en a une ; la toile en avait une dès que la page y a été posée.
+    geste('page', 'document', 'modifie')
+    r = await lu()
+    expect(r.get('brouillon/page')).toBe(false)
+    // Une toile où l'on a seulement renommé reste vierge.
+    m.tableau(ana, 'renommee', 'Nouvelle toile', undefined, ana.utilisateur.racine)
+    ecrire('renommee', 'Nouvelle toile')
+    m.base.noterActivite({ tableau: 'renommee', auteur: ana.utilisateur.id, genre: 'titre', element: '', typeElement: 'tableau', libelle: '', instant: Date.now() - 600_000 }, 0)
+    expect((await lu()).get('renommee/')).toBe(true)
+  })
+
   it('n’ouvre que les cartes et documents qui existent, sur une toile qu’on lit', async () => {
     expect((await m.appeler('/api/tableaux/voyage/elements/inconnu/vu', { methode: 'POST', compte: ana })).status).toBe(404)
     expect((await m.appeler('/api/tableaux/secret/elements/idees/vu', { methode: 'POST', compte: ana })).status).toBe(404)
