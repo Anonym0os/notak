@@ -268,8 +268,8 @@ Avec `agents: true` et `agentAdresse`, l'agent (`agent`, « Fram ») paraît dan
 le compte est lié au SSO de l'outil (`fournisseur`, à défaut le nom de la source) ; il agit avec les droits de cette
 personne, et la porte des agents refuse ce qu'elle ne pourrait pas faire. On y écrit ce qu'on attend (« fais une carte
 mentale de ce client à côté », « crée une page pour ce rendez-vous », « range ce tableau dans le dossier Clients ») ;
-Notak relaie la demande, signée du `secret`, à `agentAdresse`, et suit le tour jusqu'à sa réponse, trois minutes au
-plus. L'agent agit par la porte des agents : ses gestes arrivent en direct. Rien n'est gardé dans Notak : le fil des
+Notak relaie la demande, signée du `secret`, à `agentAdresse`, et suit le tour **en direct** jusqu'à sa réponse, aussi
+longtemps qu'il dure (un tour peut prendre vingt minutes). L'agent agit par la porte des agents : ses gestes arrivent en direct. Rien n'est gardé dans Notak : le fil des
 échanges est celui de l'outil (`apps/serveur/src/fram.ts`). La demande se rattache au tableau d'où l'on écrit : une
 toile, un dossier, ou l'accueil depuis la bibliothèque.
 
@@ -278,10 +278,18 @@ sujet de son compte lié (`sub`) et son adresse :
 
 | `type` | Corps | Réponse attendue |
 |---|---|---|
-| `fram.demander` | `{ id, personne: { sub, email }, tableau: { id, titre, lien }, selection: [{ id, texte }], message }`, `id` un UUID neuf par demande | `{ tour, fil, etat }` |
+| `fram.demander` | `{ id, personne: { sub, email }, tableau: { id, titre, lien }, selection: [{ id, texte }], message, pieces? }`, `id` un UUID neuf par demande ; `pieces` : les identifiants rendus par `fram.piece`, 10 au plus, absent sans pièce ; `message` peut être vide quand `pieces` ne l'est pas | `{ tour, fil, etat }` ; pendant un tour, le message est mis en file : `{ tour, fil, etat: "waiting" }` |
+| `fram.journal` | `{ personne, tableau, tour, depuis }`, `depuis` la dernière `suite` rendue (`0` à la première lecture) | `{ tour, etat, fini, suite, encore, evenements, crees, ouvrir, texte, echec, cartes }` (voir plus bas) |
+| `fram.arreter` | `{ id, personne, tableau, tour }`, `id` un UUID neuf | `{ tour, etat }` |
 | `fram.lire` | `{ personne, tableau, tour }` | `{ tour, etat, fini, texte, echec, cartes }`, et peut-être `crees`, `ouvrir` |
-| `fram.fil` | `{ personne, tableau }` | `{ fil, echanges: [{ qui, texte, quand }], tour }` |
+| `fram.fil` | `{ personne, tableau }` | `{ fil, echanges: [{ qui, texte, quand }], tour, parties? }`, `parties` : `[{ id, debut, fin, resume }]`, la plus récente d'abord, 20 au plus |
 | `fram.decider` | `{ id, personne, tableau, tour, cartes: [{ id, accord, toujours }] }`, `id` un UUID neuf | `{ tour, etat }` |
+
+Et à une adresse à part, `POST agentAdresse/pieces`, même signature, un corps de 36 Mo au plus :
+
+| `type` | Corps | Réponse attendue |
+|---|---|---|
+| `fram.piece` | `{ id, personne, tableau, nom, type_mime, contenu }`, `id` un UUID neuf, `contenu` le fichier en base64 (25 Mo au plus avant encodage) | `{ piece, nom, taille }` ; un refus : `{ erreur: "<phrase>" }` (avec un statut 4xx autre que 404) |
 
 `fram.lire` rend aussi les cartes du tour arrêté sur elles, `[{ id, resume, definitif }]` : la bulle les montre avec « Autoriser », « Toujours dans cette conversation » (jamais pour un geste définitif) et « Refuser », et relaie la réponse par `fram.decider`. La conversation est une par personne, d'un tableau à l'autre : « toujours » vaut pour elle. Un 404 de l'outil vaut « pas pour cette personne » : la bulle ne paraît pas. Un 409 se dit (« ne peut pas prendre ce
 message maintenant ») ; le reste vaut une panne passagère.
@@ -291,6 +299,50 @@ montrer à la personne, `ouvrir: { tableau, element? } | null`. Notak n'en garde
 le titre, le genre et l'adresse (celle que donnerait « Copier le lien » de la bibliothèque) : l'outil ne fabrique jamais
 un lien que l'app suivrait. L'app en tire un bouton « Ouvrir » par création, et ouvre une fois ce que l'agent veut
 montrer. Les deux champs sont facultatifs : un outil qui ne les donne pas reçoit `crees: []` et `ouvrir: null`.
+
+#### Le direct d'un tour
+
+Pendant un tour, la bulle lit `fram.journal` chaque seconde, depuis la dernière `suite`. `encore: true` dit que d'autres
+événements attendent : elle relit aussitôt. Il n'y a plus de coupure : la bulle suit le tour jusqu'à `fini: true`.
+`crees` et `ouvrir` ont la forme et le traitement de `fram.lire` ; `crees` donne la liste à jour à chaque lecture (ce qui
+est créé paraît en puce « Ouvrir » dès que c'est écrit) ; `cartes` aussi, quand `etat` vaut `awaiting_approval`. Chaque
+événement porte un numéro `seq` (croissant, jamais rejoué) et un `genre` :
+
+| `genre` | Champs | Ce que la bulle en fait |
+|---|---|---|
+| `etat` | `etat` (`queued`, `waiting`, `running`, `awaiting_approval`, `cancelling`, `cancelled`, `failed`, `done`) | la ligne vivante dit l'état |
+| `texte` | `bloc`, `ajout`, `etape` | `ajout` s'ajoute au bloc ; `etape: false`, c'est la réponse, écrite au fil de l'eau ; `etape: true`, une étape du fil conducteur |
+| `pensee` | `titre`, `resume?` | un pas du fil conducteur |
+| `geste` | `id`, `statut` (`en_cours`, `attente`, `fait`, `echec`, `refuse`), `phrase` | un pas du fil ; un `geste` de même `id` remplace le précédent. `phrase` est toujours là, en français, au présent pendant le geste, au passé une fois fait (« Je lis le tableau… », « J'ai lu le tableau ») |
+| `plan` | `etapes: [{ titre, statut }]` (`a_faire`, `en_cours`, `fait`, `echec`, `saute`) | le plan, remplacé à chaque événement |
+| `echec` | `message` | la ligne vivante le dit |
+| `fin` | | le tour est fini ; `fini: true` le confirme |
+
+La **ligne vivante**, sous la question, dit le dernier événement, et le temps écoulé à la seconde. L'outil garantit un
+événement toutes les huit secondes au moins, pour que la personne ne lise jamais longtemps la même phrase. Le fil
+conducteur (gestes, pensées, étapes écrites) se replie sous la réponse quand le tour finit (« 5 étapes · 1 min 12 ») ;
+il ne survit pas à un rechargement, ni les puces. Un genre que Notak ne connaît pas est tu ; les textes sont bornés
+(20 000 signes par `ajout`, 300 par phrase, 500 événements par lecture).
+
+« Arrêter » envoie `fram.arreter` ; le journal dit ensuite la fin (`etat: "cancelled"`), et la réponse est marquée
+« Arrêté ». Le champ reste ouvert pendant un tour : un message envoyé alors part aussitôt, l'outil le met en file
+(`etat: "waiting"`), et la bulle le montre « en attente » jusqu'à la fin du tour en cours, puis suit son tour à lui.
+
+#### Les pièces jointes
+
+Une ou plusieurs images collées (⌘V), des fichiers de tout genre déposés sur la conversation ou sur la bulle, ou
+choisis par le trombone : chacun part dès qu'on le joint, par le serveur de Notak (`POST /api/tableaux/:id/agent/pieces?nom=…`,
+les octets tels quels, leur genre dans `content-type`), qui le borne à 25 Mo et le relaie à l'outil (`fram.piece`).
+Rien n'est gardé dans Notak. Les limites se disent avant l'envoi : 25 Mo par fichier, 10 par message, aucun fichier
+vide. Un refus de l'outil (`{ erreur }`) se lit sur la pièce, et retient le message tant qu'elle n'est pas retirée.
+Le message part quand toutes ses pièces sont arrivées, avec leurs identifiants dans `pieces`.
+
+#### Les parties précédentes
+
+`fram.fil` peut rendre les parties précédentes de la conversation (`parties`) : « Plus tôt » les déplie en tête du fil,
+de la plus ancienne à la dernière, chacune avec sa date et son résumé (Markdown). Sans le champ, rien ne paraît.
+
+#### La page ou la carte ouverte
 
 Une demande faite depuis une page ou une carte mentale ouverte en grand la dit ouverte : Notak la met en tête de la
 sélection, `{ id, texte: "La page « … » est ouverte en grand : <adresse>" }`, sans rien ajouter d'autre au corps. Le
