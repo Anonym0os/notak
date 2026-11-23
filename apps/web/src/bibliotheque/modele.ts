@@ -1,12 +1,17 @@
 import type { EntreeBibliotheque } from '../api'
 
 /**
- * Ce que la bibliothèque montre se choisit sur deux axes, comme dans Fichiers ou Google Drive : **où** (la colonne :
- * toute la bibliothèque, les récents, les favoris, ce qu'on partage avec moi) et **quoi** (les puces : tout, ou un seul
- * genre). Les deux se combinent : les photos parmi les favoris, les pages récentes.
+ * Ce que la bibliothèque montre se choisit sur deux axes, comme dans Fichiers ou Google Drive : **où** (la colonne : la
+ * bibliothèque rangée, sa racine ou un de ses dossiers, puis les récents, les favoris, ce qu'on partage avec moi) et
+ * **quoi** (les puces : tout, ou un seul genre). Les deux se combinent : les photos parmi les favoris, les pages d'un
+ * dossier.
+ *
+ * La bibliothèque s'ouvre sur sa racine (« Mon espace ») : ce qui y est rangé, et rien d'autre. Ce qu'on crée sans
+ * dossier y va, ce qu'on crée dans un dossier y reste ; les récents ne sont qu'un raccourci vers ce qu'on a touché, qui
+ * dit où chaque chose est rangée.
  */
 
-/** Où l'on regarde. */
+/** Où l'on regarde : `tout`, la bibliothèque rangée (sa racine, ou le dossier que dit `Vue.dossier`). */
 export const PORTEES = ['tout', 'recents', 'favoris', 'partages'] as const
 export type Portee = (typeof PORTEES)[number]
 
@@ -22,7 +27,10 @@ export const PLURIEL: Record<Genre, string> = { toile: 'toiles', document: 'docu
 /** Les récents s'arrêtent là : au-delà, on passe par la bibliothèque entière. */
 export const RECENTS_MAX = 60
 
-/** Ce que la portée garde, avant les puces ; les récents, seulement ce qu'on a ouvert, et pas plus de `RECENTS_MAX`. */
+/**
+ * Ce que la portée garde, avant les puces : `tout`, toute la bibliothèque à plat (ce que lit la recherche) ; les
+ * récents, seulement ce qu'on a ouvert.
+ */
 export function dansLaPortee(portee: Portee, entrees: readonly EntreeBibliotheque[]): EntreeBibliotheque[] {
   switch (portee) {
     case 'tout':
@@ -43,10 +51,10 @@ export const duFiltre = (filtre: Filtre, entrees: readonly EntreeBibliotheque[])
 export const PIECES: ReadonlySet<Genre> = new Set<Genre>(['image', 'lien', 'fichier'])
 
 /**
- * Ce que les puces gardent, là où l'on est. Dans toute la bibliothèque et dans les récents se mêle ce que portent toutes
- * les toiles : « Tout » y garde ce qui s'ouvre (toiles, dossiers, pages, cartes mentales), et les photos, liens et
- * fichiers restent sous leur puce, comme les pièces jointes d'un message. Dans un dossier ou parmi les favoris, ils
- * ont été rangés ou choisis un à un : « Tout » les montre, comme le Finder tout ce qu'un dossier contient.
+ * Ce que les puces gardent, là où l'on est. Dans les récents se mêle ce que portent toutes les toiles : « Tout » y garde
+ * ce qui s'ouvre (toiles, dossiers, pages, cartes mentales), et les photos, liens et fichiers restent sous leur puce,
+ * comme les pièces jointes d'un message. Dans la racine, un dossier ou parmi les favoris, ils ont été rangés ou choisis
+ * un à un : « Tout » les montre, comme le Finder tout ce qu'un dossier contient.
  */
 export function parLesPuces(vue: Vue, entrees: readonly EntreeBibliotheque[]): EntreeBibliotheque[] {
   if (vue.filtre !== 'tout') return duFiltre(vue.filtre, entrees)
@@ -55,17 +63,11 @@ export function parLesPuces(vue: Vue, entrees: readonly EntreeBibliotheque[]): E
 }
 
 /**
- * Où montrer ce qui vient d'arriver (un import) quand la vue ne le montre pas : les récents, qui prennent ce qu'on
- * touche, sous la puce de leur genre si ce sont des pièces d'un même genre ; des pièces mêlées, dans la toile où elles
- * sont posées, parcourue comme un dossier, qui montre tout ce qu'elle porte.
+ * Où montrer ce qui vient d'arriver (un import) quand la vue ne le montre pas : là où c'est rangé, la racine, le dossier
+ * ou la toile qui l'a pris (parcourue comme un dossier, qui montre tout ce qu'elle porte), et non les récents, qui ne
+ * diraient pas où le retrouver.
  */
-export function vueDeLArrivee(entrees: readonly Pick<EntreeBibliotheque, 'genre'>[], dans: string): Vue {
-  const genres = new Set(entrees.map((e) => e.genre))
-  const pieces = [...genres].filter((g) => PIECES.has(g))
-  if (pieces.length === 0) return { portee: 'recents', filtre: 'tout' }
-  if (genres.size === 1) return { portee: 'recents', filtre: pieces[0]! }
-  return { portee: 'tout', filtre: 'tout', dossier: dans }
-}
+export const vueDeLArrivee = (dans: string): Vue => ({ portee: 'tout', filtre: 'tout', dossier: dans })
 
 /** Combien chaque puce en garderait, dans cette portée : une puce sans rien se grise. */
 export function compterParGenre(entrees: readonly EntreeBibliotheque[]): Record<Filtre, number> {
@@ -74,7 +76,10 @@ export function compterParGenre(entrees: readonly EntreeBibliotheque[]): Record<
   return n
 }
 
-/** La vue qu'on regarde : où, et quoi ; `dossier`, une toile qu'on parcourt, tient lieu de portée. */
+/**
+ * La vue qu'on regarde : où, et quoi ; `dossier`, une toile qu'on parcourt (la racine comprise), tient lieu de portée.
+ * La bibliothèque rangée, c'est `{ portee: 'tout', dossier }` : sans `dossier`, il n'y a que la recherche à plat.
+ */
 export interface Vue {
   portee: Portee
   filtre: Filtre
@@ -93,25 +98,84 @@ export const estDossier = (e: Pick<EntreeBibliotheque, 'element' | 'resume'>) =>
  */
 export const genere = (e: Pick<EntreeBibliotheque, 'element' | 'outil'>) => e.element === null && e.outil !== undefined
 
-/** Ce qu'une toile porte directement : les toiles qu'elle range, et ses pages, cartes, photos, liens et fichiers. */
-export const contenuDuDossier = (id: string, entrees: readonly EntreeBibliotheque[]) => entrees.filter((e) => e.dans === id && !(e.element === null && e.tableau === id))
+/**
+ * Une toile à soi que rien ne range : sans carte sur une toile qu'on lit, ni parent en base qu'on lise. La racine la
+ * montre, comme la toile ouverte la met sous « Mon espace » dans son fil : rien ne doit se trouver seulement par les
+ * récents. Une toile qu'on nous partage sans ce qui la range reste dans « Partagés avec moi ».
+ */
+export const sansPlace = (e: Pick<EntreeBibliotheque, 'element' | 'dans' | 'partage'>) => e.element === null && e.dans === null && !e.partage
+
+/**
+ * Ce qu'une toile porte directement : les toiles qu'elle range, et ses pages, cartes, photos, liens et fichiers. La
+ * racine (`racine`) porte aussi les toiles à soi que rien ne range (`sansPlace`).
+ */
+export const contenuDuDossier = (id: string, entrees: readonly EntreeBibliotheque[], racine?: string | null) =>
+  entrees.filter((e) => (e.dans === id || (id === racine && sansPlace(e))) && !(e.element === null && e.tableau === id))
+
+// ---- L'ordre de la bibliothèque ----
+
+/**
+ * Comment la racine et les dossiers s'ordonnent, les dossiers toujours d'abord (par nom, comme l'arbre de la colonne) :
+ * le reste par date de création, la plus récente d'abord (ce qu'on vient de créer arrive en tête, juste après les
+ * dossiers), ou par nom. Jamais par dernière ouverture : ouvrir ou changer quelque chose ne le déplace pas, c'est
+ * l'affaire des récents. Le choix vaut pour tous les dossiers.
+ */
+export const TRIS = ['creation', 'nom'] as const
+export type Tri = (typeof TRIS)[number]
+
+/** L'alphabet des identifiants (`nouvelId`) : la base 32 de Crockford. */
+const BASE32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
+const ID_DATE = /^[0-9A-HJKMNP-TV-Z]{26}$/
+/** Avant, ce n'est pas une date de Notak : un identifiant venu d'ailleurs qui ressemblerait à l'un des siens. */
+const DEPUIS = Date.UTC(2020, 0, 1)
+
+/**
+ * Quand une toile ou un élément est né, d'après son identifiant : ses dix premiers signes disent l'instant de sa création
+ * (`nouvelId`). Un élément qu'on déplace renaît dans la toile qui le prend ; une toile garde sa date. `null` pour un
+ * identifiant d'une autre forme (une racine, un import d'ailleurs).
+ */
+export function neLe(e: Pick<EntreeBibliotheque, 'tableau' | 'element'>, maintenant = Date.now()): number | null {
+  const id = e.element ?? e.tableau
+  if (!ID_DATE.test(id)) return null
+  let t = 0
+  for (const c of id.slice(0, 10)) t = t * 32 + BASE32.indexOf(c)
+  return t >= DEPUIS && t <= maintenant + 86_400_000 ? t : null
+}
+
+const parNom = (a: EntreeBibliotheque, b: EntreeBibliotheque) =>
+  (a.titre || '\uffff').localeCompare(b.titre || '\uffff', undefined, { sensitivity: 'base', numeric: true })
+const parCle = (a: EntreeBibliotheque, b: EntreeBibliotheque) => {
+  const x = `${a.tableau}/${a.element ?? ''}`
+  const y = `${b.tableau}/${b.element ?? ''}`
+  return x < y ? -1 : x > y ? 1 : 0
+}
+
+/** Les entrées d'un endroit, dans l'ordre où il les montre : les dossiers par nom, puis le reste selon `tri`. */
+export function ordonner(entrees: readonly EntreeBibliotheque[], tri: Tri, maintenant = Date.now()): EntreeBibliotheque[] {
+  const date = new Map(entrees.map((e) => [e, neLe(e, maintenant) ?? -1]))
+  return [...entrees].sort((a, b) => {
+    const da = estDossier(a)
+    const db = estDossier(b)
+    if (da !== db) return da ? -1 : 1
+    if (da || tri === 'nom') return parNom(a, b) || date.get(b)! - date.get(a)! || parCle(a, b)
+    return date.get(b)! - date.get(a)! || parNom(a, b) || parCle(a, b)
+  })
+}
 
 /** Au plus tant d'entrées dans l'aperçu d'un dossier : quatre petites vignettes, comme le Finder ou Drive. */
 export const APERCU_MAX = 4
 
 /**
  * Les entrées, chaque dossier portant l'aperçu de ce qu'il range (`resume.apercu`) : ses premières entrées dans l'ordre
- * où il les montre ouvert, la plus récente d'abord, puis par titre. Sa vignette le distingue ainsi des autres ; vide, il
- * n'en a pas. Un dossier rangé dans un autre s'y montre par son icône : pas d'aperçu dans l'aperçu.
+ * où il les montre ouvert, par défaut (`ordonner`, par date de création). Sa vignette le distingue ainsi des autres ;
+ * vide, il n'en a pas. Un dossier rangé dans un autre s'y montre par son icône : pas d'aperçu dans l'aperçu.
  */
 export function avecApercus(entrees: EntreeBibliotheque[]): EntreeBibliotheque[] {
   const contenus = new Map(entrees.filter(estDossier).map((e) => [e.tableau, [] as EntreeBibliotheque[]]))
   if (contenus.size === 0) return entrees
   for (const e of entrees) if (e.dans && !(e.element === null && e.tableau === e.dans)) contenus.get(e.dans)?.push(e)
-  const ordre = (a: EntreeBibliotheque, b: EntreeBibliotheque) =>
-    (b.vu ?? -1) - (a.vu ?? -1) || (a.titre || '\uffff').localeCompare(b.titre || '\uffff', undefined, { sensitivity: 'base', numeric: true })
   return entrees.map((e) => {
-    const contenu = estDossier(e) ? contenus.get(e.tableau)!.sort(ordre).slice(0, APERCU_MAX) : []
+    const contenu = estDossier(e) ? ordonner(contenus.get(e.tableau)!, 'creation').slice(0, APERCU_MAX) : []
     if (contenu.length === 0) return e
     const apercu = contenu.map(({ tableau, resume: { apercu: _, ...resume } }) => ({ tableau, resume }))
     return { ...e, resume: { ...e.resume, apercu } }
@@ -166,17 +230,19 @@ export function arbreDesDossiers(entrees: readonly EntreeBibliotheque[], racine:
 const ANCIENNES: Record<string, Genre> = Object.fromEntries(Object.entries(PLURIEL).map(([genre, pluriel]) => [pluriel, genre as Genre]))
 
 /**
- * La vue que dit l'adresse (`?vue=favoris&type=image`), ou `null` pour la portée si elle n'en dit rien : la page choisit
- * alors (les récents, sinon tout). Une ancienne adresse d'un seul genre (`?vue=photos`) se lit encore.
+ * La vue que dit l'adresse (`?vue=favoris&type=image`, `?dossier=…`). Sans portée ni dossier, c'est la racine (`/`), où
+ * la bibliothèque s'ouvre ; `?vue=tout`, d'avant, et une ancienne adresse d'un seul genre (`?vue=photos`) y mènent aussi.
+ * `racine` : la toile d'accueil de l'espace, qui tient la racine ; sans elle, la vue reste à plat.
  */
-export function lireVue(recherche: string): { portee: Portee | null; filtre: Filtre; dossier?: string } {
+export function lireVue(recherche: string, racine: string | null): Vue {
   const p = new URLSearchParams(recherche)
   const dossier = p.get('dossier')
   const vue = p.get('vue') ?? ''
   const type = p.get('type') ?? ''
-  const filtre: Filtre = (TYPES as readonly string[]).includes(type) ? (type as Genre) : 'tout'
-  if (ANCIENNES[vue]) return { portee: 'tout', filtre: ANCIENNES[vue] }
-  return { portee: (PORTEES as readonly string[]).includes(vue) ? (vue as Portee) : null, filtre, ...(dossier ? { dossier } : {}) }
+  const filtre: Filtre = ANCIENNES[vue] ?? ((TYPES as readonly string[]).includes(type) ? (type as Genre) : 'tout')
+  const ou = dossier ?? racine
+  const portee = !dossier && (PORTEES as readonly string[]).includes(vue) ? (vue as Portee) : 'tout'
+  return portee === 'tout' && ou ? { portee, filtre, dossier: ou } : { portee, filtre }
 }
 
 /**
@@ -186,11 +252,11 @@ export function lireVue(recherche: string): { portee: Portee | null; filtre: Fil
  */
 export const memeEndroit = (a: Vue, b: Vue): boolean => (a.dossier || b.dossier ? a.dossier === b.dossier : a.portee === b.portee)
 
-/** L'adresse d'une vue : `/` pour les récents sans filtre, sinon ce qui la redit ; un dossier, `?dossier=<id>`. */
-export function adresseDeLaVue({ portee, filtre, dossier }: Vue): string {
+/** L'adresse d'une vue : `/` pour la racine (`racine`) sans filtre, sinon ce qui la redit ; un dossier, `?dossier=<id>`. */
+export function adresseDeLaVue({ portee, filtre, dossier }: Vue, racine?: string | null): string {
   const p = new URLSearchParams()
-  if (dossier) p.set('dossier', dossier)
-  else if (portee !== 'recents') p.set('vue', portee)
+  if (dossier && dossier !== racine) p.set('dossier', dossier)
+  else if (!dossier && portee !== 'tout') p.set('vue', portee)
   if (filtre !== 'tout') p.set('type', filtre)
   const q = p.toString()
   return q ? `/?${q}` : '/'

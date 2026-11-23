@@ -68,3 +68,11 @@ fil des changements ; `bun run nouvelle-version x.y.z` en fait la section de la 
 - **Ce que l'agent crée s'ouvre d'un clic** : sous sa réponse, une puce « Ouvrir « … » » par page, carte mentale ou
   toile qu'il vient de faire. Quand vous lui demandez de l'ouvrir, il vous y mène, une fois, dans la fenêtre d'où vous
   lui avez écrit ; refermer la page vous ramène où vous étiez.
+- **La bibliothèque s'ouvre sur « Mon espace »**, et on sait toujours où est une toile : n'y paraît que ce qui y est
+  rangé, les dossiers d'abord, puis le plus récemment créé. Ce qui est créé sans dossier, d'où que ce soit (la
+  bibliothèque, les récents, l'agent), y arrive en tête, et ce qui est créé dans un dossier y reste. Créé depuis la
+  bibliothèque, le retour vous y ramène, la tuile signalée. Ouvrir quelque chose ne le déplace plus ; « Nom » range
+  tout par ordre alphabétique. Le tableau de bord qui mêlait le contenu de tous les dossiers disparaît.
+- **Les récents deviennent une liste**, jour par jour, sans vignettes : chaque ligne dit où la chose est rangée (un
+  clic y mène, la tuile choisie) et quand vous l'avez ouverte. Au téléphone, « Récents », « Favoris » et « Partagés »
+  ont chacun leur carte sous le titre.

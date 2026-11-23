@@ -1183,6 +1183,15 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   --notak-coin-droit: 60px;
 }
 
+/* La bibliothèque lui laisse le bas de sa page : la dernière ligne, ou la dernière tuile, défile au-dessus d'elle. */
+:root[data-bulle-agent] .biblio > .biblio-corps {
+  padding-bottom: 96px;
+}
+
+:root[data-bulle-agent] .biblio-locale {
+  padding-bottom: calc(var(--notak-zone-bas, 0px) + 88px);
+}
+
 .bulle-agent {
   position: fixed;
   right: calc(16px + var(--notak-zone-droite, 0px));
@@ -3827,11 +3836,6 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 }
 
 /* Rien de ce genre ici : la puce reste, plus pâle. */
-.biblio-puce[data-vide]:not([aria-pressed='true']) {
-  color: var(--biblio-pale);
-  box-shadow: none;
-}
-
 .biblio-puce:focus-visible {
   outline: 2px solid var(--notak-accent, #2f6feb);
   outline-offset: 1px;
@@ -3856,60 +3860,6 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   color: var(--biblio-pale);
   font-size: 13px;
   font-weight: 600;
-}
-
-.biblio-section h2 a {
-  color: inherit;
-  text-decoration: none;
-}
-
-/*
- * « Reprendre », en tête de l'accueil de la bibliothèque : une seule rangée, qui défile de côté, comme celle des Notes
- * ou de Freeform ; en liste, elle reste une liste. Les marges laissent la place à l'ombre et au relief du survol.
- */
-.biblio-section[data-rail] .biblio-grille[data-affichage='grille'] {
-  grid-auto-columns: minmax(168px, 206px);
-  grid-auto-flow: column;
-  grid-template-columns: none;
-  margin: -6px -6px 0;
-  padding: 6px 6px 12px;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scroll-snap-type: x proximity;
-}
-
-.biblio-section[data-rail] .biblio-grille[data-affichage='grille'] > li {
-  scroll-snap-align: start;
-}
-
-/* « Tout voir » d'une rubrique de l'accueil : au bout de son titre, à la couleur des liens. */
-.biblio-voir {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  margin-left: auto;
-  padding: 4px 6px;
-  border: 0;
-  border-radius: 8px;
-  background: none;
-  color: var(--notak-accent, #2f6feb);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.biblio-voir:hover {
-  background: var(--biblio-survol);
-}
-
-.biblio-voir:focus-visible {
-  outline: 2px solid var(--notak-accent, #2f6feb);
-  outline-offset: 1px;
-}
-
-.biblio-section h2 a:hover {
-  color: var(--notak-texte, #323b4a);
-  text-decoration: underline;
 }
 
 .biblio-grille {
@@ -4414,19 +4364,202 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   display: none;
 }
 
-.biblio-section h2[data-survol-depot],
+/*
+ * Les récents (LigneRecente) : des lignes de texte, sans vignette, qu'on ne confond jamais avec le rangement. De gauche
+ * à droite, la pastille du genre, le titre, où c'est rangé, quand on l'a ouvert, et « ••• » au survol ; une chronologie,
+ * pas un tableau : ni en-têtes ni traits, l'espace sépare les lignes, les jours font les sections.
+ */
+.biblio-grille[data-affichage='recents'] {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 960px;
+}
+
+.biblio-grille[data-affichage='recents'] .biblio-tuile {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) minmax(0, 15rem) 4.5rem 30px;
+  align-items: center;
+  gap: 0 14px;
+  min-height: 48px;
+  padding: 6px 8px;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.biblio-recent-pastille {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+}
+
+.biblio-recent .biblio-tuile-titre {
+  font-weight: 500;
+}
+
+/* Sur une ligne de bureau, l'endroit et le moment ont chacun leur colonne. */
+.biblio-recent-detail {
+  display: contents;
+}
+
+.biblio-recent-ou {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
+  margin-left: -6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--biblio-pale);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.biblio-recent-ou svg {
+  flex: none;
+}
+
+.biblio-recent-ou span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.biblio-recent-ou:hover {
+  background: var(--biblio-survol);
+  color: var(--notak-texte, #323b4a);
+}
+
+button.biblio-recent-ou:focus-visible {
+  outline: 2px solid var(--notak-accent, #2f6feb);
+  outline-offset: 1px;
+}
+
+.biblio-recent-quand {
+  overflow: hidden;
+  color: var(--biblio-pale);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.biblio-grille[data-affichage='recents'] .biblio-tuile-plus {
+  position: static;
+  width: 28px;
+  height: 28px;
+  box-shadow: none;
+  background: none;
+}
+
+.biblio-grille[data-affichage='recents'] .biblio-tuile-plus:hover {
+  background: var(--biblio-survol);
+}
+
+.biblio-grille[data-affichage='recents'] .biblio-tuile-case {
+  position: static;
+  grid-column: 5;
+  border-color: color-mix(in srgb, var(--notak-texte, #323b4a) 30%, transparent);
+  background: none;
+  box-shadow: none;
+}
+
+.biblio-grille[data-affichage='recents'] .biblio-renommer {
+  max-width: 100%;
+  text-align: left;
+}
+
+.biblio-grille[data-affichage='recents'] .biblio-tuile:hover {
+  background: var(--biblio-survol);
+}
+
+.biblio-grille[data-affichage='recents'] .biblio-tuile[aria-selected='true'] {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.biblio-grille[data-affichage='recents'] .biblio-tuile[aria-selected='true'] .biblio-tuile-titre {
+  margin: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+}
+
+.biblio-grille[data-affichage='recents'] .biblio-tuile[data-arrivee] {
+  animation: biblio-arrivee 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* L'attente des récents : des lignes, la forme de ce qui vient. */
+.biblio-grille[data-affichage='recents'] .biblio-attente {
+  flex-direction: row;
+  gap: 14px;
+  min-height: 48px;
+  padding: 0 8px;
+}
+
+.biblio-grille[data-affichage='recents'] .biblio-attente span {
+  width: 32px;
+  height: 32px;
+  aspect-ratio: auto;
+  border-radius: 9px;
+}
+
+.biblio-grille[data-affichage='recents'] .biblio-attente span + span {
+  width: 40%;
+  height: 12px;
+}
+
+/* Une fenêtre étroite : l'endroit et le moment passent sous le titre, comme au doigt. */
+@media (max-width: 760px) {
+  .biblio-grille[data-affichage='recents'] .biblio-tuile {
+    grid-template-areas: 'pastille titre plus' 'pastille detail plus';
+    grid-template-columns: 32px minmax(0, 1fr) 30px;
+    gap: 0 12px;
+  }
+
+  .biblio-recent-pastille {
+    grid-area: pastille;
+  }
+
+  .biblio-recent .biblio-tuile-titre,
+  .biblio-grille[data-affichage='recents'] .biblio-renommer {
+    grid-area: titre;
+    align-self: end;
+  }
+
+  .biblio-recent-detail {
+    grid-area: detail;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .biblio-recent-ou {
+    margin: 0;
+    padding: 0;
+  }
+
+  .biblio-recent-quand::before {
+    content: '·';
+    margin: 0 6px;
+  }
+
+  .biblio-grille[data-affichage='recents'] .biblio-tuile-plus,
+  .biblio-grille[data-affichage='recents'] .biblio-tuile-case {
+    grid-area: plus;
+  }
+}
+
 .biblio-rubrique[data-survol-depot] {
   border-radius: 8px;
   background: color-mix(in srgb, var(--accent) 14%, transparent);
   box-shadow: 0 0 0 2px var(--accent);
   color: var(--texte);
-}
-
-.biblio-section h2[data-depot] {
-  align-self: flex-start;
-  width: fit-content;
-  margin-left: -6px;
-  padding: 2px 6px;
 }
 
 .biblio-cadre {
@@ -4455,12 +4588,6 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   text-align: center;
   -webkit-user-select: text;
   user-select: text;
-}
-
-.biblio-section h2 .biblio-renommer {
-  max-width: 280px;
-  font-size: 13px;
-  text-align: left;
 }
 
 /* Ce qu'on glisse : la vignette de tête, inclinée, et le nombre emporté. */
@@ -6389,29 +6516,9 @@ button.biblio-arbre-chevron:hover {
   line-height: 26px;
 }
 
-/* Plus lourd que `.biblio-locale button`, qui rend la couleur du texte à tout bouton. */
-.biblio-unie .biblio-voir {
-  color: var(--notak-accent, #2f6feb);
-  font-size: 15px;
-  font-weight: 500;
-}
-
 .biblio-unie .biblio-grille {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px 12px;
-}
-
-.biblio-unie .biblio-section[data-rail] .biblio-grille[data-affichage='grille'] {
-  grid-auto-columns: calc((100% - 12px) * 0.44);
-  gap: 12px;
-  margin: -6px calc(-1 * var(--biblio-gouttiere)) 0;
-  padding: 6px var(--biblio-gouttiere) 8px;
-  scroll-padding: 0 var(--biblio-gouttiere);
-  scrollbar-width: none;
-}
-
-.biblio-unie .biblio-section[data-rail] .biblio-grille::-webkit-scrollbar {
-  display: none;
 }
 
 .biblio-unie .biblio-tuile-titre {
@@ -6422,8 +6529,105 @@ button.biblio-arbre-chevron:hover {
   font-size: 13px;
 }
 
-.biblio-locale-filtre[data-vide]:not([aria-pressed='true']) {
-  color: var(--biblio-discret) !important;
+/*
+ * Les récents au doigt : les lignes de la recherche (pastille de 36 px, titre de 15 px, détail « Clients · 14:32 »,
+ * 56 px de haut) ; l'endroit est au menu de l'appui long, pas une petite cible à part.
+ */
+.biblio-unie .biblio-grille[data-affichage='recents'] {
+  display: flex;
+  gap: 0;
+}
+
+.biblio-unie .biblio-grille[data-affichage='recents'] .biblio-tuile {
+  grid-template-areas: 'pastille titre plus' 'pastille detail plus';
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 0 12px;
+  min-height: 56px;
+  padding: 6px 0;
+  border-radius: 0;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--notak-texte) 8%, transparent);
+}
+
+.biblio-unie .biblio-grille[data-affichage='recents'] .biblio-tuile:hover {
+  background: none;
+}
+
+.biblio-unie .biblio-recent-pastille {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.biblio-unie .biblio-recent .biblio-tuile-titre {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.biblio-unie .biblio-recent-ou,
+.biblio-unie .biblio-recent-quand {
+  color: var(--biblio-discret);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+/*
+ * Sous le titre de la racine, au doigt : les récents, les favoris et les partages, chacun sa page. Trois cartes, comme
+ * les listes de Rappels : l'icône et le nombre en haut, le nom dessous.
+ */
+.biblio-portes {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 10px;
+  margin: 0 0 24px;
+}
+
+.biblio-porte {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: 'icone nombre' 'nom nom';
+  align-items: center;
+  gap: 8px 6px;
+  min-height: 68px;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 14px;
+  background: var(--notak-carte, #fff);
+  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.05);
+  text-align: left;
+}
+
+.biblio-porte svg {
+  grid-area: icone;
+  color: var(--notak-accent, #2f6feb);
+}
+
+.biblio-porte span {
+  grid-area: nom;
+  overflow: hidden;
+  font-size: 15px !important;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.biblio-porte small {
+  grid-area: nombre;
+  justify-self: end;
+  color: var(--biblio-discret);
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.biblio-porte:active {
+  opacity: 0.6;
+}
+
+[data-theme='sombre'] .biblio-porte {
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.06);
 }
 
 /* Dans un dossier : d'où l'on vient, à gauche, comme le retour d'iOS ; « Ouvrir la toile » à droite. */

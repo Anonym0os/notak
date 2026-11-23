@@ -16,7 +16,10 @@ import {
   lireAffichage,
   lireVue,
   memeEndroit,
+  neLe,
+  ordonner,
   parLesPuces,
+  sansPlace,
   vueDeLArrivee,
 } from './modele'
 
@@ -56,7 +59,7 @@ describe('« Tout »', () => {
   ]
   const ids = (l: EntreeBibliotheque[]) => l.map((e) => e.element ?? e.tableau)
 
-  it('dans toute la bibliothèque et les récents, garde ce qui s’ouvre ; les photos, liens et fichiers restent sous leur puce', () => {
+  it('dans les récents (et la recherche, à plat), garde ce qui s’ouvre ; les photos, liens et fichiers restent sous leur puce', () => {
     expect(ids(parLesPuces({ portee: 'tout', filtre: 'tout' }, MELEES))).toEqual(['voyage', 'notes'])
     expect(ids(parLesPuces({ portee: 'recents', filtre: 'tout' }, MELEES))).toEqual(['voyage', 'notes'])
     expect(ids(parLesPuces({ portee: 'tout', filtre: 'image' }, MELEES))).toEqual(['port'])
@@ -70,29 +73,75 @@ describe('« Tout »', () => {
     expect(ids(parLesPuces({ portee: 'favoris', filtre: 'tout' }, dansLaPortee('favoris', MELEES)))).toEqual(['port'])
   })
 
-  it('ce qui arrive se montre dans les récents, sous la puce de son genre ; des pièces mêlées, dans la toile qui les a prises', () => {
-    expect(vueDeLArrivee([{ genre: 'document' }, { genre: 'toile' }], 'voyage')).toEqual({ portee: 'recents', filtre: 'tout' })
-    expect(vueDeLArrivee([{ genre: 'image' }, { genre: 'image' }], 'voyage')).toEqual({ portee: 'recents', filtre: 'image' })
-    expect(vueDeLArrivee([{ genre: 'image' }, { genre: 'fichier' }], 'voyage')).toEqual({ portee: 'tout', filtre: 'tout', dossier: 'voyage' })
-    expect(vueDeLArrivee([{ genre: 'image' }, { genre: 'document' }], 'voyage')).toEqual({ portee: 'tout', filtre: 'tout', dossier: 'voyage' })
+  it('ce qui arrive se montre là où c’est rangé, la toile qui l’a pris parcourue comme un dossier, jamais dans les récents', () => {
+    expect(vueDeLArrivee('voyage')).toEqual({ portee: 'tout', filtre: 'tout', dossier: 'voyage' })
   })
 })
 
 describe('l’adresse de la vue', () => {
-  it('se lit, et se réécrit ; les récents sans filtre, c’est la racine', () => {
-    expect(lireVue('?vue=favoris&type=image')).toEqual({ portee: 'favoris', filtre: 'image' })
-    expect(lireVue('')).toEqual({ portee: null, filtre: 'tout' })
-    expect(lireVue('?vue=nimporte&type=quoi')).toEqual({ portee: null, filtre: 'tout' })
-    expect(adresseDeLaVue({ portee: 'recents', filtre: 'tout' })).toBe('/')
-    expect(adresseDeLaVue({ portee: 'tout', filtre: 'arbre' })).toBe('/?vue=tout&type=arbre')
-    expect(adresseDeLaVue({ portee: 'recents', filtre: 'lien' })).toBe('/?type=lien')
+  it('se lit, et se réécrit ; `/`, c’est la racine, où la bibliothèque s’ouvre', () => {
+    expect(lireVue('', 'accueil')).toEqual({ portee: 'tout', filtre: 'tout', dossier: 'accueil' })
+    expect(lireVue('?type=toile', 'accueil')).toEqual({ portee: 'tout', filtre: 'toile', dossier: 'accueil' })
+    expect(lireVue('?vue=recents', 'accueil')).toEqual({ portee: 'recents', filtre: 'tout' })
+    expect(lireVue('?vue=favoris&type=image', 'accueil')).toEqual({ portee: 'favoris', filtre: 'image' })
+    expect(lireVue('?vue=nimporte&type=quoi', 'accueil')).toEqual({ portee: 'tout', filtre: 'tout', dossier: 'accueil' })
+    // Sans racine (pas d'espace), rien que la bibliothèque à plat.
+    expect(lireVue('', null)).toEqual({ portee: 'tout', filtre: 'tout' })
+    expect(adresseDeLaVue({ portee: 'tout', filtre: 'tout', dossier: 'accueil' }, 'accueil')).toBe('/')
+    expect(adresseDeLaVue({ portee: 'tout', filtre: 'arbre', dossier: 'accueil' }, 'accueil')).toBe('/?type=arbre')
+    expect(adresseDeLaVue({ portee: 'recents', filtre: 'tout' }, 'accueil')).toBe('/?vue=recents')
+    expect(adresseDeLaVue({ portee: 'favoris', filtre: 'lien' }, 'accueil')).toBe('/?vue=favoris&type=lien')
   })
 
-  it('une ancienne adresse d’un seul genre ouvre la bibliothèque, filtrée', () => {
-    expect(lireVue('?vue=toiles')).toEqual({ portee: 'tout', filtre: 'toile' })
-    expect(lireVue('?vue=cartes')).toEqual({ portee: 'tout', filtre: 'arbre' })
-    expect(lireVue('?vue=documents')).toEqual({ portee: 'tout', filtre: 'document' })
-    expect(lireVue('?vue=photos')).toEqual({ portee: 'tout', filtre: 'image' })
+  it('`?dossier=` de la racine, et `?vue=tout` d’avant, y mènent aussi ; une ancienne adresse d’un seul genre, filtrée', () => {
+    expect(lireVue('?dossier=accueil', 'accueil')).toEqual({ portee: 'tout', filtre: 'tout', dossier: 'accueil' })
+    expect(lireVue('?vue=tout&type=arbre', 'accueil')).toEqual({ portee: 'tout', filtre: 'arbre', dossier: 'accueil' })
+    expect(lireVue('?vue=toiles', 'accueil')).toEqual({ portee: 'tout', filtre: 'toile', dossier: 'accueil' })
+    expect(lireVue('?vue=cartes', 'accueil')).toEqual({ portee: 'tout', filtre: 'arbre', dossier: 'accueil' })
+    expect(lireVue('?vue=documents', 'accueil')).toEqual({ portee: 'tout', filtre: 'document', dossier: 'accueil' })
+    expect(lireVue('?vue=photos', 'accueil')).toEqual({ portee: 'tout', filtre: 'image', dossier: 'accueil' })
+  })
+})
+
+describe('l’ordre de la bibliothèque', () => {
+  /** Un identifiant de Notak né à cet instant (`nouvelId`) : dix signes de date, seize de hasard. */
+  const neA = (ms: number, suite = 'AAAAAAAAAAAAAAAA') => {
+    let date = ''
+    for (let t = ms, i = 0; i < 10; i++, t = Math.floor(t / 32)) date = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'[t % 32] + date
+    return date + suite
+  }
+  const MAINTENANT = Date.UTC(2026, 10, 23, 12)
+  const HEURE = 3_600_000
+  const toile = (titre: string, ms: number | null, plus: Partial<EntreeBibliotheque> = {}) => entree({ tableau: ms === null ? `vieux-${titre}` : neA(ms), titre, ...plus })
+  const dossier = (titre: string, ms: number) =>
+    entree({ tableau: neA(ms, 'BBBBBBBBBBBBBBBB'), titre, resume: { genre: 'toile', element: '', titre, boites: [], dossier: true } })
+
+  it('la date de création se lit dans l’identifiant ; un identifiant d’une autre forme n’en dit rien', () => {
+    expect(neLe({ tableau: neA(MAINTENANT - HEURE), element: null }, MAINTENANT)).toBe(MAINTENANT - HEURE)
+    // Un élément : son identifiant à lui (il renaît dans la toile où on le déplace).
+    expect(neLe({ tableau: neA(0), element: neA(MAINTENANT - 2 * HEURE) }, MAINTENANT)).toBe(MAINTENANT - 2 * HEURE)
+    expect(neLe({ tableau: 'bb8fae71-0420-404e-8324-3a9ef12a98bc', element: null }, MAINTENANT)).toBeNull()
+    expect(neLe({ tableau: 'voyage', element: null }, MAINTENANT)).toBeNull()
+    // Une date d'avant Notak, ou à venir, n'en est pas une.
+    expect(neLe({ tableau: neA(Date.UTC(2019, 0, 1)), element: null }, MAINTENANT)).toBeNull()
+    expect(neLe({ tableau: neA(MAINTENANT + 3 * 86_400_000), element: null }, MAINTENANT)).toBeNull()
+  })
+
+  it('les dossiers d’abord, par nom ; puis le reste, la création la plus récente d’abord, ou par nom', () => {
+    const l = [
+      toile('Budget', MAINTENANT - 3 * HEURE),
+      dossier('Projets', MAINTENANT - 9 * HEURE),
+      toile('atelier', MAINTENANT - HEURE),
+      toile('Ancienne', null),
+      dossier('Clients', MAINTENANT),
+      toile('Voyage', MAINTENANT - 2 * HEURE, { vu: MAINTENANT }),
+    ]
+    const titres = (x: EntreeBibliotheque[]) => x.map((e) => e.titre)
+    // Ouvrir « Voyage » à l'instant ne le fait pas monter : l'ordre des récents n'est pas celui du rangement.
+    expect(titres(ordonner(l, 'creation', MAINTENANT))).toEqual(['Clients', 'Projets', 'atelier', 'Voyage', 'Budget', 'Ancienne'])
+    expect(titres(ordonner(l, 'nom', MAINTENANT))).toEqual(['Clients', 'Projets', 'Ancienne', 'atelier', 'Budget', 'Voyage'])
+    // Ce qu'on vient de créer arrive en tête, juste après les dossiers.
+    expect(titres(ordonner([...l, toile('Neuve', MAINTENANT - 1000)], 'creation', MAINTENANT)).slice(0, 3)).toEqual(['Clients', 'Projets', 'Neuve'])
   })
 })
 
@@ -125,21 +174,31 @@ describe('les dossiers', () => {
     expect(contenuDuDossier('voyage', MONDE).map((e) => e.element)).toEqual(['billets'])
   })
 
-  it('un dossier porte l’aperçu de ce qu’il range : ses quatre premières entrées, la plus récente d’abord, puis par titre', () => {
-    const photo = (element: string, vu: number | null) =>
-      entree({ tableau: 'voyage', element, genre: 'image', titre: element, dans: 'voyage', vu, resume: { genre: 'image', element, titre: element, fichier: element, largeur: 4, hauteur: 3 } })
-    const monde = [...MONDE, photo('kyoto', null), photo('nara', 5), photo('osaka', 9), photo('aso', null), photo('fuji', null)]
+  it('la racine montre aussi les toiles à soi que rien ne range ; une toile partagée sans ce qui la range reste dans les partages', () => {
+    const egaree = entree({ tableau: 'egaree', dans: null })
+    const partagee = entree({ tableau: 'partagee', dans: null, partage: true })
+    const monde = [...MONDE, egaree, partagee]
+    expect([egaree, partagee, MONDE[0]!].map(sansPlace)).toEqual([true, false, false])
+    expect(contenuDuDossier('accueil', monde, 'accueil').map((e) => e.tableau)).toEqual(['projets', 'archives', 'egaree'])
+    // Un autre dossier ne la prend pas.
+    expect(contenuDuDossier('projets', monde, 'accueil').map((e) => e.tableau)).toEqual(['voyage', 'atelier'])
+  })
+
+  it('un dossier porte l’aperçu de ce qu’il range : ses quatre premières entrées dans l’ordre où il les montre', () => {
+    const photo = (element: string) =>
+      entree({ tableau: 'voyage', element, genre: 'image', titre: element, dans: 'voyage', resume: { genre: 'image', element, titre: element, fichier: element, largeur: 4, hauteur: 3 } })
+    // Des identifiants d'avant : sans date, par titre ; « aso » et « fuji » passent avant « kyoto » et les billets (« voyage »).
+    const monde = [...MONDE, photo('kyoto'), photo('nara'), photo('osaka'), photo('aso'), photo('fuji')]
     const apres = avecApercus(monde)
     const apercu = (id: string) => apres.find((e) => e.tableau === id && e.element === null)!.resume.apercu
-    // Sans date, par titre : « aso » et « fuji » passent avant « kyoto » et les billets.
-    expect(apercu('voyage')!.map((a) => a.resume.element)).toEqual(['osaka', 'nara', 'aso', 'fuji'])
-    expect(apercu('voyage')![0]).toEqual({ tableau: 'voyage', resume: { genre: 'image', element: 'osaka', titre: 'osaka', fichier: 'osaka', largeur: 4, hauteur: 3 } })
-    // « Projets » range un dossier, qui s'y montre par son icône : pas d'aperçu dans l'aperçu.
+    expect(apercu('voyage')!.map((a) => a.resume.element)).toEqual(['aso', 'fuji', 'kyoto', 'nara'])
+    expect(apercu('voyage')![0]).toEqual({ tableau: 'voyage', resume: { genre: 'image', element: 'aso', titre: 'aso', fichier: 'aso', largeur: 4, hauteur: 3 } })
+    // « Projets » range un dossier, d'abord, qui s'y montre par son icône : pas d'aperçu dans l'aperçu.
     expect(apercu('projets')!.map((a) => [a.tableau, a.resume.genre])).toEqual([
-      ['atelier', 'toile'],
       ['voyage', 'toile'],
+      ['atelier', 'toile'],
     ])
-    expect(apercu('projets')![1]!.resume).not.toHaveProperty('apercu')
+    expect(apercu('projets')![0]!.resume).not.toHaveProperty('apercu')
     // Un dossier vide n'en a pas ; une toile ordinaire non plus, même quand elle range quelque chose.
     expect(apercu('archives')).toBeUndefined()
     expect(apercu('atelier')).toBeUndefined()
@@ -182,9 +241,9 @@ describe('les dossiers', () => {
   })
 
   it('l’adresse d’un dossier', () => {
-    expect(adresseDeLaVue({ portee: 'tout', filtre: 'tout', dossier: 'voyage' })).toBe('/?dossier=voyage')
-    expect(adresseDeLaVue({ portee: 'tout', filtre: 'image', dossier: 'voyage' })).toBe('/?dossier=voyage&type=image')
-    expect(lireVue('?dossier=voyage&type=image')).toEqual({ portee: null, filtre: 'image', dossier: 'voyage' })
+    expect(adresseDeLaVue({ portee: 'tout', filtre: 'tout', dossier: 'voyage' }, 'accueil')).toBe('/?dossier=voyage')
+    expect(adresseDeLaVue({ portee: 'tout', filtre: 'image', dossier: 'voyage' }, 'accueil')).toBe('/?dossier=voyage&type=image')
+    expect(lireVue('?dossier=voyage&type=image', 'accueil')).toEqual({ portee: 'tout', filtre: 'image', dossier: 'voyage' })
   })
 
   it('changer de dossier ou de rubrique change d’endroit ; changer de puce, non', () => {
