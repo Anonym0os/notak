@@ -1408,12 +1408,24 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
 }
 
 /* Au téléphone, le même fil dans une feuille du bas : la saisie reste au pied. */
+/* 📌 23/11/2026, vu par Samy sur iPhone : le clavier sorti rapetisse la feuille, mais le fil gardait ses 55vh et
+   poussait la saisie sous le bord du corps, hors d'atteinte (le doigt fait défiler le fil, jamais le corps). Le corps
+   ne défile plus : le fil rétrécit, la saisie reste au pied, visible au-dessus du clavier. */
+.agent-feuille .notak-tiroir-bas-corps {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .agent-feuille .agent-fil {
+  flex: 1 1 auto;
+  min-height: 0;
   max-height: 55vh;
   padding: 4px 2px 10px;
 }
 
 .agent-feuille .agent-saisie {
+  flex: none;
   padding: 10px 0 0;
 }
 
