@@ -1084,3 +1084,67 @@ export async function revoquerJeton(id: string): Promise<void> {
   const r = await appeler(`/api/jetons/${encodeURIComponent(id)}`, undefined, 'DELETE')
   if (!r.ok && r.status !== 404) throw await refus(r, {})
 }
+
+// ---- Les tâches qu'un outil tient sur une fiche, dans le dossier de celle-ci (serveur : tachesOutil.ts) ----
+
+/** Une tâche de l'outil, telle que le panneau la montre : le reste s'ouvre chez l'outil, par `lien`. */
+export interface TacheDeLOutil {
+  id: string
+  titre: string
+  fait: boolean
+  /** Son jour est passé, ou la règle de retard de l'outil (une limite dépassée). */
+  enRetard: boolean
+  /** Le jour où elle est prévue (`AAAA-MM-JJ`), ou `null`. */
+  echeance: string | null
+  /** Cochée, elle revient à son prochain jour au lieu de se fermer. */
+  recurrente: boolean
+  projet: string | null
+  /** Le nom de qui la fait. */
+  personnes: string[]
+  /** Son adresse chez l'outil, ou `null`. */
+  lien: string | null
+}
+
+/** Le panneau des tâches d'un dossier de fiche, ou `{ disponible: false }` : pas pour ce dossier, ni pour ce compte. */
+export type PanneauTaches =
+  | { disponible: false }
+  | {
+      disponible: true
+      outil: string
+      taches: TacheDeLOutil[]
+      /** Les tâches ouvertes de la fiche, comme l'outil les compte. */
+      total: number
+      /** Tout est là ; sinon la suite se lit chez l'outil. */
+      complet: boolean
+      /** Le jour de la personne chez l'outil, ou `null`. */
+      aujourdhui: string | null
+      /** On peut ajouter et cocher. */
+      ecrire: boolean
+      /** Les tâches de la fiche chez l'outil. */
+      lien: string | null
+    }
+
+/** Les refus d'un geste sur une tâche, dans les mots du panneau. */
+const REFUS_TACHE = { injoignable: 'tachesOutil.erreur.injoignable', refuse: 'tachesOutil.erreur.refuse', introuvable: 'tachesOutil.erreur.introuvable', 404: 'tachesOutil.erreur.introuvable' }
+const cheminDesTaches = (dossier: string) => `/api/tableaux/${encodeURIComponent(dossier)}/taches`
+
+/** Les tâches de la fiche de ce dossier. Une `ErreurApi` de statut 0 ou 502 : l'outil ou le serveur ne répond pas. */
+export async function lireTachesDuDossier(dossier: string): Promise<PanneauTaches> {
+  const r = await appeler(cheminDesTaches(dossier))
+  if (!r.ok) throw await refus(r, REFUS_TACHE)
+  return (await r.json()) as PanneauTaches
+}
+
+/** Ajoute une tâche chez l'outil. `id` : un UUID par geste, le même si on le renvoie. */
+export async function ajouterTacheDuDossier(dossier: string, geste: { id: string; titre: string; echeance: string | null }): Promise<TacheDeLOutil> {
+  const r = await appeler(cheminDesTaches(dossier), { id: geste.id, titre: geste.titre, ...(geste.echeance ? { echeance: geste.echeance } : {}) })
+  if (!r.ok) throw await refus(r, REFUS_TACHE)
+  return ((await r.json()) as { tache: TacheDeLOutil }).tache
+}
+
+/** Coche une tâche chez l'outil, ou la remet à faire. */
+export async function cocherTacheDuDossier(dossier: string, tache: string, geste: { id: string; fait: boolean }): Promise<TacheDeLOutil> {
+  const r = await appeler(`${cheminDesTaches(dossier)}/${encodeURIComponent(tache)}`, geste)
+  if (!r.ok) throw await refus(r, REFUS_TACHE)
+  return ((await r.json()) as { tache: TacheDeLOutil }).tache
+}

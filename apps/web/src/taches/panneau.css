@@ -1,0 +1,352 @@
+/*
+ * Le panneau « Tâches » du dossier d'une fiche (PanneauTaches.tsx) : un îlot comme la colonne de la bibliothèque, ses
+ * teintes tirées du texte et de la carte de l'espace, pour que le thème sombre et les habillages suivent seuls. Une
+ * ligne : la case, le titre (qui ouvre la tâche chez l'outil) et son projet dessous, les initiales de qui la fait, un
+ * seul jour à droite, rouge en retard.
+ */
+.taches-outil {
+  position: relative;
+  --taches-texte: var(--notak-texte, #323b4a);
+  --taches-texte-2: color-mix(in srgb, var(--taches-texte) 64%, transparent);
+  --taches-texte-3: color-mix(in srgb, var(--taches-texte) 44%, transparent);
+  --taches-filet: color-mix(in srgb, var(--taches-texte) 9%, transparent);
+  --taches-survol: var(--biblio-survol, color-mix(in srgb, var(--taches-texte) 6%, transparent));
+  --taches-rouge: var(--notak-btn-rouge, #a31d13);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 14px 8px 10px;
+  border-radius: 16px;
+  background: var(--notak-carte, #fff);
+  box-shadow: var(--biblio-ombre, 0 0 0 1px rgb(27 37 54 / 0.06), 0 6px 16px -8px rgb(27 37 54 / 0.18));
+  color: var(--taches-texte);
+  font-family: var(--notak-police, 'Inter Variable', system-ui, sans-serif);
+  font-size: 13px;
+}
+
+.taches-outil-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 8px 8px;
+}
+
+.taches-outil-titre {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.taches-outil-compte {
+  color: var(--taches-texte-2);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.taches-outil-retards {
+  color: var(--taches-rouge);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.taches-outil-bascule {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.taches-outil-chevron {
+  align-self: center;
+  color: var(--taches-texte-2);
+  transition: transform 160ms ease;
+}
+
+.taches-outil:not([data-ouvert]) .taches-outil-chevron {
+  transform: rotate(-90deg);
+}
+
+.taches-outil-outil {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 13px;
+  color: var(--taches-texte-2);
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.taches-outil-outil:hover {
+  background: var(--taches-survol);
+  color: var(--taches-texte);
+}
+
+.taches-outil-corps {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.taches-outil-corps[hidden] {
+  display: none;
+}
+
+.taches-outil-bandeau {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 0 8px 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--taches-texte) 6%, transparent);
+  color: var(--taches-texte-2);
+  font-size: 12px;
+}
+
+.taches-outil-reessayer {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--taches-texte);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.taches-outil-erreur {
+  margin: 0 8px 8px;
+  color: var(--taches-rouge);
+  font-size: 12px;
+}
+
+/* L'ajout : une ligne au dessin d'une tâche, le « + » à la place de la case. */
+.taches-outil-ajout {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  margin: 0 0 4px;
+  padding: 0 4px 0 11px;
+  border-radius: 10px;
+}
+
+.taches-outil-ajout:focus-within {
+  background: var(--taches-survol);
+}
+
+.taches-outil-plus {
+  flex: none;
+  color: var(--taches-texte-3);
+}
+
+.taches-outil-champ {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 4px 0 8px;
+  border: 0;
+  outline: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+.taches-outil-champ::placeholder {
+  color: var(--taches-texte-3);
+}
+
+.taches-outil-choix-jour {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: var(--taches-texte-3);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.taches-outil-choix-jour:hover,
+.taches-outil-choix-jour[aria-expanded='true'] {
+  background: var(--taches-survol);
+  color: var(--taches-texte);
+}
+
+.taches-outil-choix-jour[data-pose] {
+  background: color-mix(in srgb, var(--taches-texte) 8%, transparent);
+  color: var(--taches-texte);
+}
+
+.taches-outil-calendrier {
+  padding: 8px;
+}
+
+.taches-outil-liste {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.taches-outil-groupe {
+  margin: 10px 8px 2px;
+  padding-top: 10px;
+  border-top: 1px solid var(--taches-filet);
+  color: var(--taches-texte-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.taches-outil-ligne {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 40px;
+  padding: 2px 8px 2px 0;
+  border-radius: 10px;
+}
+
+.taches-outil-ligne:hover {
+  background: var(--taches-survol);
+}
+
+.taches-outil-ligne[data-attend] {
+  opacity: 0.6;
+}
+
+.taches-outil-texte {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding: 4px 0;
+}
+
+.taches-outil-nom {
+  overflow: hidden;
+  color: inherit;
+  line-height: 18px;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+a.taches-outil-nom:hover {
+  text-decoration: underline;
+}
+
+.taches-outil-ligne[data-fait] .taches-outil-nom {
+  color: var(--notak-case-texte-fait, #8d929a);
+  text-decoration: line-through;
+}
+
+.taches-outil-projet {
+  overflow: hidden;
+  color: var(--taches-texte-2);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taches-outil-personnes {
+  display: inline-flex;
+  flex: none;
+  margin-left: 6px;
+}
+
+.taches-outil-personnes .notak-av + .notak-av {
+  margin-left: -6px;
+  box-shadow: 0 0 0 2px var(--notak-carte, #fff);
+}
+
+.taches-outil-jour {
+  flex: none;
+  min-width: 48px;
+  margin-left: 8px;
+  color: var(--taches-texte-2);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.taches-outil-jour[data-retard] {
+  color: var(--taches-rouge);
+  font-weight: 500;
+}
+
+.taches-outil-ligne[data-fait] .taches-outil-jour {
+  color: var(--taches-texte-3);
+  font-weight: 400;
+}
+
+.taches-outil-vide {
+  margin: 4px 8px 6px;
+  color: var(--taches-texte-2);
+}
+
+.taches-outil-toutes {
+  align-self: flex-start;
+  margin: 8px 8px 2px;
+  color: var(--taches-texte-2);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.taches-outil-annonce {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Au téléphone : le titre se touche pour déplier, et chaque ligne se touche du doigt. */
+.taches-outil[data-pliable] {
+  padding-bottom: 12px;
+}
+
+.taches-outil[data-pliable]:not([data-ouvert]) .taches-outil-tete {
+  padding-bottom: 0;
+}
+
+.taches-outil[data-pliable] .taches-outil-ligne {
+  min-height: 48px;
+}
+
+.taches-outil[data-pliable] .taches-outil-champ {
+  height: 44px;
+  font-size: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .taches-outil-chevron {
+    transition: none;
+  }
+}
