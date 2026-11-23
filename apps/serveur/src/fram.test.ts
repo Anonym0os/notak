@@ -24,19 +24,19 @@ import {
 import { signatureValable, sourcesDe } from './rattachements.ts'
 
 const SECRET = 'un-secret-partage-de-plus-de-trente-deux-signes'
-const MOI: Utilisateur = { id: 'u1', email: 'samy@silak.fr', nom: 'Samy', couleur: '#000', racine: 'r1' }
-const AGENT: AgentRelaye = { source: 'silak', nom: 'Fram', adresse: 'https://api.silak.test/hooks/notak/fram', fournisseur: 'silak', secret: SECRET }
+const MOI: Utilisateur = { id: 'u1', email: 'samy@crm.exemple.fr', nom: 'Samy', couleur: '#000', racine: 'r1' }
+const AGENT: AgentRelaye = { source: 'crm', nom: 'Fram', outil: 'Comptoir', adresse: 'https://api.crm.exemple.fr/hooks/notak/fram', fournisseur: 'crm', secret: SECRET }
 const TOUR = '0190aaaa-bbbb-7ccc-8ddd-eeeeeeeeeeee'
 
 function base(lie = true): Base {
   const b = ouvrirBase(':memory:')
   b.db.prepare("INSERT INTO utilisateurs (id, email, nom, couleur, racine, photo, email_verifie, cree, modifie) VALUES (?, ?, ?, ?, ?, NULL, 1, '', '')").run(MOI.id, MOI.email, MOI.nom, MOI.couleur, MOI.racine)
-  if (lie) b.db.prepare("INSERT INTO account (id, accountId, providerId, userId, createdAt, updatedAt) VALUES ('a1', 'sub-42', 'silak', ?, '', '')").run(MOI.id)
+  if (lie) b.db.prepare("INSERT INTO account (id, accountId, providerId, userId, createdAt, updatedAt) VALUES ('a1', 'sub-42', 'crm', ?, '', '')").run(MOI.id)
   return b
 }
 
-/** Un Silak qui vérifie la signature, garde ce qu'on lui envoie et répond selon le type. */
-function silak(reponses: Record<string, { statut?: number; corps?: unknown }>) {
+/** Un Comptoir qui vérifie la signature, garde ce qu'on lui envoie et répond selon le type. */
+function crm(reponses: Record<string, { statut?: number; corps?: unknown }>) {
   const recus: Record<string, unknown>[] = []
   const adresses: string[] = []
   const envoyer = (async (adresse: string, init: RequestInit) => {
@@ -89,19 +89,19 @@ const poster = (a: Hono, chemin: string, corps: unknown) => a.request(chemin, { 
 describe('L’agent sollicité depuis un tableau', () => {
   it('se lit sur une source qui ouvre la porte des agents, a son secret et dit où relayer', () => {
     const brut = JSON.stringify([
-      { source: 'silak', nom: 'Silak', dossier: 'Clients', origine: 'https://silak.fr', secret: SECRET, agents: true, agent: 'Fram', agentAdresse: 'https://api.silak.fr/hooks/notak/fram' },
+      { source: 'crm', nom: 'Comptoir', dossier: 'Clients', origine: 'https://crm.exemple.fr', secret: SECRET, agents: true, agent: 'Fram', agentAdresse: 'https://api.crm.exemple.fr/hooks/notak/fram' },
       { source: 'autre', nom: 'Autre', dossier: 'Fiches', origine: 'https://autre.fr', secret: SECRET, agentAdresse: 'https://autre.fr/agent' },
       { source: 'http', nom: 'Http', dossier: 'Fiches', origine: 'https://http.fr', secret: SECRET, agents: true, agentAdresse: 'http://http.fr/agent' },
     ])
     const dits: string[] = []
     const agents = agentsRelayes(sourcesDe(brut, (m) => dits.push(m)))
-    expect(agents).toEqual([{ source: 'silak', nom: 'Fram', adresse: 'https://api.silak.fr/hooks/notak/fram', fournisseur: 'silak', secret: SECRET }])
+    expect(agents).toEqual([{ source: 'crm', nom: 'Fram', outil: 'Comptoir', adresse: 'https://api.crm.exemple.fr/hooks/notak/fram', fournisseur: 'crm', secret: SECRET }])
     expect(dits).toHaveLength(1)
     expect(agentsRelayes([])).toEqual([])
   })
 
   it('n’existe pas sans agent, ni sur un tableau qu’on ne lit pas ; paraît à qui le lit, sans pouvoir le modifier', async () => {
-    const { envoyer, recus } = silak({ 'fram.fil': { corps: { fil: 'f1', echanges: [], tour: null } } })
+    const { envoyer, recus } = crm({ 'fram.fil': { corps: { fil: 'f1', echanges: [], tour: null } } })
     expect((await app({ base: base(), envoyer, agents: [] }).request('/api/tableaux/t1/agent')).status).toBe(404)
     expect((await app({ base: base(), envoyer, role: null }).request('/api/tableaux/t1/agent')).status).toBe(404)
     expect(recus).toEqual([])
@@ -111,25 +111,25 @@ describe('L’agent sollicité depuis un tableau', () => {
   })
 
   it('ne paraît pas à une personne qui n’est pas liée à l’outil, ni que l’outil ne lui ouvre pas', async () => {
-    const { envoyer, recus } = silak({ 'fram.fil': { statut: 404 } })
+    const { envoyer, recus } = crm({ 'fram.fil': { statut: 404 } })
     const nonLiee = await app({ base: base(false), envoyer }).request('/api/tableaux/t1/agent')
-    expect(await nonLiee.json()).toEqual({ agent: 'Fram', disponible: false })
+    expect(await nonLiee.json()).toEqual({ agent: 'Fram', outil: 'Comptoir', disponible: false })
     expect(recus).toEqual([])
     const fermee = await app({ base: base(), envoyer }).request('/api/tableaux/t1/agent')
-    expect(await fermee.json()).toEqual({ agent: 'Fram', disponible: false })
-    expect(recus).toEqual([{ type: 'fram.fil', personne: { sub: 'sub-42', email: 'samy@silak.fr' }, tableau: 't1' }])
+    expect(await fermee.json()).toEqual({ agent: 'Fram', outil: 'Comptoir', disponible: false })
+    expect(recus).toEqual([{ type: 'fram.fil', personne: { sub: 'sub-42', email: 'samy@crm.exemple.fr' }, tableau: 't1' }])
   })
 
   it('relaie le fil, la demande et l’état du tour, signés, au nom de la personne liée', async () => {
     const echanges = [{ qui: 'personne', texte: 'Range ce tableau.', quand: '2026-11-21T13:00:00Z' }]
-    const { envoyer, recus } = silak({
+    const { envoyer, recus } = crm({
       'fram.fil': { corps: { fil: 'f1', echanges, tour: null } },
       'fram.demander': { corps: { tour: TOUR, fil: 'f1', etat: 'queued' } },
       'fram.lire': { corps: { tour: TOUR, etat: 'done', fini: true, texte: 'C’est rangé.', echec: null, cartes: [] } },
     })
     const a = app({ base: base(), envoyer })
 
-    expect(await (await a.request('/api/tableaux/t1/agent')).json()).toEqual({ agent: 'Fram', disponible: true, echanges, tour: null, parties: [] })
+    expect(await (await a.request('/api/tableaux/t1/agent')).json()).toEqual({ agent: 'Fram', outil: 'Comptoir', disponible: true, echanges, tour: null, parties: [] })
     const demande = await poster(a, '/api/tableaux/t1/agent', { message: '  Range ce tableau.  ', selection: [{ id: 'element-1', texte: ' Une   note ' }, { id: '../x' }] })
     expect(demande.status).toBe(202)
     expect(await demande.json()).toEqual({ tour: TOUR, etat: 'queued' })
@@ -139,17 +139,17 @@ describe('L’agent sollicité depuis un tableau', () => {
     const envoyee = recus[1]!
     expect(envoyee).toMatchObject({
       type: 'fram.demander',
-      personne: { sub: 'sub-42', email: 'samy@silak.fr' },
+      personne: { sub: 'sub-42', email: 'samy@crm.exemple.fr' },
       tableau: { id: 't1', titre: 'Sans titre', lien: 'https://notak.test/t/t1' },
       selection: [{ id: 'element-1', texte: 'Une note' }],
       message: 'Range ce tableau.',
     })
     expect(String(envoyee.id)).toMatch(/^[0-9a-f-]{36}$/)
-    expect(recus[2]).toEqual({ type: 'fram.lire', personne: { sub: 'sub-42', email: 'samy@silak.fr' }, tableau: 't1', tour: TOUR })
+    expect(recus[2]).toEqual({ type: 'fram.lire', personne: { sub: 'sub-42', email: 'samy@crm.exemple.fr' }, tableau: 't1', tour: TOUR })
   })
 
   it('refuse un message vide ou trop long, un tour mal écrit, et dit une panne de l’outil', async () => {
-    const { envoyer, recus } = silak({ 'fram.demander': { statut: 409, corps: { erreur: 'occupé' } } })
+    const { envoyer, recus } = crm({ 'fram.demander': { statut: 409, corps: { erreur: 'occupé' } } })
     const a = app({ base: base(), envoyer })
     expect((await poster(a, '/api/tableaux/t1/agent', { message: '   ' })).status).toBe(400)
     expect((await poster(a, '/api/tableaux/t1/agent', { message: 'x'.repeat(8001) })).status).toBe(400)
@@ -163,7 +163,7 @@ describe('L’agent sollicité depuis un tableau', () => {
   })
 
   it('rend ce que le tour a créé et ce que l’agent veut ouvrir, refaits par Notak et tus quand la personne ne les lit pas', async () => {
-    const { envoyer } = silak({
+    const { envoyer } = crm({
       'fram.lire': {
         corps: {
           tour: TOUR,
@@ -173,7 +173,7 @@ describe('L’agent sollicité depuis un tableau', () => {
           echec: null,
           cartes: [],
           crees: [
-            { type: 'page', titre: 'Titre de Silak', tableau: 't1-prism', element: 'page-wr1', adresse: 'https://ailleurs.exemple/piege' },
+            { type: 'page', titre: 'Titre de Comptoir', tableau: 't1-prism', element: 'page-wr1', adresse: 'https://ailleurs.exemple/piege' },
             { type: 'page', titre: 'Doublon', tableau: 't1-prism', element: 'page-wr1' },
             { type: 'toile', titre: 'Secret', tableau: 'prive0001' },
             { type: 'note', titre: 'Jetée', tableau: 't1-prism', element: 'perdu1' },
@@ -190,8 +190,8 @@ describe('L’agent sollicité depuis un tableau', () => {
       { type: 'dossier', titre: 'Clients', tableau: 'dossier01', adresse: 'https://notak.test/?dossier=dossier01' },
     ])
     expect(etat.ouvrir).toEqual({ type: 'page', titre: 'Wilfried Robert', tableau: 't1-prism', element: 'page-wr1', adresse: 'https://notak.test/t/t1-prism/e/page-wr1' })
-    // Sans ces champs (un Silak d'avant), ou sans de quoi vérifier ce que la personne lit : rien ne passe.
-    const avant = silak({ 'fram.lire': { corps: { tour: TOUR, etat: 'done', fini: true, texte: 'x', echec: null, cartes: [] } } })
+    // Sans ces champs (un Comptoir d'avant), ou sans de quoi vérifier ce que la personne lit : rien ne passe.
+    const avant = crm({ 'fram.lire': { corps: { tour: TOUR, etat: 'done', fini: true, texte: 'x', echec: null, cartes: [] } } })
     expect(await (await app({ base: base(), envoyer: avant.envoyer, ouvrable: OUVRABLE }).request(`/api/tableaux/t1/agent/tours/${TOUR}`)).json()).toMatchObject({ crees: [], ouvrir: null })
     expect(await (await app({ base: base(), envoyer }).request(`/api/tableaux/t1/agent/tours/${TOUR}`)).json()).toMatchObject({ crees: [], ouvrir: null })
     expect(await ouvrirLu({ tableau: 'prive0001' }, (l) => OUVRABLE(MOI, l))).toBeNull()
@@ -200,7 +200,7 @@ describe('L’agent sollicité depuis un tableau', () => {
   })
 
   it('une demande faite depuis une page ouverte en grand la porte en tête de sa sélection, avec son lien', async () => {
-    const { envoyer, recus } = silak({ 'fram.demander': { corps: { tour: TOUR, fil: 'f1', etat: 'queued' } } })
+    const { envoyer, recus } = crm({ 'fram.demander': { corps: { tour: TOUR, fil: 'f1', etat: 'queued' } } })
     const a = app({ base: base(), envoyer, ouvrable: OUVRABLE })
     const r = await poster(a, '/api/tableaux/t1-prism/agent', { message: 'Complète-la.', ouvert: 'page-wr1', selection: [{ id: 'page-wr1', texte: 'doublon' }, { id: 'note-12', texte: 'Une note' }] })
     expect(r.status).toBe(202)
@@ -223,7 +223,7 @@ describe('L’agent sollicité depuis un tableau', () => {
   })
 
   it('relaie les réponses aux cartes d’un tour, et ne laisse « toujours » qu’à un accord', async () => {
-    const { envoyer, recus } = silak({
+    const { envoyer, recus } = crm({
       'fram.decider': { corps: { tour: TOUR, etat: 'queued' } },
       'fram.lire': { corps: { tour: TOUR, etat: 'awaiting_approval', fini: false, texte: null, echec: null, cartes: [{ id: 'call-1', resume: 'Créer la carte', definitif: false }, { id: '../x' }] } },
     })
@@ -235,7 +235,7 @@ describe('L’agent sollicité depuis un tableau', () => {
     expect(r.status).toBe(202)
     expect(await r.json()).toEqual({ tour: TOUR, etat: 'queued' })
     const envoye = recus.find((x) => x.type === 'fram.decider')!
-    expect(envoye).toMatchObject({ personne: { sub: 'sub-42', email: 'samy@silak.fr' }, tableau: 't1', tour: TOUR, cartes: [{ id: 'call-1', accord: true, toujours: true }, { id: 'call-2', accord: false, toujours: false }] })
+    expect(envoye).toMatchObject({ personne: { sub: 'sub-42', email: 'samy@crm.exemple.fr' }, tableau: 't1', tour: TOUR, cartes: [{ id: 'call-1', accord: true, toujours: true }, { id: 'call-2', accord: false, toujours: false }] })
     expect(String(envoye.id)).toMatch(/^[0-9a-f-]{36}$/)
     expect((await poster(a, `/api/tableaux/t1/agent/tours/${TOUR}/cartes`, { cartes: [] })).status).toBe(400)
     expect((await poster(a, '/api/tableaux/t1/agent/tours/pas-un-tour/cartes', { cartes: [{ id: 'call-1', accord: true }] })).status).toBe(404)
@@ -248,7 +248,7 @@ describe('L’agent sollicité depuis un tableau', () => {
 })
 
 describe('L’agent en direct (23/11/2026)', () => {
-  const PERSONNE = { sub: 'sub-42', email: 'samy@silak.fr' }
+  const PERSONNE = { sub: 'sub-42', email: 'samy@crm.exemple.fr' }
 
   it('relaie le journal d’un tour depuis la dernière suite, et relit chaque événement sans faire confiance à l’outil', async () => {
     const evenements = [
@@ -265,7 +265,7 @@ describe('L’agent en direct (23/11/2026)', () => {
       { genre: 'fin' },
       'rien',
     ]
-    const { envoyer, recus } = silak({
+    const { envoyer, recus } = crm({
       'fram.journal': {
         corps: {
           tour: TOUR,
@@ -309,8 +309,8 @@ describe('L’agent en direct (23/11/2026)', () => {
   })
 
   it('le journal d’un tour fini dit sa fin, sa réponse et son échec ; une suite absente reste celle qu’on a donnée', async () => {
-    const { envoyer } = silak({
-      'fram.journal': { corps: { tour: TOUR, etat: 'failed', fini: true, evenements: [{ seq: 30, genre: 'echec', message: 'Silak ne répond plus.' }, { seq: 31, genre: 'fin' }], texte: 'Je n’ai pas pu finir.', echec: 'Silak ne répond plus.' } },
+    const { envoyer } = crm({
+      'fram.journal': { corps: { tour: TOUR, etat: 'failed', fini: true, evenements: [{ seq: 30, genre: 'echec', message: 'Comptoir ne répond plus.' }, { seq: 31, genre: 'fin' }], texte: 'Je n’ai pas pu finir.', echec: 'Comptoir ne répond plus.' } },
     })
     const lu = (await (await app({ base: base(), envoyer }).request(`/api/tableaux/t1/agent/tours/${TOUR}/journal?depuis=29`)).json()) as Record<string, unknown>
     expect(lu).toEqual({
@@ -320,19 +320,19 @@ describe('L’agent en direct (23/11/2026)', () => {
       suite: 29,
       encore: false,
       evenements: [
-        { seq: 30, genre: 'echec', message: 'Silak ne répond plus.' },
+        { seq: 30, genre: 'echec', message: 'Comptoir ne répond plus.' },
         { seq: 31, genre: 'fin' },
       ],
       crees: [],
       ouvrir: null,
       texte: 'Je n’ai pas pu finir.',
-      echec: 'Silak ne répond plus.',
+      echec: 'Comptoir ne répond plus.',
       cartes: [],
     })
   })
 
   it('arrête un tour, au nom de la personne, d’un identifiant neuf', async () => {
-    const { envoyer, recus } = silak({ 'fram.arreter': { corps: { tour: TOUR, etat: 'cancelled' } } })
+    const { envoyer, recus } = crm({ 'fram.arreter': { corps: { tour: TOUR, etat: 'cancelled' } } })
     const a = app({ base: base(), envoyer })
     const r = await poster(a, `/api/tableaux/t1/agent/tours/${TOUR}/arreter`, {})
     expect(r.status).toBe(202)
@@ -344,7 +344,7 @@ describe('L’agent en direct (23/11/2026)', () => {
   })
 
   it('un message porte ses pièces ; une image seule est un message ; pendant un tour, il part en file', async () => {
-    const { envoyer, recus } = silak({ 'fram.demander': { corps: { tour: TOUR, fil: 'f1', etat: 'waiting' } } })
+    const { envoyer, recus } = crm({ 'fram.demander': { corps: { tour: TOUR, fil: 'f1', etat: 'waiting' } } })
     const a = app({ base: base(), envoyer })
     const r = await poster(a, '/api/tableaux/t1/agent', { message: 'Regarde ces photos.', pieces: ['p-1', 'p-2', 'p-1'] })
     expect(r.status).toBe(202)
@@ -352,7 +352,7 @@ describe('L’agent en direct (23/11/2026)', () => {
     expect(recus[0]).toMatchObject({ type: 'fram.demander', message: 'Regarde ces photos.', pieces: ['p-1', 'p-2'] })
     await poster(a, '/api/tableaux/t1/agent', { message: '', pieces: ['p-3'] })
     expect(recus[1]).toMatchObject({ message: '', pieces: ['p-3'] })
-    // Sans pièce, rien n'est ajouté au corps : un Silak d'avant le lit comme hier.
+    // Sans pièce, rien n'est ajouté au corps : un Comptoir d'avant le lit comme hier.
     await poster(a, '/api/tableaux/t1/agent', { message: 'Bonjour' })
     expect(recus[2]).not.toHaveProperty('pieces')
     expect((await poster(a, '/api/tableaux/t1/agent', { message: 'x', pieces: Array.from({ length: 11 }, (_, i) => `p-${i}`) })).status).toBe(400)
@@ -362,7 +362,7 @@ describe('L’agent en direct (23/11/2026)', () => {
   })
 
   it('une pièce passe par Notak, bornée à 25 Mo, et part en base64 à l’adresse des pièces', async () => {
-    const { envoyer, recus, adresses } = silak({ 'fram.piece': { statut: 200, corps: { piece: 'piece-0190', nom: 'plan.png', taille: 4 } } })
+    const { envoyer, recus, adresses } = crm({ 'fram.piece': { statut: 200, corps: { piece: 'piece-0190', nom: 'plan.png', taille: 4 } } })
     const a = app({ base: base(), envoyer })
     const envoyerPiece = (corps: Uint8Array<ArrayBuffer>, nom: string, type = 'image/png', entetes: Record<string, string> = {}) =>
       a.request(`/api/tableaux/t1/agent/pieces?nom=${encodeURIComponent(nom)}`, { method: 'POST', headers: { 'content-type': type, ...entetes }, body: corps })
@@ -370,7 +370,7 @@ describe('L’agent en direct (23/11/2026)', () => {
     const r = await envoyerPiece(new Uint8Array([1, 2, 3, 4]), 'Mes images/plan.png')
     expect(r.status).toBe(201)
     expect(await r.json()).toEqual({ piece: 'piece-0190', nom: 'plan.png', taille: 4 })
-    expect(adresses).toEqual(['https://api.silak.test/hooks/notak/fram/pieces'])
+    expect(adresses).toEqual(['https://api.crm.exemple.fr/hooks/notak/fram/pieces'])
     expect(recus[0]).toMatchObject({ type: 'fram.piece', personne: PERSONNE, tableau: 't1', nom: 'plan.png', type_mime: 'image/png', contenu: 'AQIDBA==' })
     expect(String(recus[0]!.id)).toMatch(/^[0-9a-f-]{36}$/)
 
@@ -384,11 +384,11 @@ describe('L’agent en direct (23/11/2026)', () => {
   })
 
   it('un refus de l’outil se dit dans ses mots ; une panne, comme ailleurs', async () => {
-    const refus = silak({ 'fram.piece': { statut: 422, corps: { erreur: 'Fram ne lit pas encore les vidéos.' } } })
+    const refus = crm({ 'fram.piece': { statut: 422, corps: { erreur: 'Fram ne lit pas encore les vidéos.' } } })
     const r = await app({ base: base(), envoyer: refus.envoyer }).request('/api/tableaux/t1/agent/pieces?nom=film.mov', { method: 'POST', headers: { 'content-type': 'video/quicktime' }, body: new Uint8Array(8) })
     expect(r.status).toBe(422)
     expect(await r.json()).toEqual({ erreur: 'Fram ne lit pas encore les vidéos.', code: 'piece_refusee' })
-    const muet = silak({ 'fram.piece': { statut: 200, corps: { piece: '../x' } } })
+    const muet = crm({ 'fram.piece': { statut: 200, corps: { piece: '../x' } } })
     expect((await app({ base: base(), envoyer: muet.envoyer }).request('/api/tableaux/t1/agent/pieces?nom=a', { method: 'POST', body: new Uint8Array(8) })).status).toBe(502)
   })
 
@@ -398,12 +398,12 @@ describe('L’agent en direct (23/11/2026)', () => {
       { id: 7, debut: '2026-11-21T09:00:00Z', fin: '2026-11-21T10:00:00Z', resume: 'x'.repeat(5000) },
       { resume: 'sans id' },
     ]
-    const { envoyer } = silak({ 'fram.fil': { corps: { fil: 'f1', echanges: [], tour: null, parties } } })
+    const { envoyer } = crm({ 'fram.fil': { corps: { fil: 'f1', echanges: [], tour: null, parties } } })
     const lu = (await (await app({ base: base(), envoyer }).request('/api/tableaux/t1/agent')).json()) as { parties: { id: string; resume: string }[] }
     expect(lu.parties.map((p) => p.id)).toEqual(['partie-2', '7'])
     expect(lu.parties[1]!.resume).toHaveLength(4000)
-    // Un Silak d'avant, sans parties : une liste vide.
-    const avant = silak({ 'fram.fil': { corps: { fil: 'f1', echanges: [], tour: null } } })
+    // Un Comptoir d'avant, sans parties : une liste vide.
+    const avant = crm({ 'fram.fil': { corps: { fil: 'f1', echanges: [], tour: null } } })
     expect(await (await app({ base: base(), envoyer: avant.envoyer }).request('/api/tableaux/t1/agent')).json()).toMatchObject({ parties: [] })
   })
 
@@ -417,7 +417,7 @@ describe('L’agent en direct (23/11/2026)', () => {
     expect(typeDePiece(undefined)).toBe('application/octet-stream')
     expect(piecesLues(undefined)).toEqual([])
     expect(piecesLues('p-1')).toBeNull()
-    expect(adressePieces({ ...AGENT, adresse: 'https://silak.test/hooks/notak/fram/' })).toBe('https://silak.test/hooks/notak/fram/pieces')
+    expect(adressePieces({ ...AGENT, adresse: 'https://crm.test/hooks/notak/fram/' })).toBe('https://crm.test/hooks/notak/fram/pieces')
     expect(evenementLu({ seq: 1, genre: 'texte', bloc: '', ajout: 'x' })).toBeNull()
     expect(evenementLu({ seq: 1, genre: 'pensee', titre: '  ' })).toBeNull()
     expect(evenementLu({ seq: 1.5, genre: 'fin' })).toBeNull()

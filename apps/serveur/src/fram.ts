@@ -6,7 +6,7 @@ import { lireBorne } from './lireBorne.ts'
 import { AGENT_PAR_DEFAUT, type SourceRattachement, signer } from './rattachements.ts'
 
 /**
- * Solliciter l'agent d'un outil depuis un tableau (21/11/2026) : la personne écrit à l'agent (Fram, pour Silak) dans le
+ * Solliciter l'agent d'un outil depuis un tableau (21/11/2026) : la personne écrit à l'agent (« Fram », par exemple) dans le
  * panneau d'un tableau ; Notak relaie sa demande, signée du secret de la source, à l'outil, où restent le cerveau de
  * l'agent, sa mémoire, ses réglages et ses données. L'agent répond, et agit sur le tableau par la porte des agents
  * (docs/AGENTS.md) : le tableau change sous les yeux de la personne, par la synchro. Rien n'est gardé ici : le fil des
@@ -17,7 +17,7 @@ import { AGENT_PAR_DEFAUT, type SourceRattachement, signer } from './rattachemen
  * modifier le tableau et avoir son compte lié au SSO de l'outil (`fournisseur`, à défaut le nom de la source) : c'est
  * ce lien qui la désigne là-bas, par son sujet, et à défaut par son adresse.
  *
- * Le contrat côté outil (Silak : `agents/notak_desk.py`) : `POST <agentAdresse>`, signé `Notak-Signature`, un corps
+ * Le contrat côté outil : `POST <agentAdresse>`, signé `Notak-Signature`, un corps
  * fermé sur `type` : `fram.demander` (rend `tour`), `fram.lire` (l'état et la réponse), `fram.journal` (le direct),
  * `fram.arreter`, `fram.fil` (les échanges et les parties), `fram.decider` (les cartes) ; et `fram.piece`, à
  * `<agentAdresse>/pieces`. Le détail est dans docs/AUTO-HEBERGER.md, « Solliciter l'agent depuis un tableau ».
@@ -43,6 +43,8 @@ export interface AgentRelaye {
   source: string
   /** Son nom, tel que le panneau le montre (« Fram »). */
   nom: string
+  /** Le nom de l'outil, tel que les gens le lisent (le `nom` de la source) : « … attend votre accord dans <outil> ». */
+  outil: string
   /** Où relayer les demandes : en https, ou en http vers cette machine (un essai). */
   adresse: string
   /** Le fournisseur SSO dont les comptes liés désignent les personnes. */
@@ -146,7 +148,7 @@ export function enTeteOuverte(id: string, o: Ouvrable): { id: string; texte: str
 export function agentsRelayes(sources: readonly SourceRattachement[]): AgentRelaye[] {
   return sources.flatMap((s) =>
     s.agents && s.secret && s.agentAdresse
-      ? [{ source: s.source, nom: (s.agent ?? AGENT_PAR_DEFAUT).slice(0, NOM_MAX), adresse: s.agentAdresse, fournisseur: s.fournisseur ?? s.source, secret: s.secret }]
+      ? [{ source: s.source, nom: (s.agent ?? AGENT_PAR_DEFAUT).slice(0, NOM_MAX), outil: s.nom, adresse: s.agentAdresse, fournisseur: s.fournisseur ?? s.source, secret: s.secret }]
       : [],
   )
 }
@@ -365,13 +367,13 @@ export function routesAgent(
   app.get('/api/tableaux/:id/agent', async (c) => {
     const g = await entrer(c)
     if (g instanceof Response) return g
-    if (!g.personne) return c.json({ agent: agent!.nom, disponible: false }, 200, { 'cache-control': 'no-store' })
+    if (!g.personne) return c.json({ agent: agent!.nom, outil: agent!.outil, disponible: false }, 200, { 'cache-control': 'no-store' })
     const r = await relayer(agent!, { type: 'fram.fil', personne: g.personne, tableau: g.id }, o.maintenant(), o.envoyer)
     // L'outil ne connaît pas cette personne, ou ne lui ouvre pas encore l'agent : le panneau ne paraît pas.
-    if (r?.statut === 404) return c.json({ agent: agent!.nom, disponible: false }, 200, { 'cache-control': 'no-store' })
+    if (r?.statut === 404) return c.json({ agent: agent!.nom, outil: agent!.outil, disponible: false }, 200, { 'cache-control': 'no-store' })
     if (!r || r.statut !== 200 || !r.corps) return echec(c, r)
     return c.json(
-      { agent: agent!.nom, disponible: true, echanges: r.corps.echanges ?? [], tour: r.corps.tour ?? null, parties: partiesLues(r.corps.parties) },
+      { agent: agent!.nom, outil: agent!.outil, disponible: true, echanges: r.corps.echanges ?? [], tour: r.corps.tour ?? null, parties: partiesLues(r.corps.parties) },
       200,
       { 'cache-control': 'no-store' },
     )

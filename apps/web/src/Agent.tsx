@@ -34,6 +34,8 @@ export interface PartieAgent {
 /** L'agent pour cette personne : `disponible` faux, la bulle ne paraît pas. */
 export interface EtatAgent {
   agent: string
+  /** L'outil où vit l'agent, tel que les gens le lisent. */
+  outil?: string
   disponible: boolean
   echanges?: EchangeAgent[]
   tour?: { id: string; etat: string } | null
@@ -403,7 +405,7 @@ export function ouvertDe(espace: EspaceNavigable | undefined, ici: Ici): string 
  * fil se relit à l'ouverture du panneau et à la fin de chaque tour.
  */
 export function useAgent(ici: Ici | null, espace?: EspaceNavigable) {
-  const [agent, setAgent] = useState<{ nom: string; disponible: boolean } | null>(null)
+  const [agent, setAgent] = useState<{ nom: string; outil: string; disponible: boolean } | null>(null)
   const [echanges, setEchanges] = useState<EchangeAgent[]>([])
   const [parties, setParties] = useState<PartieAgent[]>([])
   const [tour, setTour] = useState<TourSuivi | null>(null)
@@ -458,7 +460,7 @@ export function useAgent(ici: Ici | null, espace?: EspaceNavigable) {
     try {
       const e = await lireAgent(tableau)
       if (lancee !== generation.current) return
-      setAgent({ nom: e.agent, disponible: e.disponible })
+      setAgent({ nom: e.agent, outil: e.outil ?? '', disponible: e.disponible })
       if (!e.disponible) return
       setEchanges(e.echanges ?? [])
       setParties(Array.isArray(e.parties) ? e.parties : [])
@@ -717,6 +719,7 @@ export function useAgent(ici: Ici | null, espace?: EspaceNavigable) {
   return {
     disponible: agent?.disponible === true,
     nom,
+    outil: agent?.outil ?? '',
     ici,
     genreOuvert,
     echanges,
@@ -917,12 +920,12 @@ const ETAPES_VISIBLES = 6
 
 /** Le tour en cours, en direct : la ligne vivante, le plan, le fil conducteur, la réponse qui s'écrit, ce qui est créé. */
 function TourEnDirect({ agent }: { agent: Agent }) {
-  const { nom, direct, creesTour, debutTour, arret, arreter, attendCartes, cartes, decider } = agent
+  const { nom, outil, direct, creesTour, debutTour, arret, arreter, attendCartes, cartes, decider } = agent
   const [tout, setTout] = useState(false)
   if (!direct) return null
   const reponse = reponseDe(direct)
   const caches = tout ? 0 : Math.max(0, direct.etapes.length - ETAPES_VISIBLES)
-  const ligne = attendCartes && cartes.length === 0 ? t('agent.cartesAilleurs', { nom }) : direct.ligne
+  const ligne = attendCartes && cartes.length === 0 ? (outil ? t('agent.cartesAilleurs', { nom, outil }) : t('agent.cartesAilleursSansOutil', { nom })) : direct.ligne
   return (
     <li className="agent-echange agent-lui agent-direct">
       <strong>{nom}</strong>

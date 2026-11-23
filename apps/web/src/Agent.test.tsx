@@ -203,7 +203,7 @@ describe('L’agent, pour cette personne', () => {
 
   it('un lien vers Notak mène dans l’application, sans onglet ; un lien vers un autre site garde le sien', async () => {
     history.replaceState(null, '', '/t/ici')
-    const texte = `La page [Wilfried Robert](${location.origin}/t/clients/e/wilfried), le dossier [Clients](/?dossier=clients) et [la fiche](https://silak.test/societes/42).`
+    const texte = `La page [Wilfried Robert](${location.origin}/t/clients/e/wilfried), le dossier [Clients](/?dossier=clients) et [la fiche](https://crm.test/societes/42).`
     await act(async () => racine.render(<TexteAgent texte={texte} />))
     const [page, dossier, fiche] = [...hote.querySelectorAll('a')]
     const cliquer = (a: Element) => {
@@ -503,6 +503,24 @@ describe('le direct d’un tour (23/11/2026)', () => {
     await avancer(50)
     expect(journaux()).toHaveLength(2)
     expect(texte('.agent-ecrit')).toBe('Bonjour Samy')
+  })
+
+  it('dit dans quel outil l’agent attend un accord qui ne se donne pas ici', async () => {
+    const journal = scenario([{ etat: 'awaiting_approval', cartes: [] }])
+    reponses = [(chemin) => (chemin.includes('/journal') ? journal() : { agent: 'Fram', outil: 'Comptoir', disponible: true, echanges: [], tour: { id: TOUR, etat: 'awaiting_approval' } })]
+    await act(async () => racine.render(<Harnais ici={SUR_T1} />))
+    await avancer(50)
+    await avancer(50)
+    expect(texte('.agent-direct-ligne')).toContain('Fram attend votre accord dans Comptoir.')
+  })
+
+  it('sans le nom de l’outil, parle de l’outil où l’agent travaille', async () => {
+    const journal = scenario([{ etat: 'awaiting_approval', cartes: [] }])
+    reponses = [(chemin) => (chemin.includes('/journal') ? journal() : { agent: 'Fram', disponible: true, echanges: [], tour: { id: TOUR, etat: 'awaiting_approval' } })]
+    await act(async () => racine.render(<Harnais ici={SUR_T1} />))
+    await avancer(50)
+    await avancer(50)
+    expect(texte('.agent-direct-ligne')).toContain('Fram attend votre accord dans l’outil où il travaille.')
   })
 
   it('« Arrêter » arrête le tour ; la réponse dit qu’il s’est arrêté', async () => {
