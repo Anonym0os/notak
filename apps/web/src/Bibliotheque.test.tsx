@@ -930,6 +930,62 @@ describe('les gestes', () => {
     })
   })
 
+  describe('les toiles qu’un raccourci montre dans un dossier', () => {
+    /** « Voyage » est un dossier ; « atelier », rangé à la racine, y est aussi montré par un raccourci. */
+    const AVEC_RACCOURCI = MIENNES.map((e) =>
+      e.element !== null ? e : e.tableau === 'voyage' ? { ...e, resume: { ...e.resume, dossier: true as const } } : e.tableau === 'atelier' ? { ...e, raccourcis: ['voyage'] } : e,
+    )
+    const monter = async () => {
+      const espace = monde()
+      appels.length = 0
+      await act(async () =>
+        racine.render(
+          <PageBibliotheque
+            charger={async () => AVEC_RACCOURCI}
+            espace={espace}
+            rangerToile={async (toile, parent, options) => (appels.push([toile, parent, options ?? {}]), { nouveaux: 0, perdus: 0, permanents: 0, liensOuverts: 0, liensEteints: 0, membresPerdus: 0, membresNouveaux: 0, fait: !options?.essai })}
+            definirFavori={async () => {}}
+          />,
+        ),
+      )
+      return espace
+    }
+    const eteintes = (el: Element) => menu(el).filter((b) => b.disabled).map((b) => b.querySelector('.notak-e-libelle')!.textContent)
+
+    it('s’y listent, marquées, à côté de ce que le dossier range', async () => {
+      history.replaceState(null, '', '/?dossier=voyage')
+      await monter()
+      expect(tuile('atelier/').dataset.raccourci).toBe('true')
+      expect(tuile('atelier/').getAttribute('aria-label')).toBe('atelier, Raccourci')
+      expect(tuile('atelier/').querySelector('.biblio-tuile-raccourci')!.getAttribute('title')).toBe('Raccourci : rangé dans « Accueil »')
+      // Ce que « Voyage » range vraiment est toujours là.
+      expect(tuile('voyage/plan')).not.toBeNull()
+    })
+
+    it('à la racine, où elle est rangée, c’est elle : sans marque, et ses gestes ordinaires', async () => {
+      history.replaceState(null, '', '/')
+      await monter()
+      expect(tuile('atelier/').dataset.raccourci).toBeUndefined()
+      expect(tuile('atelier/').querySelector('.biblio-tuile-raccourci')).toBeNull()
+      expect(eteintes(tuile('atelier/'))).toEqual([])
+      touche('Escape')
+    })
+
+    it('ne se déplacent, ne se renomment ni ne se jettent d’ici : la vraie toile est ailleurs', async () => {
+      history.replaceState(null, '', '/?dossier=voyage')
+      const espace = await monter()
+      expect(eteintes(tuile('atelier/'))).toEqual(['Renommer', 'Afficher comme dossier', 'Déplacer vers…', 'Mettre à la corbeille'])
+      touche('Escape')
+      appuyer(tuile('atelier/'))
+      touche('F2')
+      expect(hote.querySelector('.biblio-renommer')).toBeNull()
+      await act(async () => touche('Backspace'))
+      expect(espace.tableau('racine')!.elements.find((e) => e.id === 'c-atelier')!.corbeille).toBeUndefined()
+      expect(hote.querySelector('.notak-avis')!.textContent).toContain('« atelier » n’est ici que par un raccourci : il reste là où il est rangé.')
+      expect(appels).toEqual([])
+    })
+  })
+
   describe('les dossiers qu’un outil a générés', () => {
     /** « Voyage » range les dossiers de « Mon CRM » ; « atelier » est celui d'une de ses fiches. */
     const GENERES = TOUTES.map((e) =>

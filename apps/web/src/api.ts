@@ -856,6 +856,16 @@ export interface EntreeBibliotheque {
   ou: string | null
   /** L'identifiant de cette toile, s'il la lit : l'endroit qui la range (la racine, un dossier, une toile). */
   dans: string | null
+  /**
+   * Les toiles qui la montrent aussi par un raccourci posé sur elles, hors celle qui la range, parmi celles qu'il lit :
+   * elle s'y liste, sans y être rangée. Une toile seulement.
+   */
+  raccourcis?: string[]
+  /**
+   * Montrée là par un raccourci (`contenuDuDossier`), pas rangée là : elle s'ouvre comme partout, mais ne se déplace,
+   * ne se renomme ni ne se jette d'ici. Le serveur ne la rend jamais.
+   */
+  raccourci?: true
   /** La dernière fois que le compte l'a ouvert, ajouté ou changé, ou `null` : l'ordre des récents (pas celui du rangement). */
   vu: number | null
   favori: boolean

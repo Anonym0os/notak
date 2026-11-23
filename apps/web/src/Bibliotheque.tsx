@@ -102,7 +102,7 @@ import {
   parLesPuces,
   estDossier,
   filDAriane,
-  genere,
+  fige,
   ecrireAffichage,
   adresseDuDossier,
   elementDeLAdresse,
@@ -712,7 +712,8 @@ function BibliothequeBureau({
   }, [requete])
   // Les tuiles dans l'ordre où on les lit, de section en section : celui de ⇧ et des flèches.
   const ordre = useMemo(() => sections.flatMap((s) => s.entrees.map(cleDe)), [sections])
-  const parCle = useMemo(() => new Map((toutes ?? []).map((e) => [cleDe(e), e])), [toutes])
+  // Ce qu'on voit d'abord : une toile qu'un raccourci montre ici s'y choisit avec sa marque (`raccourci`), qui la fige.
+  const parCle = useMemo(() => new Map([...(toutes ?? []), ...visibles].map((e) => [cleDe(e), e])), [toutes, visibles])
   const entreesDes = (cles: Iterable<string>) => [...cles].flatMap((c) => parCle.get(c) ?? [])
   const choisies = ordre.filter((c) => sel.choisies.has(c))
   const cleOrdre = ordre.join('|')
@@ -723,7 +724,10 @@ function BibliothequeBureau({
   /** Combien chaque toile porte directement (ce que montre son dossier ouvert) : sous la tuile d'un dossier. */
   const nombreDans = useMemo(() => {
     const n = new Map<string, number>()
-    for (const e of toutes ?? []) if (e.dans && !(e.element === null && e.tableau === e.dans)) n.set(e.dans, (n.get(e.dans) ?? 0) + 1)
+    for (const e of toutes ?? []) {
+      if (e.dans && !(e.element === null && e.tableau === e.dans)) n.set(e.dans, (n.get(e.dans) ?? 0) + 1)
+      for (const d of e.raccourcis ?? []) if (d !== e.dans && d !== e.tableau) n.set(d, (n.get(d) ?? 0) + 1)
+    }
     return n
   }, [toutes])
   /**
@@ -1071,7 +1075,7 @@ function BibliothequeBureau({
     // Le nom de la toile neuve se tape aussitôt : au doigt, le clavier doit monter dans le geste.
     preparerClavier()
     // La toile neuve va là où tout ce qui part était (ce qu'un outil a généré reste), sinon à la racine.
-    const partent = es.filter((e) => !genere(e))
+    const partent = es.filter((e) => !fige(e))
     const ou = partent.length > 0 && partent.every((e) => porteuseDe(e) === porteuseDe(partent[0]!)) ? (porteuseDe(partent[0]!) ?? outils.espace.racine) : outils.espace.racine
     // Comme le « nouveau dossier avec la sélection » du Finder : la toile neuve est choisie, son nom prêt à changer.
     void executer(rangerDansUneNeuve(outils, es, { id: ou, titre: titreToile(ou) }, confirmerOuverture(nomDe(es), ou))).then((r) => {
@@ -1180,14 +1184,15 @@ function BibliothequeBureau({
     if (ecranAuDoigt() && !modeChoix) l.push({ libelle: t('biblio.choisir'), icone: 'menuSelectionner', faire: () => setModeChoix(true) })
     l.push(null)
     // Un dossier qu'un outil a généré ne change pas : ses gestes restent au menu, éteints, et sa tuile nomme l'outil.
-    const fige = une !== null && genere(une)
-    const tousFiges = es.length > 0 && es.every(genere)
+    // Une toile qu'un raccourci montre ici non plus : elle est rangée ailleurs, sa tuile le marque.
+    const figee = une !== null && fige(une)
+    const tousFiges = es.length > 0 && es.every(fige)
     if (une && ecrit)
       l.push({
         libelle: t('biblio.menu.renommer'),
         icone: 'renommer',
         raccourci: 'F2',
-        desactive: fige,
+        desactive: figee,
         faire: () => renommerSurPlace(une),
       })
     if (ecrit) l.push({ libelle: t('biblio.menu.dupliquer'), icone: 'menuDupliquer', raccourci: '⌘D', faire: () => dupliquerCes(es) })
@@ -1200,8 +1205,8 @@ function BibliothequeBureau({
     if (une?.element === null && ecrit)
       l.push(
         estDossier(une)
-          ? { libelle: t('biblio.menu.enToile'), icone: 'tableau', desactive: fige, faire: () => montrerEnDossierCe(une, false) }
-          : { libelle: t('biblio.menu.enDossier'), icone: 'dossier', desactive: fige, faire: () => montrerEnDossierCe(une, true) },
+          ? { libelle: t('biblio.menu.enToile'), icone: 'tableau', desactive: figee, faire: () => montrerEnDossierCe(une, false) }
+          : { libelle: t('biblio.menu.enDossier'), icone: 'dossier', desactive: figee, faire: () => montrerEnDossierCe(une, true) },
       )
     l.push(null)
     // Choisis avec d'autres, ils restent tels quels, et l'avis le dit ; seuls, le geste s'éteint.
@@ -1373,7 +1378,7 @@ function BibliothequeBureau({
         const prises = s.choisies.has(cle) ? o.filter((c) => s.choisies.has(c)) : [cle]
         const estPose = (c: string) => {
           const x = p.get(c)
-          return x !== undefined && genere(x)
+          return x !== undefined && fige(x)
         }
         laisses = prises.filter(estPose)
         // Rien ne se décolle qui ne puisse partir : on le dit tout de suite, au lieu d'un glisser qui ne mène nulle part.
@@ -1541,7 +1546,7 @@ function BibliothequeBureau({
     } else if (e.key === 'Enter' && une && !cible.closest('a, button')) {
       e.preventDefault()
       ouvrir(une)
-    } else if (e.key === 'F2' && une && outils && !genere(une)) {
+    } else if (e.key === 'F2' && une && outils && !fige(une)) {
       e.preventDefault()
       setRenommage({ cle: cleDe(une) })
     } else if (e.key === 'Escape' && (sel.choisies.size > 0 || modeChoix)) {
@@ -2119,7 +2124,7 @@ function BibliothequeBureau({
       {fenetre?.type === 'deplacer' && espace && toutes && (
         <DeplacerVers
           // Ce qu'un outil a généré reste : ni compté, ni exclu des toiles où ranger le reste ; l'avis le dira.
-          entrees={entreesDes(fenetre.cles).filter((e) => !genere(e))}
+          entrees={entreesDes(fenetre.cles).filter((e) => !fige(e))}
           toutes={toutes}
           accueil={{ id: espace.racine, titre: nomRacine }}
           fermer={() => setFenetre(null)}
@@ -2527,7 +2532,15 @@ function Tuile({
       data-arrivee={arrivee || undefined}
       data-insertion={insertion}
       data-glissee={glissee || undefined}
-      aria-label={[titreDe(e), e.outil ? t('biblio.genere', { outil: e.outil }) : null, e.prive && e.element === null ? t('partage.privee') : null].filter(Boolean).join(', ')}
+      aria-label={[
+        titreDe(e),
+        e.raccourci ? t('biblio.raccourci') : null,
+        e.outil ? t('biblio.genere', { outil: e.outil }) : null,
+        e.prive && e.element === null ? t('partage.privee') : null,
+      ]
+        .filter(Boolean)
+        .join(', ')}
+      data-raccourci={e.raccourci || undefined}
       data-coche={coche || undefined}
       data-genre={e.genre}
     >
@@ -2546,11 +2559,13 @@ function Tuile({
         <ChampRenommer valeur={e.titre} valider={valider} annuler={annuler} />
       ) : e.outil ? (
         <span className="biblio-tuile-titre" data-genere>
+          {e.raccourci && <MarqueRaccourci ou={e.ou} />}
           <span className="biblio-tuile-nom">{titreDe(e)}</span>
           <MarqueOutil outil={e.outil} />
         </span>
       ) : (
         <span className="biblio-tuile-titre">
+          {e.raccourci && <MarqueRaccourci ou={e.ou} />}
           {/* Une toile privée : un cadenas discret devant son nom ; le nom de la tuile le dit au lecteur d'écran. */}
           {e.prive && e.element === null && (
             <span className="biblio-tuile-privee" title={t('partage.privee')}>
@@ -2656,6 +2671,18 @@ function LigneRecente({
         </button>
       )}
     </li>
+  )
+}
+
+/**
+ * La marque d'une toile qu'un raccourci montre dans ce dossier, devant son nom : la flèche des cartes de raccourci sur
+ * la toile. Elle est rangée ailleurs (`ou`), où elle s'ouvre comme d'ici.
+ */
+function MarqueRaccourci({ ou }: { ou: string | null }) {
+  return (
+    <span className="biblio-tuile-raccourci" title={ou ? t('biblio.raccourci.ou', { ou }) : t('biblio.raccourci')} aria-hidden>
+      <Icone nom="ligne" taille={13} trait={2} />
+    </span>
   )
 }
 

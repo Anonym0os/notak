@@ -1583,24 +1583,31 @@ export function creerApp(ctx: Contexte): Hono {
 
   /**
    * Ce que le compte lit, hors des mots de passe pas encore donnés, ce que portent ces toiles, et la règle du
-   * rangement, la même que dans l'app (catalogue.ts) : chaque toile lue, son parent en base, ses cartes.
+   * rangement, la même que dans l'app (catalogue.ts) : chaque toile lue, son parent en base, ses cartes. Ses raccourcis
+   * ne rangent rien : ils disent seulement où elle se montre aussi (`raccourcisVers`), parmi ce que le compte lit.
    */
   const rangementPour = async (u: Utilisateur) => {
     const lus = await lisibles(u.id)
     const ouverts = lus.filter((id) => verrouPar(base, u.id, id) === null)
-    const lignes = base.contenus(ouverts).map((l) => ({ ...l, lu: JSON.parse(l.resume) as { cartes?: string[]; jetees?: string[] } }))
+    const lignes = base.contenus(ouverts).map((l) => ({ ...l, lu: JSON.parse(l.resume) as { cartes?: string[]; jetees?: string[]; raccourcis?: string[] } }))
     const resumesDesToiles = new Map(lignes.flatMap((l) => (l.genre === 'toile' ? [[l.tableau, l.lu] as const] : [])))
     // Un dossier rattaché à la corbeille y reste, sa carte effacée ou non : la table le dit (`rattachements.corbeille`).
     // Il entre dans la règle comme une carte jetée, et ce qu'il range le suit.
     const aLaCorbeille = base.rattachementsDe(ouverts).flatMap((r) => (r.cle && r.corbeille !== null ? [r.tableau] : []))
-    const { dossierDe, cachees } = rangerLesToiles([
+    const { dossierDe, cachees, raccourcisVers } = rangerLesToiles([
       ...ouverts.map((id) => {
         const lu = resumesDesToiles.get(id)
-        return { id, parent: base.tableau(id)?.parent ?? null, ...(lu?.cartes ? { cartes: lu.cartes } : {}), ...(lu?.jetees ? { jetees: lu.jetees } : {}) }
+        return {
+          id,
+          parent: base.tableau(id)?.parent ?? null,
+          ...(lu?.cartes ? { cartes: lu.cartes } : {}),
+          ...(lu?.jetees ? { jetees: lu.jetees } : {}),
+          ...(lu?.raccourcis ? { raccourcis: lu.raccourcis } : {}),
+        }
       }),
       ...(aLaCorbeille.length ? [{ id: '\u0000corbeille', parent: null, jetees: aLaCorbeille }] : []),
     ])
-    return { lus, ouverts, lignes, dossierDe, cachees }
+    return { lus, ouverts, lignes, dossierDe, cachees, raccourcisVers }
   }
 
   /**
@@ -1622,13 +1629,13 @@ export function creerApp(ctx: Contexte): Hono {
 
   /** Les entrées de la bibliothèque de ce compte, de ces genres (`GET /api/bibliotheque`, et la porte des agents). */
   const bibliothequeDe = async (u: Utilisateur, genres: ReadonlySet<string>) => {
-    const { lus: tousLus, ouverts, lignes, dossierDe, cachees } = await rangementPour(u)
+    const { lus: tousLus, ouverts, lignes, dossierDe, cachees, raccourcisVers } = await rangementPour(u)
     const ouvrables = new Set(ouverts)
     const lus = new Set(tousLus)
     // La vignette d'une toile ne montre pas la carte d'une toile qu'on ne lit pas (privée, bloquée) : son plan se refait
     // sans elle, d'après le document, pour ces toiles seulement.
-    const planSansLesCaches = (l: { tableau: string; lu: { cartes?: string[] } }) => {
-      if (!l.lu.cartes?.some((cible) => !lus.has(cible) && base.tableau(cible))) return null
+    const planSansLesCaches = (l: { tableau: string; lu: { cartes?: string[]; raccourcis?: string[] } }) => {
+      if (![...(l.lu.cartes ?? []), ...(l.lu.raccourcis ?? [])].some((cible) => !lus.has(cible) && base.tableau(cible))) return null
       const t = lireLe(l.tableau)
       const r = resumesDuTableau(sansElements(t, cartesCachees(t, (cible) => lus.has(cible) || !base.tableau(cible))))[0]
       return r?.genre === 'toile' ? r.boites : null
@@ -1680,8 +1687,10 @@ export function creerApp(ctx: Contexte): Hono {
       if (!ligne) return []
       const toile = l.genre === 'toile'
       const parent = toile ? dossierDe(l.tableau) : l.tableau
-      const { cartes: _c, jetees: _j, ...resume } = l.lu
+      const { cartes: _c, jetees: _j, raccourcis: _r, ...resume } = l.lu
       const boites = toile ? planSansLesCaches(l) : null
+      // Les dossiers qui la montrent aussi par un raccourci, hors le sien : elle s'y liste, marquée, sans y être rangée.
+      const aussi = toile ? raccourcisVers(l.tableau).filter((id) => ouvrables.has(id)) : []
       return [
         {
           tableau: l.tableau,
@@ -1691,6 +1700,7 @@ export function creerApp(ctx: Contexte): Hono {
           resume: boites ? { ...resume, boites } : resume,
           ou: parent && ouvrables.has(parent) ? titreDe(parent) : null,
           dans: parent && ouvrables.has(parent) ? parent : null,
+          ...(aussi.length ? { raccourcis: aussi } : {}),
           vu: vus.get(`${l.tableau}/${l.element}`) ?? null,
           favori: toile ? favoris.has(l.tableau) : favorisElements.has(`${l.tableau}/${l.element}`),
           partage: toile && partages.has(l.tableau),
@@ -2649,7 +2659,9 @@ export function creerApp(ctx: Contexte): Hono {
     const lignes = base.contenus([id])
     const toile = lignes.find((l) => l.genre === 'toile')
     if (!toile || lignes.some((l) => l.genre !== 'toile')) return false
-    const lu = JSON.parse(toile.resume) as { boites?: unknown[][]; cartes?: string[] }
+    const lu = JSON.parse(toile.resume) as { boites?: unknown[][]; cartes?: string[]; raccourcis?: string[] }
+    // Un raccourci y montre une toile rangée ailleurs : ce n'est pas rien, et il ne la suivrait pas.
+    if (lu.raccourcis?.length) return false
     return (lu.boites ?? []).every((b) => b[5] === 'tableau') && (lu.cartes ?? []).every((c) => toileVide(c, vues))
   }
   /**
@@ -2760,8 +2772,12 @@ export function creerApp(ctx: Contexte): Hono {
       const etat = await etatDuDossier(f.u, base.rattachement(f.espace, f.source.source, f.cle))
       const nommes = { source: f.source.nom, dossier: f.source.dossier }
       if (etat.etat !== 'present') return c.json({ ...etat, ...nommes })
-      const { lignes, dossierDe, cachees } = await rangementPour(f.u)
-      const ranges = lignes.filter((l) => !cachees.has(l.tableau) && (l.genre === 'toile' ? dossierDe(l.tableau) === etat.tableau : l.tableau === etat.tableau))
+      const { lignes, dossierDe, cachees, raccourcisVers } = await rangementPour(f.u)
+      // Une toile qu'un raccourci montre ici s'y liste aussi, marquée (`raccourci`) : elle est rangée ailleurs.
+      const parRaccourci = (l: { genre: string; tableau: string }) => l.genre === 'toile' && dossierDe(l.tableau) !== etat.tableau && raccourcisVers(l.tableau).includes(etat.tableau)
+      const ranges = lignes.filter(
+        (l) => !cachees.has(l.tableau) && (l.genre === 'toile' ? dossierDe(l.tableau) === etat.tableau || parRaccourci(l) : l.tableau === etat.tableau),
+      )
       const changes = base.derniersChangements([...new Set(ranges.map((l) => l.tableau))])
       const derniers = new Map<string, number>()
       for (const ch of changes) {
@@ -2777,6 +2793,7 @@ export function creerApp(ctx: Contexte): Hono {
             genre: l.genre,
             titre: toile ? (base.tableau(l.tableau)?.titre ?? l.titre) : l.titre,
             ...(dossier ? { dossier: true } : {}),
+            ...(parRaccourci(l) ? { raccourci: true } : {}),
             modifie: derniers.get(`${l.tableau}/${toile ? '' : l.element}`) ?? null,
             // Un dossier n'a pas de toile à montrer : ce qu'il range s'ouvre depuis sa liste, dans la bibliothèque (seul,
             // pour une photo ou un fichier ; en grand, pour une page).

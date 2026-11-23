@@ -601,6 +601,16 @@ CREATE INDEX envois_a_faire ON envois(prochain) WHERE livre IS NULL AND prochain
 );`)
     },
   },
+  {
+    version: 20,
+    nom: 'les raccourcis dans la liste des dossiers',
+    // Le résumé d'une toile dit maintenant les toiles dont elle porte un raccourci (`raccourcis`) : la bibliothèque les
+    // liste aussi dans son dossier, marquées. Un résumé ne se refait qu'au prochain changement de sa toile : sans cela,
+    // le dossier d'un client ne montrerait pas le projet rangé chez un autre tant qu'on n'y touche pas. On refait tout.
+    appliquer(db) {
+      db.exec('DELETE FROM recherche_etat;')
+    },
+  },
 ]
 
 /**

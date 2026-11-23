@@ -7,6 +7,7 @@ import {
   avecApercus,
   compterParGenre,
   contenuDuDossier,
+  fige,
   dansLaPortee,
   duFiltre,
   ecrireAffichage,
@@ -219,6 +220,25 @@ describe('les dossiers', () => {
     expect(apercu('atelier')).toBeUndefined()
     // Sans dossier, rien ne change.
     expect(avecApercus(TOUTES)).toBe(TOUTES)
+  })
+
+  it('un raccourci y montre une toile rangée ailleurs, marquée et figée ; elle reste rangée chez elle', () => {
+    // « Vitrine » est rangée dans « Projets » ; un raccourci la montre aussi dans « Archives » (et un autre, posé là où
+    // elle est déjà rangée, ne la montre pas deux fois).
+    const vitrine = { ...dossier('vitrine', 'projets', 'Vitrine'), raccourcis: ['archives', 'projets'] }
+    const monde = [...MONDE, vitrine]
+    expect(contenuDuDossier('archives', monde).map((e) => [e.tableau, e.raccourci])).toEqual([['vitrine', true]])
+    expect(contenuDuDossier('projets', monde).filter((e) => e.tableau === 'vitrine').map((e) => e.raccourci)).toEqual([undefined])
+    // Ni elle-même, ni ce qu'elle porte : seule la toile se montre par son raccourci.
+    expect(contenuDuDossier('vitrine', [...monde, { ...vitrine, raccourcis: ['vitrine'] }])).toEqual([])
+    expect(contenuDuDossier('archives', [...MONDE, { ...MONDE[5]!, raccourcis: ['archives'] }])).toEqual([])
+    // Montrée par un raccourci, elle ne se déplace, ne se renomme ni ne se jette d'ici ; chez elle, si.
+    expect(fige(contenuDuDossier('archives', monde)[0]!)).toBe(true)
+    expect(fige(vitrine)).toBe(false)
+    // Son fil reste le sien, et l'aperçu d'« Archives » la compte.
+    expect(filDAriane('vitrine', monde, 'accueil')).toEqual(['accueil', 'projets', 'vitrine'])
+    const apercu = avecApercus(monde).find((e) => e.tableau === 'archives')!.resume.apercu
+    expect(apercu!.map((a) => a.tableau)).toEqual(['vitrine'])
   })
 
   it('le fil d’Ariane remonte jusqu’à l’accueil, et s’arrête là où l’on ne sait plus', () => {

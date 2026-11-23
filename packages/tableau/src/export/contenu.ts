@@ -234,6 +234,11 @@ export type ResumeContenu =
        */
       cartes?: string[]
       jetees?: string[]
+      /**
+       * Les toiles dont elle porte un raccourci, hors corbeille : la bibliothèque les montre aussi dans son dossier,
+       * sans qu'elles y soient rangées (`rangerLesToiles`, `raccourcisVers`).
+       */
+      raccourcis?: string[]
     }
   | { genre: 'arbre'; element: string; titre: string; branches: string[]; cree?: number }
   | { genre: 'document'; element: string; titre: string; lignes: string[]; cree?: number }
@@ -481,6 +486,11 @@ export function resumesDuTableau(t: TableauLu): ResumeContenu[] {
     ),
   ]
   const [cartes, jetees] = [cartesDe(false), cartesDe(true)]
+  const raccourcis = [
+    ...new Set(
+      vivants.flatMap((e) => (e.contenu.type === 'tableau' && e.contenu.raccourci && typeof e.contenu.cible === 'string' ? [e.contenu.cible] : [])),
+    ),
+  ].filter((cible) => !cartes.includes(cible))
   const resumes: ResumeContenu[] = [
     {
       genre: 'toile',
@@ -492,6 +502,7 @@ export function resumesDuTableau(t: TableauLu): ResumeContenu[] {
       ...(nonTries ? { nonTries } : {}),
       ...(cartes.length ? { cartes } : {}),
       ...(jetees.length ? { jetees } : {}),
+      ...(raccourcis.length ? { raccourcis } : {}),
     },
   ]
   const pieces = new Map<string, number>()

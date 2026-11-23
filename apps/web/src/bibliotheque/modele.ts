@@ -99,18 +99,35 @@ export const estDossier = (e: Pick<EntreeBibliotheque, 'element' | 'resume'>) =>
 export const genere = (e: Pick<EntreeBibliotheque, 'element' | 'outil'>) => e.element === null && e.outil !== undefined
 
 /**
+ * Ce qui reste tel quel, d'ici : un dossier généré par un outil (`genere`), ou une toile que le dossier qu'on parcourt
+ * ne montre que par un raccourci (`raccourci`). Déplacer, renommer ou jeter ce dernier toucherait la vraie toile,
+ * rangée ailleurs, comme si l'on agissait sur un alias du Finder et que l'original partait.
+ */
+export const fige = (e: Pick<EntreeBibliotheque, 'element' | 'outil' | 'raccourci'>) => genere(e) || e.raccourci === true
+
+/**
  * Une toile à soi que rien ne range : sans carte sur une toile qu'on lit, ni parent en base qu'on lise. La racine la
  * montre, comme la toile ouverte la met sous « Mon espace » dans son fil : rien ne doit se trouver seulement par les
  * récents. Une toile qu'on nous partage sans ce qui la range reste dans « Partagés avec moi ».
  */
 export const sansPlace = (e: Pick<EntreeBibliotheque, 'element' | 'dans' | 'partage'>) => e.element === null && e.dans === null && !e.partage
 
+/** Une toile que cette toile ne range pas, mais qu'un raccourci posé sur elle y montre. */
+const montreeParRaccourci = (id: string, e: EntreeBibliotheque) => e.element === null && e.tableau !== id && e.dans !== id && e.raccourcis?.includes(id) === true
+
 /**
  * Ce qu'une toile porte directement : les toiles qu'elle range, et ses pages, cartes, photos, liens et fichiers. La
- * racine (`racine`) porte aussi les toiles à soi que rien ne range (`sansPlace`).
+ * racine (`racine`) porte aussi les toiles à soi que rien ne range (`sansPlace`). Une toile qu'un raccourci posé sur
+ * elle montre s'y liste aussi, marquée (`raccourci`) : elle reste rangée là où est sa carte.
  */
 export const contenuDuDossier = (id: string, entrees: readonly EntreeBibliotheque[], racine?: string | null) =>
-  entrees.filter((e) => (e.dans === id || (id === racine && sansPlace(e))) && !(e.element === null && e.tableau === id))
+  entrees.flatMap((e) =>
+    (e.dans === id || (id === racine && sansPlace(e))) && !(e.element === null && e.tableau === id)
+      ? [e]
+      : montreeParRaccourci(id, e)
+        ? [{ ...e, raccourci: true as const }]
+        : [],
+  )
 
 // ---- L'ordre de la bibliothèque ----
 
@@ -185,7 +202,11 @@ export const APERCU_MAX = 4
 export function avecApercus(entrees: EntreeBibliotheque[]): EntreeBibliotheque[] {
   const contenus = new Map(entrees.filter(estDossier).map((e) => [e.tableau, [] as EntreeBibliotheque[]]))
   if (contenus.size === 0) return entrees
-  for (const e of entrees) if (e.dans && !(e.element === null && e.tableau === e.dans)) contenus.get(e.dans)?.push(e)
+  for (const e of entrees) {
+    if (e.dans && !(e.element === null && e.tableau === e.dans)) contenus.get(e.dans)?.push(e)
+    // Ce qu'un raccourci y montre en fait partie : le dossier d'un client n'est pas vide de ses projets rangés ailleurs.
+    for (const d of e.raccourcis ?? []) if (montreeParRaccourci(d, e)) contenus.get(d)?.push(e)
+  }
   return entrees.map((e) => {
     const contenu = estDossier(e) ? ordonner(contenus.get(e.tableau)!, 'creation').slice(0, APERCU_MAX) : []
     if (contenu.length === 0) return e

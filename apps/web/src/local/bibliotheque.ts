@@ -32,7 +32,13 @@ function rangement(toiles: readonly EntreeIndex[], fiches: ReadonlyMap<Id, Pick<
   const regle = rangerLesToiles(
     toiles.map((e) => {
       const r = resumeDe(e.id)
-      return { id: e.id, parent: e.parent ?? null, ...(r?.cartes ? { cartes: r.cartes } : {}), ...(r?.jetees ? { jetees: r.jetees } : {}) }
+      return {
+        id: e.id,
+        parent: e.parent ?? null,
+        ...(r?.cartes ? { cartes: r.cartes } : {}),
+        ...(r?.jetees ? { jetees: r.jetees } : {}),
+        ...(r?.raccourcis ? { raccourcis: r.raccourcis } : {}),
+      }
     }),
   )
   return { ...regle, resumeDe }
@@ -60,13 +66,14 @@ export function entreesDeLAppareil(
     const quand = [vus[cleVu(toile.id, element)], geste !== undefined && geste >= toile.cree ? geste : undefined].filter((v): v is number => typeof v === 'number')
     return quand.length ? Math.max(...quand) : null
   }
-  const { dossierDe, cachees, resumeDe } = rangement(toiles, fiches)
+  const { dossierDe, cachees, resumeDe, raccourcisVers } = rangement(toiles, fiches)
   const entrees: EntreeBibliotheque[] = []
   for (const e of toiles) {
     if (cachees.has(e.id)) continue
     if (e.id !== racine) {
       const dans = dossierDe(e.id)
-      const { cartes: _c, jetees: _j, ...resume } = resumeDe(e.id) ?? { genre: 'toile' as const, element: '' as const, titre: e.titre, boites: [] }
+      const aussi = [...raccourcisVers(e.id)]
+      const { cartes: _c, jetees: _j, raccourcis: _r, ...resume } = resumeDe(e.id) ?? { genre: 'toile' as const, element: '' as const, titre: e.titre, boites: [] }
       entrees.push({
         tableau: e.id,
         element: null,
@@ -75,6 +82,8 @@ export function entreesDeLAppareil(
         resume: { ...resume, titre: e.titre },
         ou: dans ? (titres.get(dans) ?? null) : null,
         dans,
+        // Les toiles qui la montrent aussi par un raccourci : elle s'y liste, marquée, sans y être rangée.
+        ...(aussi.length ? { raccourcis: aussi } : {}),
         vu: recent(e, null),
         favori: favoris.has(`${e.id}/`),
         partage: false,

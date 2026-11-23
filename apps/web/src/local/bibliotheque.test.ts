@@ -8,13 +8,14 @@ import { noterVu } from './vus'
 
 const toile = (id: string, titre: string, parent?: string): EntreeIndex => ({ id, titre, cree: 0, ...(parent ? { parent } : {}) })
 const plan: BoitePlan[] = [[0, 0, 10, 4, '', 'note', 1]]
-const resumeToile = (titre: string, cartes: string[] = [], jetees: string[] = []): ResumeContenu => ({
+const resumeToile = (titre: string, cartes: string[] = [], jetees: string[] = [], raccourcis: string[] = []): ResumeContenu => ({
   genre: 'toile',
   element: '',
   titre,
   boites: plan,
   ...(cartes.length ? { cartes } : {}),
   ...(jetees.length ? { jetees } : {}),
+  ...(raccourcis.length ? { raccourcis } : {}),
 })
 
 describe('les entrées de l’appareil', () => {
@@ -43,6 +44,21 @@ describe('les entrées de l’appareil', () => {
 
   it('une toile dont la carte est jetée n’y est plus', () => {
     const e = entreesDeLAppareil(TOILES, 'accueil', FICHES, new Map(), {})
+    expect(e.some((x) => x.tableau === 'vieux')).toBe(false)
+  })
+
+  it('une toile qu’un raccourci montre ailleurs le dit (`raccourcis`), sans quitter celle qui porte sa carte', () => {
+    const fiches = new Map([
+      ...FICHES,
+      // « Voyage » porte un raccourci vers « Japon », qu'elle range déjà, et l'accueil un autre : seul celui-ci compte.
+      ['voyage', { resumes: [resumeToile('Voyage', ['japon'], [], ['japon', 'vieux'])] }],
+      ['accueil', { resumes: [resumeToile('', ['voyage'], ['vieux'], ['japon'])] }],
+    ])
+    const e = entreesDeLAppareil(TOILES, 'accueil', fiches, new Map(), {})
+    const japon = e.find((x) => x.tableau === 'japon' && !x.element)!
+    expect(japon).toMatchObject({ dans: 'voyage', raccourcis: ['accueil'] })
+    expect(e.find((x) => x.tableau === 'voyage' && !x.element)!.resume).not.toHaveProperty('raccourcis')
+    // Une toile jetée ne revient pas par un raccourci.
     expect(e.some((x) => x.tableau === 'vieux')).toBe(false)
   })
 

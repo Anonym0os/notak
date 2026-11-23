@@ -12,6 +12,25 @@ describe('le résumé d’une toile montrée en dossier', () => {
   })
 })
 
+describe('les cartes et les raccourcis d’une toile', () => {
+  it('une carte range sa toile (`cartes`) ; un raccourci la montre seulement (`raccourcis`), hors corbeille', () => {
+    const r = resumesDuTableau(
+      toile([
+        poser('c1', { type: 'tableau', cible: 'rangee' }),
+        poser('r1', { type: 'tableau', cible: 'ailleurs', raccourci: true }),
+        poser('r2', { type: 'tableau', cible: 'ailleurs', raccourci: true }),
+        // Un raccourci vers une toile dont elle porte déjà la carte ne la montre pas deux fois.
+        poser('r3', { type: 'tableau', cible: 'rangee', raccourci: true }),
+        poser('r4', { type: 'tableau', cible: 'jetee', raccourci: true }, { corbeille: 1 }),
+      ]),
+    )[0]
+    expect(r).toMatchObject({ genre: 'toile', cartes: ['rangee'], raccourcis: ['ailleurs'] })
+    // Le raccourci jeté n'est pas une carte jetée : il ne met rien à la corbeille.
+    expect(r).not.toHaveProperty('jetees')
+    expect(resumesDuTableau(toile([poser('c1', { type: 'tableau', cible: 'rangee' })]))[0]).not.toHaveProperty('raccourcis')
+  })
+})
+
 describe('les résumés d’une toile pour la bibliothèque', () => {
   it('une photo : sa légende, son fichier, sa plus petite copie et ses proportions', () => {
     const image = {

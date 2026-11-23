@@ -4640,6 +4640,15 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   opacity: 0.72;
 }
 
+/* La flèche d'une toile qu'un raccourci montre dans ce dossier, pâle, devant son nom : celle des raccourcis de la toile. */
+.biblio-tuile-raccourci {
+  display: inline-flex;
+  flex: none;
+  margin-right: 4px;
+  color: var(--app-pale);
+  vertical-align: -1px;
+}
+
 /* Le cadenas d'une toile privée, pâle, devant son nom. */
 .biblio-tuile-privee {
   display: inline-flex;

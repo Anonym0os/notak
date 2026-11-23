@@ -16,7 +16,7 @@ import type { BilanRangement, EntreeBibliotheque } from '../api'
 import type { BilanImport } from '../importation'
 import { t, tn } from '../langue'
 import type { Correctif } from './correctifs'
-import { genere } from './modele'
+import { fige, genere } from './modele'
 import { cleDe, porteuseDe } from './selection'
 
 /**
@@ -61,9 +61,17 @@ const rien = (): Resultat => ({ texte: t('biblio.annonce.rien'), correctifs: [] 
 
 /** Ce qu'on dit des dossiers qu'un outil a générés, laissés tels quels par un geste : rien s'il n'y en a pas. */
 export function resteTelQuel(laisses: readonly EntreeBibliotheque[]): string {
-  const premier = laisses[0]
-  if (!premier) return ''
-  return tn('biblio.genere.reste', laisses.length, { titre: premier.titre || t('commun.sansTitre'), outil: premier.outil ?? '' })
+  const generes = laisses.filter(genere)
+  const raccourcis = laisses.filter((e) => !genere(e))
+  const premier = generes[0]
+  const autre = raccourcis[0]
+  return [
+    premier ? tn('biblio.genere.reste', generes.length, { titre: premier.titre || t('commun.sansTitre'), outil: premier.outil ?? '' }) : '',
+    // Une toile qu'un raccourci montre ici est rangée ailleurs : c'est là qu'on la déplace ou qu'on la jette.
+    autre ? tn('biblio.raccourci.reste', raccourcis.length, { titre: autre.titre || t('commun.sansTitre') }) : '',
+  ]
+    .filter(Boolean)
+    .join('. ')
 }
 
 /** Le texte d'un geste, suivi de ce qui n'a pas changé ; ce dernier seul quand rien d'autre n'a été fait. */
@@ -92,8 +100,8 @@ export async function deplacerEntrees(
   vers: { id: string; titre: string },
   confirmer: (bilan: BilanRangement) => Promise<boolean>,
 ): Promise<Resultat | null> {
-  const laisses = entrees.filter(genere)
-  const mobiles = entrees.filter((e) => !genere(e) && porteuseDe(e) !== vers.id && !(e.element === null && e.tableau === vers.id))
+  const laisses = entrees.filter(fige)
+  const mobiles = entrees.filter((e) => !fige(e) && porteuseDe(e) !== vers.id && !(e.element === null && e.tableau === vers.id))
   if (mobiles.length === 0) return laisses.length > 0 ? { texte: resteTelQuel(laisses), correctifs: [] } : rien()
   const toiles = mobiles.filter((e) => e.element === null)
   const essais = await Promise.all(toiles.map((e) => o.rangerToile(e.tableau, vers.id, { essai: true })))
@@ -141,8 +149,8 @@ export async function rangerDansUneNeuve(
   ou: { id: string; titre: string },
   confirmer: (bilan: BilanRangement) => Promise<boolean>,
 ): Promise<(Resultat & { toile: string }) | null> {
-  const laisses = choisies.filter(genere)
-  const entrees = choisies.filter((e) => !genere(e))
+  const laisses = choisies.filter(fige)
+  const entrees = choisies.filter((e) => !fige(e))
   if (entrees.length === 0) return null
   const toiles = entrees.filter((e) => e.element === null)
   const essais = await Promise.all(toiles.filter((e) => e.dans !== ou.id).map((e) => o.rangerToile(e.tableau, ou.id, { essai: true })))
@@ -246,8 +254,8 @@ export async function rangerLesRestes(o: Outils, dossier: { id: string; titre: s
  * qu'un outil a généré n'y va pas : c'est l'outil qui l'y met, s'il le veut. L'avis le dit.
  */
 export async function jeterEntrees(o: Outils, choisies: readonly EntreeBibliotheque[], toutes: readonly EntreeBibliotheque[]): Promise<Resultat> {
-  const laisses = choisies.filter(genere)
-  const entrees = choisies.filter((e) => !genere(e))
+  const laisses = choisies.filter(fige)
+  const entrees = choisies.filter((e) => !fige(e))
   const places = await placesDe(o.espace, entrees)
   const voulues = entrees.flatMap((e, i) => (places[i] ? [{ e, place: places[i]! }] : []))
   const j = jeter(

@@ -1,7 +1,7 @@
 import { BoutonIlot, FiletIlot, Ilot } from '@notak/tableau'
 import type { EntreeBibliotheque } from '../api'
 import { t, tn } from '../langue'
-import { genere } from './modele'
+import { fige } from './modele'
 
 /**
  * La barre du choix, à la place du titre : combien de tuiles sont choisies, et ce qu'on en fait d'un geste (les
@@ -35,8 +35,10 @@ export function BarreChoix({
   // Tout se met en favori : les toiles et ce qu'elles portent.
   const tousFavoris = n > 0 && choisies.every((e) => e.favori)
   // Retenus plutôt qu'éteints : leur infobulle dit pourquoi.
-  const generes = n > 0 && choisies.every(genere)
-  const pourquoi = generes ? t('biblio.genere', { outil: choisies[0]!.outil! }) : ''
+  const generes = n > 0 && choisies.every(fige)
+  // Un dossier généré nomme son outil ; une toile qu'un raccourci montre ici dit qu'elle est rangée ailleurs.
+  const premier = choisies[0]
+  const pourquoi = !generes || !premier ? '' : premier.outil ? t('biblio.genere', { outil: premier.outil }) : t('biblio.raccourci.fige')
   return (
     <Ilot className="biblio-barre-choix" etiquette={compte}>
       <span className="biblio-barre-compte">{compte}</span>

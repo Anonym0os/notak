@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
 import { type Compte, type Monde, monde } from './essai.ts'
 import type { SourceRattachement } from './rattachements.ts'
+import { indexerDocument } from './indexation.ts'
 import { nomDuDocument } from './synchro.ts'
 
 type Lien = { cle: string; lien: string; tableau?: string }
@@ -181,5 +182,41 @@ describe('le dossier d’une fiche rangé sous ses entités (`dans`)', () => {
     expect(r.corps.dans).toEqual([{ cle: 'societe:20', lien: 'jete' }])
     expect(m.base.tableau(m.base.tableau(r.corps.tableau!)!.parent!)).toMatchObject({ titre: 'Clients' })
     expect(cartes(dossierDe('societe:20')!, r.corps.tableau!)).toHaveLength(0)
+  })
+
+  it('la bibliothèque et le contenu de la fiche montrent le projet sous chaque entité, marqué là où c’est un raccourci', async () => {
+    type Entree = { tableau: string; element: string | null; dans: string | null; raccourcis?: string[]; resume: Record<string, unknown> }
+    type Contenu = { elements: { tableau: string; raccourci?: boolean }[] }
+    await relier(ana, 'societe:31', { titre: 'Bernard' })
+    const r = await relier(ana, 'projet:30', { titre: 'Vitrine', dans: [{ cle: 'societe:30', titre: 'Arnaud' }, 'societe:31'] })
+    const projet = r.corps.tableau!
+    const [s30, s31] = ['societe:30', 'societe:31'].map((c) => dossierDe(c)!) as [string, string]
+    const bibliotheque = async (c: Compte) => (await (await m.appeler('/api/bibliotheque', { compte: c })).json()) as Entree[]
+    const contenu = async (c: Compte, cle: string) => (await (await m.appeler(`/api/rattachements/crm/${cle}/contenu`, { compte: c })).json()) as Contenu
+
+    // Rangé sous la première entité ; montré, en plus, sous la seconde. Le résumé ne dit pas ses raccourcis.
+    const entree = (await bibliotheque(ana)).find((e) => e.tableau === projet && e.element === null)!
+    expect(entree).toMatchObject({ dans: s30, raccourcis: [s31] })
+    expect((await bibliotheque(ana)).find((e) => e.tableau === s31)!.resume).not.toHaveProperty('raccourcis')
+    expect((await contenu(ana, 'societe:30')).elements.find((e) => e.tableau === projet)).not.toHaveProperty('raccourci')
+    expect((await contenu(ana, 'societe:31')).elements.find((e) => e.tableau === projet)).toMatchObject({ raccourci: true })
+
+    // Bob lit le dossier de Bernard, pas celui d'Arnaud où le projet est rangé : il ne le voit nulle part.
+    m.base.definirAcces({ tableau: s31, utilisateur: bob.utilisateur.id, role: 'lecture' })
+    await m.autorisation.vider()
+    const chezBob = await bibliotheque(bob)
+    expect(chezBob.some((e) => e.tableau === s31)).toBe(true)
+    expect(chezBob.some((e) => e.tableau === projet)).toBe(false)
+    expect((await contenu(bob, 'societe:31')).elements.some((e) => e.tableau === projet)).toBe(false)
+
+    // Le raccourci jeté, le projet ne s'y montre plus ; il reste rangé chez Arnaud.
+    const doc = lire(s31)
+    const elements = doc.getMap<Carte & { corbeille?: number }>('elements')
+    for (const [id, e] of elements) if (e.contenu.cible === projet) elements.set(id, { ...e, corbeille: 1 })
+    m.base.enregistrerDocument(nomDuDocument(s31), Y.encodeStateAsUpdate(doc))
+    indexerDocument(m.base, s31, doc)
+    expect((await bibliotheque(ana)).find((e) => e.tableau === projet && e.element === null)).toMatchObject({ dans: s30 })
+    expect((await bibliotheque(ana)).find((e) => e.tableau === projet && e.element === null)).not.toHaveProperty('raccourcis')
+    expect((await contenu(ana, 'societe:31')).elements.some((e) => e.tableau === projet)).toBe(false)
   })
 })

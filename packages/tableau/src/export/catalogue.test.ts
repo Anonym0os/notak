@@ -38,4 +38,31 @@ describe('où est rangée chaque toile', () => {
     expect(cachees.has('deplacee')).toBe(false)
     expect(dossierDe('deplacee')).toBe('autre')
   })
+
+  it('un raccourci montre la toile aussi là où il est posé, sans la ranger ailleurs', () => {
+    const { dossierDe, raccourcisVers } = rangerLesToiles([
+      { id: 'clients', parent: null, cartes: ['dupont', 'atelier', 'refonte'] },
+      { id: 'dupont', parent: 'clients', cartes: ['refonte'] },
+      { id: 'atelier', parent: 'clients', raccourcis: ['refonte', 'refonte'] },
+      // Le raccourci posé là où elle est déjà rangée ne la montre pas deux fois.
+      { id: 'refonte', parent: 'dupont', raccourcis: ['refonte'] },
+    ])
+    expect(dossierDe('refonte')).toBe('dupont')
+    expect(raccourcisVers('refonte')).toEqual(['atelier'])
+    expect(raccourcisVers('dupont')).toEqual([])
+  })
+
+  it('ni la toile, ni le raccourci à la corbeille ; ni une toile qu’on ne lit pas', () => {
+    const { raccourcisVers } = rangerLesToiles([
+      { id: 'accueil', parent: null, cartes: ['a', 'b', 'projet'], jetees: ['jete'] },
+      { id: 'a', parent: 'accueil', raccourcis: ['projet', 'cache', 'jete'] },
+      { id: 'b', parent: 'accueil', raccourcis: ['projet'] },
+      { id: 'jete', parent: 'accueil', raccourcis: ['projet'] },
+      { id: 'projet', parent: 'accueil' },
+    ])
+    // « jete » est à la corbeille : son raccourci ne montre plus rien ; « cache » n'est pas parmi ce qu'on lit.
+    expect(raccourcisVers('projet')).toEqual(['a', 'b'])
+    expect(raccourcisVers('cache')).toEqual([])
+    expect(raccourcisVers('jete')).toEqual([])
+  })
 })

@@ -251,8 +251,13 @@ On n'écrit que là où la personne peut écrire : un raccourci sous une fiche q
 ni retiré, et attend le rappel de quelqu'un qui le peut. La réponse de `POST`, quand la demande porte `dans`, dit ce
 qu'il en est de chacune, dans l'ordre donné : `"dans": [{ "cle", "lien", "tableau"? }]`, où `lien` vaut `dossier` (elle
 range le vrai parent), `raccourci` (un raccourci y mène), `interdit` (son dossier est fermé à la personne), `jete` (il
-est à la corbeille) ou `absent` (pas encore de dossier, au rappel). Les lectures (`GET …/<cle>` et `…/<cle>/contenu`)
-ne changent pas.
+est à la corbeille) ou `absent` (pas encore de dossier, au rappel). `GET …/<cle>` ne change pas.
+
+Le dossier de chaque entité montre le projet, dans la bibliothèque comme dans `GET …/<cle>/contenu` : sous la
+première, c'est le vrai parent ; sous les autres, l'entrée porte `"raccourci": true`, et son `chemin` mène au même
+dossier, rangé ailleurs. Seulement pour qui lit le projet : un raccourci vers un dossier privé, bloqué ou fermé à la
+personne ne montre rien. Dans la bibliothèque, le raccourci est marqué d'une flèche devant le titre ; on l'ouvre d'ici,
+mais on ne le déplace, ne le renomme ni ne le jette d'ici : la vraie toile est rangée chez la première entité.
 
 Ces dossiers, celui de chaque fiche et celui qui les range, sont générés par l'outil, et Notak le dit à la suite de leur
 titre. Personne ne les renomme, ne les déplace, ne les jette ni ne les modifie plus : ni leur nom, ni leur couleur, ni
@@ -268,7 +273,7 @@ L'outil peut aussi montrer, sur la fiche, ce que range son dossier. Ses pages li
 | Adresse | Ce qu'elle rend |
 |---|---|
 | `GET /api/rattachements/<source>/<cle>` | `etat` : `present` ou `corbeille` (avec `tableau` et `titre`), `cache` (le dossier existe, la personne ne le voit pas) ou `absent` |
-| `GET /api/rattachements/<source>/<cle>/contenu` | le même `etat`, et pour un dossier présent, `elements` : chaque toile, page, carte mentale, photo, lien ou fichier qu'il range et que la personne lit, avec `genre`, `titre`, `modifie` (ms, ou `null`) et `chemin` (à ajouter à l'adresse du serveur), du plus récemment changé au plus ancien |
+| `GET /api/rattachements/<source>/<cle>/contenu` | le même `etat`, et pour un dossier présent, `elements` : chaque toile, page, carte mentale, photo, lien ou fichier qu'il range et que la personne lit, avec `genre`, `titre`, `modifie` (ms, ou `null`) et `chemin` (à ajouter à l'adresse du serveur), du plus récemment changé au plus ancien ; une toile qu'un raccourci y montre, rangée ailleurs, porte en plus `raccourci: true` |
 
 Ces deux adresses ne s'ouvrent (CORS, avec les cookies) qu'à l'`origine` déclarée de l'outil, et seulement en lecture.
 L'appel se fait avec `credentials: 'include'`. Le cookie de session ne part que si l'outil et Notak sont sur le même

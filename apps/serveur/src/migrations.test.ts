@@ -94,6 +94,17 @@ describe('migrations', () => {
     copie.close()
   })
 
+  it('les raccourcis dans la liste des dossiers : tous les résumés se refont', () => {
+    const db = new DatabaseSync(':memory:')
+    db.exec('PRAGMA foreign_keys = ON')
+    migrer(db, undefined, MIGRATIONS.filter((m) => m.version < 20))
+    db.prepare('INSERT INTO recherche_etat (tableau) VALUES (?)').run('t1')
+    migrer(db, undefined, MIGRATIONS)
+    expect(versionDe(db)).toBe(derniere)
+    expect(db.prepare('SELECT COUNT(*) AS n FROM recherche_etat').get()).toEqual({ n: 0 })
+    db.close()
+  })
+
   it('la bibliothèque des photos, liens et fichiers : les contenus d’avant restent, les nouveaux genres entrent, et tout se réindexe', () => {
     const db = new DatabaseSync(':memory:')
     db.exec('PRAGMA foreign_keys = ON')
