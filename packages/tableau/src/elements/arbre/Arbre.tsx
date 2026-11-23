@@ -713,8 +713,13 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       if (dessin) animerCase(dessin, s?.tache !== 'faite')
       return faire({ type: 'porter', ids: [tache], champ: 'tache', valeur: s?.tache === 'faite' ? 'a-faire' : 'faite' })
     }
+    // L'icône d'une note, d'un lien ou d'une pièce s'ouvre au premier appui, même sujet en édition : le titre écrit est
+    // gardé, puis le champ se ferme. Ni choix au relâchement, ni glisser.
     const icone = attribut('data-icone')
-    if (icone) return ouvrirIcone(icone)
+    if (icone) {
+      if (edition) valider()
+      return ouvrirIcone(icone)
+    }
     const ctrl = attribut('data-controle')
     if (ctrl && !lectureSeule) {
       const [rel, i] = ctrl.split(':') as [Id, string]
@@ -1059,8 +1064,9 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     // Le double-clic que la webview tire de deux touchers déjà traités au doigt (`surRelache`).
     if (lectureSeule || performance.now() - doubleDoigt.current < 600) return
     const cible = e.target as Element
-    // Le champ d'un titre, une pastille « + » : le double-clic leur appartient.
-    if (cible.closest('.notak-arbre-barre, .notak-arbre-panneau, textarea, input, [data-ajout]')) return
+    // Le champ d'un titre, une pastille « + », une icône (sa note s'est ouverte au premier appui) : le double-clic leur
+    // appartient, il n'ouvre pas le titre.
+    if (cible.closest('.notak-arbre-barre, .notak-arbre-panneau, textarea, input, [data-ajout], [data-icone]')) return
     const sujet = cible.closest('[data-sujet]')?.getAttribute('data-sujet')
     if (sujet) return ouvrirEdition(sujet)
     const objet = cible.closest('[data-relation]')?.getAttribute('data-relation') ?? cible.closest('[data-limite]')?.getAttribute('data-limite') ?? cible.closest('[data-zone]')?.getAttribute('data-zone')

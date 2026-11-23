@@ -165,3 +165,50 @@ describe('les zones et les raccourcis', () => {
     expect(surface.hasAttribute('data-trace')).toBe(true)
   })
 })
+
+describe('l’icône de note d’un sujet', () => {
+  const pointeur = (e: Element, type: string) => act(() => void e.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: 10, clientY: 10, pointerId: 1 })))
+  Object.assign(HTMLElement.prototype, { setPointerCapture() {}, releasePointerCapture() {} })
+  const note = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Détail' }] }] }
+  function avecNote() {
+    const a = base()
+    const id = [...lire(a).sujets].find(([, s]) => s.titre === 'Idées')![0]
+    return ouvrir({ ...a, sujets: { ...a.sujets, [id]: { ...a.sujets[id]!, note } } })
+  }
+  const sujet = () => [...document.querySelectorAll('.notak-arbre-surface [data-sujet]')].find((s) => s.textContent === 'Idées' || s.querySelector('[data-icone]'))!
+  // Le carré de clic, et non le trait du dessin : c'est là que le pointeur tombe le plus souvent.
+  const prise = () => document.querySelector('.notak-arbre-surface [data-icone^="notes:"] > rect')!
+  const popover = () => document.querySelector('.notak-arbre-note-popover')
+  const champ = () => document.querySelector<HTMLTextAreaElement>('textarea.notak-arbre-champ')
+
+  it('sur un sujet choisi, un appui à côté du trait ouvre la note du premier coup', () => {
+    avecNote()
+    pointeur(sujet(), 'pointerdown')
+    pointeur(sujet(), 'pointerup')
+    expect(popover()).toBeNull()
+    pointeur(prise(), 'pointerdown')
+    pointeur(prise(), 'pointerup')
+    expect(popover()).toBeTruthy()
+    expect(champ()).toBeNull()
+  })
+
+  it('sur un sujet en édition, elle ouvre la note et garde le titre écrit', () => {
+    const c = avecNote()
+    act(() => void sujet().dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+    const c0 = champ()!
+    const ecrire = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!
+    act(() => (ecrire.call(c0, 'Idées neuves'), void c0.dispatchEvent(new Event('input', { bubbles: true }))))
+    pointeur(prise(), 'pointerdown')
+    expect(popover()).toBeTruthy()
+    expect(champ()).toBeNull()
+    expect([...lire(c.courant()).sujets.values()].map((s) => s.titre)).toContain('Idées neuves')
+  })
+
+  it('un double-clic sur l’icône n’ouvre pas le titre en édition', () => {
+    avecNote()
+    pointeur(prise(), 'pointerdown')
+    act(() => void prise().dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+    expect(champ()).toBeNull()
+    expect(popover()).toBeTruthy()
+  })
+})

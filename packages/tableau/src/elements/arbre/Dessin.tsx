@@ -34,7 +34,7 @@ import { contourForme, contourLimite } from './formes'
 import { Autocollant, DessinIllustration } from './catalogue'
 import { equation } from './equation'
 import { Marqueur, TAILLE_MARQUEUR } from './marqueurs'
-import { contourDe } from './modele/contour'
+import { cadresIcone, contourDe } from './modele/contour'
 import { REPERE, type Repere } from './modele/depot'
 import { limitesValides, numeroDe, relationsValides, sujetsDePlage } from './modele/elements'
 import { type Planning, marqueurPerso, marqueursUtilises, resumePlanning, zonesValides } from './modele/insertions'
@@ -314,6 +314,7 @@ const Sujet = memo(function Sujet({ id, sujet: s, rang, habit: h, theme, boite: 
   const icones = [s.note && !m.note ? 'notes' : null, s.lien ? 'lien' : null, s.piece ? 'piece' : null].filter((v): v is 'notes' | 'lien' | 'piece' => !!v)
   const eq = s.equation ? equation(s.equation) : null
   const xIcones = m.texte.x + m.texte.l + 4
+  const cadres = cadresIcone(TAILLE_ICONE, zoom)
   const { d: chemin, trait } = contourForme(h.forme, m.l, m.h)
   const trembler = mainLevee(h.motifBordure) || motifR === 'plein-main'
   const ancre = h.alignement === 'gauche' ? 'start' : h.alignement === 'droite' ? 'end' : 'middle'
@@ -364,7 +365,9 @@ const Sujet = memo(function Sujet({ id, sujet: s, rang, habit: h, theme, boite: 
         </text>
       )}
       {icones.map((nom, i) => (
-        <g key={nom} transform={`translate(${xIcones + i * PAS_ICONE} ${yIcone})`} style={{ color: plein ? encre : encreTheme }} data-icone={`${nom}:${id}`}>
+        <g key={nom} className="notak-arbre-icone" transform={`translate(${xIcones + i * PAS_ICONE} ${yIcone})`} style={{ color: plein ? encre : encreTheme }} data-icone={`${nom}:${id}`}>
+          <rect x={cadres.prise.x} y={cadres.prise.y} width={cadres.prise.l} height={cadres.prise.h} fill="transparent" />
+          <rect className="notak-arbre-icone-survol" x={cadres.survol.x} y={cadres.survol.y} width={cadres.survol.l} height={cadres.survol.h} rx={cadres.survol.rayon} strokeWidth={cadres.survol.trait} pointerEvents="none" />
           <Icone nom={nom === 'piece' ? (s.piece?.audio ? 'micro' : 'trombone') : nom} taille={TAILLE_ICONE} trait={1.75} />
         </g>
       ))}

@@ -229,3 +229,16 @@ describe('le rendu d’une carte à squelette', () => {
     expect(sujet(html, p)).toContain('<line')
   })
 })
+
+describe('l’icône d’une note, après le titre', () => {
+  it('se prend dans un carré de 24 px autour de son dessin de 16, et porte son fond de survol', () => {
+    const { a, p } = base()
+    const note = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Détail' }] }] }
+    const html = svg({ ...a, sujets: { ...a.sujets, [p]: { ...a.sujets[p]!, note } } })
+    const icone = html.slice(html.indexOf(`data-icone="notes:${p}"`)).split('</g>')[0]!
+    // Le dessin seul n'a pas de fond : sans ce carré, un clic ne prenait que son trait.
+    expect(icone).toMatch(/<rect x="-4" y="-4" width="24" height="24" fill="transparent"/)
+    expect(icone).toMatch(/<rect class="notak-arbre-icone-survol" x="-1" y="-1" width="18" height="18" rx="4"/)
+    expect(icone).toMatch(/<svg[^>]*width="16"/)
+  })
+})

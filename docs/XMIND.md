@@ -170,6 +170,12 @@ deux.
 - **Pastilles « + »** d'un sujet choisi seul (fenêtre active, zoom > 0,3, ni édition ni geste en cours) : disques bleus de
   18 px, à droite (ou à gauche pour une branche de ce côté) pour un enfant, dessous pour un frère après lui. Le central
   n'a que la première.
+- **Icône de note, de lien, de pièce jointe**, après le titre : Xmind la dessine à la taille du titre, la prend au clic
+  sur tout son carré (élargi de 5 px au doigt) et, au survol, l'entoure d'un fond `#2EBDFF` à 30 % (trait de 1,5, coins
+  de 4, à 1 px du dessin, le tout à 80 %). Un clic ouvre ce qu'elle porte, sauf pendant l'édition du titre.
+  → Notak : dessin de 16, pris dans un carré de 24 centré sur lui (le dessin seul, sans fond, ne se prenait que sur son
+  trait), le même survol, et la main. Le clic ouvre aussi pendant l'édition (le titre écrit est gardé) ; un double-clic
+  sur elle n'ouvre pas le titre.
 
 **Édition du titre en place**
 - Un champ transparent, sans bordure ni contour, posé exactement sur le texte du sujet, à sa police, sa taille, sa

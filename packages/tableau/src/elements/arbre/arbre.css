@@ -309,6 +309,21 @@
   cursor: pointer;
 }
 
+/* L'icône d'une note, d'un lien ou d'une pièce, au survol : un fond bleu autour du dessin, comme Xmind (modele/contour.ts).
+   Pas au doigt, où le survol resterait collé après le toucher, ni pendant un glisser. */
+.notak-arbre-icone-survol {
+  fill: var(--notak-arbre-contour);
+  fill-opacity: 0.3;
+  stroke: var(--notak-arbre-contour);
+  opacity: 0;
+}
+
+@media (hover: hover) {
+  .notak-arbre-surface:not([data-curseur]) .notak-arbre-icone:hover .notak-arbre-icone-survol {
+    opacity: 0.8;
+  }
+}
+
 /* Une tâche annulée : le carré de la case commune en gris, la croix par-dessus. */
 .notak-case-svg[data-etat='annulee'] .notak-case-svg-boite {
   stroke: var(--notak-arbre-discret, #8c939d);

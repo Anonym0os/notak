@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CONTOUR, PASTILLE, contourDe, echelleContour, pastillesDe } from './contour'
+import { CONTOUR, PASTILLE, cadresIcone, contourDe, echelleContour, pastillesDe } from './contour'
 
 describe('le contour de sélection', () => {
   it('2 px de trait, à 1 px du sujet, aux coins de 4 px', () => {
@@ -57,5 +57,17 @@ describe('les pastilles « + »', () => {
 
   it('le central, un flottant, un résumé n’ont pas de frère', () => {
     expect(pastillesDe(b, { gauche: false, souligne: false, replie: false, frere: false }).frere).toBeNull()
+  })
+})
+
+describe('l’icône d’une note, d’un lien ou d’une pièce', () => {
+  it('se prend dans un carré de 24 px centré sur son dessin de 16, à tout zoom', () => {
+    expect(cadresIcone(16, 1).prise).toEqual({ x: -4, y: -4, l: 24, h: 24 })
+    expect(cadresIcone(16, 0.5).prise).toEqual({ x: -4, y: -4, l: 24, h: 24 })
+  })
+
+  it('son survol est à 1 px du dessin, trait de 1,5 et coins de 4, et garde sa taille à l’écran sous 100 %', () => {
+    expect(cadresIcone(16, 1).survol).toEqual({ x: -1, y: -1, l: 18, h: 18, rayon: 4, trait: 1.5 })
+    expect(cadresIcone(16, 0.5).survol).toEqual({ x: -2, y: -2, l: 20, h: 20, rayon: 8, trait: 3 })
   })
 })

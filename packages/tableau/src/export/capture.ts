@@ -18,7 +18,7 @@ const PIXEL_VIDE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALA
  */
 export const HORS_TOILE = ['notak-zoom-pastille', 'notak-choix-modele', 'notak-lecture', 'notak-lasso', 'notak-curseur', 'notak-externe-bouton']
 /** Ce que la capture d'une carte laisse de côté : la sélection, le survol, les cadres et les repères du geste. */
-const HORS_CARTE = '.notak-arbre-choix, .notak-arbre-ajouts, .notak-arbre-survol, .notak-arbre-cadre, .notak-arbre-tire, .notak-arbre-relier, [data-controle]'
+const HORS_CARTE = '.notak-arbre-choix, .notak-arbre-ajouts, .notak-arbre-survol, .notak-arbre-icone-survol, .notak-arbre-cadre, .notak-arbre-tire, .notak-arbre-relier, [data-controle]'
 /** Le blanc laissé autour du contenu d'un tableau entier ou d'une carte (px d'écran). */
 const MARGE_CAPTURE = 24
 
