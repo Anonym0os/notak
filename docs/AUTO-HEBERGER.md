@@ -296,6 +296,32 @@ Une demande faite depuis une page ou une carte mentale ouverte en grand la dit o
 sélection, `{ id, texte: "La page « … » est ouverte en grand : <adresse>" }`, sans rien ajouter d'autre au corps. Le
 `lien` du tableau est son adresse dans l'app : `/t/<id>` pour une toile, `/?dossier=<id>` pour un dossier.
 
+### Les tâches de la fiche, dans son dossier
+
+Un outil qui tient des tâches sur ses fiches (Silak, sur une société et ce qui s'y rattache) peut les montrer dans le
+dossier de la fiche : un panneau « Tâches » liste celles qui sont ouvertes, en coche, en ajoute, et ouvre chacune chez
+l'outil. Les tâches restent chez l'outil, qui les rappelle et les attribue comme les autres ; Notak n'en garde rien,
+sauf, sur l'appareil, le dernier état connu, montré hors ligne avec sa date. Une fenêtre étroite, pas un second éditeur :
+une tâche dit son titre, son jour (rouge en retard), les initiales de qui la fait et son projet ; on en ajoute une d'un
+titre, et d'un jour si l'on veut ; rappels, récurrence, description et attribution se règlent chez l'outil.
+
+Le panneau paraît dans le dossier d'une fiche, à qui le **lit** et dont le compte est lié au SSO de l'outil
+(`fournisseur`) ; Notak relaie à la même adresse que l'agent (`agentAdresse`, avec `agents` et `secret`), signé de même,
+au nom de la personne. Il se relit à l'ouverture du dossier, au retour sur l'onglet et quand le réseau revient.
+
+| `type` | Corps | Réponse attendue |
+|---|---|---|
+| `taches.lister` | `{ personne: { sub, email }, cle }`, `cle` étant la fiche du dossier | `{ taches, total, complet, aujourdhui, ecrire, societe: { lien } }` |
+| `taches.ajouter` | `{ id, personne, cle, tableau, titre, echeance? }`, `id` un UUID par geste, `echeance` en `AAAA-MM-JJ` | `{ tache }` |
+| `taches.cocher` | `{ id, personne, cle, tache, fait }` | `{ tache }` |
+
+Une tâche : `{ id, titre, fait, en_retard, echeance, recurrente, projet, personnes, lien }`, `personnes` étant des noms
+et `lien` un chemin chez l'outil (`/taches/…`), que Notak pose sur l'`origine` déclarée et refuse s'il en sort.
+`ecrire` dit si la personne peut ajouter et cocher. Le même `id` renvoyé rend la même réponse sans refaire le geste.
+Un 404 de l'outil vaut « pas pour cette personne » (ni compte, ni droit, ni fiche qu'elle lise) : le panneau ne paraît
+pas ; un outil qui ne connaît pas ces types répond de même. Un 422 se dit (« ce geste a été refusé ») ; le reste vaut
+une panne passagère, et le panneau garde ce qu'il montrait.
+
 ## Fermer les inscriptions
 
 Avec `NOTAK_INSCRIPTIONS=fermees` dans le `.env` (puis `docker compose up -d`), l'écran de connexion ne propose plus

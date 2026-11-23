@@ -55,6 +55,7 @@ import { AUCUN_CHANGEMENT, type Bilan, bilanDuRangement, rienNeChange } from './
 import { RELATION_DU_ROLE, type Role, auMoins, role, roleDeRelation } from './droits.ts'
 import { decouvrirOidc } from './sso.ts'
 import { routesAgent } from './fram.ts'
+import { routesTaches } from './tachesOutil.ts'
 import { estFormatExport, exporterTexte, langueExport } from './exporter.ts'
 import { ErreurBanque, chercherImages } from './images.ts'
 import { indexerDocument, requeteIndex } from './indexation.ts'
@@ -2447,6 +2448,8 @@ export function creerApp(ctx: Contexte): Hono {
   })
 
   routesAgent(app, { garde, base, sources: () => ctx.rattachements ?? [], maintenant: ctx.maintenant, origine: ctx.origine, ouvrable: (u, lieu) => ouvrable(u, lieu) })
+  // Les tâches qu'un outil tient sur une fiche, dans le dossier de celle-ci (tachesOutil.ts).
+  routesTaches(app, { garde, base, sources: () => ctx.rattachements ?? [], maintenant: ctx.maintenant })
 
   // ---- Les dossiers des fiches d'un autre outil (rattachements.ts) ----
 
