@@ -416,8 +416,8 @@ pub fn run() {
                 }
                 _ => {}
             }
-            // Sur un iPhone ou un iPad, le système remet de même un lien `notak://` touché ailleurs : celui d'une fiche
-            // de Silak, ou la fin de la connexion par code. L'app lancée, par la scène (`scene:openURLContexts:`) ; au
+            // Sur un iPhone ou un iPad, le système remet de même un lien `notak://` touché ailleurs : celui de la fiche
+            // d'un outil relié, ou la fin de la connexion par code. L'app lancée, par la scène (`scene:openURLContexts:`) ; au
             // lancement, par le relais du plugin `appareil` (`LienDuLancement`), tao ne lisant pas ce que reçoit la
             // connexion de la scène.
             #[cfg(target_os = "ios")]

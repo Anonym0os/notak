@@ -45,12 +45,12 @@ const MAINTENANT = Date.now()
 const TOUTES: EntreeBibliotheque[] = [
   entree({ tableau: 'voyage', titre: 'Voyage', vu: MAINTENANT - 3_600_000, favori: true }),
   entree({ tableau: 'budget', titre: 'Budget', partage: true, vu: MAINTENANT - 60_000 }),
-  ...['Atelier', 'Cuisine', 'Jardin', 'Lectures'].map((titre) => entree({ tableau: titre.toLowerCase(), titre, ou: 'Silak', dans: 'racine' })),
+  ...['Atelier', 'Cuisine', 'Jardin', 'Lectures'].map((titre) => entree({ tableau: titre.toLowerCase(), titre, ou: 'Comptoir', dans: 'racine' })),
   entree({ tableau: 'voyage', element: 'plan', genre: 'arbre', titre: 'Plan', ou: 'Voyage', dans: 'voyage', vu: MAINTENANT - 7_200_000 }),
 ]
 
 /** Juste ce que la page lit de l'espace : l'accueil et son titre. */
-const espace = { racine: 'racine', ecouter: () => () => {}, tableau: (id: string) => (id === 'racine' ? { titre: 'Silak' } : undefined) } as unknown as EspaceRangement
+const espace = { racine: 'racine', ecouter: () => () => {}, tableau: (id: string) => (id === 'racine' ? { titre: 'Comptoir' } : undefined) } as unknown as EspaceRangement
 
 /** Un téléphone (au doigt, étroit), une tablette (au doigt, large) ou un ordinateur. */
 const ecran = (sorte: 'telephone' | 'tablette' | 'ordinateur') =>

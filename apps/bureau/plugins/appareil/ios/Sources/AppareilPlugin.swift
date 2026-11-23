@@ -411,7 +411,7 @@ enum Secousse {
   }()
 }
 
-/// Le lien `notak://` qui lance l'app (celui d'une fiche de Silak, Notak fermé). Avec le SDK d'iOS 27, l'app tourne en
+/// Le lien `notak://` qui lance l'app (celui de la fiche d'un outil relié, Notak fermé). Avec le SDK d'iOS 27, l'app tourne en
 /// scènes même sans manifeste : iOS remet ce lien à la connexion de la scène (`options.urlContexts`), que tao 0.37 ne
 /// lit pas. Il ne relaie que les liens qui arrivent l'app déjà lancée (`scene:openURLContexts:`, d'où
 /// `RunEvent::Opened` et `src/lien.rs`). On enveloppe donc la connexion de la scène de tao, puis on lui passe ces liens

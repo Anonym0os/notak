@@ -4,7 +4,7 @@ Un habillage est un thème Notak écrit dans un fichier JSON : ses couleurs, ses
 présentations et ses cartes mentales. On l'importe dans les réglages (« Thème », puis « Importer un thème… »), ou un
 serveur le fournit à tous ses comptes. Il se pose par-dessus le mode clair ou sombre, qui reste un réglage à part.
 
-L'exemple de référence est [`exemples/habillages/silak.json`](../exemples/habillages/silak.json). Un essai le relit à
+L'exemple de référence est [`exemples/habillages/ardoise.json`](../exemples/habillages/ardoise.json). Un essai le relit à
 chaque passage des tests.
 
 ## Le format
@@ -13,8 +13,8 @@ chaque passage des tests.
 {
   "notak": "habillage",
   "version": 1,
-  "id": "silak",
-  "nom": "Silak",
+  "id": "ardoise",
+  "nom": "Ardoise",
   "auteur": "…",
   "couleurs": { "clair": { … }, "sombre": { … } },
   "rayons": { "carte": 10, "controle": 10, "panneau": 20 },

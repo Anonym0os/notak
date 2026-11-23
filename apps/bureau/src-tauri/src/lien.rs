@@ -1,4 +1,4 @@
-/// Un lien `notak://` cliqué ailleurs (une fiche de Silak, un courriel) ouvre sa page dans Notak plutôt que dans le
+/// Un lien `notak://` cliqué ailleurs (la fiche d'un outil relié, un courriel) ouvre sa page dans Notak plutôt que dans le
 /// navigateur. Le lien, c'est l'adresse de la page avec `notak:` à la place de `https:` :
 ///
 /// - `notak://notak.exemple.fr/?dossier=<dossier>` : un dossier, dans la bibliothèque ;
@@ -273,41 +273,41 @@ mod essais {
 
     #[test]
     fn un_lien_mene_a_un_dossier_a_ce_qu_il_range_ou_a_une_toile() {
-        let o = || "https://notak.silak.fr".to_string();
-        assert_eq!(lu("notak://notak.silak.fr/?dossier=Abc_123-xyz"), Some((o(), "https://notak.silak.fr/?dossier=Abc_123-xyz".into())));
+        let o = || "https://notak.exemple.fr".to_string();
+        assert_eq!(lu("notak://notak.exemple.fr/?dossier=Abc_123-xyz"), Some((o(), "https://notak.exemple.fr/?dossier=Abc_123-xyz".into())));
         assert_eq!(
-            lu("notak://notak.silak.fr/?dossier=Abc_123-xyz&element=e1"),
-            Some((o(), "https://notak.silak.fr/?dossier=Abc_123-xyz&element=e1".into()))
+            lu("notak://notak.exemple.fr/?dossier=Abc_123-xyz&element=e1"),
+            Some((o(), "https://notak.exemple.fr/?dossier=Abc_123-xyz&element=e1".into()))
         );
-        assert_eq!(lu("notak://notak.silak.fr/t/abcdefgh"), Some((o(), "https://notak.silak.fr/t/abcdefgh".into())));
-        assert_eq!(lu("notak://notak.silak.fr/"), Some((o(), "https://notak.silak.fr/".into())));
-        assert_eq!(lu("notak://notak.silak.fr"), Some((o(), "https://notak.silak.fr/".into())));
+        assert_eq!(lu("notak://notak.exemple.fr/t/abcdefgh"), Some((o(), "https://notak.exemple.fr/t/abcdefgh".into())));
+        assert_eq!(lu("notak://notak.exemple.fr/"), Some((o(), "https://notak.exemple.fr/".into())));
+        assert_eq!(lu("notak://notak.exemple.fr"), Some((o(), "https://notak.exemple.fr/".into())));
         // L'hôte se relit comme celui d'une adresse tapée : en minuscules, avec son port ; cet ordinateur, en HTTP.
-        assert_eq!(lu("notak://Notak.Silak.FR:8443/t/abcdefgh"), Some(("https://notak.silak.fr:8443".into(), "https://notak.silak.fr:8443/t/abcdefgh".into())));
+        assert_eq!(lu("notak://Notak.Exemple.FR:8443/t/abcdefgh"), Some(("https://notak.exemple.fr:8443".into(), "https://notak.exemple.fr:8443/t/abcdefgh".into())));
         assert_eq!(lu("notak://localhost:3005/t/abcdefgh"), Some(("http://localhost:3005".into(), "http://localhost:3005/t/abcdefgh".into())));
     }
 
     #[test]
     fn un_lien_ouvre_la_page_qui_cree_le_dossier_d_une_fiche() {
-        let o = || "https://notak.silak.fr".to_string();
+        let o = || "https://notak.exemple.fr".to_string();
         assert_eq!(
-            lu("notak://notak.silak.fr/relier?source=silak&cle=societe:01a1-2b&titre=OPTIQUE%20MAUCORT&retour=https%3A%2F%2Fapp.silak.fr%2Fcrm%2Fsocietes%2F01a1"),
-            Some((o(), "https://notak.silak.fr/relier?source=silak&cle=societe%3A01a1-2b&titre=OPTIQUE+MAUCORT&retour=https%3A%2F%2Fapp.silak.fr%2Fcrm%2Fsocietes%2F01a1".into()))
+            lu("notak://notak.exemple.fr/relier?source=crm&cle=societe:01a1-2b&titre=OPTIQUE%20MAUCORT&retour=https%3A%2F%2Fcrm.exemple.fr%2Fcrm%2Fsocietes%2F01a1"),
+            Some((o(), "https://notak.exemple.fr/relier?source=crm&cle=societe%3A01a1-2b&titre=OPTIQUE+MAUCORT&retour=https%3A%2F%2Fcrm.exemple.fr%2Fcrm%2Fsocietes%2F01a1".into()))
         );
-        assert_eq!(lu("notak://notak.silak.fr/relier?source=silak&cle=societe:42"), Some((o(), "https://notak.silak.fr/relier?source=silak&cle=societe%3A42".into())));
+        assert_eq!(lu("notak://notak.exemple.fr/relier?source=crm&cle=societe:42"), Some((o(), "https://notak.exemple.fr/relier?source=crm&cle=societe%3A42".into())));
         for adresse in [
-            "notak://notak.silak.fr/relier",
-            "notak://notak.silak.fr/relier?source=silak",
-            "notak://notak.silak.fr/relier?cle=societe:42",
-            "notak://notak.silak.fr/relier?source=Silak&cle=societe:42",
-            "notak://notak.silak.fr/relier?source=silak&cle=:42",
-            "notak://notak.silak.fr/relier?source=silak&cle=societe/42",
-            "notak://notak.silak.fr/relier?source=silak&cle=societe:42&cle=societe:43",
-            "notak://notak.silak.fr/relier?source=silak&cle=societe:42&en_plus=1",
-            "notak://notak.silak.fr/relier?source=silak&cle=societe:42&retour=http://app.silak.fr/",
-            "notak://notak.silak.fr/relier?source=silak&cle=societe:42&retour=javascript:alert(1)",
-            "notak://notak.silak.fr/relier?source=silak&cle=societe:42&titre=a%0Ab",
-            "notak://notak.silak.fr/relier/plus?source=silak&cle=societe:42",
+            "notak://notak.exemple.fr/relier",
+            "notak://notak.exemple.fr/relier?source=crm",
+            "notak://notak.exemple.fr/relier?cle=societe:42",
+            "notak://notak.exemple.fr/relier?source=Comptoir&cle=societe:42",
+            "notak://notak.exemple.fr/relier?source=crm&cle=:42",
+            "notak://notak.exemple.fr/relier?source=crm&cle=societe/42",
+            "notak://notak.exemple.fr/relier?source=crm&cle=societe:42&cle=societe:43",
+            "notak://notak.exemple.fr/relier?source=crm&cle=societe:42&en_plus=1",
+            "notak://notak.exemple.fr/relier?source=crm&cle=societe:42&retour=http://crm.exemple.fr/",
+            "notak://notak.exemple.fr/relier?source=crm&cle=societe:42&retour=javascript:alert(1)",
+            "notak://notak.exemple.fr/relier?source=crm&cle=societe:42&titre=a%0Ab",
+            "notak://notak.exemple.fr/relier/plus?source=crm&cle=societe:42",
         ] {
             assert_eq!(lu(adresse), None, "{adresse}");
         }
@@ -317,25 +317,25 @@ mod essais {
     fn un_lien_d_une_autre_forme_ne_mene_nulle_part() {
         for adresse in [
             // Un autre schéma, des identifiants, un fragment.
-            "https://notak.silak.fr/t/abcdefgh",
-            "notak://moi:secret@notak.silak.fr/t/abcdefgh",
-            "notak://notak.silak.fr/t/abcdefgh#ailleurs",
+            "https://notak.exemple.fr/t/abcdefgh",
+            "notak://moi:secret@notak.exemple.fr/t/abcdefgh",
+            "notak://notak.exemple.fr/t/abcdefgh#ailleurs",
             // Un autre chemin, ou un chemin qui sort de ceux de Notak.
-            "notak://notak.silak.fr/api/sante",
-            "notak://notak.silak.fr/t/abcdefgh/plus",
-            "notak://notak.silak.fr/t/../api/moi",
-            "notak://notak.silak.fr/t/%2E%2E%2Fapi",
-            "notak://notak.silak.fr//ailleurs.fr/t/abcdefgh",
+            "notak://notak.exemple.fr/api/sante",
+            "notak://notak.exemple.fr/t/abcdefgh/plus",
+            "notak://notak.exemple.fr/t/../api/moi",
+            "notak://notak.exemple.fr/t/%2E%2E%2Fapi",
+            "notak://notak.exemple.fr//ailleurs.fr/t/abcdefgh",
             // Des paramètres de trop, dans le désordre, répétés, ou des identifiants que Notak ne donne pas.
-            "notak://notak.silak.fr/t/abcdefgh?dossier=abcdefgh",
-            "notak://notak.silak.fr/?dossier=abcdefgh&retour=https://ailleurs.fr",
-            "notak://notak.silak.fr/?element=e1&dossier=abcdefgh",
-            "notak://notak.silak.fr/?dossier=abcdefgh&dossier=ijklmnop",
-            "notak://notak.silak.fr/?dossier=court",
-            "notak://notak.silak.fr/?dossier=abc%26defgh",
-            "notak://notak.silak.fr/?dossier=abcdefgh&element=",
-            "notak://notak.silak.fr/?vue=corbeille",
-            "notak://notak.silak.fr/t/abcdefgh?",
+            "notak://notak.exemple.fr/t/abcdefgh?dossier=abcdefgh",
+            "notak://notak.exemple.fr/?dossier=abcdefgh&retour=https://ailleurs.fr",
+            "notak://notak.exemple.fr/?element=e1&dossier=abcdefgh",
+            "notak://notak.exemple.fr/?dossier=abcdefgh&dossier=ijklmnop",
+            "notak://notak.exemple.fr/?dossier=court",
+            "notak://notak.exemple.fr/?dossier=abc%26defgh",
+            "notak://notak.exemple.fr/?dossier=abcdefgh&element=",
+            "notak://notak.exemple.fr/?vue=corbeille",
+            "notak://notak.exemple.fr/t/abcdefgh?",
             // Un hôte qu'on ne joindrait pas à la main : l'application elle-même, une IPv6, rien.
             "notak://tauri.localhost/t/abcdefgh",
             "notak://[::1]/t/abcdefgh",
@@ -352,8 +352,8 @@ mod essais {
             assert!(ramene_seulement(&Url::parse(adresse).unwrap()), "{adresse}");
         }
         for adresse in [
-            "notak://notak.silak.fr",
-            "notak://notak.silak.fr/",
+            "notak://notak.exemple.fr",
+            "notak://notak.exemple.fr/",
             "notak://autorise/t/abcdefgh",
             "notak://autorise?dossier=abcdefgh",
             "notak://autorise#plus",
@@ -373,15 +373,15 @@ mod essais {
     fn chaque_refus_se_dit_dans_les_deux_langues_et_sur_chaque_appareil() {
         for appareil in [Appareil::Mac, Appareil::Ios] {
             for refus in [Refus::Illisible, Refus::PasRelie, Refus::Injoignable] {
-                let (fr, en) = (textes(true, appareil, refus, "notak.silak.fr"), textes(false, appareil, refus, "notak.silak.fr"));
+                let (fr, en) = (textes(true, appareil, refus, "notak.exemple.fr"), textes(false, appareil, refus, "notak.exemple.fr"));
                 assert_ne!(fr, en);
                 if refus != Refus::Illisible {
-                    assert!(fr.0.contains("notak.silak.fr") && en.0.contains("notak.silak.fr"));
+                    assert!(fr.0.contains("notak.exemple.fr") && en.0.contains("notak.exemple.fr"));
                 }
             }
         }
         // Chacun dit où l'on change de serveur, et le geste qui relance le lien.
-        let pas_relie = |francais, appareil| textes(francais, appareil, Refus::PasRelie, "notak.silak.fr").1;
+        let pas_relie = |francais, appareil| textes(francais, appareil, Refus::PasRelie, "notak.exemple.fr").1;
         assert!(pas_relie(true, Appareil::Mac).contains("Notak › Changer de serveur…") && pas_relie(true, Appareil::Mac).contains("cliquez"));
         assert!(pas_relie(false, Appareil::Mac).contains("Notak › Change server…") && pas_relie(false, Appareil::Mac).contains("click"));
         assert!(pas_relie(true, Appareil::Ios).contains("depuis Compte") && pas_relie(true, Appareil::Ios).contains("touchez"));

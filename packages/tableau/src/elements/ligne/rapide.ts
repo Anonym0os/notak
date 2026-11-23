@@ -45,8 +45,8 @@ export interface Arrondi {
 }
 
 /**
- * Le coin haut droit d'un élément, où se pose la poignée. Sa carte arrondie (un habillage arrondit les cartes, 10 px chez
- * Silak), le coin de sa boîte tombe dans le vide, hors de la carte : la poignée se pose sur l'arrondi, à 45°.
+ * Le coin haut droit d'un élément, où se pose la poignée. Sa carte arrondie (un habillage arrondit les cartes, 6 px dans
+ * l'exemple Ardoise), le coin de sa boîte tombe dans le vide, hors de la carte : la poignée se pose sur l'arrondi, à 45°.
  */
 export const coinPoignee = (r: Rect, arrondi: Arrondi = { x: 0, y: 0 }): Point =>
   point(r.max.x - arrondi.x * (1 - Math.SQRT1_2), r.min.y + arrondi.y * (1 - Math.SQRT1_2))

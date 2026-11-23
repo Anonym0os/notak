@@ -1,6 +1,6 @@
 # La porte des agents
 
-Un agent d'un outil rattaché (Fram, l'assistant de Silak) agit dans Notak **comme la personne pour qui il travaille** :
+Un agent d'un outil rattaché (son assistant, « Fram » par exemple) agit dans Notak **comme la personne pour qui il travaille** :
 il parcourt sa bibliothèque, trouve ses tableaux, les lit, en crée, y pose des notes, des listes, des tables, des cartes
 mentales, des pages et des lignes, les modifie, les range, les renomme, les range ailleurs et les jette à la corbeille. Il
 passe par une seule route, signée du secret de son outil. Ses gestes arrivent en direct chez ceux qui ont le tableau
@@ -33,7 +33,7 @@ JSON de leurs arguments ; `docs/agents.schemas.json` en est la copie que l'outil
 Elle est **éteinte par défaut**. On l'allume pour une source de `NOTAK_RATTACHEMENTS` qui a déjà son `secret` :
 
 ```json
-[{ "source": "silak", "nom": "Silak", "dossier": "Clients", "origine": "https://silak.fr", "secret": "…",
+[{ "source": "crm", "nom": "Comptoir", "dossier": "Clients", "origine": "https://crm.exemple.fr", "secret": "…",
    "agents": true, "agent": "Fram" }]
 ```
 
@@ -41,7 +41,7 @@ Elle est **éteinte par défaut**. On l'allume pour une source de `NOTAK_RATTACH
 |---|---|
 | `agents` | `true` ouvre la porte à cette source. Absente, la route répond 404, comme si elle n'existait pas. |
 | `agent` | Le nom de l'agent, tel que l'activité le montre (« Samy avec Fram »). 40 caractères au plus ; à défaut, « l'assistant ». |
-| `fournisseur` | Le fournisseur SSO dont les comptes liés désignent les personnes ; à défaut, le nom de la source (`silak`). |
+| `fournisseur` | Le fournisseur SSO dont les comptes liés désignent les personnes ; à défaut, le nom de la source (`crm`). |
 | `agentAdresse` | Où relayer ce qu'on demande à l'agent depuis un tableau (son panneau, `apps/serveur/src/fram.ts`) : en https. Sans elle, la porte s'ouvre, le panneau ne paraît pas. |
 
 Tout se lit et se valide à un seul endroit, `sourcesDe` (`apps/serveur/src/rattachements.ts`) ; une clé écrite de
@@ -66,7 +66,7 @@ La signature vaut cinq minutes autour de l'horloge du serveur ; plusieurs `v1` p
 ```json
 {
   "id": "fram-7f3c2a91-0001",
-  "au_nom_de": { "sujet": "42", "courriel": "samy@silak.fr" },
+  "au_nom_de": { "sujet": "42", "courriel": "ana@exemple.fr" },
   "operation": "ajouter_elements",
   "arguments": { "tableau": "01JD…", "elements": [{ "type": "note", "texte": "# Relance\nAppeler **lundi**." }] }
 }
@@ -114,7 +114,7 @@ ne va pas et quoi faire (« élément introuvable : 01JD…. Relis le tableau av
 
 ## Les adresses
 
-Les liens à donner à la personne, sur l'origine du serveur (`https://notak.silak.fr`), avec les règles de « Copier le
+Les liens à donner à la personne, sur l'origine du serveur (`https://notak.exemple.fr`), avec les règles de « Copier le
 lien » de la bibliothèque (`apps/serveur/src/adresses.ts`) :
 
 | Quoi | Adresse |
@@ -180,7 +180,7 @@ Arguments : `tableau`, et `elements` (seulement ceux-là), `corbeille` (inclure 
 
 ```json
 {
-  "tableau": { "id": "…", "titre": "Plan de lancement", "droits": "edition", "adresse": "https://notak.silak.fr/t/…" },
+  "tableau": { "id": "…", "titre": "Plan de lancement", "droits": "edition", "adresse": "https://notak.exemple.fr/t/…" },
   "elements": [
     { "id": "…", "type": "titre", "x": 0, "y": 0, "l": 34, "h": 6, "texte": "Lancement" },
     { "id": "…", "type": "note", "x": 0, "y": 8, "l": 34, "h": 12, "texte": "# Objectif\nOuvrir **en mars**.", "couleur": "jaune" },
@@ -226,7 +226,7 @@ Martin" }` : le dossier de la fiche, créé s'il manque et que `titre` est donn�
 `fiche` : l'accueil de l'espace personnel.
 
 ```json
-{ "tableau": { "id": "…", "titre": "Plan de lancement", "adresse": "https://notak.silak.fr/t/…" }, "dans": { "id": "…", "titre": "Boulangerie Martin" }, "carte": "…" }
+{ "tableau": { "id": "…", "titre": "Plan de lancement", "adresse": "https://notak.exemple.fr/t/…" }, "dans": { "id": "…", "titre": "Boulangerie Martin" }, "carte": "…" }
 ```
 
 `carte` est l'élément qui range le tableau dans `dans` : le jeter (`jeter_elements`) met le tableau à la corbeille,

@@ -17,7 +17,7 @@ import { type SourceRattachement, signer, sourcesDe } from './rattachements.ts'
 import { creerHocuspocus, nomDuDocument } from './synchro.ts'
 
 const SECRET = 'un-secret-partage-de-plus-de-trente-deux-caracteres'
-const SILAK: SourceRattachement = { source: 'silak', nom: 'Silak', dossier: 'Clients', origine: 'https://silak.exemple', secret: SECRET, agents: true, agent: 'Fram' }
+const CRM: SourceRattachement = { source: 'crm', nom: 'Comptoir', dossier: 'Clients', origine: 'https://crm.exemple', secret: SECRET, agents: true, agent: 'Fram' }
 const ETEINTE: SourceRattachement = { source: 'eteinte', nom: 'Éteinte', dossier: 'Dossiers', origine: 'https://eteinte.exemple', secret: SECRET }
 
 type Reponse = { ok: boolean; code?: string; erreur?: string; resultat?: Record<string, any> }
@@ -28,8 +28,8 @@ describe('la porte des agents', () => {
   let bob: Compte
   let nombre = 0
   const agir = async (operation: string, args: unknown, o: { au_nom_de?: unknown; id?: string; source?: string; secret?: string; quand?: number } = {}) => {
-    const corps = JSON.stringify({ id: o.id ?? `essai-${++nombre}-agent`, au_nom_de: o.au_nom_de ?? { sujet: 'silak-ana' }, operation, arguments: args })
-    const r = await m.appelerBrut(`/api/outils/${o.source ?? 'silak'}/agent`, {
+    const corps = JSON.stringify({ id: o.id ?? `essai-${++nombre}-agent`, au_nom_de: o.au_nom_de ?? { sujet: 'crm-ana' }, operation, arguments: args })
+    const r = await m.appelerBrut(`/api/outils/${o.source ?? 'crm'}/agent`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'notak-signature': signer(o.secret ?? SECRET, corps, o.quand ?? m.maintenant()) },
       body: corps,
@@ -50,7 +50,7 @@ describe('la porte des agents', () => {
     const quand = new Date().toISOString()
     m.base.db
       .prepare('INSERT INTO account (id, accountId, providerId, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(`compte-${sujet}`, sujet, 'silak', c.utilisateur.id, quand, quand)
+      .run(`compte-${sujet}`, sujet, 'crm', c.utilisateur.id, quand, quand)
   }
   const tableau = async (c: Compte, id: string, titre: string) => {
     expect((await m.appeler('/api/tableaux', { compte: c, json: { id, titre } })).status).toBe(201)
@@ -66,10 +66,10 @@ describe('la porte des agents', () => {
   }
 
   beforeAll(async () => {
-    m = monde({ rattachements: [SILAK, ETEINTE] })
+    m = monde({ rattachements: [CRM, ETEINTE] })
     ana = await m.compte('Ana')
     bob = await m.compte('Bob')
-    lier(ana, 'silak-ana')
+    lier(ana, 'crm-ana')
   })
   afterAll(() => m.fermer())
 
@@ -82,8 +82,8 @@ describe('la porte des agents', () => {
     it('refuse une signature fausse ou périmée, et un corps trop gros', async () => {
       expect(await agir('trouver', {}, { secret: `${SECRET}x` })).toMatchObject({ statut: 401, corps: { code: 'signature_invalide' } })
       expect(await agir('trouver', {}, { quand: m.maintenant() - 10 * 60_000 })).toMatchObject({ statut: 401 })
-      const gros = JSON.stringify({ id: 'essai-gros-1', au_nom_de: { sujet: 'silak-ana' }, operation: 'trouver', arguments: { texte: 'x'.repeat(600 * 1024) } })
-      const r = await m.appelerBrut('/api/outils/silak/agent', { method: 'POST', headers: { 'notak-signature': signer(SECRET, gros, m.maintenant()) }, body: gros })
+      const gros = JSON.stringify({ id: 'essai-gros-1', au_nom_de: { sujet: 'crm-ana' }, operation: 'trouver', arguments: { texte: 'x'.repeat(600 * 1024) } })
+      const r = await m.appelerBrut('/api/outils/crm/agent', { method: 'POST', headers: { 'notak-signature': signer(SECRET, gros, m.maintenant()) }, body: gros })
       expect(r.status).toBe(413)
     })
 
@@ -100,22 +100,22 @@ describe('la porte des agents', () => {
       const [a, b, c] = sourcesDe(
         JSON.stringify([
           {
-            source: 'silak',
-            nom: 'Silak',
+            source: 'crm',
+            nom: 'Comptoir',
             dossier: 'Clients',
-            origine: 'https://silak.fr',
+            origine: 'https://crm.exemple.fr',
             secret: SECRET,
             agents: true,
             agent: 'Fram',
-            fournisseur: 'silak-sso',
-            agentAdresse: 'https://api.silak.fr/hooks/notak/fram',
+            fournisseur: 'crm-sso',
+            agentAdresse: 'https://api.crm.exemple.fr/hooks/notak/fram',
           },
           { source: 'nu', nom: 'Nu', dossier: 'D', origine: 'https://nu.fr', agents: true },
           { source: 'clair', nom: 'Clair', dossier: 'D', origine: 'https://clair.fr', secret: SECRET, agents: true, agentAdresse: 'http://clair.fr/agent' },
         ]),
         (x) => void dits.push(x),
       )
-      expect(a).toMatchObject({ agents: true, agent: 'Fram', fournisseur: 'silak-sso', agentAdresse: 'https://api.silak.fr/hooks/notak/fram' })
+      expect(a).toMatchObject({ agents: true, agent: 'Fram', fournisseur: 'crm-sso', agentAdresse: 'https://api.crm.exemple.fr/hooks/notak/fram' })
       expect(b!.agents).toBeUndefined()
       expect(dits.some((x) => x.includes('demande un secret'))).toBe(true)
       // Une adresse de relais en clair est oubliée, et dite ; la porte reste ouverte.
@@ -174,7 +174,7 @@ describe('la porte des agents', () => {
       const r = await fait('creer_tableau', { titre: 'Devis', fiche: { cle: 'societe:7', titre: 'Boulangerie Martin' } })
       expect(r.dans).toMatchObject({ titre: 'Boulangerie Martin' })
       expect(await fait('trouver', { fiche: 'societe:7' })).toMatchObject({ fiche: { etat: 'present', tableau: r.dans.id, titre: 'Boulangerie Martin' } })
-      // Le dossier de la fiche est rangé dans celui de la source, comme depuis le bouton de Silak ; le tableau est dedans.
+      // Le dossier de la fiche est rangé dans celui de la source, comme depuis le bouton de Comptoir ; le tableau est dedans.
       expect(lu(r.dans.id).elements.some((e) => e.contenu.type === 'tableau' && e.contenu.cible === r.tableau.id)).toBe(true)
       const second = await fait('creer_tableau', { titre: 'Planning', fiche: { cle: 'societe:7', titre: 'Autre nom' } })
       expect(second.dans.id).toBe(r.dans.id)
@@ -575,8 +575,8 @@ describe('la porte des agents', () => {
         expect(fait2.acces).toMatchObject({ change: true, gagnent: 1 })
         expect(m.base.tableau(a)!.parent).toBe(commun)
         // Bob peut écrire dans le dossier, sans posséder le tableau d'Ana : il ne le range pas ailleurs.
-        lier(bob, 'silak-bob')
-        const parBob = await agir('deplacer', { tableau: a, vers: bob.utilisateur.racine }, { au_nom_de: { sujet: 'silak-bob' } })
+        lier(bob, 'crm-bob')
+        const parBob = await agir('deplacer', { tableau: a, vers: bob.utilisateur.racine }, { au_nom_de: { sujet: 'crm-bob' } })
         expect(parBob).toMatchObject({ statut: 403, corps: { code: 'interdit' } })
         // L'accueil ne se range nulle part.
         expect(await agir('deplacer', { tableau: ana.utilisateur.racine, vers: commun })).toMatchObject({ statut: 422, corps: { code: 'impossible' } })
@@ -585,11 +585,11 @@ describe('la porte des agents', () => {
 
     describe('la bibliothèque', () => {
       let dora: Compte
-      const pour = { au_nom_de: { sujet: 'silak-dora' } }
+      const pour = { au_nom_de: { sujet: 'crm-dora' } }
       const faitPourDora = (operation: string, args: unknown) => fait(operation, args, pour)
       beforeAll(async () => {
         dora = await m.compte('Dora')
-        lier(dora, 'silak-dora')
+        lier(dora, 'crm-dora')
       })
 
       it('trouver : toute la bibliothèque, chaque entrée avec ce qui la range, son adresse, favori et partage', async () => {
@@ -749,29 +749,29 @@ describe('la porte des agents, par la synchro comme en production', () => {
 
   it('écrit en direct dans le document ouvert, et l’activité dit « Ana avec Fram »', async () => {
     let corpsPage = ''
-    m = monde({ rattachements: [SILAK], synchro: () => serveur })
+    m = monde({ rattachements: [CRM], synchro: () => serveur })
     serveur = creerHocuspocus(m.base, m.auth, m.autorisation, m.maintenant)
     ana = await m.compte('Ana')
     const q = new Date().toISOString()
-    m.base.db.prepare('INSERT INTO account (id, accountId, providerId, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)').run('c-ana', 'silak-ana', 'silak', ana.utilisateur.id, q, q)
+    m.base.db.prepare('INSERT INTO account (id, accountId, providerId, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)').run('c-ana', 'crm-ana', 'crm', ana.utilisateur.id, q, q)
     expect((await m.appeler('/api/tableaux', { compte: ana, json: { id: 'direct-ana-1', titre: 'En direct' } })).status).toBe(201)
     // Quelqu'un a le tableau ouvert : il voit arriver la carte.
     const ouvert = await serveur.openDirectConnection(nomDuDocument('direct-ana-1'), {})
     const corps = JSON.stringify({
       id: 'essai-direct-0001',
-      au_nom_de: { sujet: 'silak-ana' },
+      au_nom_de: { sujet: 'crm-ana' },
       operation: 'ajouter_elements',
       arguments: { tableau: 'direct-ana-1', elements: [{ type: 'carte_mentale', central: 'Projet', branches: [{ titre: 'Étape 1' }] }, { type: 'note', texte: 'Bonjour' }] },
     })
-    const r = await m.appelerBrut('/api/outils/silak/agent', { method: 'POST', headers: { 'notak-signature': signer(SECRET, corps, m.maintenant()) }, body: corps })
+    const r = await m.appelerBrut('/api/outils/crm/agent', { method: 'POST', headers: { 'notak-signature': signer(SECRET, corps, m.maintenant()) }, body: corps })
     expect(r.status).toBe(200)
     const vus = [...ouvert.document!.getMap<{ contenu: { type: string } }>('elements').values()].map((e) => e.contenu.type).sort()
     expect(vus).toEqual(['arbre', 'note'])
     expect(ouvert.document!.getMap('arbres').size).toBe(2)
     // Une page ouverte en écriture (la présence le dit) ne se récrit pas ; refermée, si.
-    const page = await m.appelerBrut('/api/outils/silak/agent', {
+    const page = await m.appelerBrut('/api/outils/crm/agent', {
       method: 'POST',
-      headers: { 'notak-signature': signer(SECRET, (corpsPage = JSON.stringify({ id: 'essai-direct-0002', au_nom_de: { sujet: 'silak-ana' }, operation: 'ajouter_elements', arguments: { tableau: 'direct-ana-1', elements: [{ type: 'page', titre: 'Compte rendu', texte: 'Début' }] } })), m.maintenant()) },
+      headers: { 'notak-signature': signer(SECRET, (corpsPage = JSON.stringify({ id: 'essai-direct-0002', au_nom_de: { sujet: 'crm-ana' }, operation: 'ajouter_elements', arguments: { tableau: 'direct-ana-1', elements: [{ type: 'page', titre: 'Compte rendu', texte: 'Début' }] } })), m.maintenant()) },
       body: corpsPage,
     })
     const idPage = ((await page.json()) as Reponse).resultat!.crees[0].id as string
@@ -779,8 +779,8 @@ describe('la porte des agents, par la synchro comme en production', () => {
     const presence = ouvert.document!.awareness
     presence.setLocalState({ utilisateur: { id: 'u-bob', nom: 'Bob', couleur: '#000' }, edition: idPage })
     const changer = async (n: number) => {
-      const corps = JSON.stringify({ id: `essai-direct-01${n}`, au_nom_de: { sujet: 'silak-ana' }, operation: 'modifier_elements', arguments: { tableau: 'direct-ana-1', modifications: [{ id: idPage, ajouter_texte: 'Suite' }] } })
-      const r = await m.appelerBrut('/api/outils/silak/agent', { method: 'POST', headers: { 'notak-signature': signer(SECRET, corps, m.maintenant()) }, body: corps })
+      const corps = JSON.stringify({ id: `essai-direct-01${n}`, au_nom_de: { sujet: 'crm-ana' }, operation: 'modifier_elements', arguments: { tableau: 'direct-ana-1', modifications: [{ id: idPage, ajouter_texte: 'Suite' }] } })
+      const r = await m.appelerBrut('/api/outils/crm/agent', { method: 'POST', headers: { 'notak-signature': signer(SECRET, corps, m.maintenant()) }, body: corps })
       return { statut: r.status, corps: (await r.json()) as Reponse }
     }
     const refus = await changer(1)
@@ -802,12 +802,12 @@ describe('le relais de l’agent, avec ce que la personne lit vraiment', () => {
   let m: Monde
   let ana: Compte
   let bob: Compte
-  let silak: Server
+  let crm: Server
   const reponses: Record<string, unknown> = {}
   const recus: Record<string, any>[] = []
   beforeAll(async () => {
-    // Un faux Silak, sur un vrai port de cette machine : il garde ce qu'on lui relaie et répond selon le type.
-    silak = createServer((req, res) => {
+    // Un faux Comptoir, sur un vrai port de cette machine : il garde ce qu'on lui relaie et répond selon le type.
+    crm = createServer((req, res) => {
       let corps = ''
       req.on('data', (x) => (corps += x))
       req.on('end', () => {
@@ -817,22 +817,22 @@ describe('le relais de l’agent, avec ce que la personne lit vraiment', () => {
         res.end(JSON.stringify(reponses[lu.type] ?? {}))
       })
     })
-    await new Promise<void>((pret) => silak.listen(0, '127.0.0.1', pret))
-    const port = (silak.address() as AddressInfo).port
-    m = monde({ rattachements: [{ ...SILAK, agentAdresse: `http://127.0.0.1:${port}/hooks/notak/fram` }] })
+    await new Promise<void>((pret) => crm.listen(0, '127.0.0.1', pret))
+    const port = (crm.address() as AddressInfo).port
+    m = monde({ rattachements: [{ ...CRM, agentAdresse: `http://127.0.0.1:${port}/hooks/notak/fram` }] })
     ana = await m.compte('Ana')
     bob = await m.compte('Bob')
     const quand = new Date().toISOString()
-    m.base.db.prepare('INSERT INTO account (id, accountId, providerId, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)').run('c-ana', 'silak-ana', 'silak', ana.utilisateur.id, quand, quand)
+    m.base.db.prepare('INSERT INTO account (id, accountId, providerId, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)').run('c-ana', 'crm-ana', 'crm', ana.utilisateur.id, quand, quand)
   })
   afterAll(async () => {
     m.fermer()
-    silak.closeAllConnections()
-    await new Promise((fini) => silak.close(fini))
+    crm.closeAllConnections()
+    await new Promise((fini) => crm.close(fini))
   })
   const agir = async (operation: string, args: unknown, n: number) => {
-    const corps = JSON.stringify({ id: `essai-relais-${n}`, au_nom_de: { sujet: 'silak-ana' }, operation, arguments: args })
-    const r = await m.appelerBrut('/api/outils/silak/agent', { method: 'POST', headers: { 'notak-signature': signer(SECRET, corps, m.maintenant()) }, body: corps })
+    const corps = JSON.stringify({ id: `essai-relais-${n}`, au_nom_de: { sujet: 'crm-ana' }, operation, arguments: args })
+    const r = await m.appelerBrut('/api/outils/crm/agent', { method: 'POST', headers: { 'notak-signature': signer(SECRET, corps, m.maintenant()) }, body: corps })
     return ((await r.json()) as Reponse).resultat!
   }
 
@@ -857,7 +857,7 @@ describe('le relais de l’agent, avec ce que la personne lit vraiment', () => {
       echec: null,
       cartes: [],
       crees: [
-        { type: 'page', titre: 'Titre de Silak', tableau: 'relais-ana-1', element: page, adresse: 'https://ailleurs.exemple/piege' },
+        { type: 'page', titre: 'Titre de Comptoir', tableau: 'relais-ana-1', element: page, adresse: 'https://ailleurs.exemple/piege' },
         { type: 'toile', titre: 'Secret', tableau: 'relais-bob-1' },
         { type: 'note', titre: 'Absente', tableau: 'relais-ana-1', element: 'nexistepas01' },
         { type: 'toile', titre: 'Prism', tableau: 'relais-ana-1' },

@@ -50,7 +50,7 @@ Les sections suivantes décrivent tout, socle et suite, pour que le modèle de d
 - **Local d'abord.** → Notak : l'état vit dans un document CRDT sur la machine. Le serveur relaie et conserve, il
   n'arbitre pas. On écrit hors ligne comme en ligne.
 - **Une bibliothèque, plusieurs coques.** → Notak : la toile est un composant React (`@notak/tableau`) qui
-  vit dans l'application web, dans la coque de bureau (Tauri), sur iPhone, et dans Silak. Elle ne sait rien
+  vit dans l'application web, dans la coque de bureau (Tauri), sur iPhone, et dans l'outil d'un tiers. Elle ne sait rien
   de l'endroit où elle est posée : on lui donne un magasin, elle l'affiche.
 - **Tout geste est une commande.** → Notak : chaque action (créer, déplacer, colorer…) est une commande nommée,
   sérialisable, que l'interface, le serveur et un serveur MCP appellent de la même façon.
@@ -332,7 +332,7 @@ Cmd = Ctrl hors Mac.
 - **Un document Yjs par tableau.** Éléments dans une `Y.Map` par identifiant ; texte dans un `Y.XmlFragment` ;
   ordre des listes par indices fractionnaires.
 - **Protocole** : le protocole de synchronisation Yjs (vecteur d'état, puis mises à jour) sur WebSocket ; la
-  présence sur le protocole *awareness* de Yjs. Un client web futur (Silak) pourra se brancher tel quel.
+  présence sur le protocole *awareness* de Yjs. Un autre client web pourra se brancher tel quel.
 - **Serveur** : un canal de diffusion par tableau ; les mises à jour sont ajoutées à Postgres puis compactées
   régulièrement en un instantané. Plusieurs nœuds : `LISTEN/NOTIFY`.
 - **Hors ligne** : le document est persisté localement (IndexedDB dans le navigateur, `y-indexeddb`) ; à la reconnexion, les vecteurs d'état

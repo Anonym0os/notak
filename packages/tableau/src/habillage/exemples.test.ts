@@ -8,7 +8,7 @@ const fichiers = (import.meta as unknown as { glob(m: string, o: object): Record
 describe('les habillages d’exemple', () => {
   const noms = Object.keys(fichiers).map((chemin) => chemin.split('/').at(-1)!)
 
-  it('existent', () => expect(noms).toContain('silak.json'))
+  it('existent', () => expect(noms).toContain('ardoise.json'))
 
   for (const [chemin, texte] of Object.entries(fichiers))
     it(`${chemin.split('/').at(-1)} est un habillage valide, qui porte le nom de son fichier`, () => {

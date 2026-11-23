@@ -43,7 +43,7 @@ describe('lireHabillage', () => {
   })
 
   it('refuse un identifiant qui n’est pas sûr, ou celui de Notak', () => {
-    for (const id of ['Silak', 'a b', "x']{}", 'notak', '']) expect(refus({ ...base, id })?.champ).toBe('id')
+    for (const id of ['Comptoir', 'a b', "x']{}", 'notak', '']) expect(refus({ ...base, id })?.champ).toBe('id')
   })
 
   it('nomme la valeur mal formée', () => {

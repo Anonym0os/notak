@@ -1,46 +1,47 @@
 {
   "notak": "habillage",
   "version": 1,
-  "id": "silak",
-  "nom": "Silak",
-  "auteur": "Samy Agher",
+  "id": "ardoise",
+  "nom": "Ardoise",
+  "auteur": "Notak",
   "couleurs": {
     "clair": {
-      "fond": "#f5f2ee",
-      "point": "#d6d1cb",
+      "fond": "#eef1f4",
+      "point": "#cfd6de",
       "carte": "#ffffff",
-      "texte": "#1c1917",
-      "accent": "#356673",
-      "selection": "#1c1917"
+      "texte": "#18202a",
+      "accent": "#2f5d8a",
+      "selection": "#18202a"
     },
     "sombre": {
-      "fond": "#14110f",
-      "point": "#342f29",
-      "carte": "#24201c",
-      "texte": "#f5f2ee",
-      "accent": "#72a1af",
-      "selection": "#e9e4e0"
+      "fond": "#101419",
+      "point": "#2c343e",
+      "carte": "#1b222b",
+      "texte": "#e8edf2",
+      "accent": "#7fa8d1",
+      "selection": "#dfe6ee"
     }
   },
-  "rayons": { "carte": 10, "controle": 10, "panneau": 20 },
+  "rayons": { "carte": 6, "controle": 6, "panneau": 14 },
   "polices": {
-    "texte": ["Inter Variable", "system-ui", "sans-serif"],
-    "titre": ["Familjen Grotesk", "Inter Variable", "sans-serif"],
-    "code": ["Fragment Mono", "ui-monospace", "monospace"]
+    "texte": ["IBM Plex Sans", "system-ui", "sans-serif"],
+    "titre": ["IBM Plex Sans", "system-ui", "sans-serif"],
+    "code": ["IBM Plex Mono", "ui-monospace", "monospace"]
   },
   "fontes": [
-    { "famille": "Familjen Grotesk", "source": "https://cdn.jsdelivr.net/fontsource/fonts/familjen-grotesk:vf@latest/latin-wght-normal.woff2", "graisse": "400 700" },
-    { "famille": "Fragment Mono", "source": "https://cdn.jsdelivr.net/fontsource/fonts/fragment-mono@latest/latin-400-normal.woff2", "graisse": "400" }
+    { "famille": "IBM Plex Sans", "source": "https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-sans@latest/latin-400-normal.woff2", "graisse": "400" },
+    { "famille": "IBM Plex Sans", "source": "https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-sans@latest/latin-600-normal.woff2", "graisse": "600" },
+    { "famille": "IBM Plex Mono", "source": "https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-mono@latest/latin-400-normal.woff2", "graisse": "400" }
   ],
   "pitch": {
-    "fond": "#001a22",
-    "texte": "#eaf8fc",
-    "surbrillance": "#d8a173",
-    "police": ["Inter Variable", "sans-serif"],
-    "policeTitre": ["Familjen Grotesk", "Inter Variable", "sans-serif"],
+    "fond": "#0d1a26",
+    "texte": "#e8f0f7",
+    "surbrillance": "#e0b45c",
+    "police": ["IBM Plex Sans", "sans-serif"],
+    "policeTitre": ["IBM Plex Sans", "sans-serif"],
     "graisseTitre": 600
   },
   "carte": {
-    "palette": ["#356673", "#8a4f1c", "#528391", "#d8a173", "#1a4956", "#645d55"]
+    "palette": ["#2f5d8a", "#8a3f2f", "#4f7f5a", "#e0b45c", "#1f3b57", "#5d6670"]
   }
 }

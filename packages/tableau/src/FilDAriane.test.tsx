@@ -25,7 +25,7 @@ afterEach(() => {
 
 const CHEMIN: Niveau[] = [
   { id: 'R', titre: 'Accueil', genre: 'accueil' },
-  { id: 'S', titre: 'Silak', genre: 'dossier' },
+  { id: 'S', titre: 'Atlas', genre: 'dossier' },
   { id: 'C', titre: 'Clients', genre: 'dossier' },
   { id: 'P', titre: 'Projet', genre: 'toile' },
 ]
@@ -42,7 +42,7 @@ const noms = () => segments().map((b) => b.textContent)
 describe('le fil d’Ariane', () => {
   it('chaque niveau porte l’icône de ce qu’il est devant son nom, et y mène d’un clic', () => {
     const aller = rendre()
-    expect(noms()).toEqual(['Accueil', 'Silak', 'Clients', 'Projet'])
+    expect(noms()).toEqual(['Accueil', 'Atlas', 'Clients', 'Projet'])
     expect(segments().map((b) => b.dataset.genre)).toEqual(['accueil', 'dossier', 'dossier', 'toile'])
     // L'accueil, la tuile à la maison de la bibliothèque ; les autres, leur icône.
     expect(segments()[0]!.querySelector('.notak-fil-accueil svg')).not.toBeNull()
@@ -70,9 +70,9 @@ describe('le fil d’Ariane', () => {
   })
 
   it('tant qu’il tient, le chemin est entier ; sinon les niveaux du milieu passent dans « … », l’accueil et les derniers restent', () => {
-    // Accueil 104, Silak 89, Clients 104, Projet 96, Maquette 111 : 504 px en tout.
+    // Accueil 104, Atlas 89, Clients 104, Projet 96, Maquette 111 : 504 px en tout.
     rendre({ place: 520 })
-    expect(noms()).toEqual(['Accueil', 'Silak', 'Clients', 'Projet'])
+    expect(noms()).toEqual(['Accueil', 'Atlas', 'Clients', 'Projet'])
     expect(hote.querySelector('.notak-fil-suspension')).toBeNull()
 
     rendre({ place: 400 })
@@ -91,7 +91,7 @@ describe('le fil d’Ariane', () => {
     act(() => points.click())
     expect(points.getAttribute('aria-expanded')).toBe('true')
     const lignes = [...hote.querySelectorAll<HTMLButtonElement>('.notak-fil-menu .notak-e')]
-    expect(lignes.map((l) => l.querySelector('.notak-e-libelle')!.textContent)).toEqual(['Silak', 'Clients'])
+    expect(lignes.map((l) => l.querySelector('.notak-e-libelle')!.textContent)).toEqual(['Atlas', 'Clients'])
     expect(lignes.every((l) => l.querySelector('.notak-e-icone svg'))).toBe(true)
     // Le menu prend le clavier.
     expect(document.activeElement).toBe(lignes[0])
@@ -126,7 +126,7 @@ describe('le fil d’Ariane', () => {
     // Le chemin seul : 104 + 89 + 104 + 96 = 393 px ; avec l'endroit où l'on est, il ne tiendrait pas.
     rendre({ titreDessous: true, place: 400 })
     expect(hote.querySelector('nav')!.classList.contains('notak-fil-dessous')).toBe(true)
-    expect(noms()).toEqual(['Accueil', 'Silak', 'Clients', 'Projet'])
+    expect(noms()).toEqual(['Accueil', 'Atlas', 'Clients', 'Projet'])
     expect(hote.querySelector('.notak-fil-titre')!.textContent).toBe('Maquette')
     rendre({ titreDessous: true, place: 300 })
     expect(noms()).toEqual(['Accueil', '', 'Projet'])

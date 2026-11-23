@@ -26,9 +26,9 @@ type AccesGeneral = { prive: boolean; herite: boolean; espace: { nom: string; pe
 const json = async <T>(r: Response | Promise<Response>): Promise<T> => (await (await r).json()) as T
 const auth = (chemin: string, compte: Compte, corps: unknown) => m.appeler(`/api/auth${chemin}`, { compte, json: corps })
 
-/** L'espace d'équipe « Silak » d'Ana, où Bob et Cléo sont membres. */
-async function silak(): Promise<EspaceLu> {
-  const { id } = await json<{ id: string }>(auth('/organization/create', ana, { name: 'Silak', slug: 'silak' }))
+/** L'espace d'équipe « Comptoir » d'Ana, où Bob et Cléo sont membres. */
+async function crm(): Promise<EspaceLu> {
+  const { id } = await json<{ id: string }>(auth('/organization/create', ana, { name: 'Comptoir', slug: 'crm' }))
   for (const c of [bob, cleo]) {
     const inv = await json<{ id: string }>(auth('/organization/invite-member', ana, { email: c.utilisateur.email, role: 'member', organizationId: id }))
     await auth('/organization/accept-invitation', c, { invitationId: inv.id })
@@ -50,7 +50,7 @@ const statut = async (c: Compte, chemin: string) => (await m.appeler(chemin, { c
 const rendrePrive = (c: Compte, id: string, prive: boolean) => m.appeler(`/api/tableaux/${id}/prive`, { compte: c, methode: 'PUT', json: { prive } })
 const partager = (c: Compte, id: string, email: string) => m.appeler(`/api/tableaux/${id}/partage`, { compte: c, json: { email, role: 'lecture' } })
 
-/** La compta, sous l'accueil de Silak, dont la carte y est posée ; les salaires dessous, et une page dedans. */
+/** La compta, sous l'accueil de Comptoir, dont la carte y est posée ; les salaires dessous, et une page dedans. */
 async function compta(e: EspaceLu) {
   m.tableau(ana, 'compta', 'Compta 2026', undefined, e.racine)
   m.tableau(ana, 'salaires', 'Salaires', undefined, 'compta')
@@ -67,13 +67,13 @@ async function compta(e: EspaceLu) {
 
 describe('une toile privée', () => {
   it('ne s’ouvre plus par l’espace, ni ce qu’elle contient ; ses invités et son propriétaire l’ouvrent', async () => {
-    const e = await silak()
+    const e = await crm()
     await compta(e)
     expect(await statut(bob, '/api/tableaux/compta/acces')).toBe(200)
 
     const r = await rendrePrive(ana, 'compta', true)
     expect(r.status).toBe(200)
-    expect(await r.json()).toEqual({ prive: true, herite: false, espace: { nom: 'Silak', personnel: false }, accueil: false, modifiable: true })
+    expect(await r.json()).toEqual({ prive: true, herite: false, espace: { nom: 'Comptoir', personnel: false }, accueil: false, modifiable: true })
     expect(await statut(bob, '/api/tableaux/compta/acces')).toBe(404)
     expect(await statut(bob, '/api/tableaux/salaires/acces')).toBe(404)
     expect(await statut(bob, '/api/tableaux/compta/prive')).toBe(404)
@@ -90,7 +90,7 @@ describe('une toile privée', () => {
   })
 
   it('la liste de qui a accès dit le rôle donné tel quel, et à part ce que l’espace y ajoute tant qu’elle n’est pas privée', async () => {
-    const e = await silak()
+    const e = await crm()
     await compta(e)
     await partager(ana, 'compta', cleo.utilisateur.email)
     type Ligne = { nom: string; role: string; parEspace?: string; herite: boolean }
@@ -104,13 +104,13 @@ describe('une toile privée', () => {
   })
 
   it('ce qu’elle contient l’est comme elle, et ne se rouvre que là-haut', async () => {
-    const e = await silak()
+    const e = await crm()
     await compta(e)
     await rendrePrive(ana, 'compta', true)
     expect(await json<AccesGeneral>(m.appeler('/api/tableaux/salaires/prive', { compte: ana }))).toEqual({
       prive: true,
       herite: true,
-      espace: { nom: 'Silak', personnel: false },
+      espace: { nom: 'Comptoir', personnel: false },
       accueil: false,
       modifiable: false,
     })
@@ -123,7 +123,7 @@ describe('une toile privée', () => {
   })
 
   it('n’a pas de second cran à l’accueil, ni dans un espace personnel ; seul son propriétaire le change', async () => {
-    const e = await silak()
+    const e = await crm()
     await compta(e)
     expect((await json<{ code: string }>(rendrePrive(ana, e.racine, true))).code).toBe('accueil_pas_prive')
     expect(await json(m.appeler(`/api/tableaux/${e.racine}/prive`, { compte: ana }))).toMatchObject({ prive: false, accueil: true, modifiable: false })
@@ -136,7 +136,7 @@ describe('une toile privée', () => {
   })
 
   it('n’apparaît ni dans la bibliothèque, ni dans les récents, ni dans la recherche, ni dans les notifications des autres', async () => {
-    const e = await silak()
+    const e = await crm()
     await compta(e)
     await m.appeler('/api/tableaux/compta/vu', { compte: bob, json: {} })
     m.base.noterNotification({ destinataire: bob.utilisateur.id, genre: 'commentaire', tableau: 'compta', element: 'bilan', auteur: ana.utilisateur.id, extrait: 'Relis le bilan', instant: 5000 })
@@ -163,7 +163,7 @@ describe('une toile privée', () => {
   })
 
   it('sa carte, et celle de ce qu’elle contient, oublient le titre qu’une carte d’avant gardait ; un raccourci garde le sien', async () => {
-    const e = await silak()
+    const e = await crm()
     await compta(e)
     ecrire(e.racine, (doc) => {
       poser(doc, { type: 'tableau', cible: 'compta', raccourci: true, titre: 'Mes comptes' }, { id: 'raccourci-compta' })
@@ -181,7 +181,7 @@ describe('une toile privée', () => {
   })
 
   it('sa carte sur la toile parente se tait : la toile ne la montre pas, ni l’activité, ni le lien d’un visiteur', async () => {
-    const e = await silak()
+    const e = await crm()
     await compta(e)
     m.base.noterActivite({ tableau: e.racine, auteur: ana.utilisateur.id, genre: 'cree', element: 'carte-compta', typeElement: 'tableau', libelle: 'Compta 2026', instant: 1000 }, 0)
     m.base.noterActivite({ tableau: e.racine, auteur: ana.utilisateur.id, genre: 'cree', element: 'accueil-note', typeElement: 'note', libelle: 'Bienvenue', instant: 1001 }, 0)
@@ -204,14 +204,14 @@ describe('une toile privée', () => {
 
 describe('les personnes à qui proposer un tableau', () => {
   it('les membres de son espace, par leur nom sans accents ou leur adresse, avec leur photo et l’accès qu’ils ont déjà', async () => {
-    const e = await silak()
+    const e = await crm()
     await compta(e)
     await rendrePrive(ana, 'compta', true)
     m.base.reglerCompte(cleo.utilisateur.id, { couleur: '#3366ff' })
     type Personne = { id: string; nom: string; email: string; couleur: string; photo: string | null; espace: string; invite: boolean; acces: string | null }
     const personnes = (q: string) => json<Personne[]>(m.appeler(`/api/tableaux/compta/personnes?q=${encodeURIComponent(q)}`, { compte: ana }))
     expect(await personnes('cle')).toEqual([
-      { id: cleo.utilisateur.id, nom: 'Cléo', email: cleo.utilisateur.email, couleur: '#3366ff', photo: null, espace: 'Silak', invite: false, acces: null },
+      { id: cleo.utilisateur.id, nom: 'Cléo', email: cleo.utilisateur.email, couleur: '#3366ff', photo: null, espace: 'Comptoir', invite: false, acces: null },
     ])
     expect((await personnes('BOB@')).map((p) => p.nom)).toEqual(['Bob'])
     // Sans rien de tapé : tout l'espace, par ordre alphabétique, sans soi.
@@ -225,11 +225,11 @@ describe('les personnes à qui proposer un tableau', () => {
   })
 
   it('pour un tableau d’un espace personnel, les membres des espaces d’équipe du compte', async () => {
-    await silak()
+    await crm()
     m.tableau(ana, 'perso', 'À moi')
     const r = await json<{ nom: string; espace: string }[]>(m.appeler('/api/tableaux/perso/personnes?q=', { compte: ana }))
-    expect(r).toEqual([expect.objectContaining({ nom: 'Bob', espace: 'Silak' }), expect.objectContaining({ nom: 'Cléo', espace: 'Silak' })])
-    // Bob, membre de Silak, y trouve Ana et Cléo pour le sien.
+    expect(r).toEqual([expect.objectContaining({ nom: 'Bob', espace: 'Comptoir' }), expect.objectContaining({ nom: 'Cléo', espace: 'Comptoir' })])
+    // Bob, membre de Comptoir, y trouve Ana et Cléo pour le sien.
     m.tableau(bob, 'a-bob', 'À Bob')
     expect(await json(m.appeler('/api/tableaux/a-bob/personnes?q=', { compte: bob }))).toEqual([
       expect.objectContaining({ nom: 'Ana' }),

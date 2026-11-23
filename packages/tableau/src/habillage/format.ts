@@ -4,7 +4,7 @@
  * clair ou sombre, qui reste un réglage à part.
  *
  * ```json
- * { "notak": "habillage", "version": 1, "id": "silak", "nom": "Silak",
+ * { "notak": "habillage", "version": 1, "id": "ardoise", "nom": "Ardoise",
  *   "couleurs": { "clair": { "fond": "#f5f2ee", … }, "sombre": { … } },
  *   "rayons": { "carte": 10, "controle": 10, "panneau": 20 },
  *   "polices": { "texte": ["Inter", "system-ui"], "titre": [ … ], "code": [ … ] },

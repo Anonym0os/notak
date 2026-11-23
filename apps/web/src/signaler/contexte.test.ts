@@ -5,7 +5,7 @@ import { erreursRecentes, noterErreur } from './journal'
 const touche = (o: Partial<KeyboardEvent>) => ({ code: 'KeyS', metaKey: false, ctrlKey: false, shiftKey: false, altKey: false, ...o })
 
 describe('le raccourci de signalement', () => {
-  it('⇧⌘S sur Mac, comme dans Silak ; Ctrl+Maj+S ailleurs', () => {
+  it('⇧⌘S sur Mac, le raccourci du signalement ; Ctrl+Maj+S ailleurs', () => {
     expect(estLeRaccourci(touche({ metaKey: true, shiftKey: true }), true)).toBe(true)
     expect(estLeRaccourci(touche({ ctrlKey: true, shiftKey: true }), false)).toBe(true)
     expect(estLeRaccourci(touche({ metaKey: true, altKey: true }), true)).toBe(false)

@@ -60,7 +60,7 @@ fil des changements ; `bun run nouvelle-version x.y.z` en fait la section de la 
 - **Un fichier rouvert, une notification ou un lien mènent bien où ils disent**, même depuis une toile déjà ouverte :
   l'adresse changeait sans que la toile suive. Un lien vers un dossier l'ouvre dans la bibliothèque, un lien vers une
   note la montre sur sa toile, et les liens de Notak qu'écrit l'agent s'ouvrent dans Notak, sur le web comme dans l'app.
-- **On parle à l'agent d'un outil relié (Fram, pour Silak) dans une bulle**, en bas à droite de la bibliothèque, d'un
+- **On parle à l'agent d'un outil relié (« Fram », par exemple) dans une bulle**, en bas à droite de la bibliothèque, d'un
   dossier, d'une toile, d'une page ou d'une carte ouverte en grand. Sa conversation vous suit d'un écran à l'autre, et
   son panneau reste ouvert pendant que vous choisissez sur la toile ce dont vous parlez. Un anneau tourne pendant qu'il
   travaille, une pastille dit qu'il a répondu. Au téléphone, la conversation monte en feuille du bas. Le bouton de la

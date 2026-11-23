@@ -71,6 +71,6 @@ describe('ce qui part de soi-même à la corbeille', () => {
   })
 
   it('ni ce qu’on nous partage, ni un favori, ni le dossier qu’un outil a généré', () => {
-    expect(jetees([toile({ partage: true }), toile({ favori: true }), toile({ outil: 'Silak' }), toile({ fiche: { nom: 'Silak' } })])).toEqual([])
+    expect(jetees([toile({ partage: true }), toile({ favori: true }), toile({ outil: 'Comptoir' }), toile({ fiche: { nom: 'Comptoir' } })])).toEqual([])
   })
 })

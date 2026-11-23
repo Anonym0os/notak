@@ -29,7 +29,7 @@ export interface Contexte {
 }
 
 /**
- * ⇧⌘S (Ctrl+Maj+S hors Mac), le raccourci de Silak, lu sur la lettre que porte la touche (`lettreDe`), capitale ou non,
+ * ⇧⌘S (Ctrl+Maj+S hors Mac), le raccourci du signalement, lu sur la lettre que porte la touche (`lettreDe`), capitale ou non,
  * sur toute disposition. Le barré du texte, qui le prenait aussi, reste sur ⇧⌘X.
  */
 export function estLeRaccourci(

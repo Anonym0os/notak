@@ -14,7 +14,7 @@ let dossier: string
 beforeAll(() => {
   dossier = mkdtempSync(join(tmpdir(), 'notak-instance-'))
   mkdirSync(join(dossier, 'habillages'))
-  writeFileSync(join(dossier, 'habillages', 'silak.json'), habillage('silak', 'Silak'))
+  writeFileSync(join(dossier, 'habillages', 'crm.json'), habillage('crm', 'Comptoir'))
   writeFileSync(join(dossier, 'habillages', 'abime.json'), '{ "notak": "habillage", "version": 1, "id": "x;}", "nom": "X" }')
   writeFileSync(join(dossier, 'habillages', 'notes.txt'), 'pas un thème')
 })
@@ -27,9 +27,9 @@ describe('l’instance que décrit l’environnement', () => {
 
   it('lit le nom, les inscriptions et les thèmes du dossier ; un fichier refusé est signalé, sans arrêter', () => {
     const signales: string[] = []
-    const i = instanceDe({ NOTAK_NOM: 'Silak', NOTAK_INSCRIPTIONS: 'fermees', NOTAK_HABILLAGE: 'silak' }, dossier, (m) => signales.push(m))
-    expect(i).toMatchObject({ nom: 'Silak', inscriptions: 'fermees', impose: 'silak' })
-    expect(i.habillages.map((h) => h.id)).toEqual(['silak'])
+    const i = instanceDe({ NOTAK_NOM: 'Comptoir', NOTAK_INSCRIPTIONS: 'fermees', NOTAK_HABILLAGE: 'crm' }, dossier, (m) => signales.push(m))
+    expect(i).toMatchObject({ nom: 'Comptoir', inscriptions: 'fermees', impose: 'crm' })
+    expect(i.habillages.map((h) => h.id)).toEqual(['crm'])
     expect(signales).toEqual(['Notak : habillage abime.json refusé (valeur : id)'])
   })
 
@@ -59,7 +59,7 @@ describe('une instance aux inscriptions fermées', () => {
   let serveur: ServeurDemarre
   let origine: string
   beforeAll(async () => {
-    serveur = await demarrer({ port: 0, dossier: join(dossier, 'donnees'), secret: 'un-secret-d-essai-assez-long-pour-better-auth', openfga: openfgaEssai(), instance: instanceDe({ NOTAK_NOM: 'Silak', NOTAK_INSCRIPTIONS: 'fermees', NOTAK_HABILLAGE_DEFAUT: 'silak' }, dossier, () => {}) })
+    serveur = await demarrer({ port: 0, dossier: join(dossier, 'donnees'), secret: 'un-secret-d-essai-assez-long-pour-better-auth', openfga: openfgaEssai(), instance: instanceDe({ NOTAK_NOM: 'Comptoir', NOTAK_INSCRIPTIONS: 'fermees', NOTAK_HABILLAGE_DEFAUT: 'crm' }, dossier, () => {}) })
     origine = `http://localhost:${serveur.port}`
   })
   afterAll(() => serveur.fermer())
@@ -68,8 +68,8 @@ describe('une instance aux inscriptions fermées', () => {
     const r = await fetch(`${origine}/api/instance`)
     expect(r.status).toBe(200)
     const i = (await r.json()) as { nom: string; inscriptions: string; parDefaut: string; habillages: { id: string; rayons: object }[] }
-    expect(i).toMatchObject({ nom: 'Silak', inscriptions: 'fermees', parDefaut: 'silak' })
-    expect(i.habillages).toEqual([{ id: 'silak', nom: 'Silak', rayons: { panneau: 20 } }])
+    expect(i).toMatchObject({ nom: 'Comptoir', inscriptions: 'fermees', parDefaut: 'crm' })
+    expect(i.habillages).toEqual([{ id: 'crm', nom: 'Comptoir', rayons: { panneau: 20 } }])
   })
 
   it('refuse une inscription avec un code stable', async () => {

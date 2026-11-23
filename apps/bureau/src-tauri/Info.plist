@@ -8,7 +8,7 @@
   <!-- Rien d'autre que le HTTPS du système : TestFlight et l'App Store ne demandent pas le questionnaire d'export à chaque build. -->
   <key>ITSAppUsesNonExemptEncryption</key>
   <false/>
-  <!-- Le schéma notak : un lien notak://<serveur>/<chemin> cliqué ailleurs (une fiche de Silak) ouvre sa page dans
+  <!-- Le schéma notak : un lien notak://<serveur>/<chemin> cliqué ailleurs (la fiche d'un outil relié) ouvre sa page dans
        Notak, si Notak est relié à ce serveur (src/lien.rs). -->
   <key>CFBundleURLTypes</key>
   <array>

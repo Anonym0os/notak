@@ -76,10 +76,10 @@ describe('le choix du thème', () => {
   })
 
   it('un thème imposé par le serveur ne se change pas', () => {
-    monter({ fournis: [lireHabillage({ ...nuit, id: 'silak', nom: 'Silak' })], impose: 'silak' })
-    expect(choix()).toEqual(['Notak', 'Silak ✓'])
+    monter({ fournis: [lireHabillage({ ...nuit, id: 'crm', nom: 'Comptoir' })], impose: 'crm' })
+    expect(choix()).toEqual(['Notak', 'Comptoir ✓'])
     expect([...hote.querySelectorAll<HTMLButtonElement>('[aria-label="Thème"] button')].every((b) => b.disabled)).toBe(true)
-    expect(hote.textContent).toContain('Ce serveur impose le thème « Silak ».')
+    expect(hote.textContent).toContain('Ce serveur impose le thème « Comptoir ».')
     expect(hote.querySelector('input[type="file"]')).toBeNull()
   })
 })

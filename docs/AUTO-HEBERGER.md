@@ -448,8 +448,8 @@ Déposez le fichier dans le dossier des thèmes (le serveur le crée au démarra
 le thème d'exemple du dépôt :
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/Anonym0os/notak/main/exemples/habillages/silak.json
-docker compose cp silak.json notak:/donnees/habillages/silak.json
+curl -fsSLO https://raw.githubusercontent.com/Anonym0os/notak/main/exemples/habillages/ardoise.json
+docker compose cp ardoise.json notak:/donnees/habillages/ardoise.json
 docker compose restart notak
 ```
 

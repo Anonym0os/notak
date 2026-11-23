@@ -26,7 +26,7 @@ describe('les liens de Notak restent dans l’application', () => {
   })
 
   it('laisse au navigateur un autre site, une page publiée, l’API et ce qui n’est pas une page', () => {
-    expect(cheminDansLApp('https://silak.exemple.fr/t/voyage')).toBeNull()
+    expect(cheminDansLApp('https://crm.exemple.fr/t/voyage')).toBeNull()
     expect(cheminDansLApp(`${location.origin}/p/jeton`)).toBeNull()
     expect(cheminDansLApp(`${location.origin}/api/tableaux`)).toBeNull()
     expect(cheminDansLApp(`${location.origin}/t/a/b/c`)).toBeNull()
@@ -55,7 +55,7 @@ describe('les liens de Notak restent dans l’application', () => {
     expect(e.defaultPrevented).toBe(true)
     expect(location.pathname).toBe('/t/voyage')
     // Un autre site : le clic est au navigateur.
-    expect(suivreAdresse(clic(), 'https://silak.exemple.fr/societes/42')).toBe(false)
+    expect(suivreAdresse(clic(), 'https://crm.exemple.fr/societes/42')).toBe(false)
   })
 
   it('un élément porte son entrée d’historique, que le refermer défait ; déjà là, il se remontre', () => {

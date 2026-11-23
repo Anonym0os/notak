@@ -55,7 +55,7 @@ export function sansGeneres(p: Paquet | null, generes: Generes): { paquet: Paque
 }
 
 /**
- * L'avis, le même que celui de la bibliothèque : « « Clients » est généré par Silak : il reste tel quel. », ou combien
+ * L'avis, le même que celui de la bibliothèque : « « Clients » est généré par Comptoir : il reste tel quel. », ou combien
  * d'un même outil. Vide s'il n'y en a pas.
  */
 export function avisGeneres(dossiers: readonly Id[], generes: Generes, titreDe: (toile: Id) => string | undefined): string {

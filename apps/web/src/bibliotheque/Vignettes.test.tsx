@@ -113,7 +113,7 @@ describe('la vignette d’une photo', () => {
     const toile: ResumeContenu = {
       genre: 'toile',
       element: '',
-      titre: 'Silak',
+      titre: 'Comptoir',
       boites: [
         [0, 0, 20, 30, '', 'image', 0, 'f-1'],
         [24, 0, 20, 30, '', 'image', 0],

@@ -8,7 +8,7 @@ export const ECART_MIN_MS = 1_500
 
 /**
  * Un serveur ne prévient de rien : ce qu'un autre outil, un autre appareil ou une autre personne y range (le dossier
- * d'une fiche de Silak, la toile d'un collègue) n'arrive que si l'on relit. La page se relit donc d'elle-même :
+ * de la fiche d'un outil relié, la toile d'un collègue) n'arrive que si l'on relit. La page se relit donc d'elle-même :
  * - en revenant sur elle (l'onglet repris, l'app revenue au premier plan, la fenêtre de nouveau active) ;
  * - toutes les quinze secondes tant qu'on la regarde, et jamais cachée ;
  * - dans l'app, à ⌘R (Ctrl+R, F5), comme le navigateur le fait de toute la page.

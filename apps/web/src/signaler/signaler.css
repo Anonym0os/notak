@@ -237,7 +237,7 @@
   height: 45px;
   object-fit: cover;
 }
-/* Dans le coin de sa vignette, comme dans Silak : on sait laquelle elle retire, et elle ne mord pas sur la voisine. */
+/* Dans le coin de sa vignette, comme ailleurs : on sait laquelle elle retire, et elle ne mord pas sur la voisine. */
 .notak-signaler-vignette-retirer {
   position: absolute;
   top: 2px;

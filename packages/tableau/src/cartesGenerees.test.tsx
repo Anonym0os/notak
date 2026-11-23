@@ -52,14 +52,14 @@ const touche = (cible: globalThis.Element, key: string, o: KeyboardEventInit = {
 
 const carte = (id: string, cible: string, x: number): Element => ({ id, x, y: 0, largeur: 10, contenu: { type: 'tableau', cible } })
 
-/** L'accueil : la carte de « Clients », que Silak a généré, celle d'une autre toile, et une note. */
+/** L'accueil : la carte de « Clients », que Comptoir a généré, celle d'une autre toile, et une note. */
 async function accueil() {
   const note = nouvelleNote(0, 30, 'Une idée')
   const magasin: Magasin = creerMagasin({ titre: 'Accueil', etiquettes: [], elements: [carte('c-clients', 'clients', 0), carte('c-projets', 'projets', 40), note] })
   const deposes: { cible: string; ids: string[] }[] = []
   const titres: Record<string, string> = { clients: 'Clients', projets: 'Projets' }
   const services: Services = {
-    droits: { role: 'proprietaire', elements: {}, generes: { clients: 'Silak' } },
+    droits: { role: 'proprietaire', elements: {}, generes: { clients: 'Comptoir' } },
     tableau: (id) => ({ titre: titres[id] ?? '', elements: [] }) as Tableau,
     deposerDans: (cible, elements) => {
       deposes.push({ cible, ids: elements.map((e) => e.id) })
@@ -81,7 +81,7 @@ async function accueil() {
   return { magasin, services, deposes, note, noeud, choisir, element, avis, toile: hote.querySelector<HTMLElement>('.notak-toile')! }
 }
 
-const AVIS = '« Clients » est généré par Silak : il reste tel quel.'
+const AVIS = '« Clients » est généré par Comptoir : il reste tel quel.'
 
 describe('la carte d’un dossier généré, sur la toile qui la porte', () => {
   it('ne part pas à la corbeille ; choisie avec une note, la note y va seule, et l’avis le dit', async () => {

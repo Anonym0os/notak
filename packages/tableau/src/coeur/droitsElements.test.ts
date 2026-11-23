@@ -169,7 +169,7 @@ describe('la carte d’un dossier généré par un outil', () => {
     const garde = () => {
       const m = creerMagasin(depart())
       const refus: string[][] = []
-      return { m, g: garderLesGeneres(m, () => ({ clients: 'Silak' }), (d) => void refus.push(d)), refus }
+      return { m, g: garderLesGeneres(m, () => ({ clients: 'Comptoir' }), (d) => void refus.push(d)), refus }
     }
     const c1 = () => depart().elements[0]!
 

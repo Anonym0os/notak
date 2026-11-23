@@ -95,7 +95,7 @@ describe('ranger sous une toile privée, ou l’en sortir', () => {
     cleo = await m.compte('Cléo')
     dan = await m.compte('Dan')
     // L'espace d'équipe d'Ana : Bob et Cléo y sont membres, Dan invité (il ne voit que ce qu'on lui partage).
-    const { id } = await json<{ id: string }>(auth('/organization/create', ana, { name: 'Silak', slug: 'silak' }))
+    const { id } = await json<{ id: string }>(auth('/organization/create', ana, { name: 'Comptoir', slug: 'crm' }))
     for (const [c, role] of [
       [bob, 'member'],
       [cleo, 'member'],

@@ -36,7 +36,7 @@ function useOuJEcris(ici: Ici | null, espace: EspaceNavigable): string {
 }
 
 /**
- * La bulle de l'agent (Fram, pour Silak) : un bouton rond dans le coin bas droit, sur chaque vue où l'on peut lui
+ * La bulle de l'agent (« Fram », par exemple) : un bouton rond dans le coin bas droit, sur chaque vue où l'on peut lui
  * écrire (la bibliothèque, un dossier, une toile, une page ou une carte ouverte en grand), et sa conversation, une seule
  * par personne, qui la suit d'une vue à l'autre. Montée une fois au-dessus des pages, elle garde le fil et le tour en
  * cours quand l'agent mène la personne ailleurs.

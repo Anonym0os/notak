@@ -234,7 +234,7 @@ const LSREGISTER = '/System/Library/Frameworks/CoreServices.framework/Frameworks
 
 /**
  * La copie de l'app que la construction laisse : le système la retient, et c'est à elle qu'il confie ensuite les liens
- * `notak://`, à la place de l'app que TestFlight a installée (vu le 05/11/2026 : un lien de Silak lançait la copie du
+ * `notak://`, à la place de l'app que TestFlight a installée (vu le 05/11/2026 : le lien d'un outil relié lançait la copie du
  * dossier du runner). Seul le paquet part chez Apple : la copie est oubliée du système, puis effacée une fois le paquet
  * fait.
  */

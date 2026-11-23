@@ -155,7 +155,7 @@
 
 /* En édition, le contour se resserre de 2 px (en 0,1 s) : il passe du dehors au dedans du bord, on voit qu'on écrit dedans.
    Rentré de 2 px, son arrondi en perd autant : son bord extérieur épouse encore l'arrondi de la carte (celui d'un
-   habillage, 10 px chez Silak), au lieu de s'en écarter aux coins. Les cartes qui ont un filet ont toutes cet arrondi. */
+   habillage, 6 px dans l'exemple Ardoise), au lieu de s'en écarter aux coins. Les cartes qui ont un filet ont toutes cet arrondi. */
 .notak-carte[data-edition]:not([data-sans-fond], [data-type='tableau']) {
   box-shadow: none;
 }

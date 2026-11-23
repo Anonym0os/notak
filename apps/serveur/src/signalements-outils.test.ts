@@ -6,16 +6,16 @@ import { type SourceRattachement, annoncerSignalement, signer, sourcesDe } from 
 import { A_TRAITER, TRAITES, decouperSignalement, markdownDuSignalement } from './signalements.ts'
 
 const SECRET = 'un-secret-partage-de-plus-de-trente-deux-caracteres'
-const SILAK: SourceRattachement = {
-  source: 'silak',
-  nom: 'Silak',
+const COMPTOIR: SourceRattachement = {
+  source: 'comptoir',
+  nom: 'Comptoir',
   dossier: 'Clients',
-  origine: 'https://app.silak.fr',
+  origine: 'https://comptoir.exemple.fr',
   secret: SECRET,
-  webhook: 'https://api.silak.fr/hooks/notak',
+  webhook: 'https://api.comptoir.exemple.fr/hooks/notak',
   signalements: true,
 }
-const CRM: SourceRattachement = { ...SILAK, source: 'crm', nom: 'Mon CRM' }
+const CRM: SourceRattachement = { ...COMPTOIR, source: 'crm', nom: 'Mon CRM' }
 delete (CRM as { signalements?: true }).signalements
 /** Un PNG d'un pixel. */
 const PIXEL = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
@@ -25,12 +25,12 @@ describe('le réglage : un outil qui reçoit les signalements', () => {
     const dits: string[] = []
     const [a, b] = sourcesDe(
       JSON.stringify([
-        { ...SILAK },
+        { ...COMPTOIR },
         { source: 'nu', nom: 'N', dossier: 'D', origine: 'https://a.fr', signalements: true },
       ]),
       (m) => void dits.push(m),
     )
-    expect(a).toEqual(SILAK)
+    expect(a).toEqual(COMPTOIR)
     expect(b).not.toHaveProperty('signalements')
     expect(dits).toEqual([expect.stringContaining('les signalements demandent un secret et un webhook')])
   })
@@ -40,17 +40,17 @@ describe('decouperSignalement', () => {
   const md = (texte: string, captures: number) =>
     markdownDuSignalement('2026-11-07_16h55m06-82f1', {
       texte,
-      contexte: '- Adresse : https://notak.silak.fr/?type=image\n- Navigateur : Notak de bureau (Tauri)',
+      contexte: '- Adresse : https://notak.exemple.fr/?type=image\n- Navigateur : Notak de bureau (Tauri)',
       captures: Array.from({ length: captures }, () => Buffer.from(PIXEL, 'base64')),
-      auteur: { nom: 'Samy Agher', email: 'samy@silak.fr' },
+      auteur: { nom: 'Samy Agher', email: 'samy@comptoir.exemple.fr' },
       quand: new Date(2026, 10, 7, 16, 55, 6),
     })
 
   it('rend les mots tels quels, le contexte à part, et qui a signalé', () => {
     const d = decouperSignalement(md('Il y en a que 3 qui apparaissent.\n\nEt mal.', 2))
     expect(d.texte).toBe('Il y en a que 3 qui apparaissent.\n\nEt mal.')
-    expect(d.contexte).toMatch(/^- Signalé par : Samy Agher <samy@silak\.fr>\n- Le : .*\n- Adresse : https:\/\/notak\.silak\.fr\/\?type=image\n- Navigateur : Notak de bureau \(Tauri\)$/)
-    expect(d.par).toEqual({ nom: 'Samy Agher', email: 'samy@silak.fr' })
+    expect(d.contexte).toMatch(/^- Signalé par : Samy Agher <samy@comptoir\.exemple\.fr>\n- Le : .*\n- Adresse : https:\/\/notak\.exemple\.fr\/\?type=image\n- Navigateur : Notak de bureau \(Tauri\)$/)
+    expect(d.par).toEqual({ nom: 'Samy Agher', email: 'samy@comptoir.exemple.fr' })
   })
 
   it('rend des mots vides quand la personne n’a rien écrit, avec ou sans capture', () => {
@@ -64,7 +64,7 @@ describe('les signalements, annoncés à l’outil puis relus et classés', () =
   let ana: Compte
   let compteur = 0
   const dossier = () => join(m.dossier, 'signalements')
-  const demander = async (corps: Record<string, unknown>, source = 'silak') => {
+  const demander = async (corps: Record<string, unknown>, source = 'comptoir') => {
     const texte = JSON.stringify({ id: `demande-sig-${++compteur}`, ...corps })
     const r = await m.appelerBrut(`/api/outils/${source}`, {
       method: 'POST',
@@ -80,7 +80,7 @@ describe('les signalements, annoncés à l’outil puis relus et classés', () =
       .map((e) => ({ source: e.source, ...(JSON.parse(e.charge) as Record<string, unknown>) }))
 
   beforeAll(async () => {
-    m = monde({ rattachements: [SILAK, CRM], signalements: true })
+    m = monde({ rattachements: [COMPTOIR, CRM], signalements: true })
     ana = await m.compte('Ana')
   })
   afterAll(() => m.fermer())
@@ -89,7 +89,7 @@ describe('les signalements, annoncés à l’outil puis relus et classés', () =
     const r = await m.appeler('/api/signalements', { compte: ana, json: { texte: 'Le filtre Photos en oublie six', contexte: '- Version : abc1234', captures: [PIXEL, PIXEL] } })
     expect(r.status).toBe(201)
     const { id } = (await r.json()) as { id: string }
-    expect(annonces()).toEqual([{ source: 'silak', id: `signalement:${id}`, type: 'signalement.depose', cle: `signalement:${id}`, quand: expect.any(Number), par: 'Ana' }])
+    expect(annonces()).toEqual([{ source: 'comptoir', id: `signalement:${id}`, type: 'signalement.depose', cle: `signalement:${id}`, quand: expect.any(Number), par: 'Ana' }])
 
     // Relu : les mots, le contexte, qui, et les captures dans l'ordre.
     const lu = await demander({ action: 'lire_signalement', cle: `signalement:${id}` })
@@ -108,7 +108,7 @@ describe('les signalements, annoncés à l’outil puis relus et classés', () =
     expect(await demander(classement)).toEqual({ statut: 200, corps: { etat: 'traite' } })
     expect(existsSync(join(dossier(), A_TRAITER, id))).toBe(false)
     const md = readFileSync(join(dossier(), TRAITES, id, 'signalement.md'), 'utf8')
-    expect(md.trimEnd().endsWith('- Ticket Silak : 01a1913f-252d-76f6-a253-27e2bfd69505')).toBe(true)
+    expect(md.trimEnd().endsWith('- Ticket Comptoir : 01a1913f-252d-76f6-a253-27e2bfd69505')).toBe(true)
     expect(await demander({ ...classement, id: 'classer-une-autre-fois' })).toEqual({ statut: 200, corps: { etat: 'traite' } })
     expect(readFileSync(join(dossier(), TRAITES, id, 'signalement.md'), 'utf8')).toBe(md)
     expect((await demander({ action: 'lire_signalement', cle: `signalement:${id}` })).corps).toMatchObject({ etat: 'traite', texte: 'Le filtre Photos en oublie six' })
@@ -131,11 +131,11 @@ describe('les signalements, annoncés à l’outil puis relus et classés', () =
 
 describe('une annonce répétée', () => {
   it('n’entre qu’une fois dans la file, comme au redémarrage d’un serveur dont le signalement attend encore', async () => {
-    const m = monde({ rattachements: [SILAK], signalements: true })
+    const m = monde({ rattachements: [COMPTOIR], signalements: true })
     try {
-      annoncerSignalement(m.base, [SILAK], '2026-11-05_10h40m16-3d44', m.maintenant(), null)
-      annoncerSignalement(m.base, [SILAK], '2026-11-05_10h40m16-3d44', m.maintenant(), null)
-      expect(m.base.envoisAFaire(Number.MAX_SAFE_INTEGER, 50).map((e) => e.id)).toEqual(['silak:signalement:2026-11-05_10h40m16-3d44'])
+      annoncerSignalement(m.base, [COMPTOIR], '2026-11-05_10h40m16-3d44', m.maintenant(), null)
+      annoncerSignalement(m.base, [COMPTOIR], '2026-11-05_10h40m16-3d44', m.maintenant(), null)
+      expect(m.base.envoisAFaire(Number.MAX_SAFE_INTEGER, 50).map((e) => e.id)).toEqual(['comptoir:signalement:2026-11-05_10h40m16-3d44'])
     } finally {
       m.fermer()
     }

@@ -1,5 +1,5 @@
 // Le contrat de la porte des agents (`POST /api/outils/:source/agent`, docs/AGENTS.md) : les opérations qu'un agent
-// d'un outil rattaché (Fram, l'assistant de Silak) peut demander, et le schéma JSON des arguments de chacune. C'est la
+// d'un outil rattaché (son assistant) peut demander, et le schéma JSON des arguments de chacune. C'est la
 // seule source de vérité : la porte valide chaque demande contre ces schémas, et `docs/agents.schemas.json` en est tiré
 // (`node scripts/schemas-agents.ts`), pour que l'outil les recopie tels quels dans les outils de son modèle.
 // Ce fichier n'importe rien à l'exécution : le serveur le lit sous Node, sans bundler.

@@ -263,7 +263,7 @@ export const SaisieBlocs = Extension.create({
         basculer(this.editor)
         return true
       },
-      // ⇧⌘S signale un bug, partout dans l'app (comme dans Silak) : le barré reste sur ⇧⌘X.
+      // ⇧⌘S signale un bug, partout dans l'app (le raccourci du signalement) : le barré reste sur ⇧⌘X.
       'Mod-Shift-x': () => this.editor.commands.toggleStrike(),
     }
   },

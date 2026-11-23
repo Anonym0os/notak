@@ -55,7 +55,7 @@ describe('ce que pose la porte, tel que l’app le lit', () => {
   })
 
   it('une page : des blocs à plat que le moteur des pages accepte, chacun avec un id qu’il garde', () => {
-    const md = '# Titre\n## Sous-titre\n### Encore\nUn **gras**, un _italique_, un ~~barré~~, [un lien](https://a.fr), `du code` et www.silak.fr.\n- un\n  - deux\n  Un texte sous la puce\n1. premier\n- [ ] à faire\n- [x] fait\n> citation\n> suite\n---\n```js\nbloc\n```'
+    const md = '# Titre\n## Sous-titre\n### Encore\nUn **gras**, un _italique_, un ~~barré~~, [un lien](https://a.fr), `du code` et www.crm.exemple.fr.\n- un\n  - deux\n  Un texte sous la puce\n1. premier\n- [ ] à faire\n- [x] fait\n> citation\n> suite\n---\n```js\nbloc\n```'
     const doc = docDePage(md)
     const n = NoeudPM.fromJSON(SCHEMA_BLOCS, doc)
     expect(() => n.check()).not.toThrow()

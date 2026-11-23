@@ -94,18 +94,18 @@ describe('les groupes de thèmes', () => {
 })
 
 describe('les thèmes de couleur des habillages', () => {
-  const silak = lireHabillage({ notak: 'habillage', version: 1, id: 'silak', nom: 'Silak', carte: { palette: ['#356673', '#d8a173', '#3fc168'], fond: '#f5f2ee' } })
+  const crm = lireHabillage({ notak: 'habillage', version: 1, id: 'crm', nom: 'Comptoir', carte: { palette: ['#356673', '#d8a173', '#3fc168'], fond: '#f5f2ee' } })
   const sans = lireHabillage({ notak: 'habillage', version: 1, id: 'nuit', nom: 'Nuit' })
 
   it('passent devant ceux de Notak, parmi les thèmes de couleur ; un habillage sans palette n’en donne pas', () => {
-    const groupes = groupesThemes([], [silak, sans])
-    expect(groupes[0]).toMatchObject({ id: 'perso:habillage-silak', nom: 'Silak', categorie: 'colore', habillage: true })
+    const groupes = groupesThemes([], [crm, sans])
+    expect(groupes[0]).toMatchObject({ id: 'perso:habillage-crm', nom: 'Comptoir', categorie: 'colore', habillage: true })
     expect(groupes[0]!.palette).toHaveLength(6)
     expect(groupes.filter((g) => g.habillage)).toHaveLength(1)
   })
 
   it('emportent leur palette et leur fond dans la carte', () => {
-    const choix = choixDe(groupesThemes([], [silak])[0]!, undefined)
-    expect(choix.perso).toEqual({ nom: 'Silak', palette: ['#356673', '#d8a173', '#3fc168', '#356673', '#d8a173', '#3fc168'], fond: '#f5f2ee' })
+    const choix = choixDe(groupesThemes([], [crm])[0]!, undefined)
+    expect(choix.perso).toEqual({ nom: 'Comptoir', palette: ['#356673', '#d8a173', '#3fc168', '#356673', '#d8a173', '#3fc168'], fond: '#f5f2ee' })
   })
 })

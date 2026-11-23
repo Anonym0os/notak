@@ -86,19 +86,19 @@ describe('GET /api/tableaux/:id/chemin', () => {
 
   it('une toile d’un espace d’équipe part de son accueil ; une toile privée où l’on n’est pas invité n’y paraît pas', async () => {
     const auth = (route: string, compte: Compte, corps: unknown) => m.appeler(`/api/auth${route}`, { compte, json: corps })
-    const { id } = await json<{ id: string }>(auth('/organization/create', ana, { name: 'Silak', slug: 'silak' }))
+    const { id } = await json<{ id: string }>(auth('/organization/create', ana, { name: 'Comptoir', slug: 'crm' }))
     for (const c of [bob, cleo]) {
       const inv = await json<{ id: string }>(auth('/organization/invite-member', ana, { email: c.utilisateur.email, role: 'member', organizationId: id }))
       await auth('/organization/accept-invitation', c, { invitationId: inv.id })
     }
-    const silak = (await json<EspaceLu[]>(m.appeler('/api/espaces', { compte: ana }))).find((e) => e.id === id)!
-    m.tableau(ana, 'compta', 'Compta 2026', undefined, silak.racine)
+    const crm = (await json<EspaceLu[]>(m.appeler('/api/espaces', { compte: ana }))).find((e) => e.id === id)!
+    m.tableau(ana, 'compta', 'Compta 2026', undefined, crm.racine)
     m.tableau(ana, 'salaires', 'Salaires', undefined, 'compta')
-    cartes(silak.racine, 'compta')
+    cartes(crm.racine, 'compta')
     cartes('compta', 'salaires')
     ecrire('salaires', () => {})
     expect(await chemin(bob, 'salaires')).toEqual([
-      { id: silak.racine, titre: expect.any(String) },
+      { id: crm.racine, titre: expect.any(String) },
       { id: 'compta', titre: 'Compta 2026' },
     ])
     // Rendue privée, la compta ne s'ouvre qu'à ses invités : Cléo, invitée aux salaires seuls, ne la voit pas nommée.
@@ -106,6 +106,6 @@ describe('GET /api/tableaux/:id/chemin', () => {
     expect((await m.appeler('/api/tableaux/salaires/partage', { compte: ana, json: { email: cleo.utilisateur.email, role: 'lecture' } })).status).toBe(200)
     expect(await chemin(cleo, 'salaires')).toEqual([])
     expect(await chemin(bob, 'salaires')).toBe(404)
-    expect(((await chemin(ana, 'salaires')) as Niveau[]).map((n) => n.id)).toEqual([silak.racine, 'compta'])
+    expect(((await chemin(ana, 'salaires')) as Niveau[]).map((n) => n.id)).toEqual([crm.racine, 'compta'])
   })
 })

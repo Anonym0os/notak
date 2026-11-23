@@ -258,19 +258,19 @@ describe('les dossiers', () => {
 
   it('ceux qu’un outil a générés se reconnaissent, et l’arbre de la colonne le nomme', () => {
     const GENERES = [
-      { ...dossier('clients', 'accueil', 'Clients'), outil: 'Silak' },
-      { ...dossier('dupont', 'clients', 'Dupont'), outil: 'Silak', fiche: { nom: 'Silak' } },
+      { ...dossier('clients', 'accueil', 'Clients'), outil: 'Comptoir' },
+      { ...dossier('dupont', 'clients', 'Dupont'), outil: 'Comptoir', fiche: { nom: 'Comptoir' } },
       dossier('mien', 'clients', 'À moi'),
       // Ce que porte la toile d'un dossier généré, lui, se change et se range où l'on veut.
-      { ...entree({ tableau: 'dupont', element: 'devis', genre: 'document', dans: 'dupont' }), outil: 'Silak' },
+      { ...entree({ tableau: 'dupont', element: 'devis', genre: 'document', dans: 'dupont' }), outil: 'Comptoir' },
     ]
     expect(GENERES.map(genere)).toEqual([true, true, false, false])
     const [clients] = arbreDesDossiers(GENERES, 'accueil')
     expect([clients!.outil, clients!.enfants.map((n) => [n.titre, n.outil])]).toEqual([
-      'Silak',
+      'Comptoir',
       [
         ['À moi', undefined],
-        ['Dupont', 'Silak'],
+        ['Dupont', 'Comptoir'],
       ],
     ])
   })

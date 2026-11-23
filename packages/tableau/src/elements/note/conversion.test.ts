@@ -71,7 +71,7 @@ describe('HTML collé', () => {
 
 describe('normaliserUrl', () => {
   it('ajoute https quand il manque et laisse les protocoles', () => {
-    expect(normaliserUrl(' silak.fr ')).toBe('https://silak.fr')
+    expect(normaliserUrl(' crm.exemple.fr ')).toBe('https://crm.exemple.fr')
     expect(normaliserUrl('mailto:a@b.fr')).toBe('mailto:a@b.fr')
     expect(normaliserUrl('http://x.fr')).toBe('http://x.fr')
     expect(normaliserUrl('  ')).toBe('')

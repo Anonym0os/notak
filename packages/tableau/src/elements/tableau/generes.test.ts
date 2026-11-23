@@ -7,11 +7,11 @@ const carte = (id: string, cible: string, extra: object = {}, contenu: object = 
   ({ id, x: 0, y: 0, largeur: 10, contenu: { type: 'tableau', cible, ...contenu }, ...extra }) as unknown as Element
 const note = (id: string, extra: object = {}) => ({ id, x: 0, y: 0, largeur: 200, contenu: { type: 'note', texte: { type: 'doc', content: [] } }, ...extra }) as unknown as Element
 const colonne = (id: string) => ({ id, x: 0, y: 0, largeur: 20, contenu: { type: 'colonne', titre: 'C' } }) as unknown as Element
-const GENERES = { clients: 'Silak', dupont: 'Silak' }
+const GENERES = { clients: 'Comptoir', dupont: 'Comptoir' }
 
 describe('les cartes des dossiers générés, sur la toile qui les porte', () => {
   it('se reconnaissent à leur toile ; pas un raccourci, ni une autre carte, ni sans ce que dit le serveur', () => {
-    expect(outilDe(carte('c', 'clients'), GENERES)).toBe('Silak')
+    expect(outilDe(carte('c', 'clients'), GENERES)).toBe('Comptoir')
     expect(outilDe(carte('r', 'clients', {}, { raccourci: true }), GENERES)).toBeUndefined()
     expect(outilDe(carte('a', 'autre'), GENERES)).toBeUndefined()
     expect(outilDe(note('n'), GENERES)).toBeUndefined()
@@ -37,10 +37,10 @@ describe('les cartes des dossiers générés, sur la toile qui les porte', () =>
 
   it('l’avis est celui de la bibliothèque, à la suite du geste fait', () => {
     const titre = (id: string) => ({ clients: 'Clients' })[id]
-    expect(avisGeneres(['clients'], GENERES, titre)).toBe('« Clients » est généré par Silak : il reste tel quel.')
-    expect(avisGeneres(['clients', 'dupont'], GENERES, titre)).toBe('2 dossiers générés par Silak restent tels quels.')
+    expect(avisGeneres(['clients'], GENERES, titre)).toBe('« Clients » est généré par Comptoir : il reste tel quel.')
+    expect(avisGeneres(['clients', 'dupont'], GENERES, titre)).toBe('2 dossiers générés par Comptoir restent tels quels.')
     expect(avisGeneres([], GENERES, titre)).toBe('')
-    expect(avecAvis('Mis à la corbeille', avisGeneres(['clients'], GENERES, titre))).toBe('Mis à la corbeille. « Clients » est généré par Silak : il reste tel quel.')
-    expect(avecAvis('', avisGeneres(['clients'], GENERES, titre))).toBe('« Clients » est généré par Silak : il reste tel quel.')
+    expect(avecAvis('Mis à la corbeille', avisGeneres(['clients'], GENERES, titre))).toBe('Mis à la corbeille. « Clients » est généré par Comptoir : il reste tel quel.')
+    expect(avecAvis('', avisGeneres(['clients'], GENERES, titre))).toBe('« Clients » est généré par Comptoir : il reste tel quel.')
   })
 })

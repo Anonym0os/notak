@@ -60,13 +60,13 @@ describe('les thèmes du mode Pitch', () => {
 })
 
 describe('le thème du Pitch d’un habillage', () => {
-  const silak = lireHabillage({ notak: 'habillage', version: 1, id: 'silak', nom: 'Silak', pitch: { fond: '#000c12', texte: '#eaf8fc', surbrillance: '#d8a173', policeTitre: ['Familjen Grotesk', 'sans-serif'] } })
+  const crm = lireHabillage({ notak: 'habillage', version: 1, id: 'crm', nom: 'Comptoir', pitch: { fond: '#000c12', texte: '#eaf8fc', surbrillance: '#d8a173', policeTitre: ['Familjen Grotesk', 'sans-serif'] } })
 
   it('s’écrit dans la carte avec ses valeurs, et se relit en thème', () => {
-    const reglage = reglagePitchDe({ ...silak, pitch: silak.pitch! })
-    expect(reglage).toEqual({ theme: THEME_PITCH_PERSO, perso: { ...silak.pitch, id: 'silak', nom: 'Silak' } })
+    const reglage = reglagePitchDe({ ...crm, pitch: crm.pitch! })
+    expect(reglage).toEqual({ theme: THEME_PITCH_PERSO, perso: { ...crm.pitch, id: 'crm', nom: 'Comptoir' } })
     const th = themeDuPitch(reglage)
-    expect([th.id, th.nom, th.fond, th.texte, th.surbrillance]).toEqual(['perso', 'Silak', '#000c12', '#eaf8fc', '#d8a173'])
+    expect([th.id, th.nom, th.fond, th.texte, th.surbrillance]).toEqual(['perso', 'Comptoir', '#000c12', '#eaf8fc', '#d8a173'])
     expect(th.policeTitre).toBe('"Familjen Grotesk", sans-serif')
     // Sans police de texte, il garde celle du sombre ; sans formes, celles par défaut.
     expect(th.police).toBe(themePitchDe('default').police)

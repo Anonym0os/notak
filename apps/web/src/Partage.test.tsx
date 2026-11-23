@@ -5,9 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { type Moi, type PersonneProposee, etatVerrou, poserMotDePasse } from './api'
 import { Partage, PartageEnFenetre } from './Partage'
 
-const CLEO: PersonneProposee = { id: 'cleo', nom: 'Cléo', email: 'cleo@x.fr', couleur: '#3366ff', photo: null, espace: 'Silak', invite: false, acces: null }
+const CLEO: PersonneProposee = { id: 'cleo', nom: 'Cléo', email: 'cleo@x.fr', couleur: '#3366ff', photo: null, espace: 'Comptoir', invite: false, acces: null }
 const faux = vi.hoisted(() => {
-  const ouverte = { prive: false, herite: false, espace: { nom: 'Silak', personnel: false }, accueil: false, modifiable: true }
+  const ouverte = { prive: false, herite: false, espace: { nom: 'Comptoir', personnel: false }, accueil: false, modifiable: true }
   const proprietaire = { utilisateur: 'moi', email: 'moi@x.fr', role: 'proprietaire', enAttente: false }
   return {
     proposerPersonnes: vi.fn(async (_tableau: string, _q: string): Promise<unknown[]> => []),
@@ -103,10 +103,10 @@ describe('PartageEnFenetre', () => {
   })
 
   it('le mot de passe d’un dossier généré par un outil reste tel quel : ses gestes éteints, l’avis dit pourquoi', async () => {
-    vi.mocked(etatVerrou).mockResolvedValueOnce({ protege: true, verrouille: false, par: null, genere: { outil: 'Silak', titre: 'Clients' } })
+    vi.mocked(etatVerrou).mockResolvedValueOnce({ protege: true, verrouille: false, par: null, genere: { outil: 'Comptoir', titre: 'Clients' } })
     await act(async () => racine.render(<PartageEnFenetre tableau="t" moi={MOI} fermer={() => {}} protection />))
     const bloc = [...hote.querySelectorAll('.partage-lien')].find((b) => b.querySelector('input[type="password"]'))!
-    expect(bloc.textContent).toContain('« Clients » est généré par Silak : il reste tel quel.')
+    expect(bloc.textContent).toContain('« Clients » est généré par Comptoir : il reste tel quel.')
     const champ = bloc.querySelector<HTMLInputElement>('input[type="password"]')!
     const boutons = [...bloc.querySelectorAll('button')]
     expect(champ.disabled).toBe(true)
@@ -148,7 +148,7 @@ describe('inviter quelqu’un de l’entreprise', () => {
     await taper(champ, 'clé')
     expect(faux.proposerPersonnes).toHaveBeenLastCalledWith('t', 'clé')
     const options = boite.querySelectorAll('[role="option"]')
-    expect([...options].map((o) => o.textContent)).toEqual(['CCléocleo@x.fr · Silak'])
+    expect([...options].map((o) => o.textContent)).toEqual(['CCléocleo@x.fr · Comptoir'])
     expect(champ.getAttribute('aria-expanded')).toBe('true')
 
     await touche(champ, 'Enter')
@@ -198,16 +198,16 @@ describe('l’accès général', () => {
 
   it('a deux crans, comme Notion : le propriétaire rend la toile privée, et la note le dit', async () => {
     const boite = await ouvrir(() => {})
-    expect([...choix(boite).options].map((o) => o.textContent)).toEqual(['Seulement les personnes invitées', 'Tout l’espace Silak'])
+    expect([...choix(boite).options].map((o) => o.textContent)).toEqual(['Seulement les personnes invitées', 'Tout l’espace Comptoir'])
     expect(choix(boite).value).toBe('espace')
-    expect(note(boite)).toBe('Chaque membre de Silak l’ouvre, selon son rôle dans l’espace.')
+    expect(note(boite)).toBe('Chaque membre de Comptoir l’ouvre, selon son rôle dans l’espace.')
     await act(async () => {
       choix(boite).value = 'prive'
       choix(boite).dispatchEvent(new Event('change', { bubbles: true }))
     })
     expect(faux.reglerAccesGeneral).toHaveBeenCalledWith('t', true)
     expect(choix(boite).value).toBe('prive')
-    expect(note(boite)).toBe('Privée : les autres membres de Silak ne la voient nulle part, ni elle ni ce qu’elle contient.')
+    expect(note(boite)).toBe('Privée : les autres membres de Comptoir ne la voient nulle part, ni elle ni ce qu’elle contient.')
   })
 
   it('se lit seulement quand on ne peut pas le changer : privée par la toile au-dessus, ou dans un espace personnel', async () => {
@@ -228,7 +228,7 @@ describe('l’accès général', () => {
     let boite = await ouvrir(() => {})
     const bouton = () => boite.querySelector<HTMLButtonElement>('.partage-pied button')!
     expect(bouton().textContent).toBe('Copier le lien')
-    expect(boite.querySelector('.partage-pied small')!.textContent).toContain('Il ouvre la toile aux membres de Silak et aux personnes invitées')
+    expect(boite.querySelector('.partage-pied small')!.textContent).toContain('Il ouvre la toile aux membres de Comptoir et aux personnes invitées')
     await act(async () => bouton().click())
     expect(ecrire).toHaveBeenLastCalledWith(`${location.origin}/t/t`)
     expect(bouton().textContent).toBe('Lien copié')

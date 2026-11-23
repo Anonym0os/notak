@@ -3273,7 +3273,7 @@ export function creerApp(ctx: Contexte): Hono {
     // changent jamais, on les garde un an. Le reste (`sw.js`, `demarrage.js`, le manifeste, les icônes) se revérifie à
     // chaque fois, sauf consigne déjà posée (la page et ses aperçus disent la leur) : sans consigne, WebKit garde un
     // fichier à l'estime, et la page d'avant un déploiement réclame des fichiers qui n'existent plus. Vu dans l'app
-    // d'iPhone : l'écran de chargement figé, puis « notak.silak.fr n'a pas répondu ».
+    // d'iPhone : l'écran de chargement figé, puis « <serveur> n'a pas répondu ».
     app.use('*', async (c, suite) => {
       await suite()
       if (c.res.status !== 200 && c.res.status !== 304) return

@@ -23,7 +23,7 @@ describe('ecritIci', () => {
     expect(ecritIci(poser('<input type="range">'))).toBe(false)
     expect(ecritIci(poser('<button>Partager</button>'))).toBe(false)
     expect(ecritIci(poser('<div contenteditable="false"><p>lu</p></div>').querySelector('p'))).toBe(false)
-    expect(ecritIci(poser('<nav><span>Silak</span></nav>').querySelector('span'))).toBe(false)
+    expect(ecritIci(poser('<nav><span>Comptoir</span></nav>').querySelector('span'))).toBe(false)
     expect(ecritIci(null)).toBe(false)
   })
 })
@@ -46,7 +46,7 @@ describe('brancherMenuNatif', () => {
 
   it('hors de ce qu’on écrit, le menu du système ne paraît pas', () => {
     debrancher = brancherMenuNatif(window, { inspecter: false })
-    const barre = poser('<header><nav><button>Silak</button></nav></header>')
+    const barre = poser('<header><nav><button>Comptoir</button></nav></header>')
     expect(clicDroit(barre.querySelector('button')!).defaultPrevented).toBe(true)
     expect(clicDroit(barre).defaultPrevented).toBe(true)
   })

@@ -38,13 +38,13 @@ const renvoi = (id: string, cible: string, x: number): ElementToile => ({ id, x,
 
 /** Le monde du serveur : l'accueil porte les toiles, « Voyage au Japon » porte une carte et un document. */
 function monde(): Espace {
-  const tableaux: Espace['tableaux'] = { racine: { titre: 'Silak', elements: TOILES.map((_, i) => renvoi(`c${i}`, `t${i}`, i * 12)) } }
+  const tableaux: Espace['tableaux'] = { racine: { titre: 'Comptoir', elements: TOILES.map((_, i) => renvoi(`c${i}`, `t${i}`, i * 12)) } }
   TOILES.forEach((titre, i) => (tableaux[`t${i}`] = { titre, elements: [] }))
   return { racine: 'racine', tableaux }
 }
 
 function entreesServeur(): EntreeBibliotheque[] {
-  const commun = { favori: false, partage: false, ou: 'Silak', dans: 'racine' }
+  const commun = { favori: false, partage: false, ou: 'Comptoir', dans: 'racine' }
   const boites = (n: number): BoitePlan[] =>
     Array.from({ length: 3 + (n % 5) }, (_, i): BoitePlan => [i * 24, (i % 2) * 12, 20, 8 + (i % 3) * 4, ['jaune', 'bleu', 'vert', 'rose'][i % 4]!, i % 4 === 3 ? 'colonne' : 'note', 2])
   return [

@@ -234,7 +234,7 @@ describe('la page', () => {
     expect(hote.querySelector('[data-cle="voyage/"] .biblio-tuile-privee')).toBeNull()
   })
 
-  it('ce qu’on range ailleurs (le dossier d’une fiche de Silak, la toile d’un collègue) paraît au retour sur la page, sans la recharger', async () => {
+  it('ce qu’on range ailleurs (le dossier d’une fiche de Comptoir, la toile d’un collègue) paraît au retour sur la page, sans la recharger', async () => {
     let liste = TOUTES
     let lectures = 0
     let panne = false

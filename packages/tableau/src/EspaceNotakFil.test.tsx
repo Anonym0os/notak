@@ -87,8 +87,8 @@ describe('le fil d’une toile part de la racine de son espace', () => {
   })
 
   it('une toile d’un espace d’équipe part du nom de l’équipe, qui mène à la bibliothèque', () => {
-    const { bibliotheque, dossier } = rendre('u', { equipes: [{ racine: 'e', nom: 'Silak' }] })
-    expect(niveaux().map((b) => b.textContent)).toEqual(['Silak'])
+    const { bibliotheque, dossier } = rendre('u', { equipes: [{ racine: 'e', nom: 'Comptoir' }] })
+    expect(niveaux().map((b) => b.textContent)).toEqual(['Comptoir'])
     expect(hote.querySelector<HTMLInputElement>('.notak-entete .notak-fil-titre input')!.value).toBe('Projet de l’équipe')
     act(() => niveaux()[0]!.click())
     expect(bibliotheque).toHaveBeenCalledOnce()
@@ -144,8 +144,8 @@ describe('le fil d’une toile ouverte par son adresse (un lien, un rechargement
   })
 
   it('une toile d’un espace d’équipe part de son nom ; ce que l’hôte ne nomme pas (une toile qu’on ne lit pas) n’y est pas', async () => {
-    const equipe = await ouvrirParLAdresse('u', async () => [{ id: 'e', titre: 'Accueil de l’équipe' }, { id: 'c', titre: 'Compta' }], [{ racine: 'e', nom: 'Silak' }])
-    expect(niveaux().map((b) => b.textContent)).toEqual(['Silak', 'Compta'])
+    const equipe = await ouvrirParLAdresse('u', async () => [{ id: 'e', titre: 'Accueil de l’équipe' }, { id: 'c', titre: 'Compta' }], [{ racine: 'e', nom: 'Comptoir' }])
+    expect(niveaux().map((b) => b.textContent)).toEqual(['Comptoir', 'Compta'])
     act(() => racine.unmount())
     racine = createRoot(hote)
     equipe.detruire()

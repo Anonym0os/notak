@@ -111,7 +111,7 @@ ouvertes depuis le système se dit comme telle (`file_pleine`).
 
 ### Un lien `notak://`, cliqué ailleurs (macOS)
 
-Un lien cliqué dans un autre outil (l'onglet « Notak » d'une fiche de Silak) ouvre sa page dans l'app plutôt que dans le
+Un lien cliqué dans un autre outil (l'onglet « Notak » de la fiche d'un outil relié) ouvre sa page dans l'app plutôt que dans le
 navigateur : c'est l'adresse de la page, `notak:` à la place de `https:`. `Info.plist` déclare le schéma, le système
 remet le lien à la coque (`RunEvent::Opened`), et `src/lien.rs` le relit sans lui faire confiance, puisque n'importe
 quelle page web peut en ouvrir un :
