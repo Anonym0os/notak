@@ -149,12 +149,17 @@ describe('sur un serveur', () => {
       ['SPAN', 'Voyage'],
     ])
     expect(hote.querySelectorAll('.biblio-recent-quand')).toHaveLength(3)
-    // Toucher la ligne l'ouvre, son détail compris.
+    // Toucher la ligne l'ouvre, son détail compris : le doigt se pose, se relève (sans quoi l'appui long partirait, et
+    // avalerait le clic d'un essai suivant), puis le clic.
     const detail = hote.querySelector('[data-cle="voyage/"] .biblio-recent-ou')!
+    const doigt = (el: Element | Window, type: string) => {
+      const e = new MouseEvent(type, { bubbles: true, button: 0, clientX: 40, clientY: 40 })
+      Object.defineProperties(e, { pointerType: { value: 'touch' }, pointerId: { value: 1 } })
+      el.dispatchEvent(e)
+    }
     act(() => {
-      const appui = new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 40, clientY: 40 })
-      Object.defineProperties(appui, { pointerType: { value: 'touch' }, pointerId: { value: 1 } })
-      detail.dispatchEvent(appui)
+      doigt(detail, 'pointerdown')
+      doigt(window, 'pointerup')
       ;(detail as HTMLElement).click()
     })
     expect(location.pathname).toBe('/t/voyage')
