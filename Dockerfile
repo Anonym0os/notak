@@ -7,7 +7,7 @@
 
 # Les images de base, tenues à leur empreinte : une étiquette se déplace, et l'attestation de l'image dirait seulement
 # qui l'a construite, pas sur quoi. Dependabot (écosystème docker) propose les nouvelles empreintes.
-FROM --platform=$BUILDPLATFORM oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS construction
+FROM --platform=$BUILDPLATFORM oven/bun:1.4.5@sha256:3aa040e5445efa09d75bb428a64ba50db13e2b3ac9b6b0c7f145615f62b2ee18 AS construction
 WORKDIR /notak
 COPY package.json bun.lock ./
 COPY apps/web/package.json apps/web/
@@ -17,7 +17,7 @@ RUN bun install --frozen-lockfile
 COPY . .
 RUN cd apps/web && bun run build
 
-FROM oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS dependances
+FROM oven/bun:1.4.5@sha256:3aa040e5445efa09d75bb428a64ba50db13e2b3ac9b6b0c7f145615f62b2ee18 AS dependances
 WORKDIR /notak
 COPY package.json bun.lock ./
 COPY apps/web/package.json apps/web/
